@@ -1,7 +1,20 @@
-import { Home, Calendar, BarChart3, Settings, Users, CheckSquare } from "lucide-react";
+import { Home, Users, Settings, List, Calendar, GitBranch, Star, Archive, MessageSquare, CheckSquare, ChevronDown, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useState } from "react";
 
 export function Sidebar() {
+  const [expandedSections, setExpandedSections] = useState<string[]>(['dashboard', 'work-management', 'meeting']);
+
+  const toggleSection = (section: string) => {
+    setExpandedSections(prev => 
+      prev.includes(section)
+        ? prev.filter(s => s !== section)
+        : [...prev, section]
+    );
+  };
+
+  const isExpanded = (section: string) => expandedSections.includes(section);
+
   return (
     <div className="w-64 bg-card border-r border-border flex flex-col" data-testid="sidebar">
       {/* Logo/Header */}
@@ -15,59 +28,133 @@ export function Sidebar() {
       </div>
       
       {/* Navigation */}
-      <nav className="flex-1 p-4 space-y-2" data-testid="nav-menu">
-        <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
-          메뉴
-        </div>
-        
-        <Button 
-          variant="default" 
-          className="w-full justify-start space-x-3"
-          data-testid="link-home"
-        >
-          <Home className="h-4 w-4" />
-          <span>홈</span>
-        </Button>
-        
-        <Button 
-          variant="ghost" 
-          className="w-full justify-start space-x-3 text-muted-foreground hover:text-accent-foreground"
-          data-testid="link-calendar"
-        >
-          <Calendar className="h-4 w-4" />
-          <span>일정</span>
-        </Button>
-        
-        <Button 
-          variant="ghost" 
-          className="w-full justify-start space-x-3 text-muted-foreground hover:text-accent-foreground"
-          data-testid="link-list"
-        >
-          <BarChart3 className="h-4 w-4" />
-          <span>리스트</span>
-        </Button>
-        
-        <Button 
-          variant="ghost" 
-          className="w-full justify-start space-x-3 text-muted-foreground hover:text-accent-foreground"
-          data-testid="link-settings"
-        >
-          <Settings className="h-4 w-4" />
-          <span>설정</span>
-        </Button>
-        
-        <div className="pt-4">
-          <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
-            팀
-          </div>
+      <nav className="flex-1 p-4 space-y-1" data-testid="nav-menu">
+        {/* 대시보드 섹션 */}
+        <div>
           <Button 
             variant="ghost" 
-            className="w-full justify-start space-x-3 text-muted-foreground hover:text-accent-foreground"
-            data-testid="link-team"
+            className="w-full justify-between p-2 h-auto text-left"
+            onClick={() => toggleSection('dashboard')}
+            data-testid="button-dashboard-section"
           >
-            <Users className="h-4 w-4" />
-            <span>팀 관리</span>
+            <div className="flex items-center space-x-2">
+              <Home className="h-4 w-4" />
+              <span className="font-medium">대시보드</span>
+            </div>
+            {isExpanded('dashboard') ? 
+              <ChevronDown className="h-4 w-4" /> : 
+              <ChevronRight className="h-4 w-4" />
+            }
           </Button>
+          
+          {isExpanded('dashboard') && (
+            <div className="ml-6 mt-1 space-y-1">
+              <Button 
+                variant="ghost" 
+                className="w-full justify-start space-x-3 text-muted-foreground hover:text-accent-foreground h-8"
+                data-testid="link-team"
+              >
+                <Users className="h-4 w-4" />
+                <span>팀</span>
+              </Button>
+              <Button 
+                variant="ghost" 
+                className="w-full justify-start space-x-3 text-muted-foreground hover:text-accent-foreground h-8"
+                data-testid="link-admin"
+              >
+                <Settings className="h-4 w-4" />
+                <span>관리자</span>
+              </Button>
+            </div>
+          )}
+        </div>
+
+        {/* 작업관리 섹션 */}
+        <div className="pt-2">
+          <Button 
+            variant="ghost" 
+            className="w-full justify-between p-2 h-auto text-left"
+            onClick={() => toggleSection('work-management')}
+            data-testid="button-work-management-section"
+          >
+            <div className="flex items-center space-x-2">
+              <List className="h-4 w-4" />
+              <span className="font-medium">작업관리</span>
+            </div>
+            {isExpanded('work-management') ? 
+              <ChevronDown className="h-4 w-4" /> : 
+              <ChevronRight className="h-4 w-4" />
+            }
+          </Button>
+          
+          {isExpanded('work-management') && (
+            <div className="ml-6 mt-1 space-y-1">
+              <Button 
+                variant="default" 
+                className="w-full justify-start space-x-3 h-8"
+                data-testid="link-list"
+              >
+                <List className="h-4 w-4" />
+                <span>리스트</span>
+              </Button>
+              <Button 
+                variant="ghost" 
+                className="w-full justify-start space-x-3 text-muted-foreground hover:text-accent-foreground h-8"
+                data-testid="link-kanban"
+              >
+                <GitBranch className="h-4 w-4" />
+                <span>칸반</span>
+              </Button>
+              <Button 
+                variant="ghost" 
+                className="w-full justify-start space-x-3 text-muted-foreground hover:text-accent-foreground h-8"
+                data-testid="link-priority"
+              >
+                <Star className="h-4 w-4" />
+                <span>우선순위</span>
+              </Button>
+              <Button 
+                variant="ghost" 
+                className="w-full justify-start space-x-3 text-muted-foreground hover:text-accent-foreground h-8"
+                data-testid="link-backlog"
+              >
+                <Archive className="h-4 w-4" />
+                <span>백로그</span>
+              </Button>
+            </div>
+          )}
+        </div>
+
+        {/* 미팅 섹션 */}
+        <div className="pt-2">
+          <Button 
+            variant="ghost" 
+            className="w-full justify-between p-2 h-auto text-left"
+            onClick={() => toggleSection('meeting')}
+            data-testid="button-meeting-section"
+          >
+            <div className="flex items-center space-x-2">
+              <MessageSquare className="h-4 w-4" />
+              <span className="font-medium">미팅</span>
+            </div>
+            {isExpanded('meeting') ? 
+              <ChevronDown className="h-4 w-4" /> : 
+              <ChevronRight className="h-4 w-4" />
+            }
+          </Button>
+          
+          {isExpanded('meeting') && (
+            <div className="ml-6 mt-1 space-y-1">
+              <Button 
+                variant="ghost" 
+                className="w-full justify-start space-x-3 text-muted-foreground hover:text-accent-foreground h-8"
+                data-testid="link-meeting"
+              >
+                <Calendar className="h-4 w-4" />
+                <span>미팅</span>
+              </Button>
+            </div>
+          )}
         </div>
       </nav>
       
