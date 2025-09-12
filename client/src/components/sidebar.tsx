@@ -1,9 +1,11 @@
 import { Home, Users, Settings, List, Calendar, GitBranch, Star, Archive, MessageSquare, CheckSquare, ChevronDown, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
+import { Link, useLocation } from "wouter";
 
 export function Sidebar() {
   const [expandedSections, setExpandedSections] = useState<string[]>(['dashboard', 'work-management', 'meeting']);
+  const [location] = useLocation();
 
   const toggleSection = (section: string) => {
     setExpandedSections(prev => 
@@ -57,14 +59,16 @@ export function Sidebar() {
                 <Users className="h-4 w-4" />
                 <span>팀</span>
               </Button>
-              <Button 
-                variant="ghost" 
-                className="w-full justify-start space-x-3 text-muted-foreground hover:text-accent-foreground h-8"
-                data-testid="link-admin"
-              >
-                <Settings className="h-4 w-4" />
-                <span>관리자</span>
-              </Button>
+              <Link href="/admin">
+                <Button 
+                  variant={location === "/admin" ? "default" : "ghost"} 
+                  className="w-full justify-start space-x-3 text-muted-foreground hover:text-accent-foreground h-8"
+                  data-testid="link-admin"
+                >
+                  <Settings className="h-4 w-4" />
+                  <span>관리자</span>
+                </Button>
+              </Link>
             </div>
           )}
         </div>

@@ -152,7 +152,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // User routes
   app.get("/api/users", async (req, res) => {
     try {
-      const users = await storage.getAllUsers();
+      const users = await storage.getAllSafeUsers();
       res.json(users);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch users" });

@@ -82,11 +82,17 @@ export type TaskWithAssignee = Task & {
   assignee?: User;
 };
 
-export type ProjectWithOwner = Project & {
-  owner?: User;
-  tasks?: TaskWithAssignee[];
-  totalTasks?: number;
-  completedTasks?: number;
+export type SafeTaskWithAssignee = Task & {
+  assignee?: SafeUser;
+};
+
+
+export type SafeUser = Omit<User, 'password'>;
+
+export type SafeUserWithStats = Omit<User, 'password'> & {
+  taskCount?: number;
+  completedTaskCount?: number;
+  overdueTaskCount?: number;
   progressPercentage?: number;
   hasOverdueTasks?: boolean;
 };
@@ -99,7 +105,22 @@ export type UserWithStats = User & {
   hasOverdueTasks?: boolean;
 };
 
+export type ProjectWithOwner = Project & {
+  owner?: SafeUser;
+  tasks?: SafeTaskWithAssignee[];
+  totalTasks?: number;
+  completedTasks?: number;
+  progressPercentage?: number;
+  hasOverdueTasks?: boolean;
+  overdueTaskCount?: number;
+};
+
 export type ActivityWithDetails = Activity & {
   user?: User;
+  task?: Task;
+};
+
+export type SafeActivityWithDetails = Activity & {
+  user?: SafeUser;
   task?: Task;
 };

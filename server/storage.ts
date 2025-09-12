@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type Task, type InsertTask, type Activity, type InsertActivity, type TaskWithAssignee, type ActivityWithDetails, type Project, type InsertProject, type ProjectWithOwner, type UserWithStats } from "@shared/schema";
+import { type User, type InsertUser, type Task, type InsertTask, type Activity, type InsertActivity, type TaskWithAssignee, type ActivityWithDetails, type Project, type InsertProject, type ProjectWithOwner, type UserWithStats, type SafeUser, type SafeUserWithStats, type SafeTaskWithAssignee, type SafeActivityWithDetails } from "@shared/schema";
 import { randomUUID } from "crypto";
 
 export interface IStorage {
@@ -7,7 +7,8 @@ export interface IStorage {
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   getAllUsers(): Promise<User[]>;
-  getAllUsersWithStats(): Promise<UserWithStats[]>;
+  getAllUsersWithStats(): Promise<SafeUserWithStats[]>;
+  getAllSafeUsers(): Promise<SafeUser[]>;
   updateUserLastLogin(id: string): Promise<void>;
 
   // Project methods
@@ -18,16 +19,16 @@ export interface IStorage {
   deleteProject(id: string): Promise<boolean>;
 
   // Task methods
-  getAllTasks(): Promise<TaskWithAssignee[]>;
-  getTask(id: string): Promise<TaskWithAssignee | undefined>;
+  getAllTasks(): Promise<SafeTaskWithAssignee[]>;
+  getTask(id: string): Promise<SafeTaskWithAssignee | undefined>;
   createTask(task: InsertTask): Promise<Task>;
   updateTask(id: string, task: Partial<InsertTask>): Promise<Task | undefined>;
   deleteTask(id: string): Promise<boolean>;
-  getTasksByStatus(status: string): Promise<TaskWithAssignee[]>;
-  getTasksByProject(projectId: string): Promise<TaskWithAssignee[]>;
+  getTasksByStatus(status: string): Promise<SafeTaskWithAssignee[]>;
+  getTasksByProject(projectId: string): Promise<SafeTaskWithAssignee[]>;
 
   // Activity methods
-  getAllActivities(): Promise<ActivityWithDetails[]>;
+  getAllActivities(): Promise<SafeActivityWithDetails[]>;
   createActivity(activity: InsertActivity): Promise<Activity>;
 }
 
@@ -136,9 +137,9 @@ export class MemStorage implements IStorage {
     return user;
   }
 
-  async getAllUsersWithStats(): Promise<UserWithStats[]> {
+  async getAllUsersWithStats(): Promise<SafeUserWithStats[]> {
     const users = Array.from(this.users.values());
-    const usersWithStats: UserWithStats[] = [];
+    const usersWithStats: SafeUserWithStats[] = [];
     
     for (const user of users) {
       const userTasks = Array.from(this.tasks.values()).filter(task => task.assigneeId === user.id);
@@ -150,8 +151,9 @@ export class MemStorage implements IStorage {
       
       const progressPercentage = userTasks.length > 0 ? (completedTasks.length / userTasks.length) * 100 : 0;
       
+      const { password, ...safeUser } = user;
       usersWithStats.push({
-        ...user,
+        ...safeUser,
         taskCount: userTasks.length,
         completedTaskCount: completedTasks.length,
         overdueTaskCount: overdueTasks.length,
@@ -161,6 +163,11 @@ export class MemStorage implements IStorage {
     }
     
     return usersWithStats;
+  }
+
+  async getAllSafeUsers(): Promise<SafeUser[]> {
+    const users = Array.from(this.users.values());
+    return users.map(({ password, ...safeUser }) => safeUser);
   }
 
   async updateUserLastLogin(id: string): Promise<void> {
@@ -177,7 +184,8 @@ export class MemStorage implements IStorage {
     const projectsWithOwner: ProjectWithOwner[] = [];
     
     for (const project of projects) {
-      const owner = project.ownerId ? await this.getUser(project.ownerId) : undefined;
+      const ownerUser = project.ownerId ? await this.getUser(project.ownerId) : undefined;
+      const owner = ownerUser ? (({ password, ...safeUser }) => safeUser)(ownerUser) : undefined;
       const projectTasks = Array.from(this.tasks.values()).filter(task => task.projectId === project.id);
       const completedTasks = projectTasks.filter(task => task.status === "완료");
       const overdueTasks = projectTasks.filter(task => {
@@ -188,9 +196,10 @@ export class MemStorage implements IStorage {
       const progressPercentage = projectTasks.length > 0 ? (completedTasks.length / projectTasks.length) * 100 : 0;
       
       // Add assignee info to tasks
-      const tasksWithAssignees: TaskWithAssignee[] = [];
+      const tasksWithAssignees: SafeTaskWithAssignee[] = [];
       for (const task of projectTasks) {
-        const assignee = task.assigneeId ? await this.getUser(task.assigneeId) : undefined;
+        const assigneeUser = task.assigneeId ? await this.getUser(task.assigneeId) : undefined;
+        const assignee = assigneeUser ? (({ password, ...safeUser }) => safeUser)(assigneeUser) : undefined;
         tasksWithAssignees.push({ ...task, assignee });
       }
       
@@ -202,6 +211,7 @@ export class MemStorage implements IStorage {
         completedTasks: completedTasks.length,
         progressPercentage: Math.round(progressPercentage),
         hasOverdueTasks: overdueTasks.length > 0,
+        overdueTaskCount: overdueTasks.length,
       });
     }
     
@@ -214,7 +224,8 @@ export class MemStorage implements IStorage {
     const project = this.projects.get(id);
     if (!project) return undefined;
     
-    const owner = project.ownerId ? await this.getUser(project.ownerId) : undefined;
+    const ownerUser = project.ownerId ? await this.getUser(project.ownerId) : undefined;
+    const owner = ownerUser ? (({ password, ...safeUser }) => safeUser)(ownerUser) : undefined;
     const projectTasks = Array.from(this.tasks.values()).filter(task => task.projectId === project.id);
     const completedTasks = projectTasks.filter(task => task.status === "완료");
     const overdueTasks = projectTasks.filter(task => {
@@ -225,9 +236,10 @@ export class MemStorage implements IStorage {
     const progressPercentage = projectTasks.length > 0 ? (completedTasks.length / projectTasks.length) * 100 : 0;
     
     // Add assignee info to tasks
-    const tasksWithAssignees: TaskWithAssignee[] = [];
+    const tasksWithAssignees: SafeTaskWithAssignee[] = [];
     for (const task of projectTasks) {
-      const assignee = task.assigneeId ? await this.getUser(task.assigneeId) : undefined;
+      const assigneeUser = task.assigneeId ? await this.getUser(task.assigneeId) : undefined;
+      const assignee = assigneeUser ? (({ password, ...safeUser }) => safeUser)(assigneeUser) : undefined;
       tasksWithAssignees.push({ ...task, assignee });
     }
     
@@ -239,6 +251,7 @@ export class MemStorage implements IStorage {
       completedTasks: completedTasks.length,
       progressPercentage: Math.round(progressPercentage),
       hasOverdueTasks: overdueTasks.length > 0,
+      overdueTaskCount: overdueTasks.length,
     };
   }
 
@@ -301,7 +314,7 @@ export class MemStorage implements IStorage {
     return deleted;
   }
 
-  async getTasksByProject(projectId: string): Promise<TaskWithAssignee[]> {
+  async getTasksByProject(projectId: string): Promise<SafeTaskWithAssignee[]> {
     const allTasks = await this.getAllTasks();
     return allTasks.filter(task => task.projectId === projectId);
   }
@@ -310,12 +323,13 @@ export class MemStorage implements IStorage {
     return Array.from(this.users.values());
   }
 
-  async getAllTasks(): Promise<TaskWithAssignee[]> {
+  async getAllTasks(): Promise<SafeTaskWithAssignee[]> {
     const tasks = Array.from(this.tasks.values());
-    const tasksWithAssignees: TaskWithAssignee[] = [];
+    const tasksWithAssignees: SafeTaskWithAssignee[] = [];
     
     for (const task of tasks) {
-      const assignee = task.assigneeId ? await this.getUser(task.assigneeId) : undefined;
+      const assigneeUser = task.assigneeId ? await this.getUser(task.assigneeId) : undefined;
+      const assignee = assigneeUser ? (({ password, ...safeUser }) => safeUser)(assigneeUser) : undefined;
       tasksWithAssignees.push({ ...task, assignee });
     }
     
@@ -324,11 +338,12 @@ export class MemStorage implements IStorage {
     );
   }
 
-  async getTask(id: string): Promise<TaskWithAssignee | undefined> {
+  async getTask(id: string): Promise<SafeTaskWithAssignee | undefined> {
     const task = this.tasks.get(id);
     if (!task) return undefined;
     
-    const assignee = task.assigneeId ? await this.getUser(task.assigneeId) : undefined;
+    const assigneeUser = task.assigneeId ? await this.getUser(task.assigneeId) : undefined;
+    const assignee = assigneeUser ? (({ password, ...safeUser }) => safeUser)(assigneeUser) : undefined;
     return { ...task, assignee };
   }
 
@@ -400,17 +415,18 @@ export class MemStorage implements IStorage {
     return deleted;
   }
 
-  async getTasksByStatus(status: string): Promise<TaskWithAssignee[]> {
+  async getTasksByStatus(status: string): Promise<SafeTaskWithAssignee[]> {
     const allTasks = await this.getAllTasks();
     return allTasks.filter(task => task.status === status);
   }
 
-  async getAllActivities(): Promise<ActivityWithDetails[]> {
+  async getAllActivities(): Promise<SafeActivityWithDetails[]> {
     const activities = Array.from(this.activities.values());
-    const activitiesWithDetails: ActivityWithDetails[] = [];
+    const activitiesWithDetails: SafeActivityWithDetails[] = [];
     
     for (const activity of activities) {
-      const user = activity.userId ? await this.getUser(activity.userId) : undefined;
+      const userWithPassword = activity.userId ? await this.getUser(activity.userId) : undefined;
+      const user = userWithPassword ? (({ password, ...safeUser }) => safeUser)(userWithPassword) : undefined;
       const task = activity.taskId ? this.tasks.get(activity.taskId) : undefined;
       activitiesWithDetails.push({ ...activity, user, task });
     }
