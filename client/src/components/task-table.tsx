@@ -6,16 +6,21 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { MoreHorizontal, Edit, Trash2 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useLocation } from "wouter";
 import type { TaskWithAssignee } from "@shared/schema";
 
 interface TaskTableProps {
-  onCreateTask: () => void;
   onEditTask: (task: TaskWithAssignee) => void;
 }
 
-export function TaskTable({ onCreateTask, onEditTask }: TaskTableProps) {
+export function TaskTable({ onEditTask }: TaskTableProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [, setLocation] = useLocation();
+
+  const handleViewMore = () => {
+    setLocation("/my-tasks");
+  };
 
   const { data: tasks, isLoading } = useQuery({
     queryKey: ["/api/tasks"],
@@ -106,7 +111,7 @@ export function TaskTable({ onCreateTask, onEditTask }: TaskTableProps) {
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold" data-testid="text-task-title">내 작업</h3>
           <Button 
-            onClick={onCreateTask}
+            onClick={handleViewMore}
             data-testid="button-view-more"
           >
             <MoreHorizontal className="h-4 w-4 mr-2" />

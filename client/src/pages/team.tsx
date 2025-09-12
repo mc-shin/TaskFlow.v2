@@ -12,10 +12,6 @@ export default function Team() {
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
 
-  const handleCreateTask = () => {
-    setEditingTask(null);
-    setIsTaskModalOpen(true);
-  };
 
   const handleEditTask = (task: any) => {
     setEditingTask(task);
@@ -65,7 +61,6 @@ export default function Team() {
           {/* Task List and Activity Feed */}
           <div className="col-span-2 space-y-6">
             <TaskTable 
-              onCreateTask={handleCreateTask}
               onEditTask={handleEditTask}
             />
             <ActivityFeed />
