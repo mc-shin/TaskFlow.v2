@@ -1,14 +1,91 @@
 import { useState } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Clock } from "lucide-react";
 
 export function CalendarWidget() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(18); // Default to 18th as shown in design
 
+  // 미팅 데이터 (meeting.tsx와 동일한 구조)
+  const meetings = {
+    upcoming: [
+      {
+        id: "1",
+        title: "주간 스프린트 리뷰",
+        description: "이번 주 진행된 작업들을 검토하고 다음 주 계획을 논의합니다.",
+        date: "2025-09-15",
+        time: "14:00",
+        duration: "60분",
+        type: "화상회의",
+        location: "Zoom",
+        status: "예정"
+      },
+      {
+        id: "2",
+        title: "클라이언트 미팅",
+        description: "프로젝트 진행 상황을 클라이언트에게 보고합니다.",
+        date: "2025-09-16",
+        time: "10:00",
+        duration: "90분",
+        type: "대면회의",
+        location: "회의실 A",
+        status: "예정"
+      }
+    ],
+    today: [
+      {
+        id: "3",
+        title: "데일리 스탠드업",
+        description: "오늘의 작업 계획과 이슈를 공유합니다.",
+        date: "2025-09-12",
+        time: "09:30",
+        duration: "30분",
+        type: "화상회의",
+        location: "Google Meet",
+        status: "진행중"
+      }
+    ],
+    past: [
+      {
+        id: "4",
+        title: "프로젝트 킥오프",
+        description: "새 프로젝트의 목표와 일정을 논의했습니다.",
+        date: "2025-09-10",
+        time: "15:00",
+        duration: "120분",
+        type: "대면회의",
+        location: "회의실 B",
+        status: "완료"
+      },
+      {
+        id: "5",
+        title: "스팸티브 어린이",
+        description: "특별 미팅입니다.",
+        date: "2025-09-18",
+        time: "20:00",
+        duration: "30분",
+        type: "화상회의",
+        location: "Zoom",
+        status: "완료"
+      }
+    ]
+  };
+
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
+
+  // 모든 미팅을 하나의 배열로 합치기
+  const allMeetings = [...meetings.upcoming, ...meetings.today, ...meetings.past];
+
+  // 날짜별 미팅 확인 함수
+  const getMeetingsForDate = (day: number) => {
+    const dateString = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    return allMeetings.filter(meeting => meeting.date === dateString);
+  };
+
+  // 선택된 날짜의 미팅
+  const selectedDateMeetings = getMeetingsForDate(selectedDate);
   
   const firstDay = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -105,33 +182,71 @@ export function CalendarWidget() {
         </div>
         
         <div className="grid grid-cols-7 gap-1" data-testid="calendar-grid">
-          {calendarDays.map((dayInfo, index) => (
-            <button
-              key={index}
-              className={`
-                calendar-day text-center text-sm p-2 cursor-pointer rounded transition-colors
-                ${!dayInfo.isCurrentMonth ? 'text-muted-foreground' : ''}
-                ${selectedDate === dayInfo.day && dayInfo.isCurrentMonth ? 'bg-primary text-primary-foreground font-medium' : ''}
-                ${dayInfo.isToday ? 'bg-accent' : ''}
-                hover:bg-primary hover:text-primary-foreground
-              `}
-              onClick={() => dayInfo.isCurrentMonth && setSelectedDate(dayInfo.day)}
-              data-testid={`calendar-day-${dayInfo.day}-${dayInfo.isCurrentMonth ? 'current' : 'other'}`}
-            >
-              {dayInfo.day}
-            </button>
-          ))}
+          {calendarDays.map((dayInfo, index) => {
+            const dayMeetings = dayInfo.isCurrentMonth ? getMeetingsForDate(dayInfo.day) : [];
+            const hasMeetings = dayMeetings.length > 0;
+            
+            return (
+              <button
+                key={index}
+                className={`
+                  calendar-day text-center text-sm p-2 cursor-pointer rounded transition-colors relative
+                  ${!dayInfo.isCurrentMonth ? 'text-muted-foreground' : ''}
+                  ${selectedDate === dayInfo.day && dayInfo.isCurrentMonth ? 'bg-primary text-primary-foreground font-medium' : ''}
+                  ${dayInfo.isToday ? 'bg-accent' : ''}
+                  hover:bg-primary hover:text-primary-foreground
+                `}
+                onClick={() => dayInfo.isCurrentMonth && setSelectedDate(dayInfo.day)}
+                data-testid={`calendar-day-${dayInfo.day}-${dayInfo.isCurrentMonth ? 'current' : 'other'}`}
+              >
+                {dayInfo.day}
+                {/* 미팅 인디케이터 */}
+                {hasMeetings && dayInfo.isCurrentMonth && (
+                  <div className="absolute bottom-1 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-blue-500 rounded-full" data-testid={`meeting-indicator-${dayInfo.day}`}></div>
+                )}
+              </button>
+            );
+          })}
         </div>
         
-        {/* Selected Date Event */}
-        <div className="mt-4 p-3 bg-muted rounded-lg" data-testid="selected-date-event">
-          <div className="text-xs text-muted-foreground" data-testid="text-selected-date">
-            {year}.{String(month + 1).padStart(2, '0')}.{String(selectedDate).padStart(2, '0')} 20:00
+        {/* Selected Date Event - 미팅이 있을 때만 표시 */}
+        {selectedDateMeetings.length > 0 && (
+          <div className="mt-4 space-y-2" data-testid="selected-date-events">
+            {selectedDateMeetings.map((meeting) => (
+              <div key={meeting.id} className="p-3 bg-muted rounded-lg" data-testid={`selected-date-event-${meeting.id}`}>
+                <div className="flex items-center space-x-2 text-xs text-muted-foreground" data-testid={`text-selected-date-${meeting.id}`}>
+                  <Clock className="w-3 h-3" />
+                  <span>
+                    {year}.{String(month + 1).padStart(2, '0')}.{String(selectedDate).padStart(2, '0')} {meeting.time}
+                  </span>
+                </div>
+                <div className="text-sm font-medium mt-1" data-testid={`text-event-title-${meeting.id}`}>
+                  {meeting.title}
+                </div>
+                {meeting.description && (
+                  <div className="text-xs text-muted-foreground mt-1" data-testid={`text-event-description-${meeting.id}`}>
+                    {meeting.description}
+                  </div>
+                )}
+                <div className="text-xs text-muted-foreground mt-1">
+                  {meeting.location} • {meeting.duration}
+                </div>
+              </div>
+            ))}
           </div>
-          <div className="text-sm font-medium mt-1" data-testid="text-event-title">
-            스팸티브 어린이
+        )}
+        
+        {/* 미팅이 없는 날에 대한 메시지 */}
+        {selectedDateMeetings.length === 0 && (
+          <div className="mt-4 p-3 bg-muted/50 rounded-lg text-center" data-testid="no-events-message">
+            <div className="text-xs text-muted-foreground">
+              {year}.{String(month + 1).padStart(2, '0')}.{String(selectedDate).padStart(2, '0')}
+            </div>
+            <div className="text-sm text-muted-foreground mt-1">
+              예정된 일정이 없습니다.
+            </div>
           </div>
-        </div>
+        )}
       </CardContent>
     </Card>
   );
