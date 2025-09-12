@@ -7,6 +7,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { CheckCircle, Clock, AlertTriangle, User, Plus, ChevronDown, ChevronRight, Target, FolderOpen } from "lucide-react";
 import { useState } from "react";
 import type { SafeTaskWithAssignee, ProjectWithDetails, GoalWithTasks } from "@shared/schema";
+import { ProjectModal } from "@/components/project-modal";
 
 export default function List() {
   const { data: projects, isLoading, error } = useQuery({
@@ -17,6 +18,7 @@ export default function List() {
   const [expandedGoals, setExpandedGoals] = useState<Set<string>>(new Set());
   const [hoveredProject, setHoveredProject] = useState<string | null>(null);
   const [hoveredGoal, setHoveredGoal] = useState<string | null>(null);
+  const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   
   const toggleProject = (projectId: string) => {
     const newExpanded = new Set(expandedProjects);
@@ -86,6 +88,7 @@ export default function List() {
         </div>
         <Button 
           className="bg-blue-600 hover:bg-blue-700" 
+          onClick={() => setIsProjectModalOpen(true)}
           data-testid="button-add-project"
         >
           <Plus className="w-4 h-4 mr-2" />
@@ -204,6 +207,11 @@ export default function List() {
           </div>
         )}
       </main>
+      
+      <ProjectModal
+        isOpen={isProjectModalOpen}
+        onClose={() => setIsProjectModalOpen(false)}
+      />
     </>
   );
 }
