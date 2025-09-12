@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Plus, Edit, Trash2 } from "lucide-react";
+import { MoreHorizontal, Edit, Trash2 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { TaskWithAssignee } from "@shared/schema";
@@ -84,8 +84,8 @@ export function TaskTable({ onCreateTask, onEditTask }: TaskTableProps) {
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-semibold">내 작업</h3>
             <Button disabled>
-              <Plus className="h-4 w-4 mr-2" />
-              새 작업
+              <MoreHorizontal className="h-4 w-4 mr-2" />
+              더보기
             </Button>
           </div>
         </CardHeader>
@@ -107,10 +107,10 @@ export function TaskTable({ onCreateTask, onEditTask }: TaskTableProps) {
           <h3 className="text-lg font-semibold" data-testid="text-task-title">내 작업</h3>
           <Button 
             onClick={onCreateTask}
-            data-testid="button-create-task"
+            data-testid="button-view-more"
           >
-            <Plus className="h-4 w-4 mr-2" />
-            새 작업
+            <MoreHorizontal className="h-4 w-4 mr-2" />
+            더보기
           </Button>
         </div>
       </CardHeader>
