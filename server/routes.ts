@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertTaskSchema, insertActivitySchema, insertProjectSchema, insertMeetingSchema, insertMeetingCommentSchema, insertMeetingAttachmentSchema } from "@shared/schema";
+import { insertTaskSchema, insertActivitySchema, insertProjectSchema, insertGoalSchema, insertMeetingSchema, insertMeetingCommentSchema, insertMeetingAttachmentSchema } from "@shared/schema";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { z } from "zod";
 
@@ -147,6 +147,90 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(tasks);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch project tasks" });
+    }
+  });
+
+  app.get("/api/projects/:id/goals", async (req, res) => {
+    try {
+      const goals = await storage.getGoalsByProject(req.params.id);
+      res.json(goals);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch project goals" });
+    }
+  });
+
+  // Goal routes
+  app.get("/api/goals", async (req, res) => {
+    try {
+      const goals = await storage.getAllGoals();
+      res.json(goals);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch goals" });
+    }
+  });
+
+  app.get("/api/goals/:id", async (req, res) => {
+    try {
+      const goal = await storage.getGoal(req.params.id);
+      if (!goal) {
+        return res.status(404).json({ message: "Goal not found" });
+      }
+      res.json(goal);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch goal" });
+    }
+  });
+
+  app.post("/api/goals", async (req, res) => {
+    try {
+      const goalData = insertGoalSchema.parse(req.body);
+      const goal = await storage.createGoal(goalData);
+      res.status(201).json(goal);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid goal data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create goal" });
+    }
+  });
+
+  app.put("/api/goals/:id", async (req, res) => {
+    try {
+      const goalData = insertGoalSchema.partial().parse(req.body);
+      const goal = await storage.updateGoal(req.params.id, goalData);
+      if (!goal) {
+        return res.status(404).json({ message: "Goal not found" });
+      }
+      res.json(goal);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid goal data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update goal" });
+    }
+  });
+
+  app.delete("/api/goals/:id", async (req, res) => {
+    try {
+      const deleted = await storage.deleteGoal(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ message: "Goal not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      if (error instanceof Error && error.message.includes("목표에 작업이 있어")) {
+        return res.status(409).json({ message: error.message });
+      }
+      res.status(500).json({ message: "Failed to delete goal" });
+    }
+  });
+
+  app.get("/api/goals/:id/tasks", async (req, res) => {
+    try {
+      const tasks = await storage.getTasksByGoal(req.params.id);
+      res.json(tasks);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch goal tasks" });
     }
   });
 

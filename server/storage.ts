@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type Task, type InsertTask, type Activity, type InsertActivity, type TaskWithAssignee, type ActivityWithDetails, type Project, type InsertProject, type ProjectWithOwner, type UserWithStats, type SafeUser, type SafeUserWithStats, type SafeTaskWithAssignee, type SafeActivityWithDetails, type Meeting, type InsertMeeting, type MeetingComment, type InsertMeetingComment, type MeetingAttachment, type InsertMeetingAttachment, type MeetingCommentWithAuthor, type MeetingWithDetails } from "@shared/schema";
+import { type User, type InsertUser, type Task, type InsertTask, type Activity, type InsertActivity, type TaskWithAssignee, type ActivityWithDetails, type Project, type InsertProject, type ProjectWithOwner, type UserWithStats, type SafeUser, type SafeUserWithStats, type SafeTaskWithAssignee, type SafeActivityWithDetails, type Meeting, type InsertMeeting, type MeetingComment, type InsertMeetingComment, type MeetingAttachment, type InsertMeetingAttachment, type MeetingCommentWithAuthor, type MeetingWithDetails, type Goal, type InsertGoal, type GoalWithTasks, type ProjectWithDetails } from "@shared/schema";
 import { randomUUID } from "crypto";
 
 export interface IStorage {
@@ -18,6 +18,14 @@ export interface IStorage {
   updateProject(id: string, project: Partial<InsertProject>): Promise<Project | undefined>;
   deleteProject(id: string): Promise<boolean>;
 
+  // Goal methods
+  getAllGoals(): Promise<GoalWithTasks[]>;
+  getGoal(id: string): Promise<GoalWithTasks | undefined>;
+  createGoal(goal: InsertGoal): Promise<Goal>;
+  updateGoal(id: string, goal: Partial<InsertGoal>): Promise<Goal | undefined>;
+  deleteGoal(id: string): Promise<boolean>;
+  getGoalsByProject(projectId: string): Promise<GoalWithTasks[]>;
+
   // Task methods
   getAllTasks(): Promise<SafeTaskWithAssignee[]>;
   getTask(id: string): Promise<SafeTaskWithAssignee | undefined>;
@@ -26,6 +34,7 @@ export interface IStorage {
   deleteTask(id: string): Promise<boolean>;
   getTasksByStatus(status: string): Promise<SafeTaskWithAssignee[]>;
   getTasksByProject(projectId: string): Promise<SafeTaskWithAssignee[]>;
+  getTasksByGoal(goalId: string): Promise<SafeTaskWithAssignee[]>;
 
   // Activity methods
   getAllActivities(): Promise<SafeActivityWithDetails[]>;
@@ -54,6 +63,7 @@ export interface IStorage {
 export class MemStorage implements IStorage {
   private users: Map<string, User>;
   private projects: Map<string, Project>;
+  private goals: Map<string, Goal>;
   private tasks: Map<string, Task>;
   private activities: Map<string, Activity>;
   private meetings: Map<string, Meeting>;
@@ -63,6 +73,7 @@ export class MemStorage implements IStorage {
   constructor() {
     this.users = new Map();
     this.projects = new Map();
+    this.goals = new Map();
     this.tasks = new Map();
     this.activities = new Map();
     this.meetings = new Map();
@@ -115,12 +126,26 @@ export class MemStorage implements IStorage {
       await this.createProject(project);
     }
 
-    // Initialize tasks for projects
+    // Initialize goals for projects
     const projectArray = Array.from(this.projects.values());
+    const defaultGoals = [
+      { title: "메인 기능 개발", description: "핵심 기능 구현", projectId: projectArray[0]?.id },
+      { title: "UI/UX 개선", description: "사용자 인터페이스 개선", projectId: projectArray[0]?.id },
+      { title: "API 연동", description: "외부 API 연동 작업", projectId: projectArray[1]?.id },
+      { title: "시스템 최적화", description: "성능 및 안정성 개선", projectId: projectArray[1]?.id },
+      { title: "연동 기능", description: "다른 서비스와의 연동", projectId: projectArray[2]?.id },
+    ];
+
+    for (const goal of defaultGoals) {
+      await this.createGoal(goal);
+    }
+
+    // Initialize tasks for goals
+    const goalArray = Array.from(this.goals.values());
     const defaultTasks = [
-      // RIIDO-41 tasks
-      { title: "지금 벙크 성장 기능", description: "", status: "완료", projectId: projectArray[0]?.id, assigneeId: userArray[0]?.id, deadline: null, duration: 0, priority: "높음" },
-      { title: "업데이트 창 폭을 정함", description: "", status: "실행대기", projectId: projectArray[0]?.id, assigneeId: userArray[0]?.id, deadline: null, duration: 0, priority: "중간" },
+      // Goal 1 tasks (메인 기능 개발)
+      { title: "지금 벙크 성장 기능", description: "", status: "완료", goalId: goalArray[0]?.id, projectId: projectArray[0]?.id, assigneeId: userArray[0]?.id, deadline: null, duration: 0, priority: "높음" },
+      { title: "업데이트 창 폭을 정함", description: "", status: "실행대기", goalId: goalArray[0]?.id, projectId: projectArray[0]?.id, assigneeId: userArray[0]?.id, deadline: null, duration: 0, priority: "중간" },
       { title: "프로젝트 UI 개선", description: "", status: "실행대기", projectId: projectArray[0]?.id, assigneeId: userArray[1]?.id, deadline: null, duration: 0, priority: "중간" },
       { title: "지금벙 API 연동", description: "", status: "이슈함", projectId: projectArray[0]?.id, assigneeId: userArray[0]?.id, deadline: null, duration: 0, priority: "높음" },
       { title: "지금벙 Webhook 설정", description: "", status: "실행대기", projectId: projectArray[0]?.id, assigneeId: userArray[1]?.id, deadline: null, duration: 0, priority: "중간" },
@@ -400,6 +425,115 @@ export class MemStorage implements IStorage {
     return allTasks.filter(task => task.projectId === projectId);
   }
 
+  async getTasksByGoal(goalId: string): Promise<SafeTaskWithAssignee[]> {
+    const allTasks = await this.getAllTasks();
+    return allTasks.filter(task => task.goalId === goalId);
+  }
+
+  // Goal methods
+  async getAllGoals(): Promise<GoalWithTasks[]> {
+    const goals = Array.from(this.goals.values());
+    const goalsWithTasks: GoalWithTasks[] = [];
+    
+    for (const goal of goals) {
+      const goalTasks = Array.from(this.tasks.values()).filter(task => task.goalId === goal.id);
+      const completedTasks = goalTasks.filter(task => task.status === "완료");
+      
+      const progressPercentage = goalTasks.length > 0 ? (completedTasks.length / goalTasks.length) * 100 : 0;
+      
+      // Add assignee info to tasks
+      const tasksWithAssignees: SafeTaskWithAssignee[] = [];
+      for (const task of goalTasks) {
+        const assigneeUser = task.assigneeId ? await this.getUser(task.assigneeId) : undefined;
+        const assignee = assigneeUser ? (({ password, ...safeUser }) => safeUser)(assigneeUser) : undefined;
+        tasksWithAssignees.push({ ...task, assignee });
+      }
+      
+      goalsWithTasks.push({
+        ...goal,
+        tasks: tasksWithAssignees,
+        totalTasks: goalTasks.length,
+        completedTasks: completedTasks.length,
+        progressPercentage: Math.round(progressPercentage),
+      });
+    }
+    
+    return goalsWithTasks.sort((a, b) => 
+      new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime()
+    );
+  }
+
+  async getGoal(id: string): Promise<GoalWithTasks | undefined> {
+    const goal = this.goals.get(id);
+    if (!goal) return undefined;
+    
+    const goalTasks = Array.from(this.tasks.values()).filter(task => task.goalId === goal.id);
+    const completedTasks = goalTasks.filter(task => task.status === "완료");
+    
+    const progressPercentage = goalTasks.length > 0 ? (completedTasks.length / goalTasks.length) * 100 : 0;
+    
+    // Add assignee info to tasks
+    const tasksWithAssignees: SafeTaskWithAssignee[] = [];
+    for (const task of goalTasks) {
+      const assigneeUser = task.assigneeId ? await this.getUser(task.assigneeId) : undefined;
+      const assignee = assigneeUser ? (({ password, ...safeUser }) => safeUser)(assigneeUser) : undefined;
+      tasksWithAssignees.push({ ...task, assignee });
+    }
+    
+    return {
+      ...goal,
+      tasks: tasksWithAssignees,
+      totalTasks: goalTasks.length,
+      completedTasks: completedTasks.length,
+      progressPercentage: Math.round(progressPercentage),
+    };
+  }
+
+  async createGoal(insertGoal: InsertGoal): Promise<Goal> {
+    const id = randomUUID();
+    const now = new Date();
+    const goal: Goal = { 
+      ...insertGoal, 
+      id, 
+      description: insertGoal.description || null,
+      createdAt: now,
+      updatedAt: now
+    };
+    this.goals.set(id, goal);
+    
+    return goal;
+  }
+
+  async updateGoal(id: string, updateData: Partial<InsertGoal>): Promise<Goal | undefined> {
+    const existingGoal = this.goals.get(id);
+    if (!existingGoal) return undefined;
+    
+    const updatedGoal: Goal = {
+      ...existingGoal,
+      ...updateData,
+      updatedAt: new Date(),
+    };
+    
+    this.goals.set(id, updatedGoal);
+    
+    return updatedGoal;
+  }
+
+  async deleteGoal(id: string): Promise<boolean> {
+    // Check if goal has tasks - prevent deletion if it does
+    const goalTasks = Array.from(this.tasks.values()).filter(task => task.goalId === id);
+    if (goalTasks.length > 0) {
+      throw new Error("목표에 작업이 있어 삭제할 수 없습니다. 먼저 작업을 삭제하거나 다른 목표로 이동해주세요.");
+    }
+    
+    return this.goals.delete(id);
+  }
+
+  async getGoalsByProject(projectId: string): Promise<GoalWithTasks[]> {
+    const allGoals = await this.getAllGoals();
+    return allGoals.filter(goal => goal.projectId === projectId);
+  }
+
   async getAllUsers(): Promise<User[]> {
     return Array.from(this.users.values());
   }
@@ -431,6 +565,16 @@ export class MemStorage implements IStorage {
   async createTask(insertTask: InsertTask): Promise<Task> {
     const id = randomUUID();
     const now = new Date();
+    
+    // Auto-set projectId from goal if goalId is provided but projectId is not
+    let finalProjectId = insertTask.projectId || null;
+    if (insertTask.goalId && !insertTask.projectId) {
+      const goal = this.goals.get(insertTask.goalId);
+      if (goal) {
+        finalProjectId = goal.projectId;
+      }
+    }
+    
     const task: Task = { 
       ...insertTask, 
       id, 
@@ -440,7 +584,8 @@ export class MemStorage implements IStorage {
       priority: insertTask.priority || null,
       status: insertTask.status || "실행대기",
       assigneeId: insertTask.assigneeId || null,
-      projectId: insertTask.projectId || null,
+      projectId: finalProjectId,
+      goalId: insertTask.goalId || null,
       createdAt: now,
       updatedAt: now
     };
@@ -462,9 +607,19 @@ export class MemStorage implements IStorage {
     const existingTask = this.tasks.get(id);
     if (!existingTask) return undefined;
     
+    // Auto-set projectId from goal if goalId is provided but projectId is not
+    let finalProjectId = updateData.projectId !== undefined ? updateData.projectId : existingTask.projectId;
+    if (updateData.goalId && updateData.projectId === undefined) {
+      const goal = this.goals.get(updateData.goalId);
+      if (goal) {
+        finalProjectId = goal.projectId;
+      }
+    }
+    
     const updatedTask: Task = {
       ...existingTask,
       ...updateData,
+      projectId: finalProjectId,
       updatedAt: new Date(),
     };
     
@@ -559,6 +714,7 @@ export class MemStorage implements IStorage {
       id,
       type: insertMeeting.type || "standup",
       description: insertMeeting.description || null,
+      endAt: insertMeeting.endAt || null,
       location: insertMeeting.location || null,
       attendeeIds: insertMeeting.attendeeIds || [],
       createdAt: now,

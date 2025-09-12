@@ -23,6 +23,15 @@ export const projects = pgTable("projects", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+export const goals = pgTable("goals", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: text("title").notNull(),
+  description: text("description"),
+  projectId: varchar("project_id").references(() => projects.id).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 export const tasks = pgTable("tasks", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   title: text("title").notNull(),
@@ -32,7 +41,8 @@ export const tasks = pgTable("tasks", {
   deadline: text("deadline"),
   duration: integer("duration").default(0),
   assigneeId: varchar("assignee_id").references(() => users.id),
-  projectId: varchar("project_id").references(() => projects.id),
+  goalId: varchar("goal_id").references(() => goals.id),
+  projectId: varchar("project_id").references(() => projects.id), // Keep for backward compatibility
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -88,6 +98,12 @@ export const insertProjectSchema = createInsertSchema(projects).omit({
   updatedAt: true,
 });
 
+export const insertGoalSchema = createInsertSchema(goals).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export const insertTaskSchema = createInsertSchema(tasks).omit({
   id: true,
   createdAt: true,
@@ -121,6 +137,9 @@ export type User = typeof users.$inferSelect;
 
 export type InsertProject = z.infer<typeof insertProjectSchema>;
 export type Project = typeof projects.$inferSelect;
+
+export type InsertGoal = z.infer<typeof insertGoalSchema>;
+export type Goal = typeof goals.$inferSelect;
 
 export type InsertTask = z.infer<typeof insertTaskSchema>;
 export type Task = typeof tasks.$inferSelect;
@@ -171,6 +190,24 @@ export type UserWithStats = User & {
   overdueTaskCount?: number;
   progressPercentage?: number;
   hasOverdueTasks?: boolean;
+};
+
+export type GoalWithTasks = Goal & {
+  tasks?: SafeTaskWithAssignee[];
+  totalTasks?: number;
+  completedTasks?: number;
+  progressPercentage?: number;
+};
+
+export type ProjectWithDetails = Project & {
+  owner?: SafeUser;
+  goals?: GoalWithTasks[];
+  tasks?: SafeTaskWithAssignee[];
+  totalTasks?: number;
+  completedTasks?: number;
+  progressPercentage?: number;
+  hasOverdueTasks?: boolean;
+  overdueTaskCount?: number;
 };
 
 export type ProjectWithOwner = Project & {
