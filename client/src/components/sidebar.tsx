@@ -51,14 +51,16 @@ export function Sidebar() {
           
           {isExpanded('dashboard') && (
             <div className="ml-6 mt-1 space-y-1">
-              <Button 
-                variant="ghost" 
-                className="w-full justify-start space-x-3 text-muted-foreground hover:text-accent-foreground h-8"
-                data-testid="link-team"
-              >
-                <Users className="h-4 w-4" />
-                <span>팀</span>
-              </Button>
+              <Link href="/team">
+                <Button 
+                  variant={location === "/team" ? "default" : "ghost"} 
+                  className="w-full justify-start space-x-3 text-muted-foreground hover:text-accent-foreground h-8"
+                  data-testid="link-team"
+                >
+                  <Users className="h-4 w-4" />
+                  <span>팀</span>
+                </Button>
+              </Link>
               <Link href="/admin">
                 <Button 
                   variant={location === "/admin" ? "default" : "ghost"} 
@@ -93,38 +95,46 @@ export function Sidebar() {
           
           {isExpanded('work-management') && (
             <div className="ml-6 mt-1 space-y-1">
-              <Button 
-                variant="default" 
-                className="w-full justify-start space-x-3 h-8"
-                data-testid="link-list"
-              >
-                <List className="h-4 w-4" />
-                <span>리스트</span>
-              </Button>
-              <Button 
-                variant="ghost" 
-                className="w-full justify-start space-x-3 text-muted-foreground hover:text-accent-foreground h-8"
-                data-testid="link-kanban"
-              >
-                <GitBranch className="h-4 w-4" />
-                <span>칸반</span>
-              </Button>
-              <Button 
-                variant="ghost" 
-                className="w-full justify-start space-x-3 text-muted-foreground hover:text-accent-foreground h-8"
-                data-testid="link-priority"
-              >
-                <Star className="h-4 w-4" />
-                <span>우선순위</span>
-              </Button>
-              <Button 
-                variant="ghost" 
-                className="w-full justify-start space-x-3 text-muted-foreground hover:text-accent-foreground h-8"
-                data-testid="link-backlog"
-              >
-                <Archive className="h-4 w-4" />
-                <span>백로그</span>
-              </Button>
+              <Link href="/list">
+                <Button 
+                  variant={location === "/list" ? "default" : "ghost"} 
+                  className="w-full justify-start space-x-3 h-8"
+                  data-testid="link-list"
+                >
+                  <List className="h-4 w-4" />
+                  <span>리스트</span>
+                </Button>
+              </Link>
+              <Link href="/kanban">
+                <Button 
+                  variant={location === "/kanban" ? "default" : "ghost"} 
+                  className="w-full justify-start space-x-3 text-muted-foreground hover:text-accent-foreground h-8"
+                  data-testid="link-kanban"
+                >
+                  <GitBranch className="h-4 w-4" />
+                  <span>칸반</span>
+                </Button>
+              </Link>
+              <Link href="/priority">
+                <Button 
+                  variant={location === "/priority" ? "default" : "ghost"} 
+                  className="w-full justify-start space-x-3 text-muted-foreground hover:text-accent-foreground h-8"
+                  data-testid="link-priority"
+                >
+                  <Star className="h-4 w-4" />
+                  <span>우선순위</span>
+                </Button>
+              </Link>
+              <Link href="/backlog">
+                <Button 
+                  variant={location === "/backlog" ? "default" : "ghost"} 
+                  className="w-full justify-start space-x-3 text-muted-foreground hover:text-accent-foreground h-8"
+                  data-testid="link-backlog"
+                >
+                  <Archive className="h-4 w-4" />
+                  <span>백로그</span>
+                </Button>
+              </Link>
             </div>
           )}
         </div>
@@ -149,14 +159,16 @@ export function Sidebar() {
           
           {isExpanded('meeting') && (
             <div className="ml-6 mt-1 space-y-1">
-              <Button 
-                variant="ghost" 
-                className="w-full justify-start space-x-3 text-muted-foreground hover:text-accent-foreground h-8"
-                data-testid="link-meeting"
-              >
-                <Calendar className="h-4 w-4" />
-                <span>미팅</span>
-              </Button>
+              <Link href="/meeting">
+                <Button 
+                  variant={location === "/meeting" ? "default" : "ghost"} 
+                  className="w-full justify-start space-x-3 text-muted-foreground hover:text-accent-foreground h-8"
+                  data-testid="link-meeting"
+                >
+                  <Calendar className="h-4 w-4" />
+                  <span>미팅</span>
+                </Button>
+              </Link>
             </div>
           )}
         </div>
