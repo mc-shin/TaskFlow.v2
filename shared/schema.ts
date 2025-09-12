@@ -45,6 +45,19 @@ export const activities = pgTable("activities", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const meetings = pgTable("meetings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: text("title").notNull(),
+  description: text("description"),
+  startAt: text("start_at").notNull(), // ISO string
+  endAt: text("end_at").notNull(), // ISO string
+  type: text("type").notNull().default("standup"), // 'standup' | 'other'
+  location: text("location"),
+  attendeeIds: text("attendee_ids").array().notNull().default(sql`'{}'`),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
 });
@@ -66,6 +79,12 @@ export const insertActivitySchema = createInsertSchema(activities).omit({
   createdAt: true,
 });
 
+export const insertMeetingSchema = createInsertSchema(meetings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 
@@ -77,6 +96,9 @@ export type Task = typeof tasks.$inferSelect;
 
 export type InsertActivity = z.infer<typeof insertActivitySchema>;
 export type Activity = typeof activities.$inferSelect;
+
+export type InsertMeeting = z.infer<typeof insertMeetingSchema>;
+export type Meeting = typeof meetings.$inferSelect;
 
 export type TaskWithAssignee = Task & {
   assignee?: User;
