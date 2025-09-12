@@ -14,6 +14,7 @@ import Priority from "@/pages/priority";
 import Backlog from "@/pages/backlog";
 import Meeting from "@/pages/meeting";
 import NewMeeting from "@/pages/new-meeting";
+import MeetingDetail from "@/pages/meeting-detail";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -32,6 +33,7 @@ function Router() {
           <Route path="/backlog" component={Backlog} />
           <Route path="/meeting" component={Meeting} />
           <Route path="/meeting/new" component={NewMeeting} />
+          <Route path="/meeting/:id" component={MeetingDetail} />
           <Route component={NotFound} />
         </Switch>
       </div>

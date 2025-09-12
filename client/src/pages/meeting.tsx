@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Calendar, Clock, Users, Video, Plus, MapPin, Square } from "lucide-react";
+import { Link, useLocation } from "wouter";
 import { RealtimeClock } from "@/components/realtime-clock";
 import type { Meeting, SafeUser } from "@shared/schema";
 
@@ -16,6 +17,7 @@ export default function Meeting() {
   const [participantDialogOpen, setParticipantDialogOpen] = useState(false);
   const [selectedMeetingId, setSelectedMeetingId] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [, setLocation] = useLocation();
 
   // Update current time every second
   useEffect(() => {
@@ -213,14 +215,6 @@ export default function Meeting() {
           </div>
           
           <div className="flex items-center space-x-4">
-            {/* New Meeting Button */}
-            <Button 
-              className="bg-blue-600 hover:bg-blue-700 text-white"
-              data-testid="button-new-meeting"
-              onClick={() => window.location.href = '/meeting/new'}
-            >
-              새 미팅
-            </Button>
 
             {/* Participant Avatars */}
             <div className="flex items-center space-x-2">
@@ -325,10 +319,16 @@ export default function Meeting() {
             {/* Real-time Clock */}
             <RealtimeClock />
             
-            <Button data-testid="button-add-meeting">
-              <Plus className="w-4 h-4 mr-2" />
-              새 미팅
-            </Button>
+            {/* New Meeting Button */}
+            <Link href="/meeting/new">
+              <Button 
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+                data-testid="button-new-meeting"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                새 미팅
+              </Button>
+            </Link>
           </div>
         </header>
 
@@ -351,6 +351,7 @@ export default function Meeting() {
                   key={meeting.id} 
                   className="p-3 hover:bg-accent cursor-pointer transition-colors min-w-48 flex-shrink-0"
                   data-testid={`card-today-meeting-${meeting.id}`}
+                  onClick={() => setLocation(`/meeting/${meeting.id}`)}
                 >
                   <div className="flex items-center justify-between mb-2">
                     <h3 className="font-medium text-sm truncate" data-testid={`text-meeting-title-${meeting.id}`}>
@@ -491,8 +492,7 @@ export default function Meeting() {
                               data-testid={`meeting-block-${meeting.id}`}
                               title={`${meeting.title} - ${meeting.location || '위치 미정'} (${meetingStart.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })} - ${meetingEnd.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })})`}
                               onClick={() => {
-                                setSelectedMeetingId(meeting.id);
-                                setParticipantDialogOpen(true);
+                                setLocation(`/meeting/${meeting.id}`);
                               }}
                             >
                               <div className="truncate leading-tight">{meeting.title}</div>
