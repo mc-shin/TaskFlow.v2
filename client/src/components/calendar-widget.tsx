@@ -1,87 +1,34 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Clock } from "lucide-react";
+import { ChevronLeft, ChevronRight, Clock, Calendar } from "lucide-react";
+import type { Meeting } from "@shared/schema";
 
 export function CalendarWidget() {
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [selectedDate, setSelectedDate] = useState(18); // Default to 18th as shown in design
+  const [selectedDate, setSelectedDate] = useState(new Date().getDate());
 
-  // 미팅 데이터 (meeting.tsx와 동일한 구조)
-  const meetings = {
-    upcoming: [
-      {
-        id: "1",
-        title: "주간 스프린트 리뷰",
-        description: "이번 주 진행된 작업들을 검토하고 다음 주 계획을 논의합니다.",
-        date: "2025-09-15",
-        time: "14:00",
-        duration: "60분",
-        type: "화상회의",
-        location: "Zoom",
-        status: "예정"
-      },
-      {
-        id: "2",
-        title: "클라이언트 미팅",
-        description: "프로젝트 진행 상황을 클라이언트에게 보고합니다.",
-        date: "2025-09-16",
-        time: "10:00",
-        duration: "90분",
-        type: "대면회의",
-        location: "회의실 A",
-        status: "예정"
-      }
-    ],
-    today: [
-      {
-        id: "3",
-        title: "데일리 스탠드업",
-        description: "오늘의 작업 계획과 이슈를 공유합니다.",
-        date: "2025-09-12",
-        time: "09:30",
-        duration: "30분",
-        type: "화상회의",
-        location: "Google Meet",
-        status: "진행중"
-      }
-    ],
-    past: [
-      {
-        id: "4",
-        title: "프로젝트 킥오프",
-        description: "새 프로젝트의 목표와 일정을 논의했습니다.",
-        date: "2025-09-10",
-        time: "15:00",
-        duration: "120분",
-        type: "대면회의",
-        location: "회의실 B",
-        status: "완료"
-      },
-      {
-        id: "5",
-        title: "스팸티브 어린이",
-        description: "특별 미팅입니다.",
-        date: "2025-09-18",
-        time: "20:00",
-        duration: "30분",
-        type: "화상회의",
-        location: "Zoom",
-        status: "완료"
-      }
-    ]
-  };
+  // 실제 미팅 데이터 가져오기
+  const { data: meetings = [] } = useQuery<Meeting[]>({
+    queryKey: ['/api/meetings']
+  });
+
+  // 미팅 데이터를 날짜별로 그룹화
+  const groupedMeetings = meetings.reduce((acc, meeting) => {
+    const date = new Date(meeting.startAt).toISOString().split('T')[0];
+    if (!acc[date]) acc[date] = [];
+    acc[date].push(meeting);
+    return acc;
+  }, {} as Record<string, Meeting[]>);
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
 
-  // 모든 미팅을 하나의 배열로 합치기
-  const allMeetings = [...meetings.upcoming, ...meetings.today, ...meetings.past];
-
   // 날짜별 미팅 확인 함수
   const getMeetingsForDate = (day: number) => {
     const dateString = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    return allMeetings.filter(meeting => meeting.date === dateString);
+    return groupedMeetings[dateString] || [];
   };
 
   // 선택된 날짜의 미팅
@@ -217,7 +164,7 @@ export function CalendarWidget() {
                 <div className="flex items-center space-x-2 text-xs text-muted-foreground" data-testid={`text-selected-date-${meeting.id}`}>
                   <Clock className="w-3 h-3" />
                   <span>
-                    {year}.{String(month + 1).padStart(2, '0')}.{String(selectedDate).padStart(2, '0')} {meeting.time}
+                    {year}.{String(month + 1).padStart(2, '0')}.{String(selectedDate).padStart(2, '0')} {new Date(meeting.startAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
                   </span>
                 </div>
                 <div className="text-sm font-medium mt-1" data-testid={`text-event-title-${meeting.id}`}>
@@ -229,7 +176,10 @@ export function CalendarWidget() {
                   </div>
                 )}
                 <div className="text-xs text-muted-foreground mt-1">
-                  {meeting.location} • {meeting.duration}
+                  {meeting.location} • {meeting.type}
+                  {meeting.endAt && (
+                    <span> • {Math.round((new Date(meeting.endAt).getTime() - new Date(meeting.startAt).getTime()) / (1000 * 60))}분</span>
+                  )}
                 </div>
               </div>
             ))}

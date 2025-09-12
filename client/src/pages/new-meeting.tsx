@@ -11,11 +11,12 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { CalendarIcon, Clock, MapPin, Users, FileText, MessageSquare, Upload, ArrowLeft } from "lucide-react";
+import { CalendarIcon, Clock, MapPin, Users, FileText, MessageSquare, Upload, ArrowLeft, Paperclip } from "lucide-react";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { insertMeetingSchema, SafeUser } from "@shared/schema";
+import { ObjectUploader } from "@/components/ObjectUploader";
 
 // 확장된 미팅 스키마 (UI용)
 const newMeetingSchema = insertMeetingSchema.omit({
@@ -35,6 +36,28 @@ export default function NewMeeting() {
   const [selectedParticipants, setSelectedParticipants] = useState<string[]>([]);
   const [, setLocation] = useLocation();
   const [comments, setComments] = useState<string>("");
+  const [uploadedFiles, setUploadedFiles] = useState<string[]>([]);
+
+  // 파일 업로드 핸들러
+  const handleGetUploadParameters = async () => {
+    const response = await apiRequest('POST', '/api/objects/upload');
+    const data = await response.json();
+    return {
+      method: 'PUT' as const,
+      url: data.uploadURL,
+    };
+  };
+
+  const handleUploadComplete = (result: { successful: Array<{ uploadURL: string; name: string }> }) => {
+    if (result.successful && result.successful.length > 0) {
+      const uploadedUrls = result.successful.map(file => file.uploadURL);
+      setUploadedFiles(prev => [...prev, ...uploadedUrls]);
+      toast({
+        title: "파일 업로드 완료",
+        description: `${result.successful.length}개 파일이 업로드되었습니다.`
+      });
+    }
+  };
 
   // 사용자 목록 가져오기
   const { data: users = [] } = useQuery<SafeUser[]>({
@@ -132,16 +155,14 @@ export default function NewMeeting() {
         });
         return;
       }
-    } else {
-      // 종료 시간이 없으면 시작 시간 + 1시간으로 기본 설정
-      endDateTime = new Date(startDateTime.getTime() + 60 * 60 * 1000);
     }
+    // 종료 시간이 없으면 null로 남겨두기 (선택사항)
 
     const meetingData = {
       title: data.title,
       description: data.description || "",
       startAt: startDateTime.toISOString(),
-      endAt: endDateTime.toISOString(),
+      endAt: endDateTime ? endDateTime.toISOString() : null,
       type: data.type,
       location: data.location || "",
       attendeeIds: selectedParticipants
@@ -412,13 +433,38 @@ export default function NewMeeting() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <div className="space-y-2 opacity-50">
+                    <div className="space-y-2">
                       <Label className="flex items-center space-x-2">
-                        <Upload className="w-4 h-4" />
-                        <span>파일 첨부 (향후 지원 예정)</span>
+                        <Paperclip className="w-4 h-4" />
+                        <span>파일 첨부</span>
                       </Label>
-                      <div className="border-2 border-dashed border-muted rounded-lg p-6 text-center text-muted-foreground">
-                        파일 첨부 기능은 향후 추가 예정입니다
+                      <div className="space-y-2">
+                        <ObjectUploader
+                          maxNumberOfFiles={5}
+                          maxFileSize={10485760} // 10MB
+                          onGetUploadParameters={handleGetUploadParameters}
+                          onComplete={handleUploadComplete}
+                          buttonClassName="w-full"
+                        >
+                          <div className="flex items-center justify-center space-x-2 p-6 border-2 border-dashed border-muted rounded-lg hover:border-primary transition-colors">
+                            <Paperclip className="w-5 h-5" />
+                            <span>파일 선택 또는 드래그 앤 드롭</span>
+                          </div>
+                        </ObjectUploader>
+                        {uploadedFiles.length > 0 && (
+                          <div className="mt-2">
+                            <p className="text-sm text-muted-foreground mb-2">
+                              업로드된 파일: {uploadedFiles.length}개
+                            </p>
+                            <div className="space-y-1">
+                              {uploadedFiles.map((fileUrl, index) => (
+                                <div key={index} className="text-xs text-muted-foreground bg-secondary p-2 rounded">
+                                  파일 {index + 1}: 업로드 완료
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
 

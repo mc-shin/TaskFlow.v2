@@ -1,7 +1,8 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertTaskSchema, insertActivitySchema, insertProjectSchema, insertMeetingSchema, insertMeetingCommentSchema } from "@shared/schema";
+import { insertTaskSchema, insertActivitySchema, insertProjectSchema, insertMeetingSchema, insertMeetingCommentSchema, insertMeetingAttachmentSchema } from "@shared/schema";
+import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -383,13 +384,98 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Meeting Attachments (placeholders for future file upload integration)
+  // Meeting Attachments
   app.get("/api/meetings/:meetingId/attachments", async (req, res) => {
     try {
       const attachments = await storage.getMeetingAttachments(req.params.meetingId);
       res.json(attachments);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch attachments" });
+    }
+  });
+
+  app.post("/api/meetings/:meetingId/attachments", async (req, res) => {
+    try {
+      const attachmentInput = insertMeetingAttachmentSchema.omit({ meetingId: true }).parse(req.body);
+      
+      // 업로드한 사용자 검증
+      const uploader = await storage.getUser(attachmentInput.uploadedBy);
+      if (!uploader) {
+        return res.status(400).json({ message: "Invalid uploader ID" });
+      }
+      
+      // 미팅 존재 검증
+      const meeting = await storage.getMeeting(req.params.meetingId);
+      if (!meeting) {
+        return res.status(404).json({ message: "Meeting not found" });
+      }
+      
+      const attachmentData = {
+        ...attachmentInput,
+        meetingId: req.params.meetingId
+      };
+      const attachment = await storage.createMeetingAttachment(attachmentData);
+      res.status(201).json(attachment);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid attachment data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create attachment" });
+    }
+  });
+
+  app.delete("/api/meetings/:meetingId/attachments/:attachmentId", async (req, res) => {
+    try {
+      const deleted = await storage.deleteMeetingAttachment(req.params.attachmentId);
+      if (!deleted) {
+        return res.status(404).json({ message: "Attachment not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete attachment" });
+    }
+  });
+
+  // Object Storage 엔드포인트
+  app.get("/objects/:objectPath(*)", async (req, res) => {
+    const objectStorageService = new ObjectStorageService();
+    try {
+      const objectFile = await objectStorageService.getObjectEntityFile(
+        req.path,
+      );
+      objectStorageService.downloadObject(objectFile, res);
+    } catch (error) {
+      console.error("Error checking object access:", error);
+      if (error instanceof ObjectNotFoundError) {
+        return res.sendStatus(404);
+      }
+      return res.sendStatus(500);
+    }
+  });
+
+  app.post("/api/objects/upload", async (req, res) => {
+    const objectStorageService = new ObjectStorageService();
+    const uploadURL = await objectStorageService.getObjectEntityUploadURL();
+    res.json({ uploadURL });
+  });
+
+  app.put("/api/meeting-attachments", async (req, res) => {
+    if (!req.body.fileURL) {
+      return res.status(400).json({ error: "fileURL is required" });
+    }
+
+    try {
+      const objectStorageService = new ObjectStorageService();
+      const objectPath = objectStorageService.normalizeObjectEntityPath(
+        req.body.fileURL,
+      );
+
+      res.status(200).json({
+        objectPath: objectPath,
+      });
+    } catch (error) {
+      console.error("Error setting file path:", error);
+      res.status(500).json({ error: "Internal server error" });
     }
   });
 

@@ -50,7 +50,7 @@ export const meetings = pgTable("meetings", {
   title: text("title").notNull(),
   description: text("description"),
   startAt: text("start_at").notNull(), // ISO string
-  endAt: text("end_at").notNull(), // ISO string
+  endAt: text("end_at"), // ISO string - nullable for optional end time
   type: text("type").notNull().default("standup"), // 'standup' | 'other'
   location: text("location"),
   attendeeIds: text("attendee_ids").array().notNull().default(sql`'{}'`),
