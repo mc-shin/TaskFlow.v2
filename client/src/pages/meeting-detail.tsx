@@ -13,12 +13,12 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Calendar, Clock, Users, MapPin, Edit, Trash2, ArrowLeft, Save, X } from "lucide-react";
+import { Calendar, Clock, Users, MapPin, Edit, Trash2, ArrowLeft, Save, X, MessageSquare, Send } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
-import type { Meeting, SafeUser } from "@shared/schema";
+import type { Meeting, SafeUser, MeetingCommentWithAuthor } from "@shared/schema";
 import { insertMeetingSchema } from "@shared/schema";
 
 // 편집용 스키마
@@ -40,6 +40,7 @@ export default function MeetingDetail() {
   const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
   const [selectedParticipants, setSelectedParticipants] = useState<string[]>([]);
+  const [newComment, setNewComment] = useState("");
 
   // 미팅 정보 조회
   const { data: meeting, isLoading: meetingLoading } = useQuery<Meeting>({
@@ -50,6 +51,62 @@ export default function MeetingDetail() {
   // 사용자 목록 조회
   const { data: users = [] } = useQuery<SafeUser[]>({
     queryKey: ['/api/users']
+  });
+
+  // 댓글 목록 조회
+  const { data: comments = [], refetch: refetchComments } = useQuery<MeetingCommentWithAuthor[]>({
+    queryKey: ['/api/meetings', id, 'comments'],
+    enabled: !!id
+  });
+
+  // 댓글 생성 뮤테이션
+  const createCommentMutation = useMutation({
+    mutationFn: (content: string) => {
+      const currentUser = users[0]; // 현재 로그인된 사용자 (임시로 첫 번째 사용자 사용)
+      return apiRequest('POST', `/api/meetings/${id}/comments`, {
+        content,
+        authorId: currentUser.id
+      });
+    },
+    onSuccess: () => {
+      setNewComment("");
+      queryClient.invalidateQueries({ queryKey: ['/api/meetings', id, 'comments'] });
+      toast({
+        title: "댓글 작성 완료",
+        description: "댓글이 성공적으로 작성되었습니다."
+      });
+    },
+    onError: () => {
+      toast({
+        title: "댓글 작성 실패",
+        description: "댓글 작성에 실패했습니다.",
+        variant: "destructive"
+      });
+    }
+  });
+
+  // 댓글 삭제 뮤테이션
+  const deleteCommentMutation = useMutation({
+    mutationFn: (commentId: string) => {
+      const currentUser = users[0]; // 현재 로그인된 사용자 (임시로 첫 번째 사용자 사용)
+      return apiRequest('DELETE', `/api/meetings/${id}/comments/${commentId}`, {
+        requesterId: currentUser.id
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/meetings', id, 'comments'] });
+      toast({
+        title: "댓글 삭제 완료",
+        description: "댓글이 성공적으로 삭제되었습니다."
+      });
+    },
+    onError: () => {
+      toast({
+        title: "댓글 삭제 실패",
+        description: "댓글 삭제에 실패했습니다.",
+        variant: "destructive"
+      });
+    }
   });
 
   // 폼 초기화
@@ -602,6 +659,100 @@ export default function MeetingDetail() {
                         </div>
                       </div>
                     ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* 댓글 섹션 */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2">
+                    <MessageSquare className="w-5 h-5" />
+                    <span>댓글 ({comments.length})</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* 댓글 목록 */}
+                  <div className="space-y-3">
+                    {comments.length === 0 ? (
+                      <div className="text-center py-8 text-muted-foreground">
+                        아직 댓글이 없습니다. 첫 번째 댓글을 작성해보세요!
+                      </div>
+                    ) : (
+                      comments.map((comment) => (
+                        <div
+                          key={comment.id}
+                          className="flex space-x-3 p-4 rounded border"
+                          data-testid={`comment-${comment.id}`}
+                        >
+                          <Avatar className="w-8 h-8">
+                            <AvatarFallback className="bg-secondary text-secondary-foreground text-sm">
+                              {comment.author.initials}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 space-y-1">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-2">
+                                <span className="font-medium text-sm">{comment.author.name}</span>
+                                <span className="text-xs text-muted-foreground">
+                                  {comment.createdAt ? new Date(comment.createdAt).toLocaleDateString('ko-KR', {
+                                    month: 'short',
+                                    day: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                  }) : '방금 전'}
+                                </span>
+                              </div>
+                              {users[0]?.id === comment.authorId && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => deleteCommentMutation.mutate(comment.id)}
+                                  disabled={deleteCommentMutation.isPending}
+                                  data-testid={`button-delete-comment-${comment.id}`}
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              )}
+                            </div>
+                            <p className="text-sm text-foreground">{comment.content}</p>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+
+                  {/* 댓글 작성 */}
+                  <div className="flex space-x-3 pt-4 border-t">
+                    <Avatar className="w-8 h-8">
+                      <AvatarFallback className="bg-primary text-primary-foreground text-sm">
+                        {users[0]?.initials || '나'}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 space-y-3">
+                      <Textarea
+                        placeholder="댓글을 작성하세요..."
+                        value={newComment}
+                        onChange={(e) => setNewComment(e.target.value)}
+                        rows={3}
+                        data-testid="textarea-new-comment"
+                      />
+                      <div className="flex justify-end">
+                        <Button
+                          onClick={() => {
+                            if (newComment.trim()) {
+                              createCommentMutation.mutate(newComment.trim());
+                            }
+                          }}
+                          disabled={!newComment.trim() || createCommentMutation.isPending}
+                          size="sm"
+                          data-testid="button-submit-comment"
+                        >
+                          <Send className="w-4 h-4 mr-2" />
+                          {createCommentMutation.isPending ? "작성 중..." : "댓글 작성"}
+                        </Button>
+                      </div>
+                    </div>
                   </div>
                 </CardContent>
               </Card>

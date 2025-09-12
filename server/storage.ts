@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type Task, type InsertTask, type Activity, type InsertActivity, type TaskWithAssignee, type ActivityWithDetails, type Project, type InsertProject, type ProjectWithOwner, type UserWithStats, type SafeUser, type SafeUserWithStats, type SafeTaskWithAssignee, type SafeActivityWithDetails, type Meeting, type InsertMeeting } from "@shared/schema";
+import { type User, type InsertUser, type Task, type InsertTask, type Activity, type InsertActivity, type TaskWithAssignee, type ActivityWithDetails, type Project, type InsertProject, type ProjectWithOwner, type UserWithStats, type SafeUser, type SafeUserWithStats, type SafeTaskWithAssignee, type SafeActivityWithDetails, type Meeting, type InsertMeeting, type MeetingComment, type InsertMeetingComment, type MeetingAttachment, type InsertMeetingAttachment, type MeetingCommentWithAuthor, type MeetingWithDetails } from "@shared/schema";
 import { randomUUID } from "crypto";
 
 export interface IStorage {
@@ -39,6 +39,16 @@ export interface IStorage {
   deleteMeeting(id: string): Promise<boolean>;
   addAttendee(meetingId: string, userId: string): Promise<Meeting | undefined>;
   removeAttendee(meetingId: string, userId: string): Promise<Meeting | undefined>;
+  
+  // Meeting Comment methods
+  getMeetingComments(meetingId: string): Promise<MeetingCommentWithAuthor[]>;
+  createMeetingComment(comment: InsertMeetingComment): Promise<MeetingComment>;
+  deleteMeetingComment(id: string): Promise<boolean>;
+  
+  // Meeting Attachment methods
+  getMeetingAttachments(meetingId: string): Promise<MeetingAttachment[]>;
+  createMeetingAttachment(attachment: InsertMeetingAttachment): Promise<MeetingAttachment>;
+  deleteMeetingAttachment(id: string): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
@@ -47,6 +57,8 @@ export class MemStorage implements IStorage {
   private tasks: Map<string, Task>;
   private activities: Map<string, Activity>;
   private meetings: Map<string, Meeting>;
+  private meetingComments: Map<string, MeetingComment>;
+  private meetingAttachments: Map<string, MeetingAttachment>;
 
   constructor() {
     this.users = new Map();
@@ -54,6 +66,8 @@ export class MemStorage implements IStorage {
     this.tasks = new Map();
     this.activities = new Map();
     this.meetings = new Map();
+    this.meetingComments = new Map();
+    this.meetingAttachments = new Map();
     
     // Initialize with some default data
     this.initializeDefaultData();
@@ -543,6 +557,7 @@ export class MemStorage implements IStorage {
     const meeting: Meeting = {
       ...insertMeeting,
       id,
+      type: insertMeeting.type || "standup",
       description: insertMeeting.description || null,
       location: insertMeeting.location || null,
       attendeeIds: insertMeeting.attendeeIds || [],
@@ -599,6 +614,77 @@ export class MemStorage implements IStorage {
     };
     this.meetings.set(meetingId, updatedMeeting);
     return updatedMeeting;
+  }
+
+  // Meeting Comment methods
+  async getMeetingComments(meetingId: string): Promise<MeetingCommentWithAuthor[]> {
+    const comments = Array.from(this.meetingComments.values())
+      .filter(comment => comment.meetingId === meetingId)
+      .sort((a, b) => (a.createdAt ? new Date(a.createdAt).getTime() : 0) - (b.createdAt ? new Date(b.createdAt).getTime() : 0));
+    
+    const commentsWithAuthor = await Promise.all(
+      comments.map(async comment => {
+        const author = this.users.get(comment.authorId);
+        if (!author) {
+          throw new Error(`Author not found for comment ${comment.id}`);
+        }
+        const safeAuthor: SafeUser = {
+          id: author.id,
+          username: author.username,
+          name: author.name,
+          initials: author.initials,
+          lastLoginAt: author.lastLoginAt
+        };
+        return {
+          ...comment,
+          author: safeAuthor
+        };
+      })
+    );
+    
+    return commentsWithAuthor;
+  }
+
+  async createMeetingComment(insertComment: InsertMeetingComment): Promise<MeetingComment> {
+    const id = randomUUID();
+    const now = new Date();
+    const comment: MeetingComment = {
+      ...insertComment,
+      id,
+      createdAt: now,
+      updatedAt: now
+    };
+    this.meetingComments.set(id, comment);
+    return comment;
+  }
+
+  async deleteMeetingComment(id: string): Promise<boolean> {
+    return this.meetingComments.delete(id);
+  }
+
+  // Meeting Attachment methods
+  async getMeetingAttachments(meetingId: string): Promise<MeetingAttachment[]> {
+    return Array.from(this.meetingAttachments.values())
+      .filter(attachment => attachment.meetingId === meetingId)
+      .sort((a, b) => (a.createdAt ? new Date(a.createdAt).getTime() : 0) - (b.createdAt ? new Date(b.createdAt).getTime() : 0));
+  }
+
+  async createMeetingAttachment(insertAttachment: InsertMeetingAttachment): Promise<MeetingAttachment> {
+    const id = randomUUID();
+    const now = new Date();
+    const attachment: MeetingAttachment = {
+      ...insertAttachment,
+      id,
+      fileSize: insertAttachment.fileSize ?? null,
+      mimeType: insertAttachment.mimeType ?? null,
+      createdAt: now
+    };
+    this.meetingAttachments.set(id, attachment);
+    return attachment;
+  }
+
+  async deleteMeetingAttachment(id: string): Promise<boolean> {
+    return this.meetingAttachments.delete(id);
   }
 }
 

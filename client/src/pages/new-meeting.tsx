@@ -12,6 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { CalendarIcon, Clock, MapPin, Users, FileText, MessageSquare, Upload, ArrowLeft } from "lucide-react";
+import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { insertMeetingSchema, SafeUser } from "@shared/schema";
@@ -23,7 +24,7 @@ const newMeetingSchema = insertMeetingSchema.omit({
 }).extend({
   date: z.string().min(1, "날짜를 선택해주세요"),
   startTime: z.string().min(1, "시작 시간을 선택해주세요"),
-  endTime: z.string().min(1, "종료 시간을 선택해주세요"),
+  endTime: z.string().optional(),
   attendeeIds: z.array(z.string()).min(1, "최소 한 명의 참여자를 선택해주세요")
 });
 
@@ -32,6 +33,8 @@ type NewMeetingForm = z.infer<typeof newMeetingSchema>;
 export default function NewMeeting() {
   const { toast } = useToast();
   const [selectedParticipants, setSelectedParticipants] = useState<string[]>([]);
+  const [, setLocation] = useLocation();
+  const [comments, setComments] = useState<string>("");
 
   // 사용자 목록 가져오기
   const { data: users = [] } = useQuery<SafeUser[]>({
@@ -55,8 +58,23 @@ export default function NewMeeting() {
 
   // 미팅 생성 뮤테이션
   const createMeetingMutation = useMutation({
-    mutationFn: (data: any) => {
-      return apiRequest('POST', '/api/meetings', data);
+    mutationFn: async (data: { meetingData: any; initialComment: string | null }) => {
+      // 먼저 미팅을 생성
+      const meetingResponse = await apiRequest('POST', '/api/meetings', data.meetingData);
+      const meeting = await meetingResponse.json();
+      
+      // 초기 댓글이 있으면 추가
+      if (data.initialComment && meeting.id) {
+        const currentUser = users[0]; // 현재 로그인된 사용자 (임시로 첫 번째 사용자 사용)
+        if (currentUser) {
+          await apiRequest('POST', `/api/meetings/${meeting.id}/comments`, {
+            content: data.initialComment,
+            authorId: currentUser.id
+          });
+        }
+      }
+      
+      return meeting;
     },
     onSuccess: () => {
       toast({
@@ -66,7 +84,7 @@ export default function NewMeeting() {
       // 미팅 목록 새로고침
       queryClient.invalidateQueries({ queryKey: ['/api/meetings'] });
       // 미팅 페이지로 이동
-      window.location.href = '/meeting';
+      setLocation('/meeting');
     },
     onError: (error) => {
       console.error('미팅 생성 오류:', error);
@@ -100,16 +118,23 @@ export default function NewMeeting() {
 
     // 날짜와 시간을 ISO 문자열로 변환
     const startDateTime = new Date(`${data.date}T${data.startTime}`);
-    const endDateTime = new Date(`${data.date}T${data.endTime}`);
-
-    // 시간 검증
-    if (endDateTime <= startDateTime) {
-      toast({
-        title: "시간 설정 오류",
-        description: "종료 시간은 시작 시간보다 늦어야 합니다.",
-        variant: "destructive"
-      });
-      return;
+    let endDateTime: Date | null = null;
+    
+    if (data.endTime) {
+      endDateTime = new Date(`${data.date}T${data.endTime}`);
+      
+      // 종료 시간이 있을 때만 시간 검증
+      if (endDateTime <= startDateTime) {
+        toast({
+          title: "시간 설정 오류",
+          description: "종료 시간은 시작 시간보다 늦어야 합니다.",
+          variant: "destructive"
+        });
+        return;
+      }
+    } else {
+      // 종료 시간이 없으면 시작 시간 + 1시간으로 기본 설정
+      endDateTime = new Date(startDateTime.getTime() + 60 * 60 * 1000);
     }
 
     const meetingData = {
@@ -123,7 +148,12 @@ export default function NewMeeting() {
     };
 
     console.log('Meeting data to send:', meetingData);
-    createMeetingMutation.mutate(meetingData);
+    
+    // 미팅을 생성하고, 초기 댓글이 있으면 함께 저장
+    createMeetingMutation.mutate({
+      meetingData,
+      initialComment: comments.trim() || null
+    });
   };
 
   return (
@@ -135,7 +165,7 @@ export default function NewMeeting() {
             <Button 
               variant="ghost" 
               size="sm"
-              onClick={() => window.location.href = '/meeting'}
+              onClick={() => setLocation('/meeting')}
               data-testid="button-back"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
@@ -373,35 +403,40 @@ export default function NewMeeting() {
                   </CardContent>
                 </Card>
 
-                {/* 추가 기능 카드 (향후 구현용) */}
-                <Card className="opacity-50">
+                {/* 추가 기능 카드 */}
+                <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center space-x-2">
-                      <Upload className="w-5 h-5" />
-                      <span>추가 기능 (향후 지원 예정)</span>
+                      <MessageSquare className="w-5 h-5" />
+                      <span>추가 기능</span>
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <div className="space-y-2">
+                    <div className="space-y-2 opacity-50">
                       <Label className="flex items-center space-x-2">
                         <Upload className="w-4 h-4" />
-                        <span>파일 첨부</span>
+                        <span>파일 첨부 (향후 지원 예정)</span>
                       </Label>
                       <div className="border-2 border-dashed border-muted rounded-lg p-6 text-center text-muted-foreground">
-                        향후 지원 예정
+                        파일 첨부 기능은 향후 추가 예정입니다
                       </div>
                     </div>
 
                     <div className="space-y-2">
                       <Label className="flex items-center space-x-2">
                         <MessageSquare className="w-4 h-4" />
-                        <span>댓글</span>
+                        <span>초기 댓글 (선택사항)</span>
                       </Label>
                       <Textarea 
-                        placeholder="댓글 기능은 향후 지원 예정입니다"
-                        disabled
+                        placeholder="미팅에 대한 초기 댓글을 작성하세요... (선택사항)"
+                        value={comments}
+                        onChange={(e) => setComments(e.target.value)}
                         rows={3}
+                        data-testid="textarea-comments"
                       />
+                      <p className="text-xs text-muted-foreground">
+                        미팅 생성 후 상세보기에서 댓글을 추가로 작성할 수 있습니다.
+                      </p>
                     </div>
                   </CardContent>
                 </Card>
@@ -411,7 +446,7 @@ export default function NewMeeting() {
                   <Button 
                     type="button" 
                     variant="outline" 
-                    onClick={() => window.location.href = '/meeting'}
+                    onClick={() => setLocation('/meeting')}
                     data-testid="button-cancel"
                   >
                     취소

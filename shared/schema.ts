@@ -58,6 +58,26 @@ export const meetings = pgTable("meetings", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+export const meetingAttachments = pgTable("meeting_attachments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  meetingId: varchar("meeting_id").references(() => meetings.id).notNull(),
+  fileName: text("file_name").notNull(),
+  filePath: text("file_path").notNull(),
+  fileSize: integer("file_size"),
+  mimeType: text("mime_type"),
+  uploadedBy: varchar("uploaded_by").references(() => users.id).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const meetingComments = pgTable("meeting_comments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  meetingId: varchar("meeting_id").references(() => meetings.id).notNull(),
+  content: text("content").notNull(),
+  authorId: varchar("author_id").references(() => users.id).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
 });
@@ -85,6 +105,17 @@ export const insertMeetingSchema = createInsertSchema(meetings).omit({
   updatedAt: true,
 });
 
+export const insertMeetingAttachmentSchema = createInsertSchema(meetingAttachments).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertMeetingCommentSchema = createInsertSchema(meetingComments).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 
@@ -99,6 +130,21 @@ export type Activity = typeof activities.$inferSelect;
 
 export type InsertMeeting = z.infer<typeof insertMeetingSchema>;
 export type Meeting = typeof meetings.$inferSelect;
+
+export type InsertMeetingAttachment = z.infer<typeof insertMeetingAttachmentSchema>;
+export type MeetingAttachment = typeof meetingAttachments.$inferSelect;
+
+export type InsertMeetingComment = z.infer<typeof insertMeetingCommentSchema>;
+export type MeetingComment = typeof meetingComments.$inferSelect;
+
+export type MeetingCommentWithAuthor = MeetingComment & {
+  author: SafeUser;
+};
+
+export type MeetingWithDetails = Meeting & {
+  attachments?: MeetingAttachment[];
+  comments?: MeetingCommentWithAuthor[];
+};
 
 export type TaskWithAssignee = Task & {
   assignee?: User;

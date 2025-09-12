@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertTaskSchema, insertActivitySchema, insertProjectSchema, insertMeetingSchema } from "@shared/schema";
+import { insertTaskSchema, insertActivitySchema, insertProjectSchema, insertMeetingSchema, insertMeetingCommentSchema } from "@shared/schema";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -301,6 +301,95 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(meeting);
     } catch (error) {
       res.status(500).json({ message: "Failed to remove attendee" });
+    }
+  });
+
+  // Meeting Comments
+  app.get("/api/meetings/:meetingId/comments", async (req, res) => {
+    try {
+      const comments = await storage.getMeetingComments(req.params.meetingId);
+      res.json(comments);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch comments" });
+    }
+  });
+
+  app.post("/api/meetings/:meetingId/comments", async (req, res) => {
+    try {
+      // 입력 데이터 검증
+      const commentInput = insertMeetingCommentSchema.omit({ meetingId: true }).parse(req.body);
+      
+      // 작성자 검증
+      const author = await storage.getUser(commentInput.authorId);
+      if (!author) {
+        return res.status(400).json({ message: "Invalid author ID" });
+      }
+      
+      // 미팅 존재 검증
+      const meeting = await storage.getMeeting(req.params.meetingId);
+      if (!meeting) {
+        return res.status(404).json({ message: "Meeting not found" });
+      }
+      
+      const commentData = {
+        ...commentInput,
+        meetingId: req.params.meetingId
+      };
+      const comment = await storage.createMeetingComment(commentData);
+      res.status(201).json(comment);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid comment data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create comment" });
+    }
+  });
+
+  app.delete("/api/meetings/:meetingId/comments/:commentId", async (req, res) => {
+    try {
+      // 미팅 존재 검증
+      const meeting = await storage.getMeeting(req.params.meetingId);
+      if (!meeting) {
+        return res.status(404).json({ message: "Meeting not found" });
+      }
+      
+      // 댓글 조회 및 소유권 검증
+      const comments = await storage.getMeetingComments(req.params.meetingId);
+      const comment = comments.find(c => c.id === req.params.commentId);
+      
+      if (!comment) {
+        return res.status(404).json({ message: "Comment not found" });
+      }
+      
+      // 미팅 ID 검증 (경로의 meetingId와 댓글의 meetingId가 일치하는지 확인)
+      if (comment.meetingId !== req.params.meetingId) {
+        return res.status(400).json({ message: "Comment does not belong to this meeting" });
+      }
+      
+      // TODO: 실제 애플리케이션에서는 현재 로그인된 사용자 ID를 검증해야 함
+      // 임시로 authorId를 요청 본문에서 받는다고 가정
+      const requesterId = req.body?.requesterId;
+      if (!requesterId || comment.authorId !== requesterId) {
+        return res.status(403).json({ message: "You can only delete your own comments" });
+      }
+      
+      const deleted = await storage.deleteMeetingComment(req.params.commentId);
+      if (!deleted) {
+        return res.status(404).json({ message: "Comment not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete comment" });
+    }
+  });
+
+  // Meeting Attachments (placeholders for future file upload integration)
+  app.get("/api/meetings/:meetingId/attachments", async (req, res) => {
+    try {
+      const attachments = await storage.getMeetingAttachments(req.params.meetingId);
+      res.json(attachments);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch attachments" });
     }
   });
 
