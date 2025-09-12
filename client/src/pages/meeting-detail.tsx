@@ -13,12 +13,12 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Calendar, Clock, Users, MapPin, Edit, Trash2, ArrowLeft, Save, X, MessageSquare, Send } from "lucide-react";
+import { Calendar, Clock, Users, MapPin, Edit, Trash2, ArrowLeft, Save, X, MessageSquare, Send, Paperclip, Download } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
-import type { Meeting, SafeUser, MeetingCommentWithAuthor } from "@shared/schema";
+import type { Meeting, SafeUser, MeetingCommentWithAuthor, MeetingAttachment } from "@shared/schema";
 import { insertMeetingSchema } from "@shared/schema";
 
 // 편집용 스키마
@@ -28,7 +28,7 @@ const editMeetingSchema = insertMeetingSchema.omit({
 }).extend({
   date: z.string().min(1, "날짜를 선택해주세요"),
   startTime: z.string().min(1, "시작 시간을 선택해주세요"),
-  endTime: z.string().min(1, "종료 시간을 선택해주세요"),
+  endTime: z.string().optional(),
   attendeeIds: z.array(z.string()).min(1, "최소 한 명의 참여자를 선택해주세요")
 });
 
@@ -41,6 +41,41 @@ export default function MeetingDetail() {
   const [isEditing, setIsEditing] = useState(false);
   const [selectedParticipants, setSelectedParticipants] = useState<string[]>([]);
   const [newComment, setNewComment] = useState("");
+
+  // 첨부파일 다운로드 핸들러
+  const handleDownloadAttachment = async (attachment: MeetingAttachment) => {
+    try {
+      // fetch를 직접 사용하여 파일 다운로드
+      const response = await fetch(`/objects/${encodeURI(attachment.filePath)}`);
+      
+      if (response.ok) {
+        // 브라우저의 다운로드 기능 사용
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = attachment.fileName;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+        toast({
+          title: "다운로드 완료",
+          description: `${attachment.fileName} 파일이 다운로드되었습니다.`
+        });
+      } else {
+        throw new Error('다운로드 실패');
+      }
+    } catch (error) {
+      console.error('Download error:', error);
+      toast({
+        title: "다운로드 실패",
+        description: "파일 다운로드 중 오류가 발생했습니다.",
+        variant: "destructive"
+      });
+    }
+  };
 
   // 미팅 정보 조회
   const { data: meeting, isLoading: meetingLoading } = useQuery<Meeting>({
@@ -56,6 +91,12 @@ export default function MeetingDetail() {
   // 댓글 목록 조회
   const { data: comments = [], refetch: refetchComments } = useQuery<MeetingCommentWithAuthor[]>({
     queryKey: ['/api/meetings', id, 'comments'],
+    enabled: !!id
+  });
+
+  // 첨부파일 목록 조회
+  const { data: attachments = [] } = useQuery<MeetingAttachment[]>({
+    queryKey: ['/api/meetings', id, 'attachments'],
     enabled: !!id
   });
 
@@ -128,7 +169,7 @@ export default function MeetingDetail() {
   useEffect(() => {
     if (meeting) {
       const startDate = new Date(meeting.startAt);
-      const endDate = new Date(meeting.endAt);
+      const endDate = meeting.endAt ? new Date(meeting.endAt) : null;
       
       form.reset({
         title: meeting.title,
@@ -137,7 +178,7 @@ export default function MeetingDetail() {
         location: meeting.location || "",
         date: startDate.toISOString().split('T')[0],
         startTime: startDate.toTimeString().slice(0, 5),
-        endTime: endDate.toTimeString().slice(0, 5),
+        endTime: endDate ? endDate.toTimeString().slice(0, 5) : "",
         attendeeIds: meeting.attendeeIds
       });
       
@@ -208,16 +249,20 @@ export default function MeetingDetail() {
 
     // 날짜와 시간을 ISO 문자열로 변환
     const startDateTime = new Date(`${data.date}T${data.startTime}`);
-    const endDateTime = new Date(`${data.date}T${data.endTime}`);
-
-    // 시간 검증
-    if (endDateTime <= startDateTime) {
-      toast({
-        title: "시간 오류",
-        description: "종료 시간은 시작 시간보다 늦어야 합니다.",
-        variant: "destructive"
-      });
-      return;
+    let endDateTime: Date | null = null;
+    
+    if (data.endTime) {
+      endDateTime = new Date(`${data.date}T${data.endTime}`);
+      
+      // 종료 시간이 있을 때만 시간 검증
+      if (endDateTime <= startDateTime) {
+        toast({
+          title: "시간 오류",
+          description: "종료 시간은 시작 시간보다 늦어야 합니다.",
+          variant: "destructive"
+        });
+        return;
+      }
     }
 
     const meetingData = {
@@ -226,7 +271,7 @@ export default function MeetingDetail() {
       description: data.description,
       location: data.location,
       startAt: startDateTime.toISOString(),
-      endAt: endDateTime.toISOString(),
+      endAt: endDateTime ? endDateTime.toISOString() : null,
       attendeeIds: selectedParticipants
     };
 
@@ -511,7 +556,7 @@ export default function MeetingDetail() {
                           name="endTime"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>종료 시간 *</FormLabel>
+                              <FormLabel>종료 시간 (선택사항)</FormLabel>
                               <FormControl>
                                 <Input type="time" {...field} data-testid="input-end-time" />
                               </FormControl>
@@ -604,10 +649,10 @@ export default function MeetingDetail() {
                         {new Date(meeting.startAt).toLocaleTimeString('ko-KR', {
                           hour: '2-digit',
                           minute: '2-digit'
-                        })} - {new Date(meeting.endAt).toLocaleTimeString('ko-KR', {
+                        })}{meeting.endAt ? ` - ${new Date(meeting.endAt).toLocaleTimeString('ko-KR', {
                           hour: '2-digit',
                           minute: '2-digit'
-                        })}
+                        })}` : ''}
                       </span>
                     </div>
                   </div>
@@ -662,6 +707,53 @@ export default function MeetingDetail() {
                   </div>
                 </CardContent>
               </Card>
+
+              {/* 첨부파일 섹션 */}
+              {attachments.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center space-x-2">
+                      <Paperclip className="w-5 h-5" />
+                      <span>첨부파일 ({attachments.length}개)</span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {attachments.map((attachment) => {
+                        const uploaderUser = users.find(u => u.id === attachment.uploadedBy);
+                        return (
+                          <div
+                            key={attachment.id}
+                            className="flex items-center justify-between p-3 rounded border"
+                            data-testid={`attachment-${attachment.id}`}
+                          >
+                            <div className="flex items-center space-x-3">
+                              <Paperclip className="w-4 h-4 text-muted-foreground" />
+                              <div>
+                                <div className="font-medium">{attachment.fileName}</div>
+                                <div className="text-sm text-muted-foreground">
+                                  {attachment.fileSize && `${Math.round(attachment.fileSize / 1024)} KB`}
+                                  {uploaderUser && ` • ${uploaderUser.name}이 업로드`}
+                                  {attachment.createdAt && ` • ${new Date(attachment.createdAt).toLocaleDateString('ko-KR')}`}
+                                </div>
+                              </div>
+                            </div>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDownloadAttachment(attachment)}
+                              data-testid={`button-download-${attachment.id}`}
+                            >
+                              <Download className="w-4 h-4 mr-2" />
+                              다운로드
+                            </Button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
 
               {/* 댓글 섹션 */}
               <Card>
