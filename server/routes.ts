@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertTaskSchema, insertActivitySchema, insertProjectSchema } from "@shared/schema";
+import { insertTaskSchema, insertActivitySchema, insertProjectSchema, insertMeetingSchema } from "@shared/schema";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -206,6 +206,101 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(stats);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch statistics" });
+    }
+  });
+
+  // Meeting routes
+  app.get("/api/meetings", async (req, res) => {
+    try {
+      const { from, to } = req.query;
+      const meetings = await storage.listMeetings({
+        from: from as string | undefined,
+        to: to as string | undefined
+      });
+      res.json(meetings);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch meetings" });
+    }
+  });
+
+  app.get("/api/meetings/:id", async (req, res) => {
+    try {
+      const meeting = await storage.getMeeting(req.params.id);
+      if (!meeting) {
+        return res.status(404).json({ message: "Meeting not found" });
+      }
+      res.json(meeting);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch meeting" });
+    }
+  });
+
+  app.post("/api/meetings", async (req, res) => {
+    try {
+      const meetingData = insertMeetingSchema.parse(req.body);
+      const meeting = await storage.createMeeting(meetingData);
+      res.status(201).json(meeting);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid meeting data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create meeting" });
+    }
+  });
+
+  app.patch("/api/meetings/:id", async (req, res) => {
+    try {
+      const meetingData = insertMeetingSchema.partial().parse(req.body);
+      const meeting = await storage.updateMeeting(req.params.id, meetingData);
+      if (!meeting) {
+        return res.status(404).json({ message: "Meeting not found" });
+      }
+      res.json(meeting);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid meeting data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update meeting" });
+    }
+  });
+
+  app.delete("/api/meetings/:id", async (req, res) => {
+    try {
+      const deleted = await storage.deleteMeeting(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ message: "Meeting not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete meeting" });
+    }
+  });
+
+  app.post("/api/meetings/:id/attendees", async (req, res) => {
+    try {
+      const { userId } = z.object({ userId: z.string().min(1) }).parse(req.body);
+      const meeting = await storage.addAttendee(req.params.id, userId);
+      if (!meeting) {
+        return res.status(404).json({ message: "Meeting not found" });
+      }
+      res.json(meeting);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to add attendee" });
+    }
+  });
+
+  app.delete("/api/meetings/:id/attendees/:userId", async (req, res) => {
+    try {
+      const meeting = await storage.removeAttendee(req.params.id, req.params.userId);
+      if (!meeting) {
+        return res.status(404).json({ message: "Meeting not found" });
+      }
+      res.json(meeting);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to remove attendee" });
     }
   });
 
