@@ -9,6 +9,7 @@ import { useState } from "react";
 import type { SafeTaskWithAssignee, ProjectWithDetails, GoalWithTasks } from "@shared/schema";
 import { ProjectModal } from "@/components/project-modal";
 import { GoalModal } from "@/components/goal-modal";
+import { TaskModal } from "@/components/task-modal";
 
 export default function List() {
   const { data: projects, isLoading, error } = useQuery({
@@ -24,6 +25,11 @@ export default function List() {
     isOpen: false, 
     projectId: '', 
     projectTitle: '' 
+  });
+  const [taskModalState, setTaskModalState] = useState<{ isOpen: boolean; goalId: string; goalTitle: string }>({ 
+    isOpen: false, 
+    goalId: '', 
+    goalTitle: '' 
   });
   
   const toggleProject = (projectId: string) => {
@@ -136,15 +142,17 @@ export default function List() {
                 key={project.id} 
                 className="hover:shadow-lg transition-all duration-200"
                 data-testid={`card-project-${project.id}`}
-                onMouseEnter={() => setHoveredProject(project.id)}
-                onMouseLeave={() => setHoveredProject(null)}
               >
                 <Collapsible
                   open={expandedProjects.has(project.id)}
                   onOpenChange={() => toggleProject(project.id)}
                 >
                   <CollapsibleTrigger asChild>
-                    <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+                    <CardHeader 
+                      className="cursor-pointer hover:bg-muted/50 transition-colors"
+                      onMouseEnter={() => setHoveredProject(project.id)}
+                      onMouseLeave={() => setHoveredProject(null)}
+                    >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-3">
                           {expandedProjects.has(project.id) ? (
@@ -179,6 +187,7 @@ export default function List() {
                               variant="outline"
                               className="h-8 w-8 p-0"
                               data-testid={`button-add-goal-${project.id}`}
+                              aria-label="add-goal"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setGoalModalState({
@@ -209,6 +218,7 @@ export default function List() {
                           getStatusBadgeVariant={getStatusBadgeVariant}
                           hoveredProject={hoveredProject}
                           setGoalModalState={setGoalModalState}
+                          setTaskModalState={setTaskModalState}
                         />
                       )}
                     </CardContent>
@@ -231,6 +241,13 @@ export default function List() {
         projectId={goalModalState.projectId}
         projectTitle={goalModalState.projectTitle}
       />
+      
+      <TaskModal
+        isOpen={taskModalState.isOpen}
+        onClose={() => setTaskModalState({ isOpen: false, goalId: '', goalTitle: '' })}
+        goalId={taskModalState.goalId}
+        goalTitle={taskModalState.goalTitle}
+      />
     </>
   );
 }
@@ -247,6 +264,7 @@ interface ProjectGoalsContentProps {
   getStatusBadgeVariant: (status: string) => "default" | "secondary" | "destructive" | "outline";
   hoveredProject: string | null;
   setGoalModalState: (state: { isOpen: boolean; projectId: string; projectTitle: string }) => void;
+  setTaskModalState: (state: { isOpen: boolean; goalId: string; goalTitle: string }) => void;
 }
 
 function ProjectGoalsContent({ 
@@ -259,7 +277,8 @@ function ProjectGoalsContent({
   getStatusColor,
   getStatusBadgeVariant,
   hoveredProject,
-  setGoalModalState
+  setGoalModalState,
+  setTaskModalState
 }: ProjectGoalsContentProps) {
   // Fetch goals for this project
   const { data: goals, isLoading: goalsLoading, error: goalsError } = useQuery({
@@ -346,15 +365,20 @@ function ProjectGoalsContent({
                         {goal.progressPercentage}% 진행률
                       </div>
                     </div>
-                    {hoveredGoal === goal.id && (
+                    {(expandedGoals.has(goal.id) || hoveredGoal === goal.id) && (
                       <Button 
                         size="sm" 
                         variant="outline"
                         className="h-8 w-8 p-0"
                         data-testid={`button-add-task-${goal.id}`}
+                        aria-label="add-task"
                         onClick={(e) => {
                           e.stopPropagation();
-                          // TODO: 작업 추가 기능
+                          setTaskModalState({
+                            isOpen: true,
+                            goalId: goal.id,
+                            goalTitle: goal.title
+                          });
                         }}
                       >
                         <Plus className="w-4 h-4" />

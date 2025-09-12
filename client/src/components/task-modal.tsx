@@ -23,9 +23,11 @@ interface TaskModalProps {
   isOpen: boolean;
   onClose: () => void;
   editingTask?: TaskWithAssignee | null;
+  goalId?: string;
+  goalTitle?: string;
 }
 
-export function TaskModal({ isOpen, onClose, editingTask }: TaskModalProps) {
+export function TaskModal({ isOpen, onClose, editingTask, goalId, goalTitle }: TaskModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -42,7 +44,9 @@ export function TaskModal({ isOpen, onClose, editingTask }: TaskModalProps) {
       priority: "중간",
       deadline: "",
       duration: 0,
-      assigneeId: "",
+      assigneeId: "none",
+      goalId: goalId || "",
+      projectId: "",
     },
   });
 
@@ -55,7 +59,7 @@ export function TaskModal({ isOpen, onClose, editingTask }: TaskModalProps) {
         priority: editingTask.priority || "중간",
         deadline: editingTask.deadline || "",
         duration: editingTask.duration || 0,
-        assigneeId: editingTask.assigneeId || "",
+        assigneeId: editingTask.assigneeId || "none",
       });
     } else {
       form.reset({
@@ -65,18 +69,25 @@ export function TaskModal({ isOpen, onClose, editingTask }: TaskModalProps) {
         priority: "중간",
         deadline: "",
         duration: 0,
-        assigneeId: "",
+        assigneeId: "none",
       });
     }
   }, [editingTask, form]);
 
   const createTaskMutation = useMutation({
     mutationFn: async (data: TaskFormData) => {
-      const response = await apiRequest("POST", "/api/tasks", data);
+      const taskData = {
+        ...data,
+        goalId: goalId || data.goalId || null,
+        assigneeId: data.assigneeId === "none" ? null : data.assigneeId,
+      };
+      const response = await apiRequest("POST", "/api/tasks", taskData);
       return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/goals"] });
       queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
       queryClient.invalidateQueries({ queryKey: ["/api/activities"] });
       toast({
@@ -168,6 +179,7 @@ export function TaskModal({ isOpen, onClose, editingTask }: TaskModalProps) {
                       placeholder="작업 설명을 입력하세요" 
                       className="resize-none"
                       {...field}
+                      value={field.value || ""}
                       data-testid="textarea-task-description"
                     />
                   </FormControl>
@@ -201,7 +213,7 @@ export function TaskModal({ isOpen, onClose, editingTask }: TaskModalProps) {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>상태</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value || ""}>
                       <FormControl>
                         <SelectTrigger data-testid="select-task-status">
                           <SelectValue placeholder="상태를 선택하세요" />
@@ -226,19 +238,19 @@ export function TaskModal({ isOpen, onClose, editingTask }: TaskModalProps) {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>담당자</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value || ""}>
                     <FormControl>
                       <SelectTrigger data-testid="select-task-assignee">
                         <SelectValue placeholder="담당자를 선택하세요" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="">담당자 없음</SelectItem>
-                      {users?.map((user: any) => (
+                      <SelectItem value="none">담당자 없음</SelectItem>
+                      {Array.isArray(users) ? users.map((user: any) => (
                         <SelectItem key={user.id} value={user.id}>
                           {user.name}
                         </SelectItem>
-                      ))}
+                      )) : null}
                     </SelectContent>
                   </Select>
                   <FormMessage />
