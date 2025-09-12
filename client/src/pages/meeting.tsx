@@ -51,11 +51,11 @@ export default function Meeting() {
     return dates;
   }, [selectedWeek]);
 
-  // Time slots for the calendar (9am - 6pm)
+  // Time slots for the calendar (00:00 - 24:00)
   const timeSlots = useMemo(() => {
     const slots = [];
-    for (let hour = 9; hour <= 18; hour++) {
-      slots.push(`${hour}:00`);
+    for (let hour = 0; hour < 24; hour++) {
+      slots.push(`${hour.toString().padStart(2, '0')}:00`);
     }
     return slots;
   }, []);
@@ -114,20 +114,13 @@ export default function Meeting() {
     const currentHour = now.getHours();
     const currentMinutes = now.getMinutes();
     
-    // Show time line during all hours for demonstration (originally 9am - 6pm only)
-    // if (currentHour < 9 || currentHour >= 18) return null;
-
-    // Calculate position within the calendar grid
-    // For demonstration, map any hour to a visible slot (0-9 for 9am-6pm display)
-    const hourSlotIndex = currentHour >= 9 && currentHour < 18 
-      ? currentHour - 9  // Normal business hours
-      : currentHour % 10; // Map other hours to visible slots for demo
-    
+    // Show time line for all hours (00:00 - 23:59)
+    const hourSlotIndex = currentHour; // Direct mapping for 24-hour display
     const minutePercentage = currentMinutes / 60; // 0-1 percentage within the hour
     
     return {
       columnIndex: todayColumnIndex,
-      hourSlotIndex: Math.max(0, Math.min(9, hourSlotIndex)), // Ensure it's within 0-9 range
+      hourSlotIndex,
       minutePercentage,
       timeString: now.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
     };
@@ -186,12 +179,6 @@ export default function Meeting() {
 
   return (
     <div className="flex h-full">
-      {/* Left Sidebar */}
-      <div className="w-80 bg-card border-r border-border p-6 flex flex-col">
-        {/* Empty sidebar for now - meetings moved to main area */}
-        <div className="flex-1"></div>
-      </div>
-
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
         {/* Header */}
