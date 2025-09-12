@@ -26,6 +26,29 @@ export default function Meeting() {
     return () => clearInterval(interval);
   }, []);
 
+  // Auto scroll to current time on page load
+  useEffect(() => {
+    const scrollToCurrentTime = () => {
+      const now = new Date();
+      const currentHour = now.getHours();
+      
+      // Find the time slot element for current hour
+      const timeSlotElement = document.querySelector(`[data-testid="row-time-${currentHour.toString().padStart(2, '0')}:00"]`);
+      
+      if (timeSlotElement) {
+        timeSlotElement.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'center' 
+        });
+      }
+    };
+
+    // Delay scroll to ensure elements are rendered
+    const timer = setTimeout(scrollToCurrentTime, 100);
+    
+    return () => clearTimeout(timer);
+  }, []); // Only run on mount
+
   // Fetch meetings data
   const { data: meetings = [], isLoading } = useQuery<Meeting[]>({
     queryKey: ['/api/meetings'],
@@ -187,27 +210,6 @@ export default function Meeting() {
             <h1 className="text-xl font-semibold" data-testid="header-title">
               미팅 일정
             </h1>
-            <div className="flex items-center space-x-2">
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => setSelectedWeek(selectedWeek - 1)}
-                data-testid="button-prev-week"
-              >
-                ←
-              </Button>
-              <span className="text-sm font-medium" data-testid="text-current-week">
-                {weekDates[0]?.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })} - {weekDates[6]?.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })}
-              </span>
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => setSelectedWeek(selectedWeek + 1)}
-                data-testid="button-next-week"
-              >
-                →
-              </Button>
-            </div>
           </div>
           
           <div className="flex items-center space-x-4">
@@ -371,6 +373,29 @@ export default function Meeting() {
 
         {/* Weekly Calendar Grid */}
         <main className="flex-1 p-6 overflow-auto" data-testid="main-content">
+          {/* Calendar Week Navigation */}
+          <div className="flex items-center justify-center space-x-2 mb-4">
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => setSelectedWeek(selectedWeek - 1)}
+              data-testid="button-prev-week"
+            >
+              ←
+            </Button>
+            <span className="text-sm font-medium" data-testid="text-current-week">
+              {weekDates[0]?.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })} - {weekDates[6]?.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })}
+            </span>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => setSelectedWeek(selectedWeek + 1)}
+              data-testid="button-next-week"
+            >
+              →
+            </Button>
+          </div>
+          
           <div className="bg-card rounded-lg border border-border overflow-hidden relative">
             {/* Calendar Header */}
             <div className="grid grid-cols-8 bg-muted">
@@ -445,14 +470,14 @@ export default function Meeting() {
                             <div
                               key={meeting.id}
                               className={`
-                                absolute left-1 right-1 rounded p-2 text-white text-xs font-medium
+                                absolute left-1 right-1 rounded p-1 text-white text-xs font-medium
                                 cursor-pointer hover:opacity-80 transition-opacity
                                 ${getMeetingColor(meeting.title)}
                               `}
                               style={{
                                 top: `${topOffset}%`,
                                 height: `${height}%`,
-                                minHeight: '20px' // Ensure minimum visibility
+                                minHeight: '30px' // Ensure minimum visibility for 2 lines
                               }}
                               data-testid={`meeting-block-${meeting.id}`}
                               title={`${meeting.title} - ${meeting.location || '위치 미정'} (${meetingStart.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })} - ${meetingEnd.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })})`}
@@ -461,12 +486,10 @@ export default function Meeting() {
                                 setParticipantDialogOpen(true);
                               }}
                             >
-                              <div className="truncate">{meeting.title}</div>
-                              {meeting.location && (
-                                <div className="truncate text-xs opacity-75">
-                                  {meeting.location}
-                                </div>
-                              )}
+                              <div className="truncate leading-tight">{meeting.title}</div>
+                              <div className="truncate text-xs opacity-90 leading-tight">
+                                {meetingStart.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
+                              </div>
                             </div>
                           );
                         })}
