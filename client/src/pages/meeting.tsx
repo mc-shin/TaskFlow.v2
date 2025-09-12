@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,6 +15,16 @@ export default function Meeting() {
   const [selectedWeek, setSelectedWeek] = useState(0); // 0 = this week, 1 = next week, etc.
   const [participantDialogOpen, setParticipantDialogOpen] = useState(false);
   const [selectedMeetingId, setSelectedMeetingId] = useState<string | null>(null);
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Update current time every second
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   // Fetch meetings data
   const { data: meetings = [], isLoading } = useQuery<Meeting[]>({
@@ -88,6 +98,43 @@ export default function Meeting() {
     return users.find(user => user.id === userId);
   };
 
+  // Calculate current time line position
+  const getCurrentTimeLine = () => {
+    const now = currentTime;
+    const todayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
+    // Find today's column index
+    const todayColumnIndex = weekDates.findIndex(date => {
+      const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+      return dateOnly.getTime() === todayDate.getTime();
+    });
+
+    if (todayColumnIndex === -1) return null; // Today is not in current week view
+
+    const currentHour = now.getHours();
+    const currentMinutes = now.getMinutes();
+    
+    // Show time line during all hours for demonstration (originally 9am - 6pm only)
+    // if (currentHour < 9 || currentHour >= 18) return null;
+
+    // Calculate position within the calendar grid
+    // For demonstration, map any hour to a visible slot (0-9 for 9am-6pm display)
+    const hourSlotIndex = currentHour >= 9 && currentHour < 18 
+      ? currentHour - 9  // Normal business hours
+      : currentHour % 10; // Map other hours to visible slots for demo
+    
+    const minutePercentage = currentMinutes / 60; // 0-1 percentage within the hour
+    
+    return {
+      columnIndex: todayColumnIndex,
+      hourSlotIndex: Math.max(0, Math.min(9, hourSlotIndex)), // Ensure it's within 0-9 range
+      minutePercentage,
+      timeString: now.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
+    };
+  };
+
+  const currentTimeLine = getCurrentTimeLine();
+
   // Mutations for participant management
   const addParticipantMutation = useMutation({
     mutationFn: ({ meetingId, userId }: { meetingId: string; userId: string }) => {
@@ -141,63 +188,8 @@ export default function Meeting() {
     <div className="flex h-full">
       {/* Left Sidebar */}
       <div className="w-80 bg-card border-r border-border p-6 flex flex-col">
-        {/* Meeting Stop Button */}
-        <Button 
-          variant="destructive" 
-          className="w-full mb-6"
-          data-testid="button-stop-meeting"
-        >
-          <Square className="w-4 h-4 mr-2" />
-          미팅 중지?
-        </Button>
-
-        {/* Today's Meetings */}
-        <div className="flex-1">
-          <h2 className="text-lg font-semibold mb-4" data-testid="text-todays-meetings">
-            오늘의 미팅
-          </h2>
-          
-          {isLoading ? (
-            <div className="space-y-3">
-              {[1, 2, 3].map(i => (
-                <div key={i} className="h-16 bg-muted rounded animate-pulse" />
-              ))}
-            </div>
-          ) : todaysMeetings.length > 0 ? (
-            <div className="space-y-3">
-              {todaysMeetings.map((meeting) => (
-                <Card 
-                  key={meeting.id} 
-                  className="p-3 hover:bg-accent cursor-pointer transition-colors"
-                  data-testid={`card-today-meeting-${meeting.id}`}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="font-medium text-sm truncate" data-testid={`text-meeting-title-${meeting.id}`}>
-                      {meeting.title}
-                    </h3>
-                    <div className={`w-3 h-3 rounded-full ${getMeetingColor(meeting.title)}`} />
-                  </div>
-                  <div className="flex items-center text-xs text-muted-foreground">
-                    <Clock className="w-3 h-3 mr-1" />
-                    {new Date(meeting.startAt).toLocaleTimeString('ko-KR', { 
-                      hour: '2-digit', 
-                      minute: '2-digit' 
-                    })}
-                    {meeting.location && (
-                      <>
-                        <span className="mx-2">•</span>
-                        <MapPin className="w-3 h-3 mr-1" />
-                        {meeting.location}
-                      </>
-                    )}
-                  </div>
-                </Card>
-              ))}
-            </div>
-          ) : (
-            <p className="text-muted-foreground text-sm">오늘 예정된 미팅이 없습니다.</p>
-          )}
-        </div>
+        {/* Empty sidebar for now - meetings moved to main area */}
+        <div className="flex-1"></div>
       </div>
 
       {/* Main Content */}
@@ -342,9 +334,57 @@ export default function Meeting() {
           </div>
         </header>
 
+        {/* Today's Meetings Section */}
+        <div className="px-6 py-4 border-b border-border">
+          <h2 className="text-lg font-semibold mb-4" data-testid="text-todays-meetings">
+            오늘의 미팅
+          </h2>
+          
+          {isLoading ? (
+            <div className="flex space-x-3">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="h-16 w-48 bg-muted rounded animate-pulse" />
+              ))}
+            </div>
+          ) : todaysMeetings.length > 0 ? (
+            <div className="flex space-x-3 overflow-x-auto">
+              {todaysMeetings.map((meeting) => (
+                <Card 
+                  key={meeting.id} 
+                  className="p-3 hover:bg-accent cursor-pointer transition-colors min-w-48 flex-shrink-0"
+                  data-testid={`card-today-meeting-${meeting.id}`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="font-medium text-sm truncate" data-testid={`text-meeting-title-${meeting.id}`}>
+                      {meeting.title}
+                    </h3>
+                    <div className={`w-3 h-3 rounded-full ${getMeetingColor(meeting.title)}`} />
+                  </div>
+                  <div className="flex items-center text-xs text-muted-foreground">
+                    <Clock className="w-3 h-3 mr-1" />
+                    {new Date(meeting.startAt).toLocaleTimeString('ko-KR', { 
+                      hour: '2-digit', 
+                      minute: '2-digit' 
+                    })}
+                    {meeting.location && (
+                      <>
+                        <span className="mx-2">•</span>
+                        <MapPin className="w-3 h-3 mr-1" />
+                        {meeting.location}
+                      </>
+                    )}
+                  </div>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <p className="text-muted-foreground text-sm">오늘 예정된 미팅이 없습니다.</p>
+          )}
+        </div>
+
         {/* Weekly Calendar Grid */}
         <main className="flex-1 p-6 overflow-auto" data-testid="main-content">
-          <div className="bg-card rounded-lg border border-border overflow-hidden">
+          <div className="bg-card rounded-lg border border-border overflow-hidden relative">
             {/* Calendar Header */}
             <div className="grid grid-cols-8 bg-muted">
               <div className="p-3 border-r border-border font-medium text-sm">시간</div>
@@ -366,12 +406,30 @@ export default function Meeting() {
 
             {/* Calendar Body */}
             <div className="divide-y divide-border">
-              {timeSlots.map((timeSlot) => (
+              {timeSlots.map((timeSlot, slotIndex) => (
                 <div 
                   key={timeSlot} 
-                  className="grid grid-cols-8 min-h-[60px]"
+                  className="grid grid-cols-8 min-h-[60px] relative"
                   data-testid={`row-time-${timeSlot}`}
                 >
+                  {/* Current Time Line */}
+                  {currentTimeLine && currentTimeLine.hourSlotIndex === slotIndex && (
+                    <div 
+                      className="absolute left-0 right-0 z-10 flex items-center"
+                      style={{
+                        top: `${currentTimeLine.minutePercentage * 100}%`,
+                        transform: 'translateY(-50%)'
+                      }}
+                    >
+                      {/* Time indicator in the time column */}
+                      <div className="bg-red-500 text-white text-xs px-2 py-1 rounded-l z-20 whitespace-nowrap">
+                        {currentTimeLine.timeString}
+                      </div>
+                      {/* Red line across all calendar columns */}
+                      <div className="bg-red-500 h-0.5 flex-1" />
+                    </div>
+                  )}
+                  
                   {/* Time Column */}
                   <div className="p-3 border-r border-border bg-muted/50 flex items-center justify-center">
                     <span className="text-sm font-medium">{timeSlot}</span>
