@@ -13,6 +13,7 @@ export interface IStorage {
 
   // Project methods
   getAllProjects(): Promise<ProjectWithOwner[]>;
+  getAllProjectsWithDetails(): Promise<ProjectWithDetails[]>;
   getProject(id: string): Promise<ProjectWithOwner | undefined>;
   createProject(project: InsertProject): Promise<Project>;
   updateProject(id: string, project: Partial<InsertProject>): Promise<Project | undefined>;
@@ -319,6 +320,77 @@ export class MemStorage implements IStorage {
     }
     
     return projectsWithOwner.sort((a, b) => 
+      new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime()
+    );
+  }
+
+  async getAllProjectsWithDetails(): Promise<ProjectWithDetails[]> {
+    const projects = Array.from(this.projects.values());
+    const projectsWithDetails: ProjectWithDetails[] = [];
+    
+    for (const project of projects) {
+      const ownerUser = project.ownerId ? await this.getUser(project.ownerId) : undefined;
+      const owner = ownerUser ? (({ password, ...safeUser }) => safeUser)(ownerUser) : undefined;
+      
+      // Get all tasks for this project
+      const projectTasks = Array.from(this.tasks.values()).filter(task => task.projectId === project.id);
+      const completedTasks = projectTasks.filter(task => task.status === "완료");
+      const overdueTasks = projectTasks.filter(task => {
+        if (!task.deadline) return false;
+        return new Date(task.deadline) < new Date();
+      });
+      
+      const progressPercentage = projectTasks.length > 0 ? (completedTasks.length / projectTasks.length) * 100 : 0;
+      
+      // Get goals for this project with their tasks
+      const projectGoals = Array.from(this.goals.values()).filter(goal => goal.projectId === project.id);
+      const goalsWithTasks: GoalWithTasks[] = [];
+      
+      for (const goal of projectGoals) {
+        // Get tasks for this goal
+        const goalTasks = Array.from(this.tasks.values()).filter(task => task.goalId === goal.id);
+        const goalCompletedTasks = goalTasks.filter(task => task.status === "완료");
+        const goalProgressPercentage = goalTasks.length > 0 ? (goalCompletedTasks.length / goalTasks.length) * 100 : 0;
+        
+        // Add assignee info to goal tasks
+        const goalTasksWithAssignees: SafeTaskWithAssignee[] = [];
+        for (const task of goalTasks) {
+          const assigneeUser = task.assigneeId ? await this.getUser(task.assigneeId) : undefined;
+          const assignee = assigneeUser ? (({ password, ...safeUser }) => safeUser)(assigneeUser) : undefined;
+          goalTasksWithAssignees.push({ ...task, assignee });
+        }
+        
+        goalsWithTasks.push({
+          ...goal,
+          tasks: goalTasksWithAssignees,
+          totalTasks: goalTasks.length,
+          completedTasks: goalCompletedTasks.length,
+          progressPercentage: Math.round(goalProgressPercentage),
+        });
+      }
+      
+      // Add assignee info to project tasks
+      const tasksWithAssignees: SafeTaskWithAssignee[] = [];
+      for (const task of projectTasks) {
+        const assigneeUser = task.assigneeId ? await this.getUser(task.assigneeId) : undefined;
+        const assignee = assigneeUser ? (({ password, ...safeUser }) => safeUser)(assigneeUser) : undefined;
+        tasksWithAssignees.push({ ...task, assignee });
+      }
+      
+      projectsWithDetails.push({
+        ...project,
+        owner,
+        goals: goalsWithTasks,
+        tasks: tasksWithAssignees,
+        totalTasks: projectTasks.length,
+        completedTasks: completedTasks.length,
+        progressPercentage: Math.round(progressPercentage),
+        hasOverdueTasks: overdueTasks.length > 0,
+        overdueTaskCount: overdueTasks.length,
+      });
+    }
+    
+    return projectsWithDetails.sort((a, b) => 
       new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime()
     );
   }

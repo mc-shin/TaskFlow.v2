@@ -81,7 +81,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Project routes
   app.get("/api/projects", async (req, res) => {
     try {
-      const projects = await storage.getAllProjects();
+      const projects = await storage.getAllProjectsWithDetails();
       res.json(projects);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch projects" });
