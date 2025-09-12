@@ -92,7 +92,7 @@ export default function MyTasks() {
   };
 
   // 필터링된 작업 목록
-  const filteredTasks = tasks?.filter((task: TaskWithAssignee) => {
+  const filteredTasks = (tasks as TaskWithAssignee[] || []).filter((task: TaskWithAssignee) => {
     const matchesSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === "all" || task.status === statusFilter;
     return matchesSearch && matchesStatus;
@@ -251,7 +251,7 @@ export default function MyTasks() {
                               </AvatarFallback>
                             </Avatar>
                             <span className="text-sm" data-testid={`text-assignee-${task.id}`}>
-                              {task.assignee.name}
+                              {task.assignee.name || ''}
                             </span>
                           </div>
                         )}

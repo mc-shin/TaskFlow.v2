@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { MoreHorizontal, Edit, Trash2 } from "lucide-react";
+import { Plus, MoreHorizontal, Edit, Trash2 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
@@ -134,7 +134,7 @@ export function TaskTable({ onEditTask }: TaskTableProps) {
               </tr>
             </thead>
             <tbody>
-              {tasks?.map((task: TaskWithAssignee) => (
+              {(tasks as TaskWithAssignee[] || []).map((task: TaskWithAssignee) => (
                 <tr 
                   key={task.id}
                   className="task-row border-b border-border hover:bg-accent/50 transition-colors"
@@ -166,7 +166,7 @@ export function TaskTable({ onEditTask }: TaskTableProps) {
                           </AvatarFallback>
                         </Avatar>
                         <span className="text-sm" data-testid={`text-assignee-${task.id}`}>
-                          {task.assignee.name}
+                          {task.assignee.name || ''}
                         </span>
                       </div>
                     )}
@@ -195,7 +195,7 @@ export function TaskTable({ onEditTask }: TaskTableProps) {
                 </tr>
               ))}
               
-              {(!tasks || tasks.length === 0) && (
+              {(!(tasks as TaskWithAssignee[]) || (tasks as TaskWithAssignee[]).length === 0) && (
                 <tr>
                   <td colSpan={6} className="p-8 text-center text-muted-foreground" data-testid="text-empty-tasks">
                     작업이 없습니다. 새 작업을 생성해보세요.
