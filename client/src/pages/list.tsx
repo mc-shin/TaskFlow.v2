@@ -8,6 +8,7 @@ import { CheckCircle, Clock, AlertTriangle, User, Plus, ChevronDown, ChevronRigh
 import { useState } from "react";
 import type { SafeTaskWithAssignee, ProjectWithDetails, GoalWithTasks } from "@shared/schema";
 import { ProjectModal } from "@/components/project-modal";
+import { GoalModal } from "@/components/goal-modal";
 
 export default function List() {
   const { data: projects, isLoading, error } = useQuery({
@@ -19,6 +20,11 @@ export default function List() {
   const [hoveredProject, setHoveredProject] = useState<string | null>(null);
   const [hoveredGoal, setHoveredGoal] = useState<string | null>(null);
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
+  const [goalModalState, setGoalModalState] = useState<{ isOpen: boolean; projectId: string; projectTitle: string }>({ 
+    isOpen: false, 
+    projectId: '', 
+    projectTitle: '' 
+  });
   
   const toggleProject = (projectId: string) => {
     const newExpanded = new Set(expandedProjects);
@@ -175,7 +181,11 @@ export default function List() {
                               data-testid={`button-add-goal-${project.id}`}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                // TODO: 목표 추가 기능
+                                setGoalModalState({
+                                  isOpen: true,
+                                  projectId: project.id,
+                                  projectTitle: project.title
+                                });
                               }}
                             >
                               <Plus className="w-4 h-4" />
@@ -197,6 +207,8 @@ export default function List() {
                           formatDeadline={formatDeadline}
                           getStatusColor={getStatusColor}
                           getStatusBadgeVariant={getStatusBadgeVariant}
+                          hoveredProject={hoveredProject}
+                          setGoalModalState={setGoalModalState}
                         />
                       )}
                     </CardContent>
@@ -212,6 +224,13 @@ export default function List() {
         isOpen={isProjectModalOpen}
         onClose={() => setIsProjectModalOpen(false)}
       />
+      
+      <GoalModal
+        isOpen={goalModalState.isOpen}
+        onClose={() => setGoalModalState({ isOpen: false, projectId: '', projectTitle: '' })}
+        projectId={goalModalState.projectId}
+        projectTitle={goalModalState.projectTitle}
+      />
     </>
   );
 }
@@ -226,6 +245,8 @@ interface ProjectGoalsContentProps {
   formatDeadline: (deadline: string | null) => string | null;
   getStatusColor: (status: string) => string;
   getStatusBadgeVariant: (status: string) => "default" | "secondary" | "destructive" | "outline";
+  hoveredProject: string | null;
+  setGoalModalState: (state: { isOpen: boolean; projectId: string; projectTitle: string }) => void;
 }
 
 function ProjectGoalsContent({ 
@@ -236,7 +257,9 @@ function ProjectGoalsContent({
   setHoveredGoal,
   formatDeadline,
   getStatusColor,
-  getStatusBadgeVariant
+  getStatusBadgeVariant,
+  hoveredProject,
+  setGoalModalState
 }: ProjectGoalsContentProps) {
   // Fetch goals for this project
   const { data: goals, isLoading: goalsLoading, error: goalsError } = useQuery({
