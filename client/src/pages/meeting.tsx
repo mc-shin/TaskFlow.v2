@@ -213,6 +213,15 @@ export default function Meeting() {
           </div>
           
           <div className="flex items-center space-x-4">
+            {/* New Meeting Button */}
+            <Button 
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+              data-testid="button-new-meeting"
+              onClick={() => window.location.href = '/meeting/new'}
+            >
+              새 미팅
+            </Button>
+
             {/* Participant Avatars */}
             <div className="flex items-center space-x-2">
               <div className="flex -space-x-1">
