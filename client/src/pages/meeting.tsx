@@ -129,7 +129,7 @@ export default function Meeting() {
       columnIndex: todayColumnIndex,
       hourSlotIndex: Math.max(0, Math.min(9, hourSlotIndex)), // Ensure it's within 0-9 range
       minutePercentage,
-      timeString: now.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false })
+      timeString: now.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
     };
   };
 
@@ -186,6 +186,12 @@ export default function Meeting() {
 
   return (
     <div className="flex h-full">
+      {/* Left Sidebar */}
+      <div className="w-80 bg-card border-r border-border p-6 flex flex-col">
+        {/* Empty sidebar for now - meetings moved to main area */}
+        <div className="flex-1"></div>
+      </div>
+
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
         {/* Header */}
@@ -260,8 +266,7 @@ export default function Meeting() {
                               month: 'long',
                               day: 'numeric',
                               hour: '2-digit',
-                              minute: '2-digit',
-                              hour12: false
+                              minute: '2-digit'
                             })}
                           </p>
                         </div>
@@ -359,8 +364,7 @@ export default function Meeting() {
                     <Clock className="w-3 h-3 mr-1" />
                     {new Date(meeting.startAt).toLocaleTimeString('ko-KR', { 
                       hour: '2-digit', 
-                      minute: '2-digit',
-                      hour12: false
+                      minute: '2-digit' 
                     })}
                     {meeting.location && (
                       <>
@@ -464,7 +468,7 @@ export default function Meeting() {
                                 minHeight: '20px' // Ensure minimum visibility
                               }}
                               data-testid={`meeting-block-${meeting.id}`}
-                              title={`${meeting.title} - ${meeting.location || '위치 미정'} (${meetingStart.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false })} - ${meetingEnd.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false })})`}
+                              title={`${meeting.title} - ${meeting.location || '위치 미정'} (${meetingStart.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })} - ${meetingEnd.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })})`}
                               onClick={() => {
                                 setSelectedMeetingId(meeting.id);
                                 setParticipantDialogOpen(true);
