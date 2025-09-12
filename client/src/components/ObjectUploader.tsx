@@ -51,18 +51,19 @@ export function ObjectUploader({
   children,
 }: ObjectUploaderProps) {
   const [isUploading, setIsUploading] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
+  const processFiles = async (files: FileList | File[]) => {
     if (!files || files.length === 0) return;
 
     setIsUploading(true);
     const successful: Array<{ uploadURL: string; name: string }> = [];
 
     try {
-      for (let i = 0; i < Math.min(files.length, maxNumberOfFiles); i++) {
-        const file = files[i];
+      const fileArray = Array.from(files);
+      for (let i = 0; i < Math.min(fileArray.length, maxNumberOfFiles); i++) {
+        const file = fileArray[i];
         
         if (file.size > maxFileSize) {
           console.warn(`File ${file.name} is too large (${file.size} bytes)`);
@@ -98,6 +99,37 @@ export function ObjectUploader({
     }
   };
 
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (files) {
+      await processFiles(files);
+    }
+  };
+
+  const handleDragOver = (event: React.DragEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (event: React.DragEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setIsDragOver(false);
+  };
+
+  const handleDrop = async (event: React.DragEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setIsDragOver(false);
+
+    const files = event.dataTransfer.files;
+    if (files) {
+      await processFiles(files);
+    }
+  };
+
+
   return (
     <div>
       <input
@@ -108,13 +140,26 @@ export function ObjectUploader({
         style={{ display: 'none' }}
         accept="*/*"
       />
-      <Button 
-        onClick={() => fileInputRef.current?.click()} 
-        className={buttonClassName}
-        disabled={isUploading}
+      <div
+        className={`cursor-pointer transition-colors ${
+          isDragOver 
+            ? 'border-primary bg-primary/5' 
+            : 'border-muted hover:border-primary'
+        } ${buttonClassName || ''}`}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        onClick={() => !isUploading && fileInputRef.current?.click()}
       >
-        {isUploading ? '업로드 중...' : children}
-      </Button>
+        {isUploading ? (
+          <div className="flex items-center justify-center space-x-2 p-6">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+            <span>업로드 중...</span>
+          </div>
+        ) : (
+          children
+        )}
+      </div>
     </div>
   );
 }

@@ -23,6 +23,7 @@ const newMeetingSchema = insertMeetingSchema.omit({
   startAt: true,
   endAt: true
 }).extend({
+  title: z.string().min(1, "제목을 입력해주세요"),
   date: z.string().min(1, "날짜를 선택해주세요"),
   startTime: z.string().min(1, "시작 시간을 선택해주세요"),
   endTime: z.string().optional(),
@@ -359,7 +360,7 @@ export default function NewMeeting() {
                           <FormItem>
                             <FormLabel className="flex items-center space-x-2">
                               <Clock className="w-4 h-4" />
-                              <span>종료 시간 *</span>
+                              <span>종료 시간 (선택사항)</span>
                             </FormLabel>
                             <FormControl>
                               <Input 
