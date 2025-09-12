@@ -9,6 +9,18 @@ export const users = pgTable("users", {
   password: text("password").notNull(),
   name: text("name").notNull(),
   initials: text("initials").notNull(),
+  lastLoginAt: timestamp("last_login_at"),
+});
+
+export const projects = pgTable("projects", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  code: text("code").notNull().unique(), // RIIDO-41, RIIDO-27 등
+  description: text("description"),
+  deadline: text("deadline"),
+  ownerId: varchar("owner_id").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 export const tasks = pgTable("tasks", {
@@ -20,6 +32,7 @@ export const tasks = pgTable("tasks", {
   deadline: text("deadline"),
   duration: integer("duration").default(0),
   assigneeId: varchar("assignee_id").references(() => users.id),
+  projectId: varchar("project_id").references(() => projects.id),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -36,6 +49,12 @@ export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
 });
 
+export const insertProjectSchema = createInsertSchema(projects).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export const insertTaskSchema = createInsertSchema(tasks).omit({
   id: true,
   createdAt: true,
@@ -50,6 +69,9 @@ export const insertActivitySchema = createInsertSchema(activities).omit({
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 
+export type InsertProject = z.infer<typeof insertProjectSchema>;
+export type Project = typeof projects.$inferSelect;
+
 export type InsertTask = z.infer<typeof insertTaskSchema>;
 export type Task = typeof tasks.$inferSelect;
 
@@ -58,6 +80,23 @@ export type Activity = typeof activities.$inferSelect;
 
 export type TaskWithAssignee = Task & {
   assignee?: User;
+};
+
+export type ProjectWithOwner = Project & {
+  owner?: User;
+  tasks?: TaskWithAssignee[];
+  totalTasks?: number;
+  completedTasks?: number;
+  progressPercentage?: number;
+  hasOverdueTasks?: boolean;
+};
+
+export type UserWithStats = User & {
+  taskCount?: number;
+  completedTaskCount?: number;
+  overdueTaskCount?: number;
+  progressPercentage?: number;
+  hasOverdueTasks?: boolean;
 };
 
 export type ActivityWithDetails = Activity & {
