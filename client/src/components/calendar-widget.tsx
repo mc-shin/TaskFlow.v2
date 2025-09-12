@@ -10,15 +10,28 @@ export function CalendarWidget() {
   const [selectedDate, setSelectedDate] = useState(new Date().getDate());
 
   // 실제 미팅 데이터 가져오기
-  const { data: meetings = [] } = useQuery<Meeting[]>({
+  const { data: meetings = [], isLoading, isError } = useQuery<Meeting[]>({
     queryKey: ['/api/meetings']
   });
 
-  // 미팅 데이터를 날짜별로 그룹화
+  // 한국어 타입 매핑
+  const getTypeInKorean = (type: string) => {
+    const typeMap: Record<string, string> = {
+      'standup': '스탠드업',
+      'meeting': '미팅',
+      'interview': '인터뷰',
+      'workshop': '워크샵',
+      'other': '기타'
+    };
+    return typeMap[type] || type;
+  };
+
+  // 미팅 데이터를 날짜별로 그룹화 (로컬 시간대 사용)
   const groupedMeetings = meetings.reduce((acc, meeting) => {
-    const date = new Date(meeting.startAt).toISOString().split('T')[0];
-    if (!acc[date]) acc[date] = [];
-    acc[date].push(meeting);
+    const d = new Date(meeting.startAt);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(meeting);
     return acc;
   }, {} as Record<string, Meeting[]>);
 
@@ -119,14 +132,26 @@ export function CalendarWidget() {
       </CardHeader>
       
       <CardContent className="p-4">
-        {/* Calendar Grid */}
-        <div className="grid grid-cols-7 gap-1 mb-2">
-          {dayNames.map((day) => (
-            <div key={day} className="text-center text-xs font-medium text-muted-foreground p-2">
-              {day}
+        {isLoading && (
+          <div className="flex items-center justify-center p-8">
+            <div className="text-sm text-muted-foreground">달력 데이터를 불러오는 중...</div>
+          </div>
+        )}
+        {isError && (
+          <div className="flex items-center justify-center p-8">
+            <div className="text-sm text-muted-foreground">데이터를 불러올 수 없습니다</div>
+          </div>
+        )}
+        {!isLoading && !isError && (
+          <>
+            {/* Calendar Grid */}
+            <div className="grid grid-cols-7 gap-1 mb-2">
+              {dayNames.map((day) => (
+                <div key={day} className="text-center text-xs font-medium text-muted-foreground p-2">
+                  {day}
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
         
         <div className="grid grid-cols-7 gap-1" data-testid="calendar-grid">
           {calendarDays.map((dayInfo, index) => {
@@ -176,10 +201,11 @@ export function CalendarWidget() {
                   </div>
                 )}
                 <div className="text-xs text-muted-foreground mt-1">
-                  {meeting.location} • {meeting.type}
-                  {meeting.endAt && (
-                    <span> • {Math.round((new Date(meeting.endAt).getTime() - new Date(meeting.startAt).getTime()) / (1000 * 60))}분</span>
-                  )}
+                  {[
+                    meeting.location,
+                    getTypeInKorean(meeting.type),
+                    meeting.endAt && `${Math.round((new Date(meeting.endAt).getTime() - new Date(meeting.startAt).getTime()) / (1000 * 60))}분`
+                  ].filter(Boolean).join(' • ')}
                 </div>
               </div>
             ))}
@@ -187,7 +213,7 @@ export function CalendarWidget() {
         )}
         
         {/* 미팅이 없는 날에 대한 메시지 */}
-        {selectedDateMeetings.length === 0 && (
+        {selectedDateMeetings.length === 0 && !isLoading && (
           <div className="mt-4 p-3 bg-muted/50 rounded-lg text-center" data-testid="no-events-message">
             <div className="text-xs text-muted-foreground">
               {year}.{String(month + 1).padStart(2, '0')}.{String(selectedDate).padStart(2, '0')}
@@ -196,6 +222,8 @@ export function CalendarWidget() {
               예정된 일정이 없습니다.
             </div>
           </div>
+        )}
+        </>
         )}
       </CardContent>
     </Card>
