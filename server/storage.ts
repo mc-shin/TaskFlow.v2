@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type Task, type InsertTask, type Activity, type InsertActivity, type TaskWithAssignee, type ActivityWithDetails, type Project, type InsertProject, type ProjectWithOwner, type UserWithStats, type SafeUser, type SafeUserWithStats, type SafeTaskWithAssignee, type SafeActivityWithDetails } from "@shared/schema";
+import { type User, type InsertUser, type Task, type InsertTask, type Activity, type InsertActivity, type TaskWithAssignee, type ActivityWithDetails, type Project, type InsertProject, type ProjectWithOwner, type UserWithStats, type SafeUser, type SafeUserWithStats, type SafeTaskWithAssignee, type SafeActivityWithDetails, type Meeting, type InsertMeeting } from "@shared/schema";
 import { randomUUID } from "crypto";
 
 export interface IStorage {
@@ -30,6 +30,15 @@ export interface IStorage {
   // Activity methods
   getAllActivities(): Promise<SafeActivityWithDetails[]>;
   createActivity(activity: InsertActivity): Promise<Activity>;
+
+  // Meeting methods
+  listMeetings(options?: { from?: string; to?: string }): Promise<Meeting[]>;
+  getMeeting(id: string): Promise<Meeting | undefined>;
+  createMeeting(meeting: InsertMeeting): Promise<Meeting>;
+  updateMeeting(id: string, meeting: Partial<InsertMeeting>): Promise<Meeting | undefined>;
+  deleteMeeting(id: string): Promise<boolean>;
+  addAttendee(meetingId: string, userId: string): Promise<Meeting | undefined>;
+  removeAttendee(meetingId: string, userId: string): Promise<Meeting | undefined>;
 }
 
 export class MemStorage implements IStorage {
@@ -37,12 +46,14 @@ export class MemStorage implements IStorage {
   private projects: Map<string, Project>;
   private tasks: Map<string, Task>;
   private activities: Map<string, Activity>;
+  private meetings: Map<string, Meeting>;
 
   constructor() {
     this.users = new Map();
     this.projects = new Map();
     this.tasks = new Map();
     this.activities = new Map();
+    this.meetings = new Map();
     
     // Initialize with some default data
     this.initializeDefaultData();
@@ -113,6 +124,59 @@ export class MemStorage implements IStorage {
 
     for (const task of defaultTasks) {
       await this.createTask(task);
+    }
+
+    // Initialize meetings
+    const defaultMeetings = [
+      {
+        title: "데일리 스탠드업",
+        description: "오늘의 작업 계획과 이슈를 공유합니다.",
+        startAt: "2025-09-12T09:30:00.000Z",
+        endAt: "2025-09-12T10:00:00.000Z",
+        type: "standup",
+        location: "Google Meet",
+        attendeeIds: [userArray[0]?.id, userArray[1]?.id, userArray[2]?.id].filter(Boolean) as string[]
+      },
+      {
+        title: "주간 스프린트 리뷰",
+        description: "이번 주 진행된 작업들을 검토하고 다음 주 계획을 논의합니다.",
+        startAt: "2025-09-15T14:00:00.000Z",
+        endAt: "2025-09-15T15:00:00.000Z",
+        type: "other",
+        location: "Zoom",
+        attendeeIds: [userArray[0]?.id, userArray[1]?.id].filter(Boolean) as string[]
+      },
+      {
+        title: "클라이언트 미팅",
+        description: "프로젝트 진행 상황을 클라이언트에게 보고합니다.",
+        startAt: "2025-09-16T10:00:00.000Z",
+        endAt: "2025-09-16T11:30:00.000Z",
+        type: "other",
+        location: "회의실 A",
+        attendeeIds: [userArray[0]?.id].filter(Boolean) as string[]
+      },
+      {
+        title: "4년 회의",
+        description: "연간 계획 및 리뷰 미팅입니다.",
+        startAt: "2025-09-17T10:00:00.000Z",
+        endAt: "2025-09-17T11:00:00.000Z",
+        type: "other",
+        location: "회의실 B",
+        attendeeIds: [userArray[0]?.id, userArray[1]?.id, userArray[2]?.id].filter(Boolean) as string[]
+      },
+      {
+        title: "스팸티브 어린이",
+        description: "특별 미팅입니다.",
+        startAt: "2025-09-18T20:00:00.000Z",
+        endAt: "2025-09-18T20:30:00.000Z",
+        type: "other",
+        location: "Zoom",
+        attendeeIds: [userArray[0]?.id].filter(Boolean) as string[]
+      }
+    ];
+
+    for (const meeting of defaultMeetings) {
+      await this.createMeeting(meeting);
     }
   }
 
@@ -261,6 +325,9 @@ export class MemStorage implements IStorage {
     const project: Project = { 
       ...insertProject, 
       id, 
+      description: insertProject.description || null,
+      deadline: insertProject.deadline || null,
+      ownerId: insertProject.ownerId || null,
       createdAt: now,
       updatedAt: now
     };
@@ -298,11 +365,11 @@ export class MemStorage implements IStorage {
     
     if (deleted) {
       // Remove related tasks and activities
-      for (const [taskId, task] of this.tasks.entries()) {
+      for (const [taskId, task] of Array.from(this.tasks.entries())) {
         if (task.projectId === id) {
           this.tasks.delete(taskId);
           // Remove activities for this task
-          for (const [activityId, activity] of this.activities.entries()) {
+          for (const [activityId, activity] of Array.from(this.activities.entries())) {
             if (activity.taskId === taskId) {
               this.activities.delete(activityId);
             }
@@ -357,6 +424,7 @@ export class MemStorage implements IStorage {
       deadline: insertTask.deadline || null,
       duration: insertTask.duration || null,
       priority: insertTask.priority || null,
+      status: insertTask.status || "실행대기",
       assigneeId: insertTask.assigneeId || null,
       projectId: insertTask.projectId || null,
       createdAt: now,
@@ -405,7 +473,7 @@ export class MemStorage implements IStorage {
     
     if (deleted) {
       // Remove related activities
-      for (const [activityId, activity] of this.activities.entries()) {
+      for (const [activityId, activity] of Array.from(this.activities.entries())) {
         if (activity.taskId === id) {
           this.activities.delete(activityId);
         }
@@ -447,6 +515,90 @@ export class MemStorage implements IStorage {
     };
     this.activities.set(id, activity);
     return activity;
+  }
+
+  // Meeting methods
+  async listMeetings(options?: { from?: string; to?: string }): Promise<Meeting[]> {
+    const meetings = Array.from(this.meetings.values());
+    
+    if (!options?.from && !options?.to) {
+      return meetings.sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime());
+    }
+    
+    return meetings.filter(meeting => {
+      const meetingStart = new Date(meeting.startAt);
+      if (options.from && meetingStart < new Date(options.from)) return false;
+      if (options.to && meetingStart > new Date(options.to)) return false;
+      return true;
+    }).sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime());
+  }
+
+  async getMeeting(id: string): Promise<Meeting | undefined> {
+    return this.meetings.get(id);
+  }
+
+  async createMeeting(insertMeeting: InsertMeeting): Promise<Meeting> {
+    const id = randomUUID();
+    const now = new Date();
+    const meeting: Meeting = {
+      ...insertMeeting,
+      id,
+      description: insertMeeting.description || null,
+      location: insertMeeting.location || null,
+      attendeeIds: insertMeeting.attendeeIds || [],
+      createdAt: now,
+      updatedAt: now
+    };
+    this.meetings.set(id, meeting);
+    return meeting;
+  }
+
+  async updateMeeting(id: string, updateData: Partial<InsertMeeting>): Promise<Meeting | undefined> {
+    const existingMeeting = this.meetings.get(id);
+    if (!existingMeeting) return undefined;
+    
+    const updatedMeeting: Meeting = {
+      ...existingMeeting,
+      ...updateData,
+      updatedAt: new Date(),
+    };
+    
+    this.meetings.set(id, updatedMeeting);
+    return updatedMeeting;
+  }
+
+  async deleteMeeting(id: string): Promise<boolean> {
+    return this.meetings.delete(id);
+  }
+
+  async addAttendee(meetingId: string, userId: string): Promise<Meeting | undefined> {
+    const meeting = this.meetings.get(meetingId);
+    if (!meeting) return undefined;
+    
+    if (!meeting.attendeeIds.includes(userId)) {
+      const updatedMeeting: Meeting = {
+        ...meeting,
+        attendeeIds: [...meeting.attendeeIds, userId],
+        updatedAt: new Date(),
+      };
+      this.meetings.set(meetingId, updatedMeeting);
+      return updatedMeeting;
+    }
+    
+    return meeting;
+  }
+
+  async removeAttendee(meetingId: string, userId: string): Promise<Meeting | undefined> {
+    const meeting = this.meetings.get(meetingId);
+    if (!meeting) return undefined;
+    
+    const updatedMeeting: Meeting = {
+      ...meeting,
+      attendeeIds: meeting.attendeeIds.filter(id => id !== userId),
+      updatedAt: new Date(),
+    };
+    this.meetings.set(meetingId, updatedMeeting);
+    return updatedMeeting;
   }
 }
 
