@@ -163,7 +163,7 @@ export default function List() {
                           <FolderOpen className="w-5 h-5 text-blue-600" />
                           <div>
                             <CardTitle className="text-lg" data-testid={`text-project-title-${project.id}`}>
-                              {project.name}
+                              {project.title}
                             </CardTitle>
                             {project.description && (
                               <p className="text-sm text-muted-foreground mt-1">
@@ -193,7 +193,7 @@ export default function List() {
                                 setGoalModalState({
                                   isOpen: true,
                                   projectId: project.id,
-                                  projectTitle: project.name
+                                  projectTitle: project.title
                                 });
                               }}
                             >
@@ -472,7 +472,7 @@ function ProjectGoalsContent({
         </Card>
       ))}
       
-      {(!goals || (goals as GoalWithTasks[])?.length === 0) && (
+      {(!goals || goals.length === 0) && (
         <div className="text-center py-8 text-muted-foreground">
           <p className="text-sm">이 프로젝트에는 아직 목표가 없습니다</p>
         </div>

@@ -102,21 +102,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/projects", async (req, res) => {
     try {
-      // Generate a unique project code (RIIDO-XXX format)
-      const existingProjects = await storage.getAllProjects();
-      const maxCodeNumber = existingProjects.reduce((max, project) => {
-        const match = project.code.match(/RIIDO-(\d+)/);
-        if (match) {
-          return Math.max(max, parseInt(match[1]));
-        }
-        return max;
-      }, 0);
-      const newCode = `RIIDO-${maxCodeNumber + 1}`;
-      
-      const projectData = insertProjectSchema.parse({
-        ...req.body,
-        code: newCode
-      });
+      const projectData = insertProjectSchema.parse(req.body);
       const project = await storage.createProject(projectData);
       res.status(201).json(project);
     } catch (error) {

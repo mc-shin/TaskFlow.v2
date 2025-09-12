@@ -12,7 +12,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { insertProjectSchema } from "@shared/schema";
 
 const projectFormSchema = insertProjectSchema.extend({
-  name: z.string().min(1, "프로젝트 제목을 입력해주세요"),
+  title: z.string().min(1, "프로젝트 제목을 입력해주세요"),
   description: z.string().optional(),
 });
 
@@ -30,7 +30,7 @@ export function ProjectModal({ isOpen, onClose }: ProjectModalProps) {
   const form = useForm<ProjectFormData>({
     resolver: zodResolver(projectFormSchema),
     defaultValues: {
-      name: "",
+      title: "",
       description: "",
     },
   });
@@ -74,7 +74,7 @@ export function ProjectModal({ isOpen, onClose }: ProjectModalProps) {
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
             <FormField
               control={form.control}
-              name="name"
+              name="title"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>프로젝트 제목 *</FormLabel>
