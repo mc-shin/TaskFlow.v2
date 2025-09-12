@@ -2,7 +2,7 @@
 
 ## Overview
 
-This is a full-stack task management application built with React, Express, and Drizzle ORM. The application provides a Korean-language dashboard for managing tasks with features like status tracking, user assignment, activity logging, and calendar integration. The system uses a modern tech stack with TypeScript throughout and includes comprehensive UI components powered by shadcn/ui.
+This is a full-stack task management application built with React, Express, and Drizzle ORM. The application provides a Korean-language dashboard for managing tasks with features like status tracking, user assignment, activity logging, calendar integration, and comprehensive meeting management. The system uses a modern tech stack with TypeScript throughout and includes comprehensive UI components powered by shadcn/ui.
 
 ## User Preferences
 
@@ -76,3 +76,10 @@ Preferred communication style: Simple, everyday language.
 - **express-session**: Session middleware
 
 The application is designed as a monorepo with shared schemas between client and server, ensuring type safety across the entire stack. The development setup uses Vite for hot module replacement and includes Replit-specific tooling for cloud development.
+
+## Recent Changes
+
+### Meeting Management Enhancements (September 12, 2025)
+- **Optional End Time**: Meeting edit forms now treat end time as optional, with proper validation and null handling throughout the system. UI clearly indicates end time as "(선택사항)" (optional).
+- **File Attachments & Downloads**: Implemented complete attachment system for meetings with file upload, display, and download capabilities. Download functionality uses direct fetch calls to object storage streaming endpoints with proper error handling and user feedback.
+- **Form Validation**: Enhanced meeting creation and edit forms with better validation, proper drag-and-drop file uploads, and improved user experience.
