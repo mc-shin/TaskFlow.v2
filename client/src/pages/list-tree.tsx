@@ -270,9 +270,9 @@ export default function ListTree() {
                       {project.goals.map((goal) => (
                         <div key={goal.id}>
                           {/* Goal Row */}
-                          <div className="p-3 pl-12 hover:bg-muted/50 transition-colors">
+                          <div className="p-3 hover:bg-muted/50 transition-colors">
                             <div className="grid grid-cols-12 gap-4 items-center">
-                              <div className="col-span-4 flex items-center gap-2">
+                              <div className="col-span-4 flex items-center gap-2 ml-8">
                                 <Checkbox
                                   checked={selectedItems.has(goal.id)}
                                   onCheckedChange={() => toggleItemSelection(goal.id)}
@@ -339,9 +339,9 @@ export default function ListTree() {
                           {expandedGoals.has(goal.id) && goal.tasks && (
                             <div className="bg-muted/30">
                               {goal.tasks.map((task) => (
-                                <div key={task.id} className="p-3 pl-20 hover:bg-muted/50 transition-colors">
+                                <div key={task.id} className="p-3 hover:bg-muted/50 transition-colors">
                                   <div className="grid grid-cols-12 gap-4 items-center">
-                                    <div className="col-span-4 flex items-center gap-2">
+                                    <div className="col-span-4 flex items-center gap-2 ml-16">
                                       <Checkbox
                                         checked={selectedItems.has(task.id)}
                                         onCheckedChange={() => toggleItemSelection(task.id)}
