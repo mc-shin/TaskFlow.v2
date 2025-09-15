@@ -16,6 +16,7 @@ export default function ListTree() {
   const { data: projects, isLoading, error } = useQuery({
     queryKey: ["/api/projects"],
   });
+
   
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
   const [expandedGoals, setExpandedGoals] = useState<Set<string>>(new Set());
@@ -215,6 +216,19 @@ export default function ListTree() {
                         <Badge variant="outline" className="text-xs">
                           {project.code}
                         </Badge>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="ml-2"
+                          onClick={() => setGoalModalState({
+                            isOpen: true,
+                            projectId: project.id,
+                            projectTitle: project.name
+                          })}
+                          data-testid={`button-add-goal-${project.id}`}
+                        >
+                          <Plus className="w-4 h-4" />
+                        </Button>
                       </div>
                       <div className="col-span-1 text-sm" data-testid={`text-project-deadline-${project.id}`}>
                         {formatDeadline(project.deadline)}
@@ -247,20 +261,7 @@ export default function ListTree() {
                           중간
                         </Badge>
                       </div>
-                      <div className="col-span-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setGoalModalState({
-                            isOpen: true,
-                            projectId: project.id,
-                            projectTitle: project.name
-                          })}
-                          data-testid={`button-add-goal-${project.id}`}
-                        >
-                          <Plus className="w-4 h-4" />
-                        </Button>
-                      </div>
+                      <div className="col-span-1"></div>
                     </div>
                   </div>
 
@@ -294,6 +295,19 @@ export default function ListTree() {
                                 <span className="font-medium" data-testid={`text-goal-name-${goal.id}`}>
                                   {goal.title}
                                 </span>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="ml-2"
+                                  onClick={() => setTaskModalState({
+                                    isOpen: true,
+                                    goalId: goal.id,
+                                    goalTitle: goal.title
+                                  })}
+                                  data-testid={`button-add-task-${goal.id}`}
+                                >
+                                  <Plus className="w-4 h-4" />
+                                </Button>
                               </div>
                               <div className="col-span-1 text-sm">-</div>
                               <div className="col-span-1"></div>
@@ -318,20 +332,7 @@ export default function ListTree() {
                                   중간
                                 </Badge>
                               </div>
-                              <div className="col-span-1">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => setTaskModalState({
-                                    isOpen: true,
-                                    goalId: goal.id,
-                                    goalTitle: goal.title
-                                  })}
-                                  data-testid={`button-add-task-${goal.id}`}
-                                >
-                                  <Plus className="w-4 h-4" />
-                                </Button>
-                              </div>
+                              <div className="col-span-1"></div>
                             </div>
                           </div>
 
