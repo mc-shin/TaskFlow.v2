@@ -1,16 +1,19 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
-import { ChevronDown, ChevronRight, FolderOpen, Target, Circle, Plus } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ChevronDown, ChevronRight, FolderOpen, Target, Circle, Plus, Calendar, User, BarChart3 } from "lucide-react";
 import { useState, useEffect } from "react";
-import type { SafeTaskWithAssignee, ProjectWithDetails, GoalWithTasks } from "@shared/schema";
+import type { SafeTaskWithAssignee, ProjectWithDetails, GoalWithTasks, SafeUser } from "@shared/schema";
 import { ProjectModal } from "@/components/project-modal";
 import { GoalModal } from "@/components/goal-modal";
 import { TaskModal } from "@/components/task-modal";
+import { apiRequest } from "@/lib/queryClient";
 
 export default function ListTree() {
   const { data: projects, isLoading, error } = useQuery({
@@ -34,6 +37,17 @@ export default function ListTree() {
     goalId: '', 
     goalTitle: '' 
   });
+
+  // Inline editing state
+  const [editingField, setEditingField] = useState<{ itemId: string; field: string; type: 'project' | 'goal' | 'task' } | null>(null);
+  const [editingValue, setEditingValue] = useState<string>('');
+
+  // Get users for assignee dropdown
+  const { data: users } = useQuery({
+    queryKey: ["/api/users"],
+  });
+
+  const queryClient = useQueryClient();
   
   // Show/hide toast based on selection
   useEffect(() => {
@@ -73,6 +87,275 @@ export default function ListTree() {
   const clearSelection = () => {
     setSelectedItems(new Set());
   };
+
+  // Inline editing functions
+  const startEditing = (itemId: string, field: string, type: 'project' | 'goal' | 'task', currentValue: string) => {
+    setEditingField({ itemId, field, type });
+    setEditingValue(currentValue);
+  };
+
+  const cancelEditing = () => {
+    setEditingField(null);
+    setEditingValue('');
+  };
+
+  // Mutations for updating items
+  const updateProjectMutation = useMutation({
+    mutationFn: async (data: { id: string; updates: any }) => {
+      const response = await fetch(`/api/projects/${data.id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data.updates),
+        headers: { 'Content-Type': 'application/json' }
+      });
+      if (!response.ok) throw new Error('Update failed');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      cancelEditing();
+    }
+  });
+
+  const updateGoalMutation = useMutation({
+    mutationFn: async (data: { id: string; updates: any }) => {
+      const response = await fetch(`/api/goals/${data.id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data.updates),
+        headers: { 'Content-Type': 'application/json' }
+      });
+      if (!response.ok) throw new Error('Update failed');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      cancelEditing();
+    }
+  });
+
+  const updateTaskMutation = useMutation({
+    mutationFn: async (data: { id: string; updates: any }) => {
+      const response = await fetch(`/api/tasks/${data.id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data.updates),
+        headers: { 'Content-Type': 'application/json' }
+      });
+      if (!response.ok) throw new Error('Update failed');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      cancelEditing();
+    }
+  });
+
+  const saveEdit = () => {
+    if (!editingField) return;
+    
+    const updates: any = {};
+    
+    if (editingField.field === 'deadline') {
+      updates.deadline = editingValue;
+    } else if (editingField.field === 'assignee') {
+      if (editingField.type === 'project') {
+        updates.ownerId = editingValue === 'none' ? null : editingValue;
+      } else {
+        updates.assigneeId = editingValue === 'none' ? null : editingValue;
+      }
+    } else if (editingField.field === 'status') {
+      updates.status = editingValue;
+    } else if (editingField.field === 'progress') {
+      // Progress is calculated, not directly editable for projects/goals
+      if (editingField.type === 'task') {
+        updates.status = parseInt(editingValue) === 100 ? '완료' : '실행대기';
+      }
+    } else if (editingField.field === 'importance') {
+      if (editingField.type === 'task') {
+        updates.priority = editingValue;
+      }
+      // Projects and goals don't have importance in the schema
+    }
+
+    if (editingField.type === 'project') {
+      updateProjectMutation.mutate({ id: editingField.itemId, updates });
+    } else if (editingField.type === 'goal') {
+      updateGoalMutation.mutate({ id: editingField.itemId, updates });
+    } else if (editingField.type === 'task') {
+      updateTaskMutation.mutate({ id: editingField.itemId, updates });
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      saveEdit();
+    } else if (e.key === 'Escape') {
+      cancelEditing();
+    }
+  };
+
+  // Render functions for editable fields
+  const renderEditableDeadline = (itemId: string, type: 'project' | 'goal' | 'task', deadline: string | null) => {
+    const isEditing = editingField?.itemId === itemId && editingField?.field === 'deadline';
+    
+    if (isEditing) {
+      return (
+        <Input
+          type="date"
+          value={editingValue}
+          onChange={(e) => setEditingValue(e.target.value)}
+          onKeyDown={handleKeyPress}
+          onBlur={saveEdit}
+          className="h-6 text-xs"
+          autoFocus
+          data-testid={`edit-deadline-${itemId}`}
+        />
+      );
+    }
+    
+    return (
+      <div 
+        className="cursor-pointer hover:bg-muted/20 px-1 py-1 rounded text-sm"
+        onClick={() => startEditing(itemId, 'deadline', type, deadline || '')}
+        data-testid={`text-${type}-deadline-${itemId}`}
+      >
+        {formatDeadline(deadline)}
+      </div>
+    );
+  };
+
+  const renderEditableAssignee = (itemId: string, type: 'project' | 'goal' | 'task', assignee: SafeUser | null, ownerId?: string | null) => {
+    const isEditing = editingField?.itemId === itemId && editingField?.field === 'assignee';
+    const currentUserId = type === 'project' ? ownerId : assignee?.id;
+    
+    if (isEditing) {
+      return (
+        <Select value={editingValue} onValueChange={setEditingValue}>
+          <SelectTrigger className="h-6 text-xs" data-testid={`edit-assignee-${itemId}`}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">미배정</SelectItem>
+            {(users as SafeUser[])?.map(user => (
+              <SelectItem key={user.id} value={user.id}>
+                {user.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      );
+    }
+    
+    return (
+      <div 
+        className="cursor-pointer hover:bg-muted/20 px-1 py-1 rounded"
+        onClick={() => startEditing(itemId, 'assignee', type, currentUserId || 'none')}
+      >
+        {assignee ? (
+          <Avatar className="w-6 h-6">
+            <AvatarFallback className="text-xs">
+              {assignee.name.charAt(0)}
+            </AvatarFallback>
+          </Avatar>
+        ) : (
+          <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center">
+            <User className="w-3 h-3 text-muted-foreground" />
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderEditableStatus = (itemId: string, type: 'project' | 'goal' | 'task', status: string) => {
+    const isEditing = editingField?.itemId === itemId && editingField?.field === 'status';
+    
+    if (isEditing) {
+      return (
+        <Select value={editingValue} onValueChange={setEditingValue}>
+          <SelectTrigger className="h-6 text-xs" data-testid={`edit-status-${itemId}`}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="실행대기">실행대기</SelectItem>
+            <SelectItem value="이슈함">이슈함</SelectItem>
+            <SelectItem value="사업팀">사업팀</SelectItem>
+            <SelectItem value="인력팀">인력팀</SelectItem>
+            <SelectItem value="완료">완료</SelectItem>
+          </SelectContent>
+        </Select>
+      );
+    }
+    
+    return (
+      <Badge 
+        variant={getStatusBadgeVariant(status)} 
+        className="text-xs cursor-pointer hover:opacity-80"
+        onClick={() => startEditing(itemId, 'status', type, status)}
+      >
+        {status}
+      </Badge>
+    );
+  };
+
+  const renderEditableProgress = (itemId: string, type: 'project' | 'goal' | 'task', progress: number, status?: string) => {
+    const isEditing = editingField?.itemId === itemId && editingField?.field === 'progress';
+    
+    if (isEditing && type === 'task') {
+      return (
+        <Input
+          type="number"
+          min="0"
+          max="100"
+          value={editingValue}
+          onChange={(e) => setEditingValue(e.target.value)}
+          onKeyDown={handleKeyPress}
+          onBlur={saveEdit}
+          className="h-6 text-xs w-16"
+          autoFocus
+          data-testid={`edit-progress-${itemId}`}
+        />
+      );
+    }
+    
+    return (
+      <div 
+        className={`flex items-center gap-2 ${type === 'task' ? 'cursor-pointer hover:bg-muted/20 px-1 py-1 rounded' : ''}`}
+        onClick={type === 'task' ? () => startEditing(itemId, 'progress', type, status === '완료' ? '100' : '50') : undefined}
+      >
+        <Progress value={progress} className="flex-1" />
+        <span className="text-xs text-muted-foreground w-8">
+          {progress}%
+        </span>
+      </div>
+    );
+  };
+
+  const renderEditableImportance = (itemId: string, type: 'project' | 'goal' | 'task', importance: string) => {
+    const isEditing = editingField?.itemId === itemId && editingField?.field === 'importance';
+    
+    if (isEditing && type === 'task') {
+      return (
+        <Select value={editingValue} onValueChange={setEditingValue}>
+          <SelectTrigger className="h-6 text-xs" data-testid={`edit-importance-${itemId}`}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="높음">높음</SelectItem>
+            <SelectItem value="중간">중간</SelectItem>
+            <SelectItem value="낮음">낮음</SelectItem>
+          </SelectContent>
+        </Select>
+      );
+    }
+    
+    return (
+      <Badge 
+        variant={getImportanceBadgeVariant(importance)} 
+        className={`text-xs ${type === 'task' ? 'cursor-pointer hover:opacity-80' : ''}`}
+        onClick={type === 'task' ? () => startEditing(itemId, 'importance', type, importance) : undefined}
+      >
+        {importance}
+      </Badge>
+    );
+  };
   
   const formatDeadline = (deadline: string | null) => {
     if (!deadline) return '-';
@@ -82,13 +365,19 @@ export default function ListTree() {
     const diffTime = deadlineDate.getTime() - today.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     
+    const month = deadlineDate.getMonth() + 1;
+    const day = deadlineDate.getDate();
+    
+    let dDayPart = '';
     if (diffDays < 0) {
-      return `D+${Math.abs(diffDays)}`;
+      dDayPart = `D+${Math.abs(diffDays)}`;
     } else if (diffDays === 0) {
-      return 'D-Day';
+      dDayPart = 'D-Day';
     } else {
-      return `D-${diffDays}`;
+      dDayPart = `D-${diffDays}`;
     }
+    
+    return `${month}/${day} ${dDayPart}`;
   };
   
   const getStatusBadgeVariant = (status: string) => {
@@ -164,7 +453,7 @@ export default function ListTree() {
 
       {/* Table Header */}
       <div className="bg-muted/30 p-3 rounded-t-lg border">
-        <div className="grid grid-cols-12 gap-4 text-sm font-medium text-muted-foreground">
+        <div className="grid grid-cols-11 gap-4 text-sm font-medium text-muted-foreground">
           <div className="col-span-4">이름</div>
           <div className="col-span-1">마감일</div>
           <div className="col-span-1">담당자</div>
@@ -172,7 +461,6 @@ export default function ListTree() {
           <div className="col-span-1">상태</div>
           <div className="col-span-2">진행도</div>
           <div className="col-span-1">중요도</div>
-          <div className="col-span-1"></div>
         </div>
       </div>
 
@@ -190,7 +478,7 @@ export default function ListTree() {
                 <div key={project.id}>
                   {/* Project Row */}
                   <div className="p-3 hover:bg-muted/50 transition-colors">
-                    <div className="grid grid-cols-12 gap-4 items-center">
+                    <div className="grid grid-cols-11 gap-4 items-center">
                       <div className="col-span-4 flex items-center gap-2">
                         <Checkbox
                           checked={selectedItems.has(project.id)}
@@ -230,38 +518,24 @@ export default function ListTree() {
                           <Plus className="w-4 h-4" />
                         </Button>
                       </div>
-                      <div className="col-span-1 text-sm" data-testid={`text-project-deadline-${project.id}`}>
-                        {formatDeadline(project.deadline)}
+                      <div className="col-span-1">
+                        {renderEditableDeadline(project.id, 'project', project.deadline)}
                       </div>
                       <div className="col-span-1">
-                        {project.ownerId && (
-                          <Avatar className="w-6 h-6">
-                            <AvatarFallback className="text-xs">O</AvatarFallback>
-                          </Avatar>
-                        )}
+                        {renderEditableAssignee(project.id, 'project', project.owner || null, project.ownerId)}
                       </div>
                       <div className="col-span-1 text-sm">
                         {project.completedTasks}/{project.totalTasks}
                       </div>
                       <div className="col-span-1">
-                        <Badge variant="default" className="text-xs">
-                          진행중
-                        </Badge>
+                        {renderEditableStatus(project.id, 'project', '진행중')}
                       </div>
                       <div className="col-span-2">
-                        <div className="flex items-center gap-2">
-                          <Progress value={project.progressPercentage || 0} className="flex-1" />
-                          <span className="text-xs text-muted-foreground w-8">
-                            {project.progressPercentage || 0}%
-                          </span>
-                        </div>
+                        {renderEditableProgress(project.id, 'project', project.progressPercentage || 0)}
                       </div>
                       <div className="col-span-1">
-                        <Badge variant="default" className="text-xs">
-                          중간
-                        </Badge>
+                        {renderEditableImportance(project.id, 'project', '중간')}
                       </div>
-                      <div className="col-span-1"></div>
                     </div>
                   </div>
 
@@ -272,7 +546,7 @@ export default function ListTree() {
                         <div key={goal.id}>
                           {/* Goal Row */}
                           <div className="p-3 hover:bg-muted/50 transition-colors">
-                            <div className="grid grid-cols-12 gap-4 items-center">
+                            <div className="grid grid-cols-11 gap-4 items-center">
                               <div className="col-span-4 flex items-center gap-2 ml-8">
                                 <Checkbox
                                   checked={selectedItems.has(goal.id)}
@@ -309,30 +583,24 @@ export default function ListTree() {
                                   <Plus className="w-4 h-4" />
                                 </Button>
                               </div>
-                              <div className="col-span-1 text-sm">-</div>
-                              <div className="col-span-1"></div>
+                              <div className="col-span-1">
+                                {renderEditableDeadline(goal.id, 'goal', null)}
+                              </div>
+                              <div className="col-span-1">
+                                {renderEditableAssignee(goal.id, 'goal', null)}
+                              </div>
                               <div className="col-span-1 text-sm">
                                 {goal.completedTasks || 0}/{goal.totalTasks || 0}
                               </div>
                               <div className="col-span-1">
-                                <Badge variant="secondary" className="text-xs">
-                                  목표
-                                </Badge>
+                                {renderEditableStatus(goal.id, 'goal', '목표')}
                               </div>
                               <div className="col-span-2">
-                                <div className="flex items-center gap-2">
-                                  <Progress value={goal.progressPercentage || 0} className="flex-1" />
-                                  <span className="text-xs text-muted-foreground w-8">
-                                    {goal.progressPercentage || 0}%
-                                  </span>
-                                </div>
+                                {renderEditableProgress(goal.id, 'goal', goal.progressPercentage || 0)}
                               </div>
                               <div className="col-span-1">
-                                <Badge variant="default" className="text-xs">
-                                  중간
-                                </Badge>
+                                {renderEditableImportance(goal.id, 'goal', '중간')}
                               </div>
-                              <div className="col-span-1"></div>
                             </div>
                           </div>
 
@@ -341,7 +609,7 @@ export default function ListTree() {
                             <div className="bg-muted/30">
                               {goal.tasks.map((task) => (
                                 <div key={task.id} className="p-3 hover:bg-muted/50 transition-colors">
-                                  <div className="grid grid-cols-12 gap-4 items-center">
+                                  <div className="grid grid-cols-11 gap-4 items-center">
                                     <div className="col-span-4 flex items-center gap-2 ml-16">
                                       <Checkbox
                                         checked={selectedItems.has(task.id)}
@@ -353,38 +621,22 @@ export default function ListTree() {
                                         {task.title}
                                       </span>
                                     </div>
-                                    <div className="col-span-1 text-sm" data-testid={`text-task-deadline-${task.id}`}>
-                                      {formatDeadline(task.deadline)}
+                                    <div className="col-span-1">
+                                      {renderEditableDeadline(task.id, 'task', task.deadline)}
                                     </div>
                                     <div className="col-span-1">
-                                      {task.assignee && (
-                                        <Avatar className="w-6 h-6">
-                                          <AvatarFallback className="text-xs">
-                                            {task.assignee.name.charAt(0)}
-                                          </AvatarFallback>
-                                        </Avatar>
-                                      )}
+                                      {renderEditableAssignee(task.id, 'task', task.assignee || null)}
                                     </div>
                                     <div className="col-span-1 text-sm">1/1</div>
                                     <div className="col-span-1">
-                                      <Badge variant={getStatusBadgeVariant(task.status)} className="text-xs">
-                                        {task.status}
-                                      </Badge>
+                                      {renderEditableStatus(task.id, 'task', task.status)}
                                     </div>
                                     <div className="col-span-2">
-                                      <div className="flex items-center gap-2">
-                                        <Progress value={task.status === "완료" ? 100 : 50} className="flex-1" />
-                                        <span className="text-xs text-muted-foreground w-8">
-                                          {task.status === "완료" ? 100 : 50}%
-                                        </span>
-                                      </div>
+                                      {renderEditableProgress(task.id, 'task', task.status === '완료' ? 100 : 50, task.status)}
                                     </div>
                                     <div className="col-span-1">
-                                      <Badge variant={getImportanceBadgeVariant(task.priority || '중간')} className="text-xs">
-                                        {task.priority || '중간'}
-                                      </Badge>
+                                      {renderEditableImportance(task.id, 'task', task.priority || '중간')}
                                     </div>
-                                    <div className="col-span-1"></div>
                                   </div>
                                 </div>
                               ))}
