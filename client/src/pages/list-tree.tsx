@@ -361,7 +361,14 @@ export default function ListTree() {
     } else if (editingField.field === 'progress') {
       // Progress is calculated, not directly editable for projects/goals
       if (editingField.type === 'task') {
-        updates.status = parseInt(editingValue) === 100 ? '완료' : '진행중';
+        const progressValue = parseInt(editingValue);
+        if (progressValue >= 100) {
+          updates.status = '완료';
+        } else if (progressValue <= 0) {
+          updates.status = '진행전';
+        } else {
+          updates.status = '진행중';
+        }
       }
     } else if (editingField.field === 'importance') {
       if (editingField.type === 'task') {
@@ -529,8 +536,8 @@ export default function ListTree() {
     return (
       <Badge 
         variant={getStatusBadgeVariant(status)} 
-        className="text-xs cursor-pointer hover:opacity-80"
-        onClick={() => startEditing(itemId, 'status', type, status)}
+        className={`text-xs ${type === 'project' ? 'cursor-default' : 'cursor-pointer hover:opacity-80'}`}
+        onClick={type === 'project' ? undefined : () => startEditing(itemId, 'status', type, status)}
       >
         {status}
       </Badge>
@@ -560,7 +567,7 @@ export default function ListTree() {
     return (
       <div 
         className={`flex items-center gap-2 ${type === 'task' ? 'cursor-pointer hover:bg-muted/20 px-1 py-1 rounded' : ''}`}
-        onClick={type === 'task' ? () => startEditing(itemId, 'progress', type, status === '완료' ? '100' : '50') : undefined}
+        onClick={type === 'task' ? () => startEditing(itemId, 'progress', type, status === '완료' ? '100' : status === '진행전' ? '0' : '50') : undefined}
       >
         <Progress value={progress} className="flex-1" />
         <span className="text-xs text-muted-foreground w-8">
@@ -845,7 +852,7 @@ export default function ListTree() {
                         {renderEditableLabel(project.id, 'project', null)}
                       </div>
                       <div className="col-span-1">
-                        {renderEditableStatus(project.id, 'project', '진행중')}
+                        {renderEditableStatus(project.id, 'project', (project.progressPercentage || 0) === 0 ? '진행전' : '진행중')}
                       </div>
                       <div className="col-span-2">
                         {renderEditableProgress(project.id, 'project', project.progressPercentage || 0)}
@@ -951,7 +958,7 @@ export default function ListTree() {
                                       {renderEditableStatus(task.id, 'task', task.status)}
                                     </div>
                                     <div className="col-span-2">
-                                      {renderEditableProgress(task.id, 'task', task.status === '완료' ? 100 : 50, task.status)}
+                                      {renderEditableProgress(task.id, 'task', task.status === '완료' ? 100 : task.status === '진행전' ? 0 : 50, task.status)}
                                     </div>
                                     <div className="col-span-1">
                                       {renderEditableImportance(task.id, 'task', task.priority || '중간')}
