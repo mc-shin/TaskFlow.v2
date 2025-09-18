@@ -394,11 +394,21 @@ export default function ListTree() {
     
     return (
       <div 
-        className="cursor-pointer hover:bg-muted/20 px-1 py-1 rounded text-sm min-h-[24px] flex items-center"
+        className="cursor-pointer flex items-center min-h-[24px]"
         onClick={() => startEditing(itemId, 'label', type, label || '')}
         data-testid={`text-label-${itemId}`}
       >
-        {label || <span className="text-muted-foreground">라벨 없음</span>}
+        {label ? (
+          <Badge 
+            className="bg-slate-600 hover:bg-slate-700 text-white text-xs px-2 py-1 font-medium"
+          >
+            {label}
+          </Badge>
+        ) : (
+          <div className="text-muted-foreground text-xs hover:bg-muted/20 px-2 py-1 rounded">
+            라벨 없음
+          </div>
+        )}
       </div>
     );
   };
