@@ -731,7 +731,7 @@ export default function ListTree() {
                                       {renderEditableAssignee(task.id, 'task', task.assignee || null)}
                                     </div>
                                     <div className="col-span-1">
-                                      {renderEditableLabel(task.id, 'task', task.label)}
+                                      {renderEditableLabel(task.id, 'task', (task.labels && task.labels.length > 0) ? task.labels[0] : null)}
                                     </div>
                                     <div className="col-span-1">
                                       {renderEditableStatus(task.id, 'task', task.status)}

@@ -20,9 +20,10 @@ interface FlattenedItem {
   name: string;
   deadline: string | null;
   participant: { id: string; name: string } | null;
-  label: string;
+  labels: string[];
   status: string;
   score: number;
+  progress: number;
   importance: string;
   project: ProjectWithDetails;
   goal: GoalWithTasks | null;
@@ -71,9 +72,10 @@ export default function ListHorizontal() {
         name: project.name,
         deadline: project.deadline,
         participant: project.ownerId ? { id: project.ownerId, name: '소유자' } : null,
-        label: project.code,
+        labels: [project.code],
         status: `${project.completedTasks}/${project.totalTasks}`,
         score: project.progressPercentage || 0,
+        progress: project.progressPercentage || 0,
         importance: '중간',
         project,
         goal: null,
@@ -89,9 +91,10 @@ export default function ListHorizontal() {
             name: goal.title,
             deadline: null,
             participant: null,
-            label: `${project.code}-G`,
+            labels: [`${project.code}-G`],
             status: `${goal.completedTasks || 0}/${goal.totalTasks || 0}`,
             score: goal.progressPercentage || 0,
+            progress: goal.progressPercentage || 0,
             importance: '중간',
             project,
             goal,
@@ -107,9 +110,10 @@ export default function ListHorizontal() {
                 name: task.title,
                 deadline: task.deadline,
                 participant: task.assignee && task.assigneeId ? { id: task.assigneeId, name: task.assignee.name } : null,
-                label: `${project.code}-T`,
+                labels: task.labels || [`${project.code}-T`],
                 status: task.status,
                 score: task.duration || 0,
+                progress: task.progress || 0,
                 importance: task.priority || '중간',
                 project,
                 goal,
@@ -221,6 +225,18 @@ export default function ListHorizontal() {
 
   const handleStatusChange = (taskId: string, status: string) => {
     updateTaskMutation.mutate({ taskId, data: { status } });
+  };
+
+  const getLabelColor = (index: number) => {
+    const colors = [
+      'bg-blue-100 text-blue-800 border-blue-300',
+      'bg-green-100 text-green-800 border-green-300', 
+      'bg-purple-100 text-purple-800 border-purple-300',
+      'bg-orange-100 text-orange-800 border-orange-300',
+      'bg-pink-100 text-pink-800 border-pink-300',
+      'bg-cyan-100 text-cyan-800 border-cyan-300'
+    ];
+    return colors[index % colors.length];
   };
 
   const renderEditableAssignee = (item: FlattenedItem) => {
@@ -451,9 +467,18 @@ export default function ListHorizontal() {
                     {renderEditableAssignee(item)}
                   </TableCell>
                   <TableCell>
-                    <Badge variant="outline" data-testid={`badge-label-${item.id}`}>
-                      {item.label}
-                    </Badge>
+                    <div className="flex gap-1 flex-wrap">
+                      {item.labels.map((label, index) => (
+                        <Badge 
+                          key={index}
+                          variant="outline" 
+                          className={`${getLabelColor(index)}`}
+                          data-testid={`badge-label-${item.id}-${index}`}
+                        >
+                          {label}
+                        </Badge>
+                      ))}
+                    </div>
                   </TableCell>
                   <TableCell>
                     {renderEditableStatus(item)}
