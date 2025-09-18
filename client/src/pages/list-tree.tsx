@@ -217,61 +217,63 @@ export default function ListTree() {
     
     if (isEditing) {
       return (
-        <Select value={editingValue} onValueChange={(value) => {
-          setEditingValue(value);
-          const updates: any = {};
-          if (type === 'project') {
-            updates.ownerId = value === 'none' ? null : value;
-          } else {
-            updates.assigneeId = value === 'none' ? null : value;
-          }
-          
-          if (type === 'project') {
-            updateProjectMutation.mutate({ id: itemId, updates });
-          } else if (type === 'goal') {
-            updateGoalMutation.mutate({ id: itemId, updates });
-          } else {
-            updateTaskMutation.mutate({ id: itemId, updates });
-          }
-          cancelEditing();
-        }}>
-          <SelectTrigger className="h-6 text-xs" data-testid={`edit-assignee-${itemId}`}>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="none">
-              <span className="text-muted-foreground">담당자 없음</span>
-            </SelectItem>
-            {(users as SafeUser[])?.map(user => (
-              <SelectItem key={user.id} value={user.id}>
-                <div className="flex items-center gap-2">
-                  <Avatar className="w-6 h-6">
-                    <AvatarFallback className="text-xs">
-                      {user.name.charAt(0)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <span>{user.name}</span>
-                </div>
+        <div className="w-28 min-w-[7rem] max-w-[7rem]">
+          <Select value={editingValue} onValueChange={(value) => {
+            setEditingValue(value);
+            const updates: any = {};
+            if (type === 'project') {
+              updates.ownerId = value === 'none' ? null : value;
+            } else {
+              updates.assigneeId = value === 'none' ? null : value;
+            }
+            
+            if (type === 'project') {
+              updateProjectMutation.mutate({ id: itemId, updates });
+            } else if (type === 'goal') {
+              updateGoalMutation.mutate({ id: itemId, updates });
+            } else {
+              updateTaskMutation.mutate({ id: itemId, updates });
+            }
+            cancelEditing();
+          }}>
+            <SelectTrigger className="h-6 text-xs w-full" data-testid={`edit-assignee-${itemId}`}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">
+                <span className="text-muted-foreground">담당자 없음</span>
               </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+              {(users as SafeUser[])?.map(user => (
+                <SelectItem key={user.id} value={user.id}>
+                  <div className="flex items-center gap-2">
+                    <Avatar className="w-6 h-6">
+                      <AvatarFallback className="text-xs">
+                        {user.name.charAt(0)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span>{user.name}</span>
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       );
     }
     
     return (
       <div 
-        className="cursor-pointer hover:bg-muted/20 px-1 py-1 rounded"
+        className="cursor-pointer hover:bg-muted/20 px-1 py-1 rounded w-28 min-w-[7rem] max-w-[7rem] overflow-hidden"
         onClick={() => startEditing(itemId, 'assignee', type, currentUserId || 'none')}
       >
         {assignee ? (
-          <div className="flex items-center gap-2">
-            <Avatar className="w-6 h-6">
+          <div className="flex items-center gap-2 truncate">
+            <Avatar className="w-6 h-6 flex-shrink-0">
               <AvatarFallback className="text-xs">
                 {assignee.name.charAt(0)}
               </AvatarFallback>
             </Avatar>
-            <span className="text-sm">{assignee.name}</span>
+            <span className="text-sm truncate">{assignee.name}</span>
           </div>
         ) : (
           <span className="text-muted-foreground text-sm">담당자 없음</span>
@@ -283,20 +285,19 @@ export default function ListTree() {
   const renderEditableStatus = (itemId: string, type: 'project' | 'goal' | 'task', status: string) => {
     const isEditing = editingField?.itemId === itemId && editingField?.field === 'status';
     
-    // Only allow status editing for tasks
-    if (type !== 'task') {
-      return (
-        <Badge variant={getStatusBadgeVariant(status)} className="text-xs">
-          {status}
-        </Badge>
-      );
-    }
-    
     if (isEditing) {
       return (
         <Select value={editingValue} onValueChange={(value) => {
           setEditingValue(value);
-          updateTaskMutation.mutate({ id: itemId, updates: { status: value } });
+          const updates = { status: value };
+          
+          if (type === 'project') {
+            updateProjectMutation.mutate({ id: itemId, updates });
+          } else if (type === 'goal') {
+            updateGoalMutation.mutate({ id: itemId, updates });
+          } else {
+            updateTaskMutation.mutate({ id: itemId, updates });
+          }
           cancelEditing();
         }}>
           <SelectTrigger className="h-6 text-xs" data-testid={`edit-status-${itemId}`}>
@@ -398,7 +399,24 @@ export default function ListTree() {
     const month = deadlineDate.getMonth() + 1;
     const day = deadlineDate.getDate();
     
-    return `${month}월 ${day}일`;
+    // Calculate D-day
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Set to midnight for accurate comparison
+    deadlineDate.setHours(0, 0, 0, 0); // Set to midnight for accurate comparison
+    
+    const diffTime = deadlineDate.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    let dDayPart = '';
+    if (diffDays < 0) {
+      dDayPart = ` D+${Math.abs(diffDays)}`;
+    } else if (diffDays === 0) {
+      dDayPart = ' D-Day';
+    } else {
+      dDayPart = ` D-${diffDays}`;
+    }
+    
+    return `${month}/${day}${dDayPart}`;
   };
   
   const getStatusBadgeVariant = (status: string) => {

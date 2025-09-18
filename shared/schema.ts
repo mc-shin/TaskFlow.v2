@@ -18,6 +18,7 @@ export const projects = pgTable("projects", {
   code: text("code").notNull().unique(), // RIIDO-41, RIIDO-27 등
   description: text("description"),
   deadline: text("deadline"),
+  status: text("status").default("진행전"), // 진행전, 진행중, 완료
   ownerId: varchar("owner_id").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -27,6 +28,9 @@ export const goals = pgTable("goals", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   title: text("title").notNull(),
   description: text("description"),
+  deadline: text("deadline"),
+  status: text("status").default("진행전"), // 진행전, 진행중, 완료
+  assigneeId: varchar("assignee_id").references(() => users.id),
   projectId: varchar("project_id").references(() => projects.id).notNull(),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),

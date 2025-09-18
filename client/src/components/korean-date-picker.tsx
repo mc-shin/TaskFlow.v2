@@ -22,8 +22,14 @@ export function KoreanDatePicker({
 }: KoreanDatePickerProps) {
   const [open, setOpen] = useState(false);
   
-  // Parse the date string (expected format: YYYY-MM-DD)
-  const selectedDate = value ? parse(value, 'yyyy-MM-dd', new Date()) : undefined;
+  // Parse the date string (expected format: YYYY-MM-DD, but handle ISO format too)
+  const parseDate = (dateString: string) => {
+    // Handle ISO format by taking only the date part
+    const dateOnly = dateString.includes('T') ? dateString.split('T')[0] : dateString;
+    return parse(dateOnly, 'yyyy-MM-dd', new Date());
+  };
+  
+  const selectedDate = value ? parseDate(value) : undefined;
   
   const handleDateSelect = (date: Date | undefined) => {
     if (date) {

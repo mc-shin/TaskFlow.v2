@@ -104,21 +104,24 @@ export class MemStorage implements IStorage {
         name: "지금 벙크 성장 기능 개발", 
         code: "RIIDO-41", 
         description: "성장 기능 구현",
-        deadline: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(), // D-14
+        deadline: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // D-14
+        status: "진행중",
         ownerId: userArray[0]?.id || null
       },
       { 
         name: "v0.10.4 업데이트", 
         code: "RIIDO-27", 
         description: "앱 업데이트",
-        deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // D-7
+        deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // D-7
+        status: "진행중",
         ownerId: userArray[1]?.id || null
       },
       { 
         name: "디스코드 연동", 
         code: "RIIDO-70", 
         description: "디스코드 연동 기능",
-        deadline: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString(), // D-1
+        deadline: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // D-1
+        status: "진행전",
         ownerId: userArray[2]?.id || null
       },
     ];
@@ -130,11 +133,11 @@ export class MemStorage implements IStorage {
     // Initialize goals for projects
     const projectArray = Array.from(this.projects.values());
     const defaultGoals = [
-      { title: "메인 기능 개발", description: "핵심 기능 구현", projectId: projectArray[0]?.id },
-      { title: "UI/UX 개선", description: "사용자 인터페이스 개선", projectId: projectArray[0]?.id },
-      { title: "API 연동", description: "외부 API 연동 작업", projectId: projectArray[1]?.id },
-      { title: "시스템 최적화", description: "성능 및 안정성 개선", projectId: projectArray[1]?.id },
-      { title: "연동 기능", description: "다른 서비스와의 연동", projectId: projectArray[2]?.id },
+      { title: "메인 기능 개발", description: "핵심 기능 구현", deadline: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], status: "진행중", assigneeId: userArray[0]?.id, projectId: projectArray[0]?.id },
+      { title: "UI/UX 개선", description: "사용자 인터페이스 개선", deadline: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], status: "목표", assigneeId: userArray[1]?.id, projectId: projectArray[0]?.id },
+      { title: "API 연동", description: "외부 API 연동 작업", deadline: null, status: "진행전", assigneeId: userArray[1]?.id, projectId: projectArray[1]?.id },
+      { title: "시스템 최적화", description: "성능 및 안정성 개선", deadline: null, status: "목표", assigneeId: userArray[0]?.id, projectId: projectArray[1]?.id },
+      { title: "연동 기능", description: "다른 서비스와의 연동", deadline: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], status: "진행전", assigneeId: userArray[2]?.id, projectId: projectArray[2]?.id },
     ];
 
     for (const goal of defaultGoals) {
@@ -438,6 +441,7 @@ export class MemStorage implements IStorage {
       id, 
       description: insertProject.description || null,
       deadline: insertProject.deadline || null,
+      status: insertProject.status || null,
       ownerId: insertProject.ownerId || null,
       createdAt: now,
       updatedAt: now
@@ -568,6 +572,9 @@ export class MemStorage implements IStorage {
       ...insertGoal, 
       id, 
       description: insertGoal.description || null,
+      deadline: insertGoal.deadline || null,
+      status: insertGoal.status || null,
+      assigneeId: insertGoal.assigneeId || null,
       createdAt: now,
       updatedAt: now
     };
