@@ -144,11 +144,6 @@ export default function ListTree() {
       }
     } else if (editingField.field === 'status') {
       updates.status = editingValue;
-    } else if (editingField.field === 'progress') {
-      // Progress is calculated, not directly editable for projects/goals
-      if (editingField.type === 'task') {
-        updates.status = parseInt(editingValue) === 100 ? '완료' : '진행중';
-      }
     } else if (editingField.field === 'importance') {
       if (editingField.type === 'task') {
         updates.priority = editingValue;
@@ -289,7 +284,18 @@ export default function ListTree() {
       return (
         <Select value={editingValue} onValueChange={(value) => {
           setEditingValue(value);
-          const updates = { status: value };
+          let updates: any = { status: value };
+          
+          // 작업의 경우 상태에 따라 진행도도 자동 업데이트
+          if (type === 'task') {
+            if (value === '진행전') {
+              updates.progress = 0;
+            } else if (value === '진행중') {
+              updates.progress = 50;
+            } else if (value === '완료') {
+              updates.progress = 100;
+            }
+          }
           
           if (type === 'project') {
             updateProjectMutation.mutate({ id: itemId, updates });
@@ -324,34 +330,28 @@ export default function ListTree() {
   };
 
   const renderEditableProgress = (itemId: string, type: 'project' | 'goal' | 'task', progress: number, status?: string) => {
-    const isEditing = editingField?.itemId === itemId && editingField?.field === 'progress';
+    // 상태에 따른 자동 진행도 계산
+    const getProgressByStatus = (taskStatus: string) => {
+      if (taskStatus === '진행전') return 0;
+      if (taskStatus === '진행중') return 50;
+      if (taskStatus === '완료') return 100;
+      return progress;
+    };
     
-    if (isEditing && type === 'task') {
-      return (
-        <Input
-          type="number"
-          min="0"
-          max="100"
-          value={editingValue}
-          onChange={(e) => setEditingValue(e.target.value)}
-          onKeyDown={handleKeyPress}
-          onBlur={saveEdit}
-          className="h-6 text-xs w-16"
-          autoFocus
-          data-testid={`edit-progress-${itemId}`}
-        />
-      );
-    }
+    // 작업의 경우 상태에 따라 진행도 자동 계산, 프로젝트/목표는 기존 값 사용
+    const displayProgress = type === 'task' && status ? getProgressByStatus(status) : progress;
     
     return (
-      <div 
-        className={`flex items-center gap-2 ${type === 'task' ? 'cursor-pointer hover:bg-muted/20 px-1 py-1 rounded' : ''}`}
-        onClick={type === 'task' ? () => startEditing(itemId, 'progress', type, status === '완료' ? '100' : '50') : undefined}
-      >
-        <Progress value={progress} className="flex-1" />
+      <div className="flex items-center gap-2">
+        <Progress value={displayProgress} className="flex-1" />
         <span className="text-xs text-muted-foreground w-8">
-          {progress}%
+          {displayProgress}%
         </span>
+        {type === 'task' && (
+          <span className="text-xs text-muted-foreground ml-1" title="진행도는 상태에 따라 자동 설정됩니다">
+            🔒
+          </span>
+        )}
       </div>
     );
   };
@@ -394,11 +394,17 @@ export default function ListTree() {
     
     return (
       <div 
-        className="cursor-pointer hover:bg-muted/20 px-1 py-1 rounded text-sm min-h-[24px] flex items-center"
+        className="cursor-pointer hover:opacity-80 min-h-[24px] flex items-center"
         onClick={() => startEditing(itemId, 'label', type, label || '')}
         data-testid={`text-label-${itemId}`}
       >
-        {label || <span className="text-muted-foreground">라벨 없음</span>}
+        {label ? (
+          <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-800 hover:bg-blue-200 border-0">
+            {label}
+          </Badge>
+        ) : (
+          <span className="text-muted-foreground text-xs px-2">라벨 없음</span>
+        )}
       </div>
     );
   };
