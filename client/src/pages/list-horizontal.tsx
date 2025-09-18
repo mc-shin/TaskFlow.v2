@@ -7,8 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CheckCircle, Clock, AlertTriangle, User, Plus, Eye, Target, FolderOpen } from "lucide-react";
+import { CheckCircle, Clock, AlertTriangle, User, Plus, Eye, Target, FolderOpen, Trash2 } from "lucide-react";
 import { useState } from "react";
+import { useToast } from "@/hooks/use-toast";
 import type { SafeTaskWithAssignee, ProjectWithDetails, GoalWithTasks } from "@shared/schema";
 import { ProjectModal } from "@/components/project-modal";
 import { GoalModal } from "@/components/goal-modal";
@@ -30,6 +31,7 @@ interface FlattenedItem {
 }
 
 export default function ListHorizontal() {
+  const { toast } = useToast();
   const { data: projects, isLoading, error } = useQuery({
     queryKey: ["/api/projects"],
   });
@@ -44,6 +46,73 @@ export default function ListHorizontal() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+    },
+  });
+
+  const deleteItemsMutation = useMutation({
+    mutationFn: async (items: FlattenedItem[]) => {
+      const results = [];
+      
+      // Delete in order: tasks first, then goals, then projects to avoid dependency issues
+      const sortedItems = [...items].sort((a, b) => {
+        const order = { task: 0, goal: 1, project: 2 };
+        return order[a.type] - order[b.type];
+      });
+
+      for (const item of sortedItems) {
+        try {
+          let endpoint = '';
+          switch (item.type) {
+            case 'project':
+              endpoint = `/api/projects/${item.id}`;
+              break;
+            case 'goal':
+              endpoint = `/api/goals/${item.id}`;
+              break;
+            case 'task':
+              endpoint = `/api/tasks/${item.id}`;
+              break;
+          }
+          
+          const result = await apiRequest("DELETE", endpoint);
+          results.push({ success: true, item, result });
+        } catch (error) {
+          results.push({ success: false, item, error });
+        }
+      }
+      
+      return results;
+    },
+    onSuccess: (results) => {
+      const successCount = results.filter(r => r.success).length;
+      const errorCount = results.filter(r => !r.success).length;
+      
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+      
+      if (successCount > 0) {
+        toast({
+          title: "삭제 완료",
+          description: `${successCount}개 항목이 성공적으로 삭제되었습니다.${errorCount > 0 ? ` (${errorCount}개 항목 삭제 실패)` : ""}`,
+        });
+      }
+      
+      if (errorCount > 0 && successCount === 0) {
+        toast({
+          title: "삭제 실패", 
+          description: "선택한 항목을 삭제할 수 없습니다.",
+          variant: "destructive",
+        });
+      }
+      
+      setSelectedItems(new Set());
+    },
+    onError: () => {
+      toast({
+        title: "삭제 실패",
+        description: "삭제 중 오류가 발생했습니다.",
+        variant: "destructive",
+      });
     },
   });
   
@@ -124,11 +193,48 @@ export default function ListHorizontal() {
   
   const toggleItemSelection = (itemId: string) => {
     const newSelected = new Set(selectedItems);
+    const item = flattenedItems.find(i => i.id === itemId);
+    
     if (newSelected.has(itemId)) {
+      // If item is being deselected, also deselect all its children
       newSelected.delete(itemId);
+      
+      if (item?.type === 'project') {
+        // Deselect all goals and tasks for this project
+        flattenedItems.forEach(flatItem => {
+          if (flatItem.project.id === item.id && flatItem.id !== item.id) {
+            newSelected.delete(flatItem.id);
+          }
+        });
+      } else if (item?.type === 'goal') {
+        // Deselect all tasks for this goal
+        flattenedItems.forEach(flatItem => {
+          if (flatItem.goal?.id === item.id && flatItem.type === 'task') {
+            newSelected.delete(flatItem.id);
+          }
+        });
+      }
     } else {
+      // If item is being selected, also select all its children
       newSelected.add(itemId);
+      
+      if (item?.type === 'project') {
+        // Select all goals and tasks for this project
+        flattenedItems.forEach(flatItem => {
+          if (flatItem.project.id === item.id && flatItem.id !== item.id) {
+            newSelected.add(flatItem.id);
+          }
+        });
+      } else if (item?.type === 'goal') {
+        // Select all tasks for this goal
+        flattenedItems.forEach(flatItem => {
+          if (flatItem.goal?.id === item.id && flatItem.type === 'task') {
+            newSelected.add(flatItem.id);
+          }
+        });
+      }
     }
+    
     setSelectedItems(newSelected);
   };
   
@@ -196,6 +302,13 @@ export default function ListHorizontal() {
     }
   };
 
+  const handleDeleteSelected = () => {
+    const selectedItemsArray = flattenedItems.filter(item => selectedItems.has(item.id));
+    if (selectedItemsArray.length > 0) {
+      deleteItemsMutation.mutate(selectedItemsArray);
+    }
+  };
+
   const handleDetailView = (item: FlattenedItem) => {
     // Open appropriate modal based on item type
     if (item.type === 'project') {
@@ -236,7 +349,7 @@ export default function ListHorizontal() {
         onValueChange={(value) => handleAssigneeChange(item.id, value)}
         disabled={updateTaskMutation.isPending}
       >
-        <SelectTrigger className="h-8 p-1 border-0 shadow-none hover:bg-muted rounded-md" data-testid={`select-assignee-${item.id}`}>
+        <SelectTrigger className="h-8 w-32 p-1 border-0 shadow-none hover:bg-muted rounded-md" data-testid={`select-assignee-${item.id}`}>
           <SelectValue>
             {item.participant ? (
               <div className="flex items-center gap-2">
@@ -245,7 +358,7 @@ export default function ListHorizontal() {
                     {item.participant.name.charAt(0)}
                   </AvatarFallback>
                 </Avatar>
-                <span className="text-sm">{item.participant.name}</span>
+                <span className="text-sm truncate">{item.participant.name}</span>
               </div>
             ) : (
               <span className="text-muted-foreground text-sm">담당자 없음</span>
@@ -294,7 +407,7 @@ export default function ListHorizontal() {
         onValueChange={(value) => handleStatusChange(item.id, value)}
         disabled={updateTaskMutation.isPending}
       >
-        <SelectTrigger className="h-auto p-1 border-0 shadow-none hover:bg-muted rounded-md w-20" data-testid={`select-status-${item.id}`}>
+        <SelectTrigger className="h-8 p-1 border-0 shadow-none hover:bg-muted rounded-md w-20" data-testid={`select-status-${item.id}`}>
           <SelectValue>
             <Badge variant={getStatusBadgeVariant(item.status)} className="text-xs">
               {item.status}
@@ -365,13 +478,26 @@ export default function ListHorizontal() {
               <span className="text-sm text-muted-foreground">
                 {selectedItems.size}개 항목이 선택됨
               </span>
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => setSelectedItems(new Set())}
-              >
-                선택 해제
-              </Button>
+              <div className="flex gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setSelectedItems(new Set())}
+                  data-testid="button-clear-selection"
+                >
+                  선택 해제
+                </Button>
+                <Button 
+                  variant="destructive" 
+                  size="sm"
+                  onClick={handleDeleteSelected}
+                  disabled={deleteItemsMutation.isPending}
+                  data-testid="button-delete-selected"
+                >
+                  <Trash2 className="w-4 h-4 mr-1" />
+                  {deleteItemsMutation.isPending ? "삭제 중..." : "삭제"}
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
