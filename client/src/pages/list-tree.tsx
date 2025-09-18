@@ -78,11 +78,143 @@ export default function ListTree() {
   
   const toggleItemSelection = (itemId: string) => {
     const newSelected = new Set(selectedItems);
-    if (newSelected.has(itemId)) {
-      newSelected.delete(itemId);
+    
+    // Helper function to find all child items of a project or goal
+    const getChildItems = (parentId: string, parentType: 'project' | 'goal'): string[] => {
+      const childIds: string[] = [];
+      
+      if (parentType === 'project') {
+        // Find all goals and tasks under this project
+        const project = (projects as ProjectWithDetails[])?.find(p => p.id === parentId);
+        if (project?.goals) {
+          project.goals.forEach(goal => {
+            childIds.push(goal.id);
+            if (goal.tasks) {
+              goal.tasks.forEach(task => {
+                childIds.push(task.id);
+              });
+            }
+          });
+        }
+      } else if (parentType === 'goal') {
+        // Find all tasks under this goal
+        (projects as ProjectWithDetails[])?.forEach(project => {
+          const goal = project.goals?.find(g => g.id === parentId);
+          if (goal?.tasks) {
+            goal.tasks.forEach(task => {
+              childIds.push(task.id);
+            });
+          }
+        });
+      }
+      
+      return childIds;
+    };
+    
+    // Helper function to find parent items
+    const getParentItems = (childId: string): { projectId?: string; goalId?: string } => {
+      for (const project of (projects as ProjectWithDetails[]) || []) {
+        // Check if this is a goal of the project
+        const goal = project.goals?.find(g => g.id === childId);
+        if (goal) {
+          return { projectId: project.id };
+        }
+        
+        // Check if this is a task of any goal in the project
+        for (const goal of project.goals || []) {
+          const task = goal.tasks?.find(t => t.id === childId);
+          if (task) {
+            return { projectId: project.id, goalId: goal.id };
+          }
+        }
+      }
+      return {};
+    };
+    
+    // Determine the type of the selected item
+    let itemType: 'project' | 'goal' | 'task' = 'task';
+    const isProject = (projects as ProjectWithDetails[])?.some(p => p.id === itemId);
+    if (isProject) {
+      itemType = 'project';
     } else {
-      newSelected.add(itemId);
+      // Check if it's a goal
+      const isGoal = (projects as ProjectWithDetails[])?.some(p => 
+        p.goals?.some(g => g.id === itemId)
+      );
+      if (isGoal) {
+        itemType = 'goal';
+      }
     }
+    
+    // For parent items (project/goal), check if they should be considered "selected" 
+    // either directly or because all their children are selected
+    let isCurrentlySelected = newSelected.has(itemId);
+    if (!isCurrentlySelected && (itemType === 'project' || itemType === 'goal')) {
+      const childIds = getChildItems(itemId, itemType);
+      // Consider parent selected if all children are selected
+      if (childIds.length > 0) {
+        isCurrentlySelected = childIds.every(childId => newSelected.has(childId));
+      }
+    }
+    
+    if (isCurrentlySelected) {
+      // Deselecting: remove the item and all its children
+      newSelected.delete(itemId);
+      
+      if (itemType === 'project' || itemType === 'goal') {
+        const childIds = getChildItems(itemId, itemType);
+        childIds.forEach(childId => newSelected.delete(childId));
+      }
+    } else {
+      // Selecting: add the item and all its children
+      newSelected.add(itemId);
+      
+      if (itemType === 'project' || itemType === 'goal') {
+        const childIds = getChildItems(itemId, itemType);
+        childIds.forEach(childId => newSelected.add(childId));
+      }
+    }
+    
+    // Update parent selection state based on children (only for task/goal selection)
+    if (itemType === 'task' || itemType === 'goal') {
+      const parents = getParentItems(itemId);
+      
+      if (parents.goalId && itemType === 'task') {
+        // Check if all tasks in this goal are selected
+        const goal = (projects as ProjectWithDetails[])?.find(p => 
+          p.goals?.some(g => g.id === parents.goalId)
+        )?.goals?.find(g => g.id === parents.goalId);
+        
+        if (goal?.tasks) {
+          const allTasksSelected = goal.tasks.every(task => newSelected.has(task.id));
+          if (allTasksSelected && !isCurrentlySelected) {
+            newSelected.add(parents.goalId!);
+          } else if (!allTasksSelected && isCurrentlySelected) {
+            newSelected.delete(parents.goalId!);
+          }
+        }
+      }
+      
+      if (parents.projectId) {
+        // Check if all goals and tasks in this project are selected
+        const project = (projects as ProjectWithDetails[])?.find(p => p.id === parents.projectId);
+        
+        if (project?.goals) {
+          const allGoalsAndTasksSelected = project.goals.every(goal => {
+            const goalSelected = newSelected.has(goal.id);
+            const allTasksSelected = goal.tasks?.every(task => newSelected.has(task.id)) ?? true;
+            return goalSelected && allTasksSelected;
+          });
+          
+          if (allGoalsAndTasksSelected && !isCurrentlySelected) {
+            newSelected.add(parents.projectId);
+          } else if (!allGoalsAndTasksSelected && isCurrentlySelected) {
+            newSelected.delete(parents.projectId);
+          }
+        }
+      }
+    }
+    
     setSelectedItems(newSelected);
   };
   
@@ -217,7 +349,7 @@ export default function ListTree() {
     
     if (isEditing) {
       return (
-        <div className="w-28 min-w-[7rem] max-w-[7rem]">
+        <div className="w-28 min-w-[7rem] max-w-[7rem] h-8 flex items-center">
           <Select value={editingValue} onValueChange={(value) => {
             setEditingValue(value);
             const updates: any = {};
@@ -263,7 +395,7 @@ export default function ListTree() {
     
     return (
       <div 
-        className="cursor-pointer hover:bg-muted/20 px-1 py-1 rounded w-28 min-w-[7rem] max-w-[7rem] overflow-hidden"
+        className="cursor-pointer hover:bg-muted/20 px-1 py-1 rounded w-28 min-w-[7rem] max-w-[7rem] h-8 flex items-center overflow-hidden"
         onClick={() => startEditing(itemId, 'assignee', type, currentUserId || 'none')}
       >
         {assignee ? (
