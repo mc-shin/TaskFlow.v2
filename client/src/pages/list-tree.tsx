@@ -14,6 +14,8 @@ import { ProjectModal } from "@/components/project-modal";
 import { GoalModal } from "@/components/goal-modal";
 import { TaskModal } from "@/components/task-modal";
 import { apiRequest } from "@/lib/queryClient";
+import { KoreanDatePicker } from "@/components/korean-date-picker";
+import { parse } from "date-fns";
 
 export default function ListTree() {
   const { data: projects, isLoading, error } = useQuery({
@@ -177,15 +179,23 @@ export default function ListTree() {
     
     if (isEditing) {
       return (
-        <Input
-          type="date"
+        <KoreanDatePicker
           value={editingValue}
-          onChange={(e) => setEditingValue(e.target.value)}
-          onKeyDown={handleKeyPress}
-          onBlur={saveEdit}
+          onChange={(value) => {
+            setEditingValue(value);
+            const updates: any = { deadline: value };
+            
+            if (type === 'project') {
+              updateProjectMutation.mutate({ id: itemId, updates });
+            } else if (type === 'goal') {
+              updateGoalMutation.mutate({ id: itemId, updates });
+            } else {
+              updateTaskMutation.mutate({ id: itemId, updates });
+            }
+            cancelEditing();
+          }}
+          placeholder="날짜 선택"
           className="h-6 text-xs"
-          autoFocus
-          data-testid={`edit-deadline-${itemId}`}
         />
       );
     }
@@ -272,6 +282,15 @@ export default function ListTree() {
 
   const renderEditableStatus = (itemId: string, type: 'project' | 'goal' | 'task', status: string) => {
     const isEditing = editingField?.itemId === itemId && editingField?.field === 'status';
+    
+    // Only allow status editing for tasks
+    if (type !== 'task') {
+      return (
+        <Badge variant={getStatusBadgeVariant(status)} className="text-xs">
+          {status}
+        </Badge>
+      );
+    }
     
     if (isEditing) {
       return (
@@ -368,24 +387,18 @@ export default function ListTree() {
   const formatDeadline = (deadline: string | null) => {
     if (!deadline) return '-';
     
-    const deadlineDate = new Date(deadline);
-    const today = new Date();
-    const diffTime = deadlineDate.getTime() - today.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    // Use same parsing logic as KoreanDatePicker to avoid timezone issues
+    const deadlineDate = parse(deadline, 'yyyy-MM-dd', new Date());
+    
+    // Check if the parsed date is valid
+    if (isNaN(deadlineDate.getTime())) {
+      return '-';
+    }
     
     const month = deadlineDate.getMonth() + 1;
     const day = deadlineDate.getDate();
     
-    let dDayPart = '';
-    if (diffDays < 0) {
-      dDayPart = `D+${Math.abs(diffDays)}`;
-    } else if (diffDays === 0) {
-      dDayPart = 'D-Day';
-    } else {
-      dDayPart = `D-${diffDays}`;
-    }
-    
-    return `${month}/${day} ${dDayPart}`;
+    return `${month}월 ${day}일`;
   };
   
   const getStatusBadgeVariant = (status: string) => {
