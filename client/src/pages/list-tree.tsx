@@ -356,12 +356,68 @@ export default function ListTree() {
     );
   };
 
+  // 라벨 편집 기능
+  const renderEditableLabel = (itemId: string, type: 'project' | 'goal' | 'task', label: string | null) => {
+    const isEditing = editingField?.itemId === itemId && editingField?.field === 'label';
+    
+    // 프로젝트와 목표는 라벨 편집 불가, 빈값 표시
+    if (type !== 'task') {
+      return <span className="text-muted-foreground text-sm">-</span>;
+    }
+    
+    if (isEditing) {
+      return (
+        <Input 
+          value={editingValue} 
+          onChange={(e) => setEditingValue(e.target.value)}
+          onBlur={() => {
+            const updates = { label: editingValue || null };
+            updateTaskMutation.mutate({ id: itemId, updates });
+            cancelEditing();
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              const updates = { label: editingValue || null };
+              updateTaskMutation.mutate({ id: itemId, updates });
+              cancelEditing();
+            }
+            if (e.key === 'Escape') {
+              cancelEditing();
+            }
+          }}
+          className="h-6 text-xs"
+          data-testid={`edit-label-${itemId}`}
+          autoFocus
+        />
+      );
+    }
+    
+    return (
+      <div 
+        className="cursor-pointer hover:bg-muted/20 px-1 py-1 rounded text-sm min-h-[24px] flex items-center"
+        onClick={() => startEditing(itemId, 'label', type, label || '')}
+        data-testid={`text-label-${itemId}`}
+      >
+        {label || <span className="text-muted-foreground">라벨 없음</span>}
+      </div>
+    );
+  };
+
   const renderEditableImportance = (itemId: string, type: 'project' | 'goal' | 'task', importance: string) => {
     const isEditing = editingField?.itemId === itemId && editingField?.field === 'importance';
     
-    if (isEditing && type === 'task') {
+    // 프로젝트와 목표는 중요도 표시하지 않음
+    if (type !== 'task') {
+      return <span className="text-muted-foreground text-sm">-</span>;
+    }
+    
+    if (isEditing) {
       return (
-        <Select value={editingValue} onValueChange={setEditingValue}>
+        <Select value={editingValue} onValueChange={(value) => {
+          setEditingValue(value);
+          updateTaskMutation.mutate({ id: itemId, updates: { priority: value } });
+          cancelEditing();
+        }}>
           <SelectTrigger className="h-6 text-xs" data-testid={`edit-importance-${itemId}`}>
             <SelectValue />
           </SelectTrigger>
@@ -377,8 +433,8 @@ export default function ListTree() {
     return (
       <Badge 
         variant={getImportanceBadgeVariant(importance)} 
-        className={`text-xs ${type === 'task' ? 'cursor-pointer hover:opacity-80' : ''}`}
-        onClick={type === 'task' ? () => startEditing(itemId, 'importance', type, importance) : undefined}
+        className="text-xs cursor-pointer hover:opacity-80"
+        onClick={() => startEditing(itemId, 'importance', type, importance)}
       >
         {importance}
       </Badge>
@@ -494,7 +550,7 @@ export default function ListTree() {
           <div className="col-span-4">이름</div>
           <div className="col-span-1">마감일</div>
           <div className="col-span-1">담당자</div>
-          <div className="col-span-1">작업</div>
+          <div className="col-span-1">라벨</div>
           <div className="col-span-1">상태</div>
           <div className="col-span-2">진행도</div>
           <div className="col-span-1">중요도</div>
@@ -561,8 +617,8 @@ export default function ListTree() {
                       <div className="col-span-1">
                         {renderEditableAssignee(project.id, 'project', project.owner || null, project.ownerId)}
                       </div>
-                      <div className="col-span-1 text-sm">
-                        {project.completedTasks}/{project.totalTasks}
+                      <div className="col-span-1">
+                        {renderEditableLabel(project.id, 'project', null)}
                       </div>
                       <div className="col-span-1">
                         {renderEditableStatus(project.id, 'project', '진행중')}
@@ -626,8 +682,8 @@ export default function ListTree() {
                               <div className="col-span-1">
                                 {renderEditableAssignee(goal.id, 'goal', null)}
                               </div>
-                              <div className="col-span-1 text-sm">
-                                {goal.completedTasks || 0}/{goal.totalTasks || 0}
+                              <div className="col-span-1">
+                                {renderEditableLabel(goal.id, 'goal', null)}
                               </div>
                               <div className="col-span-1">
                                 {renderEditableStatus(goal.id, 'goal', '목표')}
@@ -664,7 +720,9 @@ export default function ListTree() {
                                     <div className="col-span-1">
                                       {renderEditableAssignee(task.id, 'task', task.assignee || null)}
                                     </div>
-                                    <div className="col-span-1 text-sm">1/1</div>
+                                    <div className="col-span-1">
+                                      {renderEditableLabel(task.id, 'task', task.label)}
+                                    </div>
                                     <div className="col-span-1">
                                       {renderEditableStatus(task.id, 'task', task.status)}
                                     </div>

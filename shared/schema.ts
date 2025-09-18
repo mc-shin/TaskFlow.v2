@@ -40,8 +40,9 @@ export const tasks = pgTable("tasks", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   title: text("title").notNull(),
   description: text("description"),
-  status: text("status").notNull().default("실행대기"), // 실행대기, 이슈함, 사업팀, 인력팀
+  status: text("status").notNull().default("진행전"), // 진행전, 진행중, 완료
   priority: text("priority").default("중간"), // 높음, 중간, 낮음
+  label: text("label"), // 라벨 필드 추가
   deadline: text("deadline"),
   duration: integer("duration").default(0),
   assigneeId: varchar("assignee_id").references(() => users.id),
