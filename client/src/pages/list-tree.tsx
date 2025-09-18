@@ -222,6 +222,60 @@ export default function ListTree() {
     setSelectedItems(new Set());
   };
 
+  // Delete selected items
+  const deleteSelectedItems = async () => {
+    const selectedArray = Array.from(selectedItems);
+    
+    try {
+      // Categorize selected items by type
+      const projectIds: string[] = [];
+      const goalIds: string[] = [];
+      const taskIds: string[] = [];
+      
+      selectedArray.forEach(itemId => {
+        // Check if it's a project
+        const isProject = (projects as ProjectWithDetails[])?.some(p => p.id === itemId);
+        if (isProject) {
+          projectIds.push(itemId);
+          return;
+        }
+        
+        // Check if it's a goal
+        const isGoal = (projects as ProjectWithDetails[])?.some(p => 
+          p.goals?.some(g => g.id === itemId)
+        );
+        if (isGoal) {
+          goalIds.push(itemId);
+          return;
+        }
+        
+        // Otherwise it's a task
+        taskIds.push(itemId);
+      });
+      
+      // Delete tasks first (to avoid foreign key conflicts)
+      for (const taskId of taskIds) {
+        await deleteTaskMutation.mutateAsync(taskId);
+      }
+      
+      // Then delete goals
+      for (const goalId of goalIds) {
+        await deleteGoalMutation.mutateAsync(goalId);
+      }
+      
+      // Finally delete projects
+      for (const projectId of projectIds) {
+        await deleteProjectMutation.mutateAsync(projectId);
+      }
+      
+      // Clear selection after successful deletion
+      clearSelection();
+    } catch (error) {
+      console.error('Failed to delete selected items:', error);
+      // TODO: Show error toast to user
+    }
+  };
+
   // Inline editing functions
   const startEditing = (itemId: string, field: string, type: 'project' | 'goal' | 'task', currentValue: string) => {
     setEditingField({ itemId, field, type });
@@ -255,6 +309,34 @@ export default function ListTree() {
   const updateTaskMutation = useMutation({
     mutationFn: async (data: { id: string; updates: any }) => {
       return await apiRequest("PUT", `/api/tasks/${data.id}`, data.updates);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+    }
+  });
+
+  // Delete mutations
+  const deleteProjectMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return await apiRequest("DELETE", `/api/projects/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+    }
+  });
+
+  const deleteGoalMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return await apiRequest("DELETE", `/api/goals/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+    }
+  });
+
+  const deleteTaskMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return await apiRequest("DELETE", `/api/tasks/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
@@ -819,10 +901,10 @@ export default function ListTree() {
                                 </Button>
                               </div>
                               <div className="col-span-1">
-                                {renderEditableDeadline(goal.id, 'goal', null)}
+                                {renderEditableDeadline(goal.id, 'goal', goal.deadline)}
                               </div>
                               <div className="col-span-1">
-                                {renderEditableAssignee(goal.id, 'goal', null)}
+                                {renderEditableAssignee(goal.id, 'goal', goal.assigneeId ? (users as SafeUser[])?.find(u => u.id === goal.assigneeId) || null : null, goal.assigneeId)}
                               </div>
                               <div className="col-span-1">
                                 {renderEditableLabel(goal.id, 'goal', null)}
@@ -905,6 +987,16 @@ export default function ListTree() {
               data-testid="button-clear-selection"
             >
               선택 해제
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              className="bg-red-600 hover:bg-red-700 text-sm"
+              onClick={deleteSelectedItems}
+              disabled={deleteProjectMutation.isPending || deleteGoalMutation.isPending || deleteTaskMutation.isPending}
+              data-testid="button-delete-selection"
+            >
+              {(deleteProjectMutation.isPending || deleteGoalMutation.isPending || deleteTaskMutation.isPending) ? '삭제 중...' : '삭제'}
             </Button>
             <Button
               variant="default"
