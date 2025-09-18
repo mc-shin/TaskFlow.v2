@@ -11,8 +11,8 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { insertProjectSchema } from "@shared/schema";
 
-const projectFormSchema = insertProjectSchema.extend({
-  title: z.string().min(1, "프로젝트 제목을 입력해주세요"),
+const projectFormSchema = z.object({
+  name: z.string().min(1, "프로젝트 제목을 입력해주세요"),
   description: z.string().optional(),
 });
 
@@ -30,14 +30,21 @@ export function ProjectModal({ isOpen, onClose }: ProjectModalProps) {
   const form = useForm<ProjectFormData>({
     resolver: zodResolver(projectFormSchema),
     defaultValues: {
-      title: "",
+      name: "",
       description: "",
     },
   });
 
   const createProjectMutation = useMutation({
     mutationFn: async (data: ProjectFormData) => {
-      const response = await apiRequest("POST", "/api/projects", data);
+      // Generate a unique project code
+      const projectCode = `PROJ-${Date.now().toString().slice(-6)}`;
+      const projectData = {
+        name: data.name,
+        code: projectCode,
+        description: data.description || null,
+      };
+      const response = await apiRequest("POST", "/api/projects", projectData);
       return response.json();
     },
     onSuccess: () => {
@@ -74,7 +81,7 @@ export function ProjectModal({ isOpen, onClose }: ProjectModalProps) {
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
             <FormField
               control={form.control}
-              name="title"
+              name="name"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>프로젝트 제목 *</FormLabel>
