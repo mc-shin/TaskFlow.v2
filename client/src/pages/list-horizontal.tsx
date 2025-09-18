@@ -1,10 +1,12 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CheckCircle, Clock, AlertTriangle, User, Plus, Eye, Target, FolderOpen } from "lucide-react";
 import { useState } from "react";
 import type { SafeTaskWithAssignee, ProjectWithDetails, GoalWithTasks } from "@shared/schema";
@@ -30,6 +32,19 @@ interface FlattenedItem {
 export default function ListHorizontal() {
   const { data: projects, isLoading, error } = useQuery({
     queryKey: ["/api/projects"],
+  });
+  
+  const { data: users } = useQuery({
+    queryKey: ["/api/users"],
+  });
+  
+  const updateTaskMutation = useMutation({
+    mutationFn: async ({ taskId, data }: { taskId: string; data: any }) => {
+      return await apiRequest("PUT", `/api/tasks/${taskId}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+    },
   });
   
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
@@ -144,14 +159,12 @@ export default function ListHorizontal() {
   
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {
-      case "실행대기":
+      case "진행전":
         return "secondary" as const;
-      case "이슈함":
-        return "destructive" as const;
-      case "사업팀":
+      case "진행중":
         return "default" as const;
-      case "인력팀":
-        return "default" as const;
+      case "완료":
+        return "outline" as const;
       default:
         return "outline" as const;
     }
@@ -199,6 +212,106 @@ export default function ListHorizontal() {
       });
     }
     // For tasks, we could add a task detail modal in the future
+  };
+
+  const handleAssigneeChange = (taskId: string, assigneeId: string) => {
+    const assigneeData = assigneeId === "none" ? { assigneeId: null } : { assigneeId };
+    updateTaskMutation.mutate({ taskId, data: assigneeData });
+  };
+
+  const handleStatusChange = (taskId: string, status: string) => {
+    updateTaskMutation.mutate({ taskId, data: { status } });
+  };
+
+  const renderEditableAssignee = (item: FlattenedItem) => {
+    if (item.type !== 'task' || !item.task) {
+      return (
+        <span className="text-muted-foreground text-sm">-</span>
+      );
+    }
+
+    return (
+      <Select
+        value={item.participant?.id || "none"}
+        onValueChange={(value) => handleAssigneeChange(item.id, value)}
+        disabled={updateTaskMutation.isPending}
+      >
+        <SelectTrigger className="h-auto p-1 border-0 shadow-none hover:bg-muted rounded-md" data-testid={`select-assignee-${item.id}`}>
+          <SelectValue>
+            {item.participant ? (
+              <div className="flex items-center gap-2">
+                <Avatar className="w-6 h-6">
+                  <AvatarFallback className="text-xs">
+                    {item.participant.name.charAt(0)}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="text-sm">{item.participant.name}</span>
+              </div>
+            ) : (
+              <span className="text-muted-foreground text-sm">담당자 없음</span>
+            )}
+          </SelectValue>
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="none">
+            <span className="text-muted-foreground">담당자 없음</span>
+          </SelectItem>
+          {Array.isArray(users) ? users.map((user: any) => (
+            <SelectItem key={user.id} value={user.id}>
+              <div className="flex items-center gap-2">
+                <Avatar className="w-6 h-6">
+                  <AvatarFallback className="text-xs">
+                    {user.name.charAt(0)}
+                  </AvatarFallback>
+                </Avatar>
+                <span>{user.name}</span>
+              </div>
+            </SelectItem>
+          )) : null}
+        </SelectContent>
+      </Select>
+    );
+  };
+
+  const renderEditableStatus = (item: FlattenedItem) => {
+    if (item.type !== 'task' || !item.task) {
+      return (
+        <Badge variant={getStatusBadgeVariant(item.status)} data-testid={`badge-status-${item.id}`}>
+          {item.status}
+        </Badge>
+      );
+    }
+
+    const statusOptions = [
+      { value: "진행전", label: "진행전" },
+      { value: "진행중", label: "진행중" },
+      { value: "완료", label: "완료" }
+    ];
+
+    return (
+      <Select
+        value={item.status}
+        onValueChange={(value) => handleStatusChange(item.id, value)}
+        disabled={updateTaskMutation.isPending}
+      >
+        <SelectTrigger className="h-auto p-1 border-0 shadow-none hover:bg-muted rounded-md w-20" data-testid={`select-status-${item.id}`}>
+          <SelectValue>
+            <Badge variant={getStatusBadgeVariant(item.status)} className="text-xs">
+              {item.status}
+            </Badge>
+          </SelectValue>
+        </SelectTrigger>
+        <SelectContent>
+          {statusOptions.map((option) => (
+            <SelectItem key={option.value} value={option.value}>
+              <Badge variant={getStatusBadgeVariant(option.value)} className="text-xs">
+                {option.label}
+              </Badge>
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    );
   };
 
   if (isLoading) {
@@ -335,20 +448,7 @@ export default function ListHorizontal() {
                     {formatDeadline(item.deadline)}
                   </TableCell>
                   <TableCell>
-                    {item.participant ? (
-                      <div className="flex items-center gap-2">
-                        <Avatar className="w-6 h-6">
-                          <AvatarFallback className="text-xs">
-                            {item.participant.name.charAt(0)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <span className="text-sm" data-testid={`text-participant-${item.id}`}>
-                          {item.participant.name}
-                        </span>
-                      </div>
-                    ) : (
-                      <span className="text-muted-foreground text-sm">-</span>
-                    )}
+                    {renderEditableAssignee(item)}
                   </TableCell>
                   <TableCell>
                     <Badge variant="outline" data-testid={`badge-label-${item.id}`}>
@@ -356,9 +456,7 @@ export default function ListHorizontal() {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={getStatusBadgeVariant(item.status)} data-testid={`badge-status-${item.id}`}>
-                      {item.status}
-                    </Badge>
+                    {renderEditableStatus(item)}
                   </TableCell>
                   <TableCell data-testid={`text-score-${item.id}`}>
                     <span className="font-mono text-sm">{item.score}</span>

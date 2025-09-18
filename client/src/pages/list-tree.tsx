@@ -102,49 +102,28 @@ export default function ListTree() {
   // Mutations for updating items
   const updateProjectMutation = useMutation({
     mutationFn: async (data: { id: string; updates: any }) => {
-      const response = await fetch(`/api/projects/${data.id}`, {
-        method: 'PUT',
-        body: JSON.stringify(data.updates),
-        headers: { 'Content-Type': 'application/json' }
-      });
-      if (!response.ok) throw new Error('Update failed');
-      return response.json();
+      return await apiRequest("PUT", `/api/projects/${data.id}`, data.updates);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
-      cancelEditing();
     }
   });
 
   const updateGoalMutation = useMutation({
     mutationFn: async (data: { id: string; updates: any }) => {
-      const response = await fetch(`/api/goals/${data.id}`, {
-        method: 'PUT',
-        body: JSON.stringify(data.updates),
-        headers: { 'Content-Type': 'application/json' }
-      });
-      if (!response.ok) throw new Error('Update failed');
-      return response.json();
+      return await apiRequest("PUT", `/api/goals/${data.id}`, data.updates);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
-      cancelEditing();
     }
   });
 
   const updateTaskMutation = useMutation({
     mutationFn: async (data: { id: string; updates: any }) => {
-      const response = await fetch(`/api/tasks/${data.id}`, {
-        method: 'PUT',
-        body: JSON.stringify(data.updates),
-        headers: { 'Content-Type': 'application/json' }
-      });
-      if (!response.ok) throw new Error('Update failed');
-      return response.json();
+      return await apiRequest("PUT", `/api/tasks/${data.id}`, data.updates);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
-      cancelEditing();
     }
   });
 
@@ -166,7 +145,7 @@ export default function ListTree() {
     } else if (editingField.field === 'progress') {
       // Progress is calculated, not directly editable for projects/goals
       if (editingField.type === 'task') {
-        updates.status = parseInt(editingValue) === 100 ? '완료' : '실행대기';
+        updates.status = parseInt(editingValue) === 100 ? '완료' : '진행중';
       }
     } else if (editingField.field === 'importance') {
       if (editingField.type === 'task') {
@@ -228,15 +207,41 @@ export default function ListTree() {
     
     if (isEditing) {
       return (
-        <Select value={editingValue} onValueChange={setEditingValue}>
+        <Select value={editingValue} onValueChange={(value) => {
+          setEditingValue(value);
+          const updates: any = {};
+          if (type === 'project') {
+            updates.ownerId = value === 'none' ? null : value;
+          } else {
+            updates.assigneeId = value === 'none' ? null : value;
+          }
+          
+          if (type === 'project') {
+            updateProjectMutation.mutate({ id: itemId, updates });
+          } else if (type === 'goal') {
+            updateGoalMutation.mutate({ id: itemId, updates });
+          } else {
+            updateTaskMutation.mutate({ id: itemId, updates });
+          }
+          cancelEditing();
+        }}>
           <SelectTrigger className="h-6 text-xs" data-testid={`edit-assignee-${itemId}`}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="none">미배정</SelectItem>
+            <SelectItem value="none">
+              <span className="text-muted-foreground">담당자 없음</span>
+            </SelectItem>
             {(users as SafeUser[])?.map(user => (
               <SelectItem key={user.id} value={user.id}>
-                {user.name}
+                <div className="flex items-center gap-2">
+                  <Avatar className="w-6 h-6">
+                    <AvatarFallback className="text-xs">
+                      {user.name.charAt(0)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span>{user.name}</span>
+                </div>
               </SelectItem>
             ))}
           </SelectContent>
@@ -250,15 +255,16 @@ export default function ListTree() {
         onClick={() => startEditing(itemId, 'assignee', type, currentUserId || 'none')}
       >
         {assignee ? (
-          <Avatar className="w-6 h-6">
-            <AvatarFallback className="text-xs">
-              {assignee.name.charAt(0)}
-            </AvatarFallback>
-          </Avatar>
-        ) : (
-          <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center">
-            <User className="w-3 h-3 text-muted-foreground" />
+          <div className="flex items-center gap-2">
+            <Avatar className="w-6 h-6">
+              <AvatarFallback className="text-xs">
+                {assignee.name.charAt(0)}
+              </AvatarFallback>
+            </Avatar>
+            <span className="text-sm">{assignee.name}</span>
           </div>
+        ) : (
+          <span className="text-muted-foreground text-sm">담당자 없음</span>
         )}
       </div>
     );
@@ -269,15 +275,17 @@ export default function ListTree() {
     
     if (isEditing) {
       return (
-        <Select value={editingValue} onValueChange={setEditingValue}>
+        <Select value={editingValue} onValueChange={(value) => {
+          setEditingValue(value);
+          updateTaskMutation.mutate({ id: itemId, updates: { status: value } });
+          cancelEditing();
+        }}>
           <SelectTrigger className="h-6 text-xs" data-testid={`edit-status-${itemId}`}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="실행대기">실행대기</SelectItem>
-            <SelectItem value="이슈함">이슈함</SelectItem>
-            <SelectItem value="사업팀">사업팀</SelectItem>
-            <SelectItem value="인력팀">인력팀</SelectItem>
+            <SelectItem value="진행전">진행전</SelectItem>
+            <SelectItem value="진행중">진행중</SelectItem>
             <SelectItem value="완료">완료</SelectItem>
           </SelectContent>
         </Select>
@@ -382,14 +390,12 @@ export default function ListTree() {
   
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {
-      case "실행대기":
+      case "진행전":
         return "secondary" as const;
-      case "이슈함":
-        return "destructive" as const;
-      case "사업팀":
+      case "진행중":
         return "default" as const;
-      case "인력팀":
-        return "default" as const;
+      case "완료":
+        return "outline" as const;
       default:
         return "outline" as const;
     }
