@@ -9,7 +9,6 @@ import Admin from "@/pages/admin";
 import Team from "@/pages/team";
 import MyTasks from "@/pages/my-tasks";
 import ListTree from "@/pages/list-tree";
-import ListHorizontal from "@/pages/list-horizontal";
 import Kanban from "@/pages/kanban";
 import Priority from "@/pages/priority";
 import Backlog from "@/pages/backlog";
@@ -29,7 +28,6 @@ function Router() {
           <Route path="/team" component={Team} />
           <Route path="/my-tasks" component={MyTasks} />
           <Route path="/list" component={ListTree} />
-          <Route path="/list-horizontal" component={ListHorizontal} />
           <Route path="/kanban" component={Kanban} />
           <Route path="/priority" component={Priority} />
           <Route path="/backlog" component={Backlog} />

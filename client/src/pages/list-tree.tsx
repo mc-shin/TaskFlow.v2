@@ -144,8 +144,6 @@ export default function ListTree() {
       }
     } else if (editingField.field === 'status') {
       updates.status = editingValue;
-    } else if (editingField.field === 'label') {
-      updates.labels = editingValue ? [editingValue] : [];
     } else if (editingField.field === 'progress') {
       // Progress is calculated, not directly editable for projects/goals
       if (editingField.type === 'task') {
@@ -373,13 +371,13 @@ export default function ListTree() {
           value={editingValue} 
           onChange={(e) => setEditingValue(e.target.value)}
           onBlur={() => {
-            const updates = { labels: editingValue ? [editingValue] : [] };
+            const updates = { label: editingValue || null };
             updateTaskMutation.mutate({ id: itemId, updates });
             cancelEditing();
           }}
           onKeyDown={(e) => {
             if (e.key === 'Enter') {
-              const updates = { labels: editingValue ? [editingValue] : [] };
+              const updates = { label: editingValue || null };
               updateTaskMutation.mutate({ id: itemId, updates });
               cancelEditing();
             }
@@ -733,7 +731,7 @@ export default function ListTree() {
                                       {renderEditableAssignee(task.id, 'task', task.assignee || null)}
                                     </div>
                                     <div className="col-span-1">
-                                      {renderEditableLabel(task.id, 'task', (task.labels && task.labels.length > 0) ? task.labels[0] : null)}
+                                      {renderEditableLabel(task.id, 'task', task.label)}
                                     </div>
                                     <div className="col-span-1">
                                       {renderEditableStatus(task.id, 'task', task.status)}

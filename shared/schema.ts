@@ -42,10 +42,9 @@ export const tasks = pgTable("tasks", {
   description: text("description"),
   status: text("status").notNull().default("진행전"), // 진행전, 진행중, 완료
   priority: text("priority").default("중간"), // 높음, 중간, 낮음
-  labels: text("labels").array().default(sql`'{}'`), // 다중 라벨 지원
+  label: text("label"), // 라벨 필드 추가
   deadline: text("deadline"),
   duration: integer("duration").default(0),
-  progress: integer("progress").default(0), // 진행률 (0-100%)
   assigneeId: varchar("assignee_id").references(() => users.id),
   goalId: varchar("goal_id").references(() => goals.id),
   projectId: varchar("project_id").references(() => projects.id), // Keep for backward compatibility
