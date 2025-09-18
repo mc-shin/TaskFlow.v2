@@ -236,7 +236,7 @@ export default function ListHorizontal() {
         onValueChange={(value) => handleAssigneeChange(item.id, value)}
         disabled={updateTaskMutation.isPending}
       >
-        <SelectTrigger className="h-auto p-1 border-0 shadow-none hover:bg-muted rounded-md" data-testid={`select-assignee-${item.id}`}>
+        <SelectTrigger className="h-8 p-1 border-0 shadow-none hover:bg-muted rounded-md" data-testid={`select-assignee-${item.id}`}>
           <SelectValue>
             {item.participant ? (
               <div className="flex items-center gap-2">
