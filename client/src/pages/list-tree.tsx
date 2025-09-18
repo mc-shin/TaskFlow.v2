@@ -144,6 +144,8 @@ export default function ListTree() {
       }
     } else if (editingField.field === 'status') {
       updates.status = editingValue;
+    } else if (editingField.field === 'label') {
+      updates.labels = editingValue ? [editingValue] : [];
     } else if (editingField.field === 'progress') {
       // Progress is calculated, not directly editable for projects/goals
       if (editingField.type === 'task') {
@@ -371,13 +373,13 @@ export default function ListTree() {
           value={editingValue} 
           onChange={(e) => setEditingValue(e.target.value)}
           onBlur={() => {
-            const updates = { label: editingValue || null };
+            const updates = { labels: editingValue ? [editingValue] : [] };
             updateTaskMutation.mutate({ id: itemId, updates });
             cancelEditing();
           }}
           onKeyDown={(e) => {
             if (e.key === 'Enter') {
-              const updates = { label: editingValue || null };
+              const updates = { labels: editingValue ? [editingValue] : [] };
               updateTaskMutation.mutate({ id: itemId, updates });
               cancelEditing();
             }

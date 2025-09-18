@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CheckCircle, Clock, AlertTriangle, User, Plus, Eye, Target, FolderOpen } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { CheckCircle, Clock, AlertTriangle, User, Plus, Eye, Target, FolderOpen, X, Edit } from "lucide-react";
 import { useState } from "react";
 import type { SafeTaskWithAssignee, ProjectWithDetails, GoalWithTasks } from "@shared/schema";
 import { ProjectModal } from "@/components/project-modal";
@@ -60,6 +61,10 @@ export default function ListHorizontal() {
     goalId: '', 
     goalTitle: '' 
   });
+  
+  // State for editing labels and progress
+  const [editingLabels, setEditingLabels] = useState<{[key: string]: { showInput: boolean; newLabel: string }}>({}); 
+  const [editingProgress, setEditingProgress] = useState<{[key: string]: { isEditing: boolean; value: string }}>({}); 
   
   // Flatten all items for table display
   const flattenedItems: FlattenedItem[] = [];
@@ -224,7 +229,17 @@ export default function ListHorizontal() {
   };
 
   const handleStatusChange = (taskId: string, status: string) => {
-    updateTaskMutation.mutate({ taskId, data: { status } });
+    // Auto-set progress based on status
+    const progressData = status === "진행전" ? { status, progress: 0 } : { status };
+    updateTaskMutation.mutate({ taskId, data: progressData });
+  };
+
+  const handleLabelChange = (taskId: string, labels: string[]) => {
+    updateTaskMutation.mutate({ taskId, data: { labels } });
+  };
+
+  const handleProgressChange = (taskId: string, progress: number) => {
+    updateTaskMutation.mutate({ taskId, data: { progress } });
   };
 
   const getLabelColor = (index: number) => {
@@ -286,6 +301,173 @@ export default function ListHorizontal() {
           )) : null}
         </SelectContent>
       </Select>
+    );
+  };
+
+  const renderEditableLabels = (item: FlattenedItem) => {
+    if (item.type !== 'task' || !item.task) {
+      return (
+        <div className="flex gap-1 flex-wrap">
+          {item.labels.map((label, index) => (
+            <Badge 
+              key={index}
+              variant="outline" 
+              className={`${getLabelColor(index)}`}
+              data-testid={`badge-label-${item.id}-${index}`}
+            >
+              {label}
+            </Badge>
+          ))}
+        </div>
+      );
+    }
+
+    const editState = editingLabels[item.id] || { showInput: false, newLabel: '' };
+
+    const addLabel = () => {
+      if (editState.newLabel.trim()) {
+        const updatedLabels = [...item.labels, editState.newLabel.trim()];
+        handleLabelChange(item.id, updatedLabels);
+        setEditingLabels(prev => ({ ...prev, [item.id]: { showInput: false, newLabel: '' } }));
+      }
+    };
+
+    const removeLabel = (indexToRemove: number) => {
+      const updatedLabels = item.labels.filter((_, index) => index !== indexToRemove);
+      handleLabelChange(item.id, updatedLabels);
+    };
+
+    const startAddingLabel = () => {
+      setEditingLabels(prev => ({ ...prev, [item.id]: { ...editState, showInput: true } }));
+    };
+
+    const updateNewLabel = (value: string) => {
+      setEditingLabels(prev => ({ ...prev, [item.id]: { ...editState, newLabel: value } }));
+    };
+
+    const cancelAddingLabel = () => {
+      setEditingLabels(prev => ({ ...prev, [item.id]: { showInput: false, newLabel: '' } }));
+    };
+
+    return (
+      <div className="flex gap-1 flex-wrap items-center" data-testid={`labels-container-${item.id}`}>
+        {item.labels.map((label, index) => (
+          <Badge 
+            key={index}
+            variant="outline" 
+            className={`${getLabelColor(index)} group cursor-pointer`}
+            data-testid={`badge-label-${item.id}-${index}`}
+          >
+            <span>{label}</span>
+            <X 
+              className="w-3 h-3 ml-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-100 rounded cursor-pointer" 
+              onClick={(e) => {
+                e.stopPropagation();
+                removeLabel(index);
+              }}
+            />
+          </Badge>
+        ))}
+        {editState.showInput ? (
+          <Input 
+            value={editState.newLabel}
+            onChange={(e) => updateNewLabel(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') addLabel();
+              if (e.key === 'Escape') cancelAddingLabel();
+            }}
+            onBlur={() => { if (editState.newLabel.trim()) addLabel(); else cancelAddingLabel(); }}
+            className="h-6 w-20 text-xs"
+            placeholder="라벨"
+            autoFocus
+            data-testid={`input-new-label-${item.id}`}
+          />
+        ) : (
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="h-6 px-2 text-xs"
+            onClick={startAddingLabel}
+            data-testid={`button-add-label-${item.id}`}
+          >
+            <Plus className="w-3 h-3" />
+          </Button>
+        )}
+      </div>
+    );
+  };
+
+  const renderEditableProgress = (item: FlattenedItem) => {
+    if (item.type !== 'task' || !item.task) {
+      return (
+        <span className="text-muted-foreground text-sm">{item.progress}%</span>
+      );
+    }
+
+    // If status is "진행전", show 0% (read-only)
+    if (item.status === "진행전") {
+      return (
+        <span className="text-muted-foreground text-sm" data-testid={`text-progress-${item.id}`}>0%</span>
+      );
+    }
+
+    // If status is "진행중", make it editable
+    if (item.status === "진행중") {
+      const editState = editingProgress[item.id] || { isEditing: false, value: item.progress.toString() };
+
+      const saveProgress = () => {
+        const value = Math.max(0, Math.min(100, parseInt(editState.value) || 0));
+        handleProgressChange(item.id, value);
+        setEditingProgress(prev => ({ ...prev, [item.id]: { isEditing: false, value: value.toString() } }));
+      };
+
+      const startEditing = () => {
+        setEditingProgress(prev => ({ ...prev, [item.id]: { isEditing: true, value: item.progress.toString() } }));
+      };
+
+      const updateValue = (value: string) => {
+        setEditingProgress(prev => ({ ...prev, [item.id]: { ...editState, value } }));
+      };
+
+      const cancelEditing = () => {
+        setEditingProgress(prev => ({ ...prev, [item.id]: { isEditing: false, value: item.progress.toString() } }));
+      };
+
+      if (editState.isEditing) {
+        return (
+          <Input 
+            value={editState.value}
+            onChange={(e) => updateValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') saveProgress();
+              if (e.key === 'Escape') cancelEditing();
+            }}
+            onBlur={saveProgress}
+            className="h-6 w-16 text-xs"
+            type="number"
+            min="0"
+            max="100"
+            autoFocus
+            data-testid={`input-progress-${item.id}`}
+          />
+        );
+      }
+
+      return (
+        <div 
+          className="cursor-pointer hover:bg-muted rounded px-2 py-1 flex items-center gap-1 group"
+          onClick={startEditing}
+          data-testid={`text-progress-${item.id}`}
+        >
+          <span className="text-sm">{item.progress}%</span>
+          <Edit className="w-3 h-3 opacity-0 group-hover:opacity-100" />
+        </div>
+      );
+    }
+
+    // For "완료" or other statuses, show progress as read-only
+    return (
+      <span className="text-sm" data-testid={`text-progress-${item.id}`}>{item.progress}%</span>
     );
   };
 
@@ -411,7 +593,7 @@ export default function ListHorizontal() {
               <TableHead>참여자</TableHead>
               <TableHead>라벨</TableHead>
               <TableHead>현황</TableHead>
-              <TableHead>스코어</TableHead>
+              <TableHead>진행률</TableHead>
               <TableHead>중요도</TableHead>
             </TableRow>
           </TableHeader>
@@ -467,24 +649,13 @@ export default function ListHorizontal() {
                     {renderEditableAssignee(item)}
                   </TableCell>
                   <TableCell>
-                    <div className="flex gap-1 flex-wrap">
-                      {item.labels.map((label, index) => (
-                        <Badge 
-                          key={index}
-                          variant="outline" 
-                          className={`${getLabelColor(index)}`}
-                          data-testid={`badge-label-${item.id}-${index}`}
-                        >
-                          {label}
-                        </Badge>
-                      ))}
-                    </div>
+                    {renderEditableLabels(item)}
                   </TableCell>
                   <TableCell>
                     {renderEditableStatus(item)}
                   </TableCell>
-                  <TableCell data-testid={`text-score-${item.id}`}>
-                    <span className="font-mono text-sm">{item.score}</span>
+                  <TableCell>
+                    {renderEditableProgress(item)}
                   </TableCell>
                   <TableCell>
                     <Badge variant={getImportanceBadgeVariant(item.importance)} data-testid={`badge-importance-${item.id}`}>
