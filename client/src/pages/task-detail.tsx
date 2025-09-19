@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Edit, Save, X, Circle, Target, FolderOpen, Calendar, User, Clock } from "lucide-react";
+import { ArrowLeft, Edit, Save, X, Circle, Target, FolderOpen, Calendar, User, Clock, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useLocation, useRoute } from "wouter";
 import { useToast } from "@/hooks/use-toast";
@@ -67,6 +67,27 @@ export default function TaskDetail() {
       toast({
         title: "수정 실패",
         description: "작업 수정 중 오류가 발생했습니다.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteTaskMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest("DELETE", `/api/tasks/${taskId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      toast({
+        title: "작업 삭제 완료",
+        description: "작업이 성공적으로 삭제되었습니다.",
+      });
+      setLocation("/list");
+    },
+    onError: () => {
+      toast({
+        title: "삭제 실패",
+        description: "작업 삭제 중 오류가 발생했습니다.",
         variant: "destructive",
       });
     },
@@ -134,6 +155,12 @@ export default function TaskDetail() {
       case "중간": return "text-yellow-600";
       case "낮음": return "text-green-600";
       default: return "text-muted-foreground";
+    }
+  };
+
+  const handleDelete = () => {
+    if (window.confirm('정말로 이 작업을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) {
+      deleteTaskMutation.mutate();
     }
   };
 
@@ -211,13 +238,24 @@ export default function TaskDetail() {
                 </Button>
               </>
             ) : (
-              <Button 
-                onClick={() => setIsEditing(true)}
-                data-testid="button-edit"
-              >
-                <Edit className="h-4 w-4 mr-2" />
-                수정
-              </Button>
+              <>
+                <Button 
+                  onClick={() => setIsEditing(true)}
+                  data-testid="button-edit"
+                >
+                  <Edit className="h-4 w-4 mr-2" />
+                  수정
+                </Button>
+                <Button 
+                  variant="destructive"
+                  onClick={handleDelete}
+                  disabled={deleteTaskMutation.isPending}
+                  data-testid="button-delete"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  삭제
+                </Button>
+              </>
             )}
           </div>
         </div>
