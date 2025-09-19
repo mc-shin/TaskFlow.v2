@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { ArrowLeft, Edit, Save, X, Target, Circle, FolderOpen, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useLocation, useRoute } from "wouter";
@@ -144,9 +145,7 @@ export default function GoalDetail() {
   };
 
   const handleDelete = () => {
-    if (window.confirm('정말로 이 목표를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) {
-      deleteGoalMutation.mutate();
-    }
+    deleteGoalMutation.mutate();
   };
 
   if (isLoading) {
@@ -230,15 +229,37 @@ export default function GoalDetail() {
                   <Edit className="h-4 w-4 mr-2" />
                   수정
                 </Button>
-                <Button 
-                  variant="destructive"
-                  onClick={handleDelete}
-                  disabled={deleteGoalMutation.isPending}
-                  data-testid="button-delete"
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  삭제
-                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button 
+                      variant="destructive"
+                      disabled={deleteGoalMutation.isPending}
+                      data-testid="button-delete"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      삭제
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>목표 삭제</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        정말로 이 목표를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel data-testid="button-cancel-delete">취소</AlertDialogCancel>
+                      <AlertDialogAction
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        onClick={handleDelete}
+                        disabled={deleteGoalMutation.isPending}
+                        data-testid="button-confirm-delete"
+                      >
+                        {deleteGoalMutation.isPending ? "삭제 중..." : "삭제"}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </>
             )}
           </div>

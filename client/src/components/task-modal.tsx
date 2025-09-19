@@ -40,7 +40,7 @@ export function TaskModal({ isOpen, onClose, editingTask, goalId, goalTitle }: T
     defaultValues: {
       title: "",
       description: "",
-      status: "실행대기",
+      status: "진행전",
       priority: "중간",
       deadline: "",
       duration: 0,
@@ -65,7 +65,7 @@ export function TaskModal({ isOpen, onClose, editingTask, goalId, goalTitle }: T
       form.reset({
         title: "",
         description: "",
-        status: "실행대기",
+        status: "진행전",
         priority: "중간",
         deadline: "",
         duration: 0,
