@@ -53,23 +53,21 @@ export function TaskTable({ onEditTask }: TaskTableProps) {
     }
   };
 
-  const getStatusBadge = (status: string, deadline?: string) => {
-    if (!deadline) return <Badge variant="secondary">기한 없음</Badge>;
-    
-    const deadlineDate = new Date(deadline);
-    const today = new Date();
-    const diffTime = deadlineDate.getTime() - today.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
-    if (diffDays < 0) {
-      return <Badge variant="destructive">D+{Math.abs(diffDays)}</Badge>;
-    } else if (diffDays === 0) {
-      return <Badge className="bg-yellow-500 text-white">D-Day</Badge>;
-    } else if (diffDays <= 3) {
-      return <Badge className="bg-orange-500 text-white">D-{diffDays}</Badge>;
-    } else {
-      return <Badge className="bg-green-500 text-white">D-{diffDays}</Badge>;
+  const getStatusBadgeVariant = (status: string) => {
+    switch (status) {
+      case "진행전":
+        return "secondary" as const;
+      case "진행중":
+        return "default" as const;
+      case "완료":
+        return "outline" as const;
+      default:
+        return "outline" as const;
     }
+  };
+
+  const getStatusBadge = (status: string) => {
+    return <Badge variant={getStatusBadgeVariant(status)}>{status}</Badge>;
   };
 
   const getStatusColor = (status: string) => {
@@ -155,7 +153,7 @@ export function TaskTable({ onEditTask }: TaskTableProps) {
                     {task.deadline ? new Date(task.deadline).toLocaleDateString('ko-KR') : '-'}
                   </td>
                   <td className="p-4" data-testid={`badge-task-status-${task.id}`}>
-                    {getStatusBadge(task.status, task.deadline)}
+                    {getStatusBadge(task.status)}
                   </td>
                   <td className="p-4">
                     {task.assignee && (

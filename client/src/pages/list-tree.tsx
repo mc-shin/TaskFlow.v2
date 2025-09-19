@@ -491,7 +491,30 @@ export default function ListTree() {
     mutationFn: async (data: { id: string; updates: any }) => {
       return await apiRequest("PUT", `/api/projects/${data.id}`, data.updates);
     },
-    onSuccess: () => {
+    onMutate: async ({ id, updates }) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["/api/projects"] });
+
+      // Snapshot the previous value
+      const previousProjects = queryClient.getQueryData(["/api/projects"]);
+
+      // Optimistically update the cache
+      queryClient.setQueryData(["/api/projects"], (old: ProjectWithDetails[] | undefined) => {
+        if (!old) return old;
+        
+        return old.map(project => 
+          project.id === id ? { ...project, ...updates } : project
+        );
+      });
+
+      return { previousProjects };
+    },
+    onError: (err, newProject, context) => {
+      if (context?.previousProjects) {
+        queryClient.setQueryData(["/api/projects"], context.previousProjects);
+      }
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
     }
   });
@@ -500,7 +523,33 @@ export default function ListTree() {
     mutationFn: async (data: { id: string; updates: any }) => {
       return await apiRequest("PUT", `/api/goals/${data.id}`, data.updates);
     },
-    onSuccess: () => {
+    onMutate: async ({ id, updates }) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["/api/projects"] });
+
+      // Snapshot the previous value
+      const previousProjects = queryClient.getQueryData(["/api/projects"]);
+
+      // Optimistically update the cache
+      queryClient.setQueryData(["/api/projects"], (old: ProjectWithDetails[] | undefined) => {
+        if (!old) return old;
+        
+        return old.map(project => ({
+          ...project,
+          goals: project.goals?.map(goal => 
+            goal.id === id ? { ...goal, ...updates } : goal
+          )
+        }));
+      });
+
+      return { previousProjects };
+    },
+    onError: (err, newGoal, context) => {
+      if (context?.previousProjects) {
+        queryClient.setQueryData(["/api/projects"], context.previousProjects);
+      }
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
     }
   });
@@ -509,7 +558,38 @@ export default function ListTree() {
     mutationFn: async (data: { id: string; updates: any }) => {
       return await apiRequest("PUT", `/api/tasks/${data.id}`, data.updates);
     },
-    onSuccess: () => {
+    onMutate: async ({ id, updates }) => {
+      // Cancel outgoing refetches to prevent optimistic update from being overwritten
+      await queryClient.cancelQueries({ queryKey: ["/api/projects"] });
+
+      // Snapshot the previous value
+      const previousProjects = queryClient.getQueryData(["/api/projects"]);
+
+      // Optimistically update the cache
+      queryClient.setQueryData(["/api/projects"], (old: ProjectWithDetails[] | undefined) => {
+        if (!old) return old;
+        
+        return old.map(project => ({
+          ...project,
+          goals: project.goals?.map(goal => ({
+            ...goal,
+            tasks: goal.tasks?.map(task => 
+              task.id === id ? { ...task, ...updates } : task
+            )
+          }))
+        }));
+      });
+
+      return { previousProjects };
+    },
+    onError: (err, newTask, context) => {
+      // Revert the optimistic update on error
+      if (context?.previousProjects) {
+        queryClient.setQueryData(["/api/projects"], context.previousProjects);
+      }
+    },
+    onSettled: () => {
+      // Always refetch after error or success to ensure data consistency
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
     }
   });
@@ -785,43 +865,24 @@ export default function ListTree() {
     );
   };
 
-  const renderEditableStatus = (itemId: string, type: 'project' | 'goal' | 'task', status: string) => {
-    const isEditing = editingField?.itemId === itemId && editingField?.field === 'status';
-    
-    if (isEditing) {
-      return (
-        <Select value={editingValue} onValueChange={(value) => {
-          setEditingValue(value);
-          const updates = { status: value };
-          
-          if (type === 'project') {
-            updateProjectMutation.mutate({ id: itemId, updates });
-          } else if (type === 'goal') {
-            updateGoalMutation.mutate({ id: itemId, updates });
-          } else {
-            updateTaskMutation.mutate({ id: itemId, updates });
-          }
-          cancelEditing();
-        }}>
-          <SelectTrigger className="h-6 text-xs" data-testid={`edit-status-${itemId}`}>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="진행전">진행전</SelectItem>
-            <SelectItem value="진행중">진행중</SelectItem>
-            <SelectItem value="완료">완료</SelectItem>
-          </SelectContent>
-        </Select>
-      );
-    }
+  // Function to derive status from progress
+  const getStatusFromProgress = (progress: number): string => {
+    if (progress === 0) return '진행전';
+    if (progress >= 100) return '완료';
+    return '진행중';
+  };
+
+  const renderEditableStatus = (itemId: string, type: 'project' | 'goal' | 'task', status: string, progress?: number) => {
+    // Status is now read-only and derived from progress if progress is provided
+    const displayStatus = progress !== undefined ? getStatusFromProgress(progress) : status;
     
     return (
       <Badge 
-        variant={getStatusBadgeVariant(status)} 
-        className={`text-xs ${type === 'project' ? 'cursor-default' : 'cursor-pointer hover:opacity-80'}`}
-        onClick={type === 'project' ? undefined : () => startEditing(itemId, 'status', type, status)}
+        variant={getStatusBadgeVariant(displayStatus)} 
+        className="text-xs cursor-default"
+        data-testid={`status-${itemId}`}
       >
-        {status}
+        {displayStatus}
       </Badge>
     );
   };
@@ -829,14 +890,34 @@ export default function ListTree() {
   const renderEditableProgress = (itemId: string, type: 'project' | 'goal' | 'task', progress: number, status?: string) => {
     const isEditing = editingField?.itemId === itemId && editingField?.field === 'progress';
     
+    // Helper function to round to nearest 5% increment
+    const roundToNearest5 = (value: number): number => {
+      return Math.round(value / 5) * 5;
+    };
+
+    const handleProgressChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const value = e.target.value;
+      if (value === '' || isNaN(Number(value))) {
+        setEditingValue(value);
+        return;
+      }
+      
+      const numValue = Number(value);
+      const clampedValue = Math.max(0, Math.min(100, numValue));
+      const roundedValue = roundToNearest5(clampedValue);
+      
+      setEditingValue(roundedValue.toString());
+    };
+    
     if (isEditing) {
       return (
         <Input
           type="number"
           min="0"
           max="100"
+          step="5"
           value={editingValue}
-          onChange={(e) => setEditingValue(e.target.value)}
+          onChange={handleProgressChange}
           onKeyDown={handleKeyPress}
           onBlur={saveEdit}
           className="h-6 text-xs w-16"
@@ -1134,7 +1215,7 @@ export default function ListTree() {
                         {renderEditableLabel(project.id, 'project', null)}
                       </div>
                       <div className="col-span-1">
-                        {renderEditableStatus(project.id, 'project', (project.progressPercentage || 0) === 0 ? '진행전' : '진행중')}
+                        {renderEditableStatus(project.id, 'project', '', project.progressPercentage || 0)}
                       </div>
                       <div className="col-span-2">
                         {renderEditableProgress(project.id, 'project', project.progressPercentage || 0)}
@@ -1199,7 +1280,7 @@ export default function ListTree() {
                                 {renderEditableLabel(goal.id, 'goal', null)}
                               </div>
                               <div className="col-span-1">
-                                {renderEditableStatus(goal.id, 'goal', '목표')}
+                                {renderEditableStatus(goal.id, 'goal', '', goal.progressPercentage || 0)}
                               </div>
                               <div className="col-span-2">
                                 {renderEditableProgress(goal.id, 'goal', goal.progressPercentage || 0)}
@@ -1237,7 +1318,7 @@ export default function ListTree() {
                                       {renderEditableLabel(task.id, 'task', task.label)}
                                     </div>
                                     <div className="col-span-1">
-                                      {renderEditableStatus(task.id, 'task', task.status)}
+                                      {renderEditableStatus(task.id, 'task', task.status, task.status === '완료' ? 100 : task.status === '진행전' ? 0 : 50)}
                                     </div>
                                     <div className="col-span-2">
                                       {renderEditableProgress(task.id, 'task', task.status === '완료' ? 100 : task.status === '진행전' ? 0 : 50, task.status)}
