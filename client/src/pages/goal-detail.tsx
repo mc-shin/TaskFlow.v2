@@ -6,12 +6,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { ArrowLeft, Edit, Save, X, Target, Circle, FolderOpen } from "lucide-react";
+import { ArrowLeft, Edit, Save, X, Target, Circle, FolderOpen, Plus } from "lucide-react";
 import { useState } from "react";
 import { useLocation, useRoute } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import type { ProjectWithDetails, GoalWithTasks, SafeUser } from "@shared/schema";
+import { TaskModal } from "@/components/task-modal";
 
 export default function GoalDetail() {
   const [, params] = useRoute("/detail/goal/:id");
@@ -22,6 +23,11 @@ export default function GoalDetail() {
   const goalId = params?.id;
   const [isEditing, setIsEditing] = useState(false);
   const [editedGoal, setEditedGoal] = useState<Partial<GoalWithTasks>>({});
+  const [taskModalState, setTaskModalState] = useState<{ isOpen: boolean; goalId: string; goalTitle: string }>({ 
+    isOpen: false, 
+    goalId: '', 
+    goalTitle: '' 
+  });
 
   const { data: projects, isLoading } = useQuery({
     queryKey: ["/api/projects"],
@@ -87,6 +93,32 @@ export default function GoalDetail() {
     if (parentProject) {
       setLocation(`/detail/project/${parentProject.id}`);
     }
+  };
+
+  const calculateDDay = (deadline: string | null): string => {
+    if (!deadline) return '';
+    
+    const today = new Date();
+    const deadlineDate = new Date(deadline);
+    
+    // Set time to midnight for accurate day calculation
+    today.setHours(0, 0, 0, 0);
+    deadlineDate.setHours(0, 0, 0, 0);
+    
+    const diffTime = deadlineDate.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) return 'D-Day';
+    if (diffDays > 0) return `D-${diffDays}`;
+    return `D+${Math.abs(diffDays)}`;
+  };
+
+  const handleAddTask = () => {
+    setTaskModalState({
+      isOpen: true,
+      goalId: goal?.id || '',
+      goalTitle: goal?.title || ''
+    });
   };
 
   if (isLoading) {
@@ -241,9 +273,24 @@ export default function GoalDetail() {
                       data-testid="input-goal-deadline"
                     />
                   ) : (
-                    <p className="mt-1" data-testid="text-goal-deadline">
-                      {goal.deadline ? new Date(goal.deadline).toLocaleDateString('ko-KR') : "설정되지 않음"}
-                    </p>
+                    <div className="mt-1" data-testid="text-goal-deadline">
+                      {goal.deadline ? (
+                        <div className="flex items-center gap-2">
+                          <span>{new Date(goal.deadline).toLocaleDateString('ko-KR')}</span>
+                          <span className={`px-2 py-1 text-xs rounded font-medium ${
+                            calculateDDay(goal.deadline).includes('D+')
+                              ? 'bg-red-100 text-red-700'
+                              : calculateDDay(goal.deadline) === 'D-Day'
+                              ? 'bg-orange-100 text-orange-700'
+                              : 'bg-blue-100 text-blue-700'
+                          }`}>
+                            {calculateDDay(goal.deadline)}
+                          </span>
+                        </div>
+                      ) : (
+                        "설정되지 않음"
+                      )}
+                    </div>
                   )}
                 </div>
 
@@ -261,7 +308,17 @@ export default function GoalDetail() {
             {/* Tasks */}
             <Card>
               <CardHeader>
-                <CardTitle>작업 ({goal.tasks?.length || 0}개)</CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle>작업 ({goal.tasks?.length || 0}개)</CardTitle>
+                  <Button 
+                    onClick={handleAddTask}
+                    size="sm"
+                    data-testid="button-add-task"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    작업 추가
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
                 {goal.tasks && goal.tasks.length > 0 ? (
@@ -316,7 +373,13 @@ export default function GoalDetail() {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-muted-foreground text-center py-4">작업이 없습니다.</p>
+                  <div className="text-center py-8">
+                    <p className="text-muted-foreground mb-4">작업이 없습니다.</p>
+                    <Button onClick={handleAddTask} data-testid="button-add-first-task">
+                      <Plus className="h-4 w-4 mr-2" />
+                      첫 번째 작업 추가
+                    </Button>
+                  </div>
                 )}
               </CardContent>
             </Card>
@@ -421,6 +484,14 @@ export default function GoalDetail() {
           </div>
         </div>
       </div>
+      
+      {/* Task Modal */}
+      <TaskModal 
+        isOpen={taskModalState.isOpen}
+        onClose={() => setTaskModalState({ isOpen: false, goalId: '', goalTitle: '' })}
+        goalId={taskModalState.goalId}
+        goalTitle={taskModalState.goalTitle}
+      />
     </div>
   );
 }

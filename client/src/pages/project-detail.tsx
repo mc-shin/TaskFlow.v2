@@ -13,7 +13,6 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import type { ProjectWithDetails, SafeUser } from "@shared/schema";
 import { GoalModal } from "@/components/goal-modal";
-import { TaskModal } from "@/components/task-modal";
 
 export default function ProjectDetail() {
   const [, params] = useRoute("/detail/project/:id");
@@ -28,11 +27,6 @@ export default function ProjectDetail() {
     isOpen: false, 
     projectId: '', 
     projectTitle: '' 
-  });
-  const [taskModalState, setTaskModalState] = useState<{ isOpen: boolean; goalId: string; goalTitle: string }>({ 
-    isOpen: false, 
-    goalId: '', 
-    goalTitle: '' 
   });
 
   const { data: projects, isLoading } = useQuery({
@@ -111,14 +105,6 @@ export default function ProjectDetail() {
       isOpen: true,
       projectId: project?.id || '',
       projectTitle: project?.name || ''
-    });
-  };
-
-  const handleAddTask = (goalId: string, goalTitle: string) => {
-    setTaskModalState({
-      isOpen: true,
-      goalId,
-      goalTitle
     });
   };
 
@@ -309,7 +295,7 @@ export default function ProjectDetail() {
                   </Button>
                 </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="max-h-96 overflow-y-auto" data-testid="goals-content-container">
                 {project.goals && project.goals.length > 0 ? (
                   <div className="space-y-3">
                     {project.goals.map((goal) => (
@@ -322,23 +308,10 @@ export default function ProjectDetail() {
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
                             <Target className="h-5 w-5 text-green-600" />
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2">
-                                <h4 className="font-medium" data-testid={`text-goal-title-${goal.id}`}>
-                                  {goal.title}
-                                </h4>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleAddTask(goal.id, goal.title);
-                                  }}
-                                  data-testid={`button-add-task-${goal.id}`}
-                                >
-                                  <Plus className="h-3 w-3" />
-                                </Button>
-                              </div>
+                            <div>
+                              <h4 className="font-medium" data-testid={`text-goal-title-${goal.id}`}>
+                                {goal.title}
+                              </h4>
                               <p className="text-sm text-muted-foreground">
                                 작업 {goal.totalTasks || 0}개 · 완료 {goal.completedTasks || 0}개
                               </p>
@@ -462,14 +435,6 @@ export default function ProjectDetail() {
         onClose={() => setGoalModalState({ isOpen: false, projectId: '', projectTitle: '' })}
         projectId={goalModalState.projectId}
         projectTitle={goalModalState.projectTitle}
-      />
-      
-      {/* Task Modal */}
-      <TaskModal 
-        isOpen={taskModalState.isOpen}
-        onClose={() => setTaskModalState({ isOpen: false, goalId: '', goalTitle: '' })}
-        goalId={taskModalState.goalId}
-        goalTitle={taskModalState.goalTitle}
       />
     </div>
   );

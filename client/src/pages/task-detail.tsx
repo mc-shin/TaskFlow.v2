@@ -97,6 +97,24 @@ export default function TaskDetail() {
     }
   };
 
+  const calculateDDay = (deadline: string | null): string => {
+    if (!deadline) return '';
+    
+    const today = new Date();
+    const deadlineDate = new Date(deadline);
+    
+    // Set time to midnight for accurate day calculation
+    today.setHours(0, 0, 0, 0);
+    deadlineDate.setHours(0, 0, 0, 0);
+    
+    const diffTime = deadlineDate.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) return 'D-Day';
+    if (diffDays > 0) return `D-${diffDays}`;
+    return `D+${Math.abs(diffDays)}`;
+  };
+
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {
       case "진행전":
@@ -333,9 +351,24 @@ export default function TaskDetail() {
                       data-testid="input-task-deadline"
                     />
                   ) : (
-                    <p className="mt-1" data-testid="text-task-deadline">
-                      {task.deadline ? new Date(task.deadline).toLocaleDateString('ko-KR') : "설정되지 않음"}
-                    </p>
+                    <div className="mt-1" data-testid="text-task-deadline">
+                      {task.deadline ? (
+                        <div className="flex items-center gap-2">
+                          <span>{new Date(task.deadline).toLocaleDateString('ko-KR')}</span>
+                          <span className={`px-2 py-1 text-xs rounded font-medium ${
+                            calculateDDay(task.deadline).includes('D+')
+                              ? 'bg-red-100 text-red-700'
+                              : calculateDDay(task.deadline) === 'D-Day'
+                              ? 'bg-orange-100 text-orange-700'
+                              : 'bg-blue-100 text-blue-700'
+                          }`}>
+                            {calculateDDay(task.deadline)}
+                          </span>
+                        </div>
+                      ) : (
+                        "설정되지 않음"
+                      )}
+                    </div>
                   )}
                 </div>
 
