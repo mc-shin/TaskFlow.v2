@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Edit, Save, X, FolderOpen, Target, Circle, Plus } from "lucide-react";
+import { ArrowLeft, Edit, Save, X, FolderOpen, Target, Circle, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useLocation, useRoute } from "wouter";
 import { useToast } from "@/hooks/use-toast";
@@ -62,6 +62,27 @@ export default function ProjectDetail() {
     },
   });
 
+  const deleteProjectMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest("DELETE", `/api/projects/${projectId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      toast({
+        title: "프로젝트 삭제 완료",
+        description: "프로젝트가 성공적으로 삭제되었습니다.",
+      });
+      setLocation("/list");
+    },
+    onError: () => {
+      toast({
+        title: "삭제 실패",
+        description: "프로젝트 삭제 중 오류가 발생했습니다.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleSave = () => {
     if (Object.keys(editedProject).length > 0) {
       updateProjectMutation.mutate(editedProject);
@@ -73,6 +94,12 @@ export default function ProjectDetail() {
   const handleCancel = () => {
     setIsEditing(false);
     setEditedProject({});
+  };
+
+  const handleDelete = () => {
+    if (window.confirm("정말로 이 프로젝트를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.")) {
+      deleteProjectMutation.mutate();
+    }
   };
 
   const handleGoalClick = (goalId: string) => {
@@ -181,13 +208,24 @@ export default function ProjectDetail() {
                 </Button>
               </>
             ) : (
-              <Button 
-                onClick={() => setIsEditing(true)}
-                data-testid="button-edit"
-              >
-                <Edit className="h-4 w-4 mr-2" />
-                수정
-              </Button>
+              <>
+                <Button 
+                  onClick={() => setIsEditing(true)}
+                  data-testid="button-edit"
+                >
+                  <Edit className="h-4 w-4 mr-2" />
+                  수정
+                </Button>
+                <Button 
+                  onClick={handleDelete}
+                  variant="destructive"
+                  disabled={deleteProjectMutation.isPending}
+                  data-testid="button-delete"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  삭제
+                </Button>
+              </>
             )}
           </div>
         </div>
@@ -227,38 +265,6 @@ export default function ProjectDetail() {
                     />
                   ) : (
                     <p className="mt-1 font-medium" data-testid="text-project-code">{project.code}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">상태</label>
-                  {isEditing ? (
-                    <Select
-                      value={editedProject.status ?? project.status ?? "진행전"}
-                      onValueChange={(value) => setEditedProject(prev => ({ ...prev, status: value }))}
-                    >
-                      <SelectTrigger className="mt-1" data-testid="select-project-status">
-                        <SelectValue placeholder="상태를 선택하세요" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="진행전">진행전</SelectItem>
-                        <SelectItem value="진행중">진행중</SelectItem>
-                        <SelectItem value="완료">완료</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <div className="mt-1">
-                      <Badge 
-                        variant={
-                          project.status === "완료" ? "default" : 
-                          project.status === "진행중" ? "secondary" : 
-                          "outline"
-                        }
-                        data-testid="badge-project-status"
-                      >
-                        {project.status}
-                      </Badge>
-                    </div>
                   )}
                 </div>
 
@@ -310,6 +316,38 @@ export default function ProjectDetail() {
                     </div>
                   )}
                 </div>
+
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">상태</label>
+                  {isEditing ? (
+                    <Select
+                      value={editedProject.status ?? project.status ?? "진행전"}
+                      onValueChange={(value) => setEditedProject(prev => ({ ...prev, status: value }))}
+                    >
+                      <SelectTrigger className="mt-1" data-testid="select-project-status">
+                        <SelectValue placeholder="상태를 선택하세요" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="진행전">진행전</SelectItem>
+                        <SelectItem value="진행중">진행중</SelectItem>
+                        <SelectItem value="완료">완료</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <div className="mt-1">
+                      <Badge 
+                        variant={
+                          project.status === "완료" ? "default" : 
+                          project.status === "진행중" ? "secondary" : 
+                          "outline"
+                        }
+                        data-testid="badge-project-status"
+                      >
+                        {project.status}
+                      </Badge>
+                    </div>
+                  )}
+                </div>
               </CardContent>
             </Card>
 
@@ -328,7 +366,7 @@ export default function ProjectDetail() {
                   </Button>
                 </div>
               </CardHeader>
-              <CardContent className="max-h-96 overflow-y-auto" data-testid="goals-content-container">
+              <CardContent className="max-h-[calc(100vh-400px)] overflow-y-auto" data-testid="goals-content-container">
                 {project.goals && project.goals.length > 0 ? (
                   <div className="space-y-3">
                     {project.goals.map((goal) => (
