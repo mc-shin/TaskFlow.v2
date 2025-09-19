@@ -51,6 +51,103 @@ export default function ListTree() {
 
   const queryClient = useQueryClient();
   
+  // Function to update progress for parent items (goals and projects) by modifying child tasks
+  const updateProgressForParentItem = async (itemId: string, type: 'goal' | 'project', targetProgress: number) => {
+    if (!projects) return;
+    
+    let childTasks: SafeTaskWithAssignee[] = [];
+    
+    if (type === 'goal') {
+      // Find all tasks under this goal
+      (projects as ProjectWithDetails[]).forEach(project => {
+        const goal = project.goals?.find(g => g.id === itemId);
+        if (goal?.tasks) {
+          childTasks = goal.tasks;
+        }
+      });
+    } else if (type === 'project') {
+      // Find all tasks under all goals in this project
+      const project = (projects as ProjectWithDetails[]).find(p => p.id === itemId);
+      if (project?.goals) {
+        project.goals.forEach(goal => {
+          if (goal.tasks) {
+            childTasks.push(...goal.tasks);
+          }
+        });
+      }
+      // Also include direct project tasks if any
+      if (project?.tasks) {
+        childTasks.push(...project.tasks);
+      }
+    }
+    
+    if (childTasks.length === 0) return;
+    
+    // Calculate the optimal distribution to achieve target progress
+    const totalTasks = childTasks.length;
+    console.log(`Updating progress for ${type} ${itemId} to ${targetProgress}% with ${totalTasks} child tasks`);
+    
+    // Calculate exact progress needed: completed=100%, in-progress=50%, not-started=0%
+    // We need to find the optimal combination
+    let bestDistribution = { completed: 0, inProgress: 0, notStarted: totalTasks };
+    let bestError = Math.abs(targetProgress - 0); // Start with all not-started (0% progress)
+    
+    // Try all possible combinations
+    for (let completed = 0; completed <= totalTasks; completed++) {
+      for (let inProgress = 0; inProgress <= (totalTasks - completed); inProgress++) {
+        const notStarted = totalTasks - completed - inProgress;
+        const actualProgress = (completed * 100 + inProgress * 50) / totalTasks;
+        const error = Math.abs(actualProgress - targetProgress);
+        
+        if (error < bestError) {
+          bestError = error;
+          bestDistribution = { completed, inProgress, notStarted };
+        }
+      }
+    }
+    
+    console.log(`Best distribution: ${bestDistribution.completed} completed, ${bestDistribution.inProgress} in-progress, ${bestDistribution.notStarted} not-started`);
+    console.log(`This gives ${(bestDistribution.completed * 100 + bestDistribution.inProgress * 50) / totalTasks}% progress (target: ${targetProgress}%)`);
+    
+    // Sort tasks by current progress (not-started -> in-progress -> completed) for logical updates
+    const sortedTasks = [...childTasks].sort((a, b) => {
+      const aProgress = a.status === '완료' ? 100 : a.status === '진행전' ? 0 : 50;
+      const bProgress = b.status === '완료' ? 100 : b.status === '진행전' ? 0 : 50;
+      return aProgress - bProgress;
+    });
+    
+    // Update tasks to achieve target distribution
+    const updates: Array<{task: SafeTaskWithAssignee, newStatus: string}> = [];
+    
+    for (let i = 0; i < sortedTasks.length; i++) {
+      let newStatus: string;
+      if (i < bestDistribution.notStarted) {
+        newStatus = '진행전';
+      } else if (i < bestDistribution.notStarted + bestDistribution.inProgress) {
+        newStatus = '진행중';
+      } else {
+        newStatus = '완료';
+      }
+      
+      if (sortedTasks[i].status !== newStatus) {
+        console.log(`Updating task ${sortedTasks[i].title} from ${sortedTasks[i].status} to ${newStatus}`);
+        updates.push({ task: sortedTasks[i], newStatus });
+      }
+    }
+    
+    // Apply updates
+    for (const update of updates) {
+      try {
+        await updateTaskMutation.mutateAsync({ 
+          id: update.task.id, 
+          updates: { status: update.newStatus } 
+        });
+      } catch (error) {
+        console.error('Failed to update task:', error);
+      }
+    }
+  };
+  
   // Show/hide toast based on selection
   useEffect(() => {
     setShowSelectionToast(selectedItems.size > 0);
@@ -346,6 +443,8 @@ export default function ListTree() {
   const saveEdit = () => {
     if (!editingField) return;
     
+    console.log(`SaveEdit called for ${editingField.type} ${editingField.itemId}, field: ${editingField.field}, value: ${editingValue}`);
+    
     const updates: any = {};
     
     if (editingField.field === 'deadline') {
@@ -359,16 +458,43 @@ export default function ListTree() {
     } else if (editingField.field === 'status') {
       updates.status = editingValue;
     } else if (editingField.field === 'progress') {
-      // Progress is calculated, not directly editable for projects/goals
+      const progressValue = parseInt(editingValue);
+      
       if (editingField.type === 'task') {
-        const progressValue = parseInt(editingValue);
-        if (progressValue >= 100) {
-          updates.status = '완료';
-        } else if (progressValue <= 0) {
-          updates.status = '진행전';
+        // Map progress to the closest valid value and status
+        let finalStatus: string;
+        let actualProgress: number;
+        
+        if (progressValue >= 75) {
+          finalStatus = '완료';
+          actualProgress = 100;
+        } else if (progressValue <= 25) {
+          finalStatus = '진행전';
+          actualProgress = 0;
         } else {
-          updates.status = '진행중';
+          finalStatus = '진행중';
+          actualProgress = 50;
         }
+        
+        updates.status = finalStatus;
+        
+        // Provide user feedback if their input was adjusted
+        if (actualProgress !== progressValue) {
+          console.log(`Task progress adjusted from ${progressValue}% to ${actualProgress}% to match available statuses`);
+          // Show a brief toast or similar feedback in the future
+        }
+      } else if (editingField.type === 'goal' || editingField.type === 'project') {
+        // For goals and projects, we need to update their child tasks to achieve target progress
+        // Skip the normal update flow and handle this specially
+        console.log(`Calling updateProgressForParentItem for ${editingField.type} ${editingField.itemId} with target ${progressValue}%`);
+        try {
+          updateProgressForParentItem(editingField.itemId, editingField.type, progressValue);
+          console.log(`updateProgressForParentItem completed successfully`);
+        } catch (error) {
+          console.error('Error in updateProgressForParentItem:', error);
+        }
+        cancelEditing();
+        return;
       }
     } else if (editingField.field === 'importance') {
       if (editingField.type === 'task') {
@@ -547,7 +673,7 @@ export default function ListTree() {
   const renderEditableProgress = (itemId: string, type: 'project' | 'goal' | 'task', progress: number, status?: string) => {
     const isEditing = editingField?.itemId === itemId && editingField?.field === 'progress';
     
-    if (isEditing && type === 'task') {
+    if (isEditing) {
       return (
         <Input
           type="number"
@@ -566,8 +692,8 @@ export default function ListTree() {
     
     return (
       <div 
-        className={`flex items-center gap-2 ${type === 'task' ? 'cursor-pointer hover:bg-muted/20 px-1 py-1 rounded' : ''}`}
-        onClick={type === 'task' ? () => startEditing(itemId, 'progress', type, status === '완료' ? '100' : status === '진행전' ? '0' : '50') : undefined}
+        className="flex items-center gap-2 cursor-pointer hover:bg-muted/20 px-1 py-1 rounded"
+        onClick={() => startEditing(itemId, 'progress', type, progress.toString())}
       >
         <Progress value={progress} className="flex-1" />
         <span className="text-xs text-muted-foreground w-8">
