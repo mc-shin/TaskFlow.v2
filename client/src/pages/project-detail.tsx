@@ -6,12 +6,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { ArrowLeft, Edit, Save, X, FolderOpen, Target, Circle } from "lucide-react";
+import { ArrowLeft, Edit, Save, X, FolderOpen, Target, Circle, Plus } from "lucide-react";
 import { useState } from "react";
 import { useLocation, useRoute } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import type { ProjectWithDetails, SafeUser } from "@shared/schema";
+import { GoalModal } from "@/components/goal-modal";
+import { TaskModal } from "@/components/task-modal";
 
 export default function ProjectDetail() {
   const [, params] = useRoute("/detail/project/:id");
@@ -22,6 +24,16 @@ export default function ProjectDetail() {
   const projectId = params?.id;
   const [isEditing, setIsEditing] = useState(false);
   const [editedProject, setEditedProject] = useState<Partial<ProjectWithDetails>>({});
+  const [goalModalState, setGoalModalState] = useState<{ isOpen: boolean; projectId: string; projectTitle: string }>({ 
+    isOpen: false, 
+    projectId: '', 
+    projectTitle: '' 
+  });
+  const [taskModalState, setTaskModalState] = useState<{ isOpen: boolean; goalId: string; goalTitle: string }>({ 
+    isOpen: false, 
+    goalId: '', 
+    goalTitle: '' 
+  });
 
   const { data: projects, isLoading } = useQuery({
     queryKey: ["/api/projects"],
@@ -74,6 +86,40 @@ export default function ProjectDetail() {
 
   const handleTaskClick = (taskId: string) => {
     setLocation(`/detail/task/${taskId}`);
+  };
+
+  const calculateDDay = (deadline: string | null): string => {
+    if (!deadline) return '';
+    
+    const today = new Date();
+    const deadlineDate = new Date(deadline);
+    
+    // Set time to midnight for accurate day calculation
+    today.setHours(0, 0, 0, 0);
+    deadlineDate.setHours(0, 0, 0, 0);
+    
+    const diffTime = deadlineDate.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) return 'D-Day';
+    if (diffDays > 0) return `D-${diffDays}`;
+    return `D+${Math.abs(diffDays)}`;
+  };
+
+  const handleAddGoal = () => {
+    setGoalModalState({
+      isOpen: true,
+      projectId: project?.id || '',
+      projectTitle: project?.name || ''
+    });
+  };
+
+  const handleAddTask = (goalId: string, goalTitle: string) => {
+    setTaskModalState({
+      isOpen: true,
+      goalId,
+      goalTitle
+    });
   };
 
   if (isLoading) {
@@ -225,9 +271,24 @@ export default function ProjectDetail() {
                       data-testid="input-project-deadline"
                     />
                   ) : (
-                    <p className="mt-1" data-testid="text-project-deadline">
-                      {project.deadline ? new Date(project.deadline).toLocaleDateString('ko-KR') : "설정되지 않음"}
-                    </p>
+                    <div className="mt-1" data-testid="text-project-deadline">
+                      {project.deadline ? (
+                        <div className="flex items-center gap-2">
+                          <span>{new Date(project.deadline).toLocaleDateString('ko-KR')}</span>
+                          <span className={`px-2 py-1 text-xs rounded font-medium ${
+                            calculateDDay(project.deadline).includes('D+')
+                              ? 'bg-red-100 text-red-700'
+                              : calculateDDay(project.deadline) === 'D-Day'
+                              ? 'bg-orange-100 text-orange-700'
+                              : 'bg-blue-100 text-blue-700'
+                          }`}>
+                            {calculateDDay(project.deadline)}
+                          </span>
+                        </div>
+                      ) : (
+                        "설정되지 않음"
+                      )}
+                    </div>
                   )}
                 </div>
               </CardContent>
@@ -236,7 +297,17 @@ export default function ProjectDetail() {
             {/* Goals */}
             <Card>
               <CardHeader>
-                <CardTitle>목표 ({project.goals?.length || 0}개)</CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle>목표 ({project.goals?.length || 0}개)</CardTitle>
+                  <Button 
+                    onClick={handleAddGoal}
+                    size="sm"
+                    data-testid="button-add-goal"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    목표 추가
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
                 {project.goals && project.goals.length > 0 ? (
@@ -251,10 +322,23 @@ export default function ProjectDetail() {
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
                             <Target className="h-5 w-5 text-green-600" />
-                            <div>
-                              <h4 className="font-medium" data-testid={`text-goal-title-${goal.id}`}>
-                                {goal.title}
-                              </h4>
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <h4 className="font-medium" data-testid={`text-goal-title-${goal.id}`}>
+                                  {goal.title}
+                                </h4>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleAddTask(goal.id, goal.title);
+                                  }}
+                                  data-testid={`button-add-task-${goal.id}`}
+                                >
+                                  <Plus className="h-3 w-3" />
+                                </Button>
+                              </div>
                               <p className="text-sm text-muted-foreground">
                                 작업 {goal.totalTasks || 0}개 · 완료 {goal.completedTasks || 0}개
                               </p>
@@ -272,7 +356,13 @@ export default function ProjectDetail() {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-muted-foreground text-center py-4">목표가 없습니다.</p>
+                  <div className="text-center py-8">
+                    <p className="text-muted-foreground mb-4">목표가 없습니다.</p>
+                    <Button onClick={handleAddGoal} data-testid="button-add-first-goal">
+                      <Plus className="h-4 w-4 mr-2" />
+                      첫 번째 목표 추가
+                    </Button>
+                  </div>
                 )}
               </CardContent>
             </Card>
@@ -365,6 +455,22 @@ export default function ProjectDetail() {
           </div>
         </div>
       </div>
+      
+      {/* Goal Modal */}
+      <GoalModal 
+        isOpen={goalModalState.isOpen}
+        onClose={() => setGoalModalState({ isOpen: false, projectId: '', projectTitle: '' })}
+        projectId={goalModalState.projectId}
+        projectTitle={goalModalState.projectTitle}
+      />
+      
+      {/* Task Modal */}
+      <TaskModal 
+        isOpen={taskModalState.isOpen}
+        onClose={() => setTaskModalState({ isOpen: false, goalId: '', goalTitle: '' })}
+        goalId={taskModalState.goalId}
+        goalTitle={taskModalState.goalTitle}
+      />
     </div>
   );
 }
