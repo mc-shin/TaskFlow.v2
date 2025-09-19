@@ -371,7 +371,6 @@ export class MemStorage implements IStorage {
         return new Date(task.deadline) < new Date();
       });
       
-      const progressPercentage = this.calculateAverageProgress(allProjectTasks);
       const goalsWithTasks: GoalWithTasks[] = [];
       
       for (const goal of projectGoals) {
@@ -395,6 +394,16 @@ export class MemStorage implements IStorage {
           completedTasks: goalCompletedTasks.length,
           progressPercentage: Math.round(goalProgressPercentage),
         });
+      }
+      
+      // Calculate project progress as average of goal progress percentages
+      let progressPercentage = 0;
+      if (goalsWithTasks.length > 0) {
+        const goalProgressSum = goalsWithTasks.reduce((sum, goal) => sum + (goal.progressPercentage || 0), 0);
+        progressPercentage = goalProgressSum / goalsWithTasks.length;
+      } else {
+        // If no goals, fallback to direct task progress
+        progressPercentage = this.calculateAverageProgress(directProjectTasks);
       }
       
       // Add assignee info to direct project tasks

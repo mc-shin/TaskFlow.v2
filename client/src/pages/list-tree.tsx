@@ -243,7 +243,77 @@ export default function ListTree() {
       throw new Error(`${failedUpdates.length} out of ${updates.length} task updates failed`);
     }
     
-    // Invalidate queries once after all updates are complete
+    // Optimistic cache update for immediate UI feedback
+    queryClient.setQueryData(["/api/projects"], (old: ProjectWithDetails[] | undefined) => {
+      if (!old) return old;
+      
+      return old.map(project => {
+        if (type === 'project' && project.id === itemId) {
+          // Update project progress and all affected tasks
+          const updatedGoals = project.goals?.map(goal => {
+            const updatedTasks = goal.tasks?.map(task => {
+              const update = updates.find(u => u.task.id === task.id);
+              return update ? { ...task, status: update.newStatus } : task;
+            });
+            
+            // Recalculate goal progress from updated tasks
+            let goalProgress = 0;
+            if (updatedTasks && updatedTasks.length > 0) {
+              const totalProgress = updatedTasks.reduce((sum, task) => {
+                const taskProgress = task.status === '완료' ? 100 : task.status === '진행전' ? 0 : 50;
+                return sum + taskProgress;
+              }, 0);
+              goalProgress = Math.round(totalProgress / updatedTasks.length);
+            }
+            
+            return {
+              ...goal,
+              tasks: updatedTasks,
+              progressPercentage: goalProgress
+            };
+          });
+          
+          return {
+            ...project,
+            goals: updatedGoals,
+            progressPercentage: Math.round(finalProgress)
+          };
+        } else if (type === 'goal') {
+          // Update goal progress and task states, then recalculate project progress
+          const updatedGoals = project.goals?.map(goal => {
+            if (goal.id === itemId) {
+              const updatedTasks = goal.tasks?.map(task => {
+                const update = updates.find(u => u.task.id === task.id);
+                return update ? { ...task, status: update.newStatus } : task;
+              });
+              
+              return {
+                ...goal,
+                tasks: updatedTasks,
+                progressPercentage: Math.round(finalProgress)
+              };
+            }
+            return goal;
+          });
+          
+          // Recalculate project progress from updated goals
+          let projectProgress = 0;
+          if (updatedGoals && updatedGoals.length > 0) {
+            const goalProgressSum = updatedGoals.reduce((sum, goal) => sum + (goal.progressPercentage || 0), 0);
+            projectProgress = goalProgressSum / updatedGoals.length;
+          }
+          
+          return {
+            ...project,
+            goals: updatedGoals,
+            progressPercentage: Math.round(projectProgress)
+          };
+        }
+        return project;
+      });
+    });
+    
+    // Invalidate queries to ensure server-derived progress and correct parent matching
     queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
     
     // Return the actual achieved progress
@@ -514,8 +584,11 @@ export default function ListTree() {
         queryClient.setQueryData(["/api/projects"], context.previousProjects);
       }
     },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+    onSettled: (data, error) => {
+      // Only refetch if there was an error, let optimistic updates handle success
+      if (error) {
+        queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      }
     }
   });
 
@@ -549,8 +622,11 @@ export default function ListTree() {
         queryClient.setQueryData(["/api/projects"], context.previousProjects);
       }
     },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+    onSettled: (data, error) => {
+      // Only refetch if there was an error, let optimistic updates handle success
+      if (error) {
+        queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      }
     }
   });
 
@@ -569,15 +645,42 @@ export default function ListTree() {
       queryClient.setQueryData(["/api/projects"], (old: ProjectWithDetails[] | undefined) => {
         if (!old) return old;
         
-        return old.map(project => ({
-          ...project,
-          goals: project.goals?.map(goal => ({
-            ...goal,
-            tasks: goal.tasks?.map(task => 
+        return old.map(project => {
+          const updatedGoals = project.goals?.map(goal => {
+            const updatedTasks = goal.tasks?.map(task => 
               task.id === id ? { ...task, ...updates } : task
-            )
-          }))
-        }));
+            );
+            
+            // Recalculate goal progress based on updated tasks
+            let goalProgress = 0;
+            if (updatedTasks && updatedTasks.length > 0) {
+              const totalProgress = updatedTasks.reduce((sum, task) => {
+                const taskProgress = task.status === '완료' ? 100 : task.status === '진행전' ? 0 : 50;
+                return sum + taskProgress;
+              }, 0);
+              goalProgress = Math.round(totalProgress / updatedTasks.length);
+            }
+            
+            return {
+              ...goal,
+              tasks: updatedTasks,
+              progressPercentage: goalProgress
+            };
+          });
+          
+          // Recalculate project progress based on updated goal averages
+          let projectProgress = 0;
+          if (updatedGoals && updatedGoals.length > 0) {
+            const goalProgressSum = updatedGoals.reduce((sum, goal) => sum + (goal.progressPercentage || 0), 0);
+            projectProgress = Math.round(goalProgressSum / updatedGoals.length);
+          }
+          
+          return {
+            ...project,
+            goals: updatedGoals,
+            progressPercentage: projectProgress
+          };
+        });
       });
 
       return { previousProjects };
@@ -588,9 +691,11 @@ export default function ListTree() {
         queryClient.setQueryData(["/api/projects"], context.previousProjects);
       }
     },
-    onSettled: () => {
-      // Always refetch after error or success to ensure data consistency
-      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+    onSettled: (data, error) => {
+      // Only refetch if there was an error, let optimistic updates handle success
+      if (error) {
+        queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      }
     }
   });
 
@@ -692,10 +797,6 @@ export default function ListTree() {
             description,
           });
           
-          // Navigate to graph view after successful progress update
-          setTimeout(() => {
-            setLocation('/');
-          }, 1500);
           
         } catch (error) {
           console.error('Error in updateProgressForParentItem:', error);
@@ -717,33 +818,15 @@ export default function ListTree() {
 
     if (editingField.type === 'project') {
       updateProjectMutation.mutate({ id: editingField.itemId, updates }, {
-        onSuccess: () => {
-          if (editingField.field === 'progress') {
-            setTimeout(() => {
-              setLocation('/');
-            }, 1500);
-          }
-        }
+
       });
     } else if (editingField.type === 'goal') {
       updateGoalMutation.mutate({ id: editingField.itemId, updates }, {
-        onSuccess: () => {
-          if (editingField.field === 'progress') {
-            setTimeout(() => {
-              setLocation('/');
-            }, 1500);
-          }
-        }
+
       });
     } else if (editingField.type === 'task') {
       updateTaskMutation.mutate({ id: editingField.itemId, updates }, {
-        onSuccess: () => {
-          if (editingField.field === 'progress') {
-            setTimeout(() => {
-              setLocation('/');
-            }, 1500);
-          }
-        }
+
       });
     }
   };
