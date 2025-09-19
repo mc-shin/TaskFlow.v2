@@ -9,6 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ChevronDown, ChevronRight, FolderOpen, Target, Circle, Plus, Calendar, User, BarChart3 } from "lucide-react";
 import { useState, useEffect } from "react";
+import { useLocation } from "wouter";
+import { useToast } from "@/hooks/use-toast";
 import type { SafeTaskWithAssignee, ProjectWithDetails, GoalWithTasks, SafeUser } from "@shared/schema";
 import { ProjectModal } from "@/components/project-modal";
 import { GoalModal } from "@/components/goal-modal";
@@ -22,6 +24,8 @@ export default function ListTree() {
     queryKey: ["/api/projects"],
   });
 
+  const [_, setLocation] = useLocation();
+  const { toast } = useToast();
   
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
   const [expandedGoals, setExpandedGoals] = useState<Set<string>>(new Set());
@@ -52,8 +56,8 @@ export default function ListTree() {
   const queryClient = useQueryClient();
   
   // Function to update progress for parent items (goals and projects) by modifying child tasks
-  const updateProgressForParentItem = async (itemId: string, type: 'goal' | 'project', targetProgress: number) => {
-    if (!projects) return;
+  const updateProgressForParentItem = async (itemId: string, type: 'goal' | 'project', targetProgress: number): Promise<number> => {
+    if (!projects) return targetProgress;
     
     let childTasks: SafeTaskWithAssignee[] = [];
     
@@ -81,71 +85,169 @@ export default function ListTree() {
       }
     }
     
-    if (childTasks.length === 0) return;
+    if (childTasks.length === 0) return targetProgress;
     
-    // Calculate the optimal distribution to achieve target progress
+    // Improved progress calculation algorithm
     const totalTasks = childTasks.length;
     console.log(`Updating progress for ${type} ${itemId} to ${targetProgress}% with ${totalTasks} child tasks`);
     
-    // Calculate exact progress needed: completed=100%, in-progress=50%, not-started=0%
-    // We need to find the optimal combination
-    let bestDistribution = { completed: 0, inProgress: 0, notStarted: totalTasks };
-    let bestError = Math.abs(targetProgress - 0); // Start with all not-started (0% progress)
+    // Get current distribution
+    const currentDistribution = childTasks.reduce((acc, task) => {
+      if (task.status === '완료') acc.completed++;
+      else if (task.status === '진행중') acc.inProgress++;
+      else acc.notStarted++;
+      return acc;
+    }, { completed: 0, inProgress: 0, notStarted: 0 });
     
-    // Try all possible combinations
+    const currentProgress = (currentDistribution.completed * 100 + currentDistribution.inProgress * 50) / totalTasks;
+    console.log(`Current progress: ${currentProgress}% (${currentDistribution.completed} completed, ${currentDistribution.inProgress} in-progress, ${currentDistribution.notStarted} not-started)`);
+    
+    // Find optimal distribution with preference for minimal changes
+    let bestDistribution = currentDistribution;
+    let bestError = Math.abs(currentProgress - targetProgress);
+    let bestChangeCount = 0;
+    
+    // Try all possible combinations, preferring distributions with fewer changes
     for (let completed = 0; completed <= totalTasks; completed++) {
       for (let inProgress = 0; inProgress <= (totalTasks - completed); inProgress++) {
         const notStarted = totalTasks - completed - inProgress;
         const actualProgress = (completed * 100 + inProgress * 50) / totalTasks;
         const error = Math.abs(actualProgress - targetProgress);
         
-        if (error < bestError) {
+        // Calculate how many task status changes would be needed
+        const changeCount = Math.abs(completed - currentDistribution.completed) + 
+                          Math.abs(inProgress - currentDistribution.inProgress) + 
+                          Math.abs(notStarted - currentDistribution.notStarted);
+        
+        // Prefer solution with lower error, or same error with fewer changes
+        if (error < bestError || (error === bestError && changeCount < bestChangeCount)) {
           bestError = error;
           bestDistribution = { completed, inProgress, notStarted };
+          bestChangeCount = changeCount;
         }
       }
     }
     
+    const finalProgress = (bestDistribution.completed * 100 + bestDistribution.inProgress * 50) / totalTasks;
     console.log(`Best distribution: ${bestDistribution.completed} completed, ${bestDistribution.inProgress} in-progress, ${bestDistribution.notStarted} not-started`);
-    console.log(`This gives ${(bestDistribution.completed * 100 + bestDistribution.inProgress * 50) / totalTasks}% progress (target: ${targetProgress}%)`);
+    console.log(`This gives ${finalProgress}% progress (target: ${targetProgress}%, error: ${bestError.toFixed(1)}%)`);
     
-    // Sort tasks by current progress (not-started -> in-progress -> completed) for logical updates
-    const sortedTasks = [...childTasks].sort((a, b) => {
-      const aProgress = a.status === '완료' ? 100 : a.status === '진행전' ? 0 : 50;
-      const bProgress = b.status === '완료' ? 100 : b.status === '진행전' ? 0 : 50;
-      return aProgress - bProgress;
-    });
-    
-    // Update tasks to achieve target distribution
+    // Deterministic task assignment to exactly match target distribution
     const updates: Array<{task: SafeTaskWithAssignee, newStatus: string}> = [];
     
-    for (let i = 0; i < sortedTasks.length; i++) {
-      let newStatus: string;
-      if (i < bestDistribution.notStarted) {
-        newStatus = '진행전';
-      } else if (i < bestDistribution.notStarted + bestDistribution.inProgress) {
-        newStatus = '진행중';
-      } else {
-        newStatus = '완료';
-      }
+    // Create target assignment arrays for each status
+    const targetAssignment: {[status: string]: SafeTaskWithAssignee[]} = {
+      '진행전': [],
+      '진행중': [],
+      '완료': []
+    };
+    
+    // Group tasks by current status
+    const tasksByStatus = {
+      '진행전': childTasks.filter(t => t.status === '진행전'),
+      '진행중': childTasks.filter(t => t.status === '진행중'),
+      '완료': childTasks.filter(t => t.status === '완료')
+    };
+    
+    // First, assign tasks that can keep their current status (minimize changes)
+    const keepNotStarted = Math.min(tasksByStatus['진행전'].length, bestDistribution.notStarted);
+    const keepInProgress = Math.min(tasksByStatus['진행중'].length, bestDistribution.inProgress);
+    const keepCompleted = Math.min(tasksByStatus['완료'].length, bestDistribution.completed);
+    
+    targetAssignment['진행전'].push(...tasksByStatus['진행전'].slice(0, keepNotStarted));
+    targetAssignment['진행중'].push(...tasksByStatus['진행중'].slice(0, keepInProgress));
+    targetAssignment['완료'].push(...tasksByStatus['완료'].slice(0, keepCompleted));
+    
+    // Collect remaining tasks that need reassignment
+    const remainingTasks = [
+      ...tasksByStatus['진행전'].slice(keepNotStarted),
+      ...tasksByStatus['진행중'].slice(keepInProgress),
+      ...tasksByStatus['완료'].slice(keepCompleted)
+    ];
+    
+    // Calculate remaining slots needed for each status
+    const remainingSlots = {
+      '진행전': bestDistribution.notStarted - keepNotStarted,
+      '진행중': bestDistribution.inProgress - keepInProgress,
+      '완료': bestDistribution.completed - keepCompleted
+    };
+    
+    // Assign remaining tasks to fill the remaining slots, preferring minimal status changes
+    let taskIndex = 0;
+    
+    // Sort remaining tasks by how close they are to their target status (prefer one-step changes)
+    remainingTasks.sort((a, b) => {
+      const getStatusOrder = (status: string) => {
+        if (status === '진행전') return 0;
+        if (status === '진행중') return 1;
+        return 2; // '완료'
+      };
       
-      if (sortedTasks[i].status !== newStatus) {
-        console.log(`Updating task ${sortedTasks[i].title} from ${sortedTasks[i].status} to ${newStatus}`);
-        updates.push({ task: sortedTasks[i], newStatus });
+      const aOrder = getStatusOrder(a.status);
+      const bOrder = getStatusOrder(b.status);
+      return aOrder - bOrder;
+    });
+    
+    // Fill remaining slots in order of preference
+    for (const status of ['진행전', '진행중', '완료'] as const) {
+      while (remainingSlots[status] > 0 && taskIndex < remainingTasks.length) {
+        targetAssignment[status].push(remainingTasks[taskIndex]);
+        remainingSlots[status]--;
+        taskIndex++;
       }
     }
     
-    // Apply updates
-    for (const update of updates) {
-      try {
-        await updateTaskMutation.mutateAsync({ 
-          id: update.task.id, 
-          updates: { status: update.newStatus } 
-        });
-      } catch (error) {
-        console.error('Failed to update task:', error);
+    // Generate updates for tasks that changed status
+    for (const [targetStatus, tasks] of Object.entries(targetAssignment)) {
+      for (const task of tasks) {
+        if (task.status !== targetStatus) {
+          updates.push({ task, newStatus: targetStatus });
+          console.log(`Updating task "${task.title}" from ${task.status} to ${targetStatus}`);
+        }
       }
     }
+    
+    // Verify the final distribution
+    const finalDistribution = {
+      completed: targetAssignment['완료'].length,
+      inProgress: targetAssignment['진행중'].length,
+      notStarted: targetAssignment['진행전'].length
+    };
+    console.log(`Final verification: ${finalDistribution.completed} completed, ${finalDistribution.inProgress} in-progress, ${finalDistribution.notStarted} not-started`);
+    
+    if (finalDistribution.completed !== bestDistribution.completed || 
+        finalDistribution.inProgress !== bestDistribution.inProgress || 
+        finalDistribution.notStarted !== bestDistribution.notStarted) {
+      console.error('Distribution mismatch! Target:', bestDistribution, 'Actual:', finalDistribution);
+    }
+    
+    // Apply updates using direct API calls to avoid individual query invalidations
+    const updatePromises = updates.map(async (update) => {
+      try {
+        await apiRequest("PUT", `/api/tasks/${update.task.id}`, { status: update.newStatus });
+        return { success: true, update };
+      } catch (error) {
+        console.error(`Failed to update task "${update.task.title}":`, error);
+        return { success: false, update, error };
+      }
+    });
+    
+    const results = await Promise.allSettled(updatePromises);
+    const failedUpdates = results.filter(result => 
+      result.status === 'rejected' || 
+      (result.status === 'fulfilled' && !result.value.success)
+    );
+    
+    if (failedUpdates.length > 0) {
+      console.error(`${failedUpdates.length} task updates failed`);
+      throw new Error(`${failedUpdates.length} out of ${updates.length} task updates failed`);
+    }
+    
+    // Invalidate queries once after all updates are complete
+    queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+    
+    // Return the actual achieved progress
+    return finalProgress;
   };
   
   // Show/hide toast based on selection
@@ -440,7 +542,7 @@ export default function ListTree() {
     }
   });
 
-  const saveEdit = () => {
+  const saveEdit = async () => {
     if (!editingField) return;
     
     console.log(`SaveEdit called for ${editingField.type} ${editingField.itemId}, field: ${editingField.field}, value: ${editingValue}`);
@@ -481,17 +583,47 @@ export default function ListTree() {
         // Provide user feedback if their input was adjusted
         if (actualProgress !== progressValue) {
           console.log(`Task progress adjusted from ${progressValue}% to ${actualProgress}% to match available statuses`);
-          // Show a brief toast or similar feedback in the future
+          toast({
+            title: "진행도 조정됨",
+            description: `입력하신 ${progressValue}%가 사용 가능한 상태인 ${actualProgress}%로 조정되었습니다.`,
+          });
+        } else {
+          toast({
+            title: "진행도 업데이트",
+            description: `작업 진행도가 ${actualProgress}%로 업데이트되었습니다.`,
+          });
         }
       } else if (editingField.type === 'goal' || editingField.type === 'project') {
         // For goals and projects, we need to update their child tasks to achieve target progress
         // Skip the normal update flow and handle this specially
         console.log(`Calling updateProgressForParentItem for ${editingField.type} ${editingField.itemId} with target ${progressValue}%`);
         try {
-          updateProgressForParentItem(editingField.itemId, editingField.type, progressValue);
+          const achievedProgress = await updateProgressForParentItem(editingField.itemId, editingField.type, progressValue);
           console.log(`updateProgressForParentItem completed successfully`);
+          
+          const itemTypeName = editingField.type === 'goal' ? '목표' : '프로젝트';
+          
+          const description = Math.round(achievedProgress) === progressValue 
+            ? `${itemTypeName} 진행도가 ${progressValue}%로 업데이트되고 하위 작업들이 조정되었습니다.`
+            : `${itemTypeName} 진행도가 ${Math.round(achievedProgress)}%로 조정되었습니다 (목표: ${progressValue}%).`;
+            
+          toast({
+            title: "진행도 업데이트 완료",
+            description,
+          });
+          
+          // Navigate to graph view after successful progress update
+          setTimeout(() => {
+            setLocation('/');
+          }, 1500);
+          
         } catch (error) {
           console.error('Error in updateProgressForParentItem:', error);
+          toast({
+            title: "진행도 업데이트 실패",
+            description: "진행도 업데이트 중 오류가 발생했습니다. 다시 시도해주세요.",
+            variant: "destructive",
+          });
         }
         cancelEditing();
         return;
@@ -504,11 +636,35 @@ export default function ListTree() {
     }
 
     if (editingField.type === 'project') {
-      updateProjectMutation.mutate({ id: editingField.itemId, updates });
+      updateProjectMutation.mutate({ id: editingField.itemId, updates }, {
+        onSuccess: () => {
+          if (editingField.field === 'progress') {
+            setTimeout(() => {
+              setLocation('/');
+            }, 1500);
+          }
+        }
+      });
     } else if (editingField.type === 'goal') {
-      updateGoalMutation.mutate({ id: editingField.itemId, updates });
+      updateGoalMutation.mutate({ id: editingField.itemId, updates }, {
+        onSuccess: () => {
+          if (editingField.field === 'progress') {
+            setTimeout(() => {
+              setLocation('/');
+            }, 1500);
+          }
+        }
+      });
     } else if (editingField.type === 'task') {
-      updateTaskMutation.mutate({ id: editingField.itemId, updates });
+      updateTaskMutation.mutate({ id: editingField.itemId, updates }, {
+        onSuccess: () => {
+          if (editingField.field === 'progress') {
+            setTimeout(() => {
+              setLocation('/');
+            }, 1500);
+          }
+        }
+      });
     }
   };
 
