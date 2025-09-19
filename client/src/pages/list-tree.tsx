@@ -872,58 +872,33 @@ export default function ListTree() {
 
     const isEditing = editingField?.itemId === itemId && editingField?.field === 'progress';
     
-    // Progress options for dropdown (5% increments)
-    const progressOptions = Array.from({ length: 21 }, (_, i) => i * 5);
+    // Progress options for dropdown (10% increments)
+    const progressOptions = Array.from({ length: 11 }, (_, i) => i * 10);
 
     const handleProgressSelect = async (value: string) => {
       const progressValue = parseInt(value);
       
-      // Optimistic update
-      queryClient.setQueryData(['/api/tasks'], (oldData: any) => {
-        if (!oldData) return oldData;
-        
-        return oldData.map((task: any) => {
-          if (task.id === itemId) {
-            const newStatus = getStatusFromProgress(progressValue);
-            return { ...task, status: newStatus };
-          }
-          return task;
-        });
-      });
+      // Map progress to status for backend
+      let finalStatus: string;
+      
+      if (progressValue === 0) {
+        finalStatus = '진행전';
+      } else if (progressValue === 100) {
+        finalStatus = '완료';
+      } else {
+        finalStatus = '진행중';
+      }
 
       try {
-        // Map progress to status
-        let finalStatus: string;
-        let actualProgress: number;
-        
-        if (progressValue >= 75) {
-          finalStatus = '완료';
-          actualProgress = 100;
-        } else if (progressValue <= 25) {
-          finalStatus = '진행전';
-          actualProgress = 0;
-        } else {
-          finalStatus = '진행중';
-          actualProgress = 50;
-        }
-
         await updateTaskMutation.mutateAsync({
           id: itemId,
-          updates: { status: finalStatus }
+          updates: { status: finalStatus, customProgress: progressValue }
         });
 
-        // Provide user feedback if their input was adjusted
-        if (actualProgress !== progressValue) {
-          toast({
-            title: "진행도 조정됨",
-            description: `입력하신 ${progressValue}%가 사용 가능한 상태인 ${actualProgress}%로 조정되었습니다.`,
-          });
-        } else {
-          toast({
-            title: "진행도 업데이트",
-            description: `작업 진행도가 ${actualProgress}%로 업데이트되었습니다.`,
-          });
-        }
+        toast({
+          title: "진행도 업데이트",
+          description: `작업 진행도가 ${progressValue}%로 업데이트되었습니다.`,
+        });
       } catch (error) {
         console.error('Progress update failed:', error);
         toast({
@@ -931,9 +906,6 @@ export default function ListTree() {
           description: "진행도 업데이트 중 오류가 발생했습니다.",
           variant: "destructive",
         });
-        
-        // Revert optimistic update
-        queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
       }
       
       cancelEditing();
@@ -1350,7 +1322,7 @@ export default function ListTree() {
                                       {renderEditableStatus(task.id, 'task', task.status, getProgressFromStatus(task.status))}
                                     </div>
                                     <div className="col-span-2">
-                                      {renderEditableProgress(task.id, 'task', getProgressFromStatus(task.status), task.status)}
+                                      {renderEditableProgress(task.id, 'task', (task as any).customProgress ?? getProgressFromStatus(task.status), task.status)}
                                     </div>
                                     <div className="col-span-1">
                                       {renderEditableImportance(task.id, 'task', task.priority || '중간')}
