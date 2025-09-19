@@ -83,6 +83,27 @@ export class MemStorage implements IStorage {
     const totalProgress = tasks.reduce((sum, task) => sum + this.getTaskProgress(task), 0);
     return totalProgress / tasks.length;
   }
+  
+  // Backfill progress values for existing tasks that might not have proper progress set
+  private backfillTaskProgress(): void {
+    for (const task of this.tasks.values()) {
+      // Only update if progress is 0 and status suggests otherwise
+      if (task.progress === 0) {
+        let correctedProgress: number | null = null;
+        
+        if (task.status === '완료') {
+          correctedProgress = 100;
+        } else if (task.status === '진행중') {
+          correctedProgress = 50;
+        }
+        
+        if (correctedProgress !== null) {
+          task.progress = correctedProgress;
+          task.updatedAt = new Date();
+        }
+      }
+    }
+  }
   private users: Map<string, User>;
   private projects: Map<string, Project>;
   private goals: Map<string, Goal>;
@@ -189,6 +210,9 @@ export class MemStorage implements IStorage {
     for (const task of defaultTasks) {
       await this.createTask(task);
     }
+    
+    // Backfill progress values for any existing tasks that might have been created without proper progress
+    this.backfillTaskProgress();
 
     // Initialize meetings
     const defaultMeetings = [
@@ -685,6 +709,24 @@ export class MemStorage implements IStorage {
       }
     }
     
+    // Initialize progress based on status if not explicitly provided
+    let initialProgress = insertTask.progress;
+    const status = insertTask.status || "진행전";
+    
+    if (initialProgress === undefined || initialProgress === null) {
+      switch (status) {
+        case '완료':
+          initialProgress = 100;
+          break;
+        case '진행전':
+          initialProgress = 0;
+          break;
+        default:
+          initialProgress = 50;
+          break;
+      }
+    }
+    
     const task: Task = { 
       ...insertTask, 
       id, 
@@ -693,8 +735,8 @@ export class MemStorage implements IStorage {
       duration: insertTask.duration || null,
       priority: insertTask.priority || null,
       label: insertTask.label || null,
-      status: insertTask.status || "진행전",
-      progress: insertTask.progress ?? 0,
+      status: status,
+      progress: initialProgress,
       assigneeId: insertTask.assigneeId || null,
       projectId: finalProjectId,
       goalId: insertTask.goalId || null,
