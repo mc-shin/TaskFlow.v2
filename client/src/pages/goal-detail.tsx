@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { ArrowLeft, Edit, Save, X, Target, Circle, FolderOpen, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Edit, Save, X, Target, Circle, FolderOpen, Plus } from "lucide-react";
 import { useState } from "react";
 import { useLocation, useRoute } from "wouter";
 import { useToast } from "@/hooks/use-toast";
@@ -72,31 +72,6 @@ export default function GoalDetail() {
     },
   });
 
-  const deleteGoalMutation = useMutation({
-    mutationFn: async () => {
-      return await apiRequest("DELETE", `/api/goals/${goalId}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
-      toast({
-        title: "목표 삭제 완료",
-        description: "목표가 성공적으로 삭제되었습니다.",
-      });
-      if (parentProject) {
-        setLocation(`/detail/project/${parentProject.id}`);
-      } else {
-        setLocation("/list");
-      }
-    },
-    onError: () => {
-      toast({
-        title: "삭제 실패",
-        description: "목표 삭제 중 오류가 발생했습니다.",
-        variant: "destructive",
-      });
-    },
-  });
-
   const handleSave = () => {
     if (Object.keys(editedGoal).length > 0) {
       updateGoalMutation.mutate(editedGoal);
@@ -108,12 +83,6 @@ export default function GoalDetail() {
   const handleCancel = () => {
     setIsEditing(false);
     setEditedGoal({});
-  };
-
-  const handleDelete = () => {
-    if (window.confirm("정말로 이 목표를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.")) {
-      deleteGoalMutation.mutate();
-    }
   };
 
   const handleTaskClick = (taskId: string) => {
@@ -225,24 +194,13 @@ export default function GoalDetail() {
                 </Button>
               </>
             ) : (
-              <>
-                <Button 
-                  onClick={() => setIsEditing(true)}
-                  data-testid="button-edit"
-                >
-                  <Edit className="h-4 w-4 mr-2" />
-                  수정
-                </Button>
-                <Button 
-                  onClick={handleDelete}
-                  variant="destructive"
-                  disabled={deleteGoalMutation.isPending}
-                  data-testid="button-delete"
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  삭제
-                </Button>
-              </>
+              <Button 
+                onClick={() => setIsEditing(true)}
+                data-testid="button-edit"
+              >
+                <Edit className="h-4 w-4 mr-2" />
+                수정
+              </Button>
             )}
           </div>
         </div>
@@ -362,7 +320,7 @@ export default function GoalDetail() {
                   </Button>
                 </div>
               </CardHeader>
-              <CardContent className="max-h-[calc(100vh-400px)] overflow-y-auto" data-testid="tasks-content-container">
+              <CardContent className="max-h-96 overflow-y-auto" data-testid="tasks-content-container">
                 {goal.tasks && goal.tasks.length > 0 ? (
                   <div className="space-y-3">
                     {goal.tasks.map((task) => (
