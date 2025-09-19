@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowLeft, Edit, Save, X, FolderOpen, Target, Circle, Plus } from "lucide-react";
 import { useState } from "react";
 import { useLocation, useRoute } from "wouter";
@@ -226,6 +227,38 @@ export default function ProjectDetail() {
                     />
                   ) : (
                     <p className="mt-1 font-medium" data-testid="text-project-code">{project.code}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">상태</label>
+                  {isEditing ? (
+                    <Select
+                      value={editedProject.status ?? project.status ?? "진행전"}
+                      onValueChange={(value) => setEditedProject(prev => ({ ...prev, status: value }))}
+                    >
+                      <SelectTrigger className="mt-1" data-testid="select-project-status">
+                        <SelectValue placeholder="상태를 선택하세요" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="진행전">진행전</SelectItem>
+                        <SelectItem value="진행중">진행중</SelectItem>
+                        <SelectItem value="완료">완료</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <div className="mt-1">
+                      <Badge 
+                        variant={
+                          project.status === "완료" ? "default" : 
+                          project.status === "진행중" ? "secondary" : 
+                          "outline"
+                        }
+                        data-testid="badge-project-status"
+                      >
+                        {project.status}
+                      </Badge>
+                    </div>
                   )}
                 </div>
 

@@ -320,7 +320,7 @@ export default function GoalDetail() {
                   </Button>
                 </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="max-h-96 overflow-y-auto" data-testid="tasks-content-container">
                 {goal.tasks && goal.tasks.length > 0 ? (
                   <div className="space-y-3">
                     {goal.tasks.map((task) => (
