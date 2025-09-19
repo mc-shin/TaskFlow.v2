@@ -124,7 +124,6 @@ export function TaskTable({ onEditTask }: TaskTableProps) {
             <thead>
               <tr className="border-b border-border">
                 <th className="text-left p-4 text-sm font-medium text-muted-foreground">작업</th>
-                <th className="text-left p-4 text-sm font-medium text-muted-foreground">소요시간</th>
                 <th className="text-left p-4 text-sm font-medium text-muted-foreground">마감기한</th>
                 <th className="text-left p-4 text-sm font-medium text-muted-foreground">상태</th>
                 <th className="text-left p-4 text-sm font-medium text-muted-foreground">담당자</th>
@@ -145,9 +144,6 @@ export function TaskTable({ onEditTask }: TaskTableProps) {
                         {task.title}
                       </span>
                     </div>
-                  </td>
-                  <td className="p-4 text-muted-foreground" data-testid={`text-task-duration-${task.id}`}>
-                    {task.duration || 0}
                   </td>
                   <td className="p-4 text-muted-foreground" data-testid={`text-task-deadline-${task.id}`}>
                     {task.deadline ? new Date(task.deadline).toLocaleDateString('ko-KR') : '-'}
@@ -195,7 +191,7 @@ export function TaskTable({ onEditTask }: TaskTableProps) {
               
               {(!(tasks as TaskWithAssignee[]) || (tasks as TaskWithAssignee[]).length === 0) && (
                 <tr>
-                  <td colSpan={6} className="p-8 text-center text-muted-foreground" data-testid="text-empty-tasks">
+                  <td colSpan={5} className="p-8 text-center text-muted-foreground" data-testid="text-empty-tasks">
                     작업이 없습니다. 새 작업을 생성해보세요.
                   </td>
                 </tr>
