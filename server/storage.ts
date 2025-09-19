@@ -62,9 +62,15 @@ export interface IStorage {
 }
 
 export class MemStorage implements IStorage {
-  // Helper function to calculate individual task progress based on status
-  private getTaskProgress(status: string): number {
-    switch (status) {
+  // Helper function to get task progress - use stored progress value if available, otherwise derive from status
+  private getTaskProgress(task: Task | { status: string; progress?: number | null }): number {
+    // If progress is explicitly stored, use that value
+    if ('progress' in task && task.progress !== null && task.progress !== undefined) {
+      return task.progress;
+    }
+    
+    // Otherwise, derive from status for backward compatibility
+    switch (task.status) {
       case '완료': return 100;
       case '진행전': return 0;
       default: return 50;
@@ -74,7 +80,7 @@ export class MemStorage implements IStorage {
   // Helper function to calculate average progress from tasks
   private calculateAverageProgress(tasks: Task[]): number {
     if (tasks.length === 0) return 0;
-    const totalProgress = tasks.reduce((sum, task) => sum + this.getTaskProgress(task.status), 0);
+    const totalProgress = tasks.reduce((sum, task) => sum + this.getTaskProgress(task), 0);
     return totalProgress / tasks.length;
   }
   private users: Map<string, User>;
@@ -688,6 +694,7 @@ export class MemStorage implements IStorage {
       priority: insertTask.priority || null,
       label: insertTask.label || null,
       status: insertTask.status || "진행전",
+      progress: insertTask.progress ?? 0,
       assigneeId: insertTask.assigneeId || null,
       projectId: finalProjectId,
       goalId: insertTask.goalId || null,

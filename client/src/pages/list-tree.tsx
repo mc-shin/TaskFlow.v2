@@ -543,7 +543,10 @@ export default function ListTree() {
         }));
       });
 
-      return { previousProjects };
+      return { previousProjects, taskId: id, updates };
+    },
+    onSuccess: (data, variables) => {
+      // Backend now stores progress field, no manual cache update needed
     },
     onError: (err, newTask, context) => {
       // Revert the optimistic update on error
@@ -606,36 +609,24 @@ export default function ListTree() {
       const progressValue = parseInt(editingValue);
       
       if (editingField.type === 'task') {
-        // Map progress to the closest valid value and status
+        // Map progress to status for backend
         let finalStatus: string;
-        let actualProgress: number;
         
-        if (progressValue >= 75) {
-          finalStatus = '완료';
-          actualProgress = 100;
-        } else if (progressValue <= 25) {
+        if (progressValue === 0) {
           finalStatus = '진행전';
-          actualProgress = 0;
+        } else if (progressValue === 100) {
+          finalStatus = '완료';
         } else {
           finalStatus = '진행중';
-          actualProgress = 50;
         }
         
         updates.status = finalStatus;
+        updates.progress = progressValue;
         
-        // Provide user feedback if their input was adjusted
-        if (actualProgress !== progressValue) {
-          console.log(`Task progress adjusted from ${progressValue}% to ${actualProgress}% to match available statuses`);
-          toast({
-            title: "진행도 조정됨",
-            description: `입력하신 ${progressValue}%가 사용 가능한 상태인 ${actualProgress}%로 조정되었습니다.`,
-          });
-        } else {
-          toast({
-            title: "진행도 업데이트",
-            description: `작업 진행도가 ${actualProgress}%로 업데이트되었습니다.`,
-          });
-        }
+        toast({
+          title: "진행도 업데이트",
+          description: `작업 진행도가 ${progressValue}%로 업데이트되었습니다.`,
+        });
       } else if (editingField.type === 'goal' || editingField.type === 'project') {
         // For goals and projects, we need to update their child tasks to achieve target progress
         // Skip the normal update flow and handle this specially
@@ -892,9 +883,9 @@ export default function ListTree() {
       try {
         await updateTaskMutation.mutateAsync({
           id: itemId,
-          updates: { status: finalStatus, customProgress: progressValue }
+          updates: { status: finalStatus, progress: progressValue }
         });
-
+        
         toast({
           title: "진행도 업데이트",
           description: `작업 진행도가 ${progressValue}%로 업데이트되었습니다.`,
@@ -1322,7 +1313,7 @@ export default function ListTree() {
                                       {renderEditableStatus(task.id, 'task', task.status, getProgressFromStatus(task.status))}
                                     </div>
                                     <div className="col-span-2">
-                                      {renderEditableProgress(task.id, 'task', (task as any).customProgress ?? getProgressFromStatus(task.status), task.status)}
+                                      {renderEditableProgress(task.id, 'task', task.progress ?? getProgressFromStatus(task.status), task.status)}
                                     </div>
                                     <div className="col-span-1">
                                       {renderEditableImportance(task.id, 'task', task.priority || '중간')}
