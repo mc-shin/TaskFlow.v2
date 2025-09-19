@@ -86,7 +86,7 @@ export class MemStorage implements IStorage {
   
   // Backfill progress values for existing tasks that might not have proper progress set
   private backfillTaskProgress(): void {
-    for (const task of this.tasks.values()) {
+    for (const task of Array.from(this.tasks.values())) {
       // Only update if progress is 0 and status suggests otherwise
       if (task.progress === 0) {
         let correctedProgress: number | null = null;
@@ -401,7 +401,6 @@ export class MemStorage implements IStorage {
         return new Date(task.deadline) < new Date();
       });
       
-      const progressPercentage = this.calculateAverageProgress(allProjectTasks);
       const goalsWithTasks: GoalWithTasks[] = [];
       
       for (const goal of projectGoals) {
@@ -427,6 +426,17 @@ export class MemStorage implements IStorage {
         });
       }
       
+      // Calculate project progress as average of goal progress
+      let projectProgressPercentage: number;
+      if (goalsWithTasks.length > 0) {
+        // Project progress = sum of goal progress / number of goals
+        const totalGoalProgress = goalsWithTasks.reduce((sum, goal) => sum + (goal.progressPercentage || 0), 0);
+        projectProgressPercentage = totalGoalProgress / goalsWithTasks.length;
+      } else {
+        // If no goals, use direct project tasks for progress calculation
+        projectProgressPercentage = this.calculateAverageProgress(directProjectTasks);
+      }
+      
       // Add assignee info to direct project tasks
       const tasksWithAssignees: SafeTaskWithAssignee[] = [];
       for (const task of directProjectTasks) {
@@ -442,7 +452,7 @@ export class MemStorage implements IStorage {
         tasks: tasksWithAssignees,
         totalTasks: allProjectTasks.length,
         completedTasks: completedTasks.length,
-        progressPercentage: Math.round(progressPercentage),
+        progressPercentage: Math.round(projectProgressPercentage),
         hasOverdueTasks: overdueTasks.length > 0,
         overdueTaskCount: overdueTasks.length,
       });
