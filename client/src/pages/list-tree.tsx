@@ -858,42 +858,101 @@ export default function ListTree() {
   };
 
   const renderEditableProgress = (itemId: string, type: 'project' | 'goal' | 'task', progress: number, status?: string) => {
+    // Only tasks can have their progress edited directly
+    if (type !== 'task') {
+      return (
+        <div className="flex items-center gap-2 px-1 py-1">
+          <Progress value={progress} className="flex-1" />
+          <span className="text-xs text-muted-foreground w-8">
+            {progress}%
+          </span>
+        </div>
+      );
+    }
+
     const isEditing = editingField?.itemId === itemId && editingField?.field === 'progress';
     
-    // Helper function to round to nearest 5% increment
-    const roundToNearest5 = (value: number): number => {
-      return Math.round(value / 5) * 5;
-    };
+    // Progress options for dropdown (5% increments)
+    const progressOptions = Array.from({ length: 21 }, (_, i) => i * 5);
 
-    const handleProgressChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const value = e.target.value;
-      if (value === '' || isNaN(Number(value))) {
-        setEditingValue(value);
-        return;
+    const handleProgressSelect = async (value: string) => {
+      const progressValue = parseInt(value);
+      
+      // Optimistic update
+      queryClient.setQueryData(['/api/tasks'], (oldData: any) => {
+        if (!oldData) return oldData;
+        
+        return oldData.map((task: any) => {
+          if (task.id === itemId) {
+            const newStatus = getStatusFromProgress(progressValue);
+            return { ...task, status: newStatus };
+          }
+          return task;
+        });
+      });
+
+      try {
+        // Map progress to status
+        let finalStatus: string;
+        let actualProgress: number;
+        
+        if (progressValue >= 75) {
+          finalStatus = '완료';
+          actualProgress = 100;
+        } else if (progressValue <= 25) {
+          finalStatus = '진행전';
+          actualProgress = 0;
+        } else {
+          finalStatus = '진행중';
+          actualProgress = 50;
+        }
+
+        await updateTaskMutation.mutateAsync({
+          id: itemId,
+          updates: { status: finalStatus }
+        });
+
+        // Provide user feedback if their input was adjusted
+        if (actualProgress !== progressValue) {
+          toast({
+            title: "진행도 조정됨",
+            description: `입력하신 ${progressValue}%가 사용 가능한 상태인 ${actualProgress}%로 조정되었습니다.`,
+          });
+        } else {
+          toast({
+            title: "진행도 업데이트",
+            description: `작업 진행도가 ${actualProgress}%로 업데이트되었습니다.`,
+          });
+        }
+      } catch (error) {
+        console.error('Progress update failed:', error);
+        toast({
+          title: "업데이트 실패",
+          description: "진행도 업데이트 중 오류가 발생했습니다.",
+          variant: "destructive",
+        });
+        
+        // Revert optimistic update
+        queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
       }
       
-      const numValue = Number(value);
-      const clampedValue = Math.max(0, Math.min(100, numValue));
-      const roundedValue = roundToNearest5(clampedValue);
-      
-      setEditingValue(roundedValue.toString());
+      cancelEditing();
     };
     
     if (isEditing) {
       return (
-        <Input
-          type="number"
-          min="0"
-          max="100"
-          step="5"
-          value={editingValue}
-          onChange={handleProgressChange}
-          onKeyDown={handleKeyPress}
-          onBlur={saveEdit}
-          className="h-6 text-xs w-16"
-          autoFocus
-          data-testid={`edit-progress-${itemId}`}
-        />
+        <Select value={progress.toString()} onValueChange={handleProgressSelect}>
+          <SelectTrigger className="h-6 text-xs w-16" data-testid={`edit-progress-${itemId}`}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {progressOptions.map((option) => (
+              <SelectItem key={option} value={option.toString()}>
+                {option}%
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       );
     }
     
