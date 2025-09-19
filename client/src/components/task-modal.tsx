@@ -220,10 +220,9 @@ export function TaskModal({ isOpen, onClose, editingTask, goalId, goalTitle }: T
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="실행대기">실행대기</SelectItem>
-                        <SelectItem value="이슈함">이슈함</SelectItem>
-                        <SelectItem value="사업팀">사업팀</SelectItem>
-                        <SelectItem value="인력팀">인력팀</SelectItem>
+                        <SelectItem value="진행전">진행전</SelectItem>
+                        <SelectItem value="진행중">진행중</SelectItem>
+                        <SelectItem value="완료">완료</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
