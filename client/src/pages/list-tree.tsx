@@ -374,45 +374,8 @@ export default function ListTree() {
       }
     }
     
-    // Update parent selection state based on children (only for task/goal selection)
-    if (itemType === 'task' || itemType === 'goal') {
-      const parents = getParentItems(itemId);
-      
-      if (parents.goalId && itemType === 'task') {
-        // Check if all tasks in this goal are selected
-        const goal = (projects as ProjectWithDetails[])?.find(p => 
-          p.goals?.some(g => g.id === parents.goalId)
-        )?.goals?.find(g => g.id === parents.goalId);
-        
-        if (goal?.tasks) {
-          const allTasksSelected = goal.tasks.every(task => newSelected.has(task.id));
-          if (allTasksSelected && !isCurrentlySelected) {
-            newSelected.add(parents.goalId!);
-          } else if (!allTasksSelected && isCurrentlySelected) {
-            newSelected.delete(parents.goalId!);
-          }
-        }
-      }
-      
-      if (parents.projectId) {
-        // Check if all goals and tasks in this project are selected
-        const project = (projects as ProjectWithDetails[])?.find(p => p.id === parents.projectId);
-        
-        if (project?.goals) {
-          const allGoalsAndTasksSelected = project.goals.every(goal => {
-            const goalSelected = newSelected.has(goal.id);
-            const allTasksSelected = goal.tasks?.every(task => newSelected.has(task.id)) ?? true;
-            return goalSelected && allTasksSelected;
-          });
-          
-          if (allGoalsAndTasksSelected && !isCurrentlySelected) {
-            newSelected.add(parents.projectId);
-          } else if (!allGoalsAndTasksSelected && isCurrentlySelected) {
-            newSelected.delete(parents.projectId);
-          }
-        }
-      }
-    }
+    // No automatic parent selection when selecting child items
+    // Users should explicitly select parent items if they want them selected
     
     setSelectedItems(newSelected);
   };
@@ -872,6 +835,13 @@ export default function ListTree() {
     return '진행중';
   };
 
+  // Function to derive progress from status
+  const getProgressFromStatus = (status: string): number => {
+    if (status === '진행전') return 0;
+    if (status === '완료') return 100;
+    return 50; // '진행중'
+  };
+
   const renderEditableStatus = (itemId: string, type: 'project' | 'goal' | 'task', status: string, progress?: number) => {
     // Status is now read-only and derived from progress if progress is provided
     const displayStatus = progress !== undefined ? getStatusFromProgress(progress) : status;
@@ -1318,10 +1288,10 @@ export default function ListTree() {
                                       {renderEditableLabel(task.id, 'task', task.label)}
                                     </div>
                                     <div className="col-span-1">
-                                      {renderEditableStatus(task.id, 'task', task.status, task.status === '완료' ? 100 : task.status === '진행전' ? 0 : 50)}
+                                      {renderEditableStatus(task.id, 'task', task.status, getProgressFromStatus(task.status))}
                                     </div>
                                     <div className="col-span-2">
-                                      {renderEditableProgress(task.id, 'task', task.status === '완료' ? 100 : task.status === '진행전' ? 0 : 50, task.status)}
+                                      {renderEditableProgress(task.id, 'task', getProgressFromStatus(task.status), task.status)}
                                     </div>
                                     <div className="col-span-1">
                                       {renderEditableImportance(task.id, 'task', task.priority || '중간')}
