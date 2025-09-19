@@ -1177,9 +1177,13 @@ export default function ListTree() {
                           )}
                         </Button>
                         <FolderOpen className="w-4 h-4 text-blue-600" />
-                        <span className="font-medium" data-testid={`text-project-name-${project.id}`}>
+                        <button 
+                          className="font-medium hover:text-blue-600 cursor-pointer transition-colors text-left" 
+                          onClick={() => setLocation(`/detail/project/${project.id}`)}
+                          data-testid={`text-project-name-${project.id}`}
+                        >
                           {project.name}
-                        </span>
+                        </button>
                         <Badge variant="outline" className="text-xs">
                           {project.code}
                         </Badge>
@@ -1245,9 +1249,13 @@ export default function ListTree() {
                                   )}
                                 </Button>
                                 <Target className="w-4 h-4 text-green-600" />
-                                <span className="font-medium" data-testid={`text-goal-name-${goal.id}`}>
+                                <button 
+                                  className="font-medium hover:text-green-600 cursor-pointer transition-colors text-left" 
+                                  onClick={() => setLocation(`/detail/goal/${goal.id}`)}
+                                  data-testid={`text-goal-name-${goal.id}`}
+                                >
                                   {goal.title}
-                                </span>
+                                </button>
                                 <Button
                                   variant="ghost"
                                   size="sm"
@@ -1296,9 +1304,13 @@ export default function ListTree() {
                                         data-testid={`checkbox-task-${task.id}`}
                                       />
                                       <Circle className="w-4 h-4 text-orange-600" />
-                                      <span className="font-medium" data-testid={`text-task-name-${task.id}`}>
+                                      <button 
+                                        className="font-medium hover:text-orange-600 cursor-pointer transition-colors text-left" 
+                                        onClick={() => setLocation(`/detail/task/${task.id}`)}
+                                        data-testid={`text-task-name-${task.id}`}
+                                      >
                                         {task.title}
-                                      </span>
+                                      </button>
                                     </div>
                                     <div className="col-span-1">
                                       {renderEditableDeadline(task.id, 'task', task.deadline)}
