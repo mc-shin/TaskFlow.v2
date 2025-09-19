@@ -410,6 +410,67 @@ export default function ProjectDetail() {
                 )}
               </CardContent>
             </Card>
+
+            {/* Direct Tasks */}
+            {project.tasks && project.tasks.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>직접 작업 ({project.tasks.length}개)</CardTitle>
+                </CardHeader>
+                <CardContent className="max-h-[calc(100vh-400px)] overflow-y-auto" data-testid="direct-tasks-content-container">
+                  <div className="space-y-3">
+                    {project.tasks.map((task) => (
+                      <div
+                        key={task.id}
+                        className="p-4 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
+                        onClick={() => handleTaskClick(task.id)}
+                        data-testid={`card-direct-task-${task.id}`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <Circle className="h-4 w-4 text-orange-600" />
+                            <div>
+                              <h4 className="font-medium" data-testid={`text-direct-task-title-${task.id}`}>
+                                {task.title}
+                              </h4>
+                              <div className="flex items-center gap-2 mt-1">
+                                <Badge 
+                                  variant={task.status === '완료' ? 'default' : 'secondary'}
+                                  className="text-xs"
+                                >
+                                  {task.status}
+                                </Badge>
+                                {task.assignee && (
+                                  <div className="flex items-center gap-1">
+                                    <Avatar className="h-4 w-4">
+                                      <AvatarFallback className="text-xs">
+                                        {task.assignee.initials}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                    <span className="text-xs text-muted-foreground">
+                                      {task.assignee.name}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-sm font-medium">
+                              {task.progress ?? 0}%
+                            </div>
+                            <Progress 
+                              value={task.progress ?? 0} 
+                              className="w-20 h-2 mt-1"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
 
           {/* Sidebar */}
