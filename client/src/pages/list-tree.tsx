@@ -1076,7 +1076,7 @@ export default function ListTree() {
               <div className="space-y-2">
                 <div className="flex gap-2">
                   <Input
-                    placeholder="새 라벨 입력"
+                    placeholder="새 라벨 입력 (최대 5글자)"
                     className="flex-1 h-8"
                     maxLength={5}
                     onKeyDown={(e) => {

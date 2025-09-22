@@ -12,6 +12,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { CheckCircle, Clock, AlertTriangle, User, Plus, Eye, Target, FolderOpen, Trash2, Check, X, Tag } from "lucide-react";
 import { parse } from "date-fns";
 import { useState } from "react";
+import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import type { SafeTaskWithAssignees, ProjectWithDetails, GoalWithTasks, SafeUser } from "@shared/schema";
 import { ProjectModal } from "@/components/project-modal";
@@ -36,6 +37,7 @@ interface FlattenedItem {
 }
 
 export default function ListHorizontal() {
+  const [, setLocation] = useLocation();
   const { toast } = useToast();
   const { data: projects, isLoading, error } = useQuery({
     queryKey: ["/api/projects"],
@@ -369,21 +371,14 @@ export default function ListHorizontal() {
   };
 
   const handleDetailView = (item: FlattenedItem) => {
-    // Open appropriate modal based on item type
+    // Navigate to appropriate detail page based on item type
     if (item.type === 'project') {
-      setGoalModalState({
-        isOpen: true,
-        projectId: item.id,
-        projectTitle: item.name
-      });
+      setLocation(`/detail/project/${item.id}`);
     } else if (item.type === 'goal') {
-      setTaskModalState({
-        isOpen: true,
-        goalId: item.id,
-        goalTitle: item.name
-      });
+      setLocation(`/detail/goal/${item.id}`);
+    } else if (item.type === 'task') {
+      setLocation(`/detail/task/${item.id}`);
     }
-    // For tasks, we could add a task detail modal in the future
   };
 
   const handleAssigneeChange = (taskId: string, assigneeId: string) => {
@@ -606,7 +601,7 @@ export default function ListHorizontal() {
               <div className="space-y-2">
                 <div className="flex gap-2">
                   <Input
-                    placeholder="새 라벨 입력"
+                    placeholder="새 라벨 입력 (최대 5글자)"
                     className="flex-1 h-8"
                     maxLength={5}
                     onKeyDown={(e) => {
