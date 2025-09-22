@@ -19,6 +19,7 @@ export const projects = pgTable("projects", {
   description: text("description"),
   deadline: text("deadline"),
   status: text("status").default("진행전"), // 진행전, 진행중, 완료
+  labels: text("labels").array().default(sql`'{}'`), // Labels (최대 2개)
   ownerIds: text("owner_ids").array().default(sql`'{}'`), // Multiple owners
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -30,6 +31,7 @@ export const goals = pgTable("goals", {
   description: text("description"),
   deadline: text("deadline"),
   status: text("status").default("진행전"), // 진행전, 진행중, 완료
+  labels: text("labels").array().default(sql`'{}'`), // Labels (최대 2개)
   assigneeIds: text("assignee_ids").array().default(sql`'{}'`), // Multiple assignees
   projectId: varchar("project_id").references(() => projects.id).notNull(),
   createdAt: timestamp("created_at").defaultNow(),
@@ -42,7 +44,7 @@ export const tasks = pgTable("tasks", {
   description: text("description"),
   status: text("status").notNull().default("진행전"), // 진행전, 진행중, 완료
   priority: text("priority").default("중간"), // 높음, 중간, 낮음
-  label: text("label"), // 라벨 필드 추가
+  labels: text("labels").array().default(sql`'{}'`), // Labels (최대 2개)
   deadline: text("deadline"),
   duration: integer("duration").default(0),
   progress: integer("progress").default(0), // 진행도 (0-100)
