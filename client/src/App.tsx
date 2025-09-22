@@ -31,8 +31,7 @@ function Router() {
           <Route path="/admin" component={Admin} />
           <Route path="/team" component={Team} />
           <Route path="/my-tasks" component={MyTasks} />
-          <Route path="/list" component={ListHorizontal} />
-          <Route path="/tree" component={ListTree} />
+          <Route path="/list" component={ListTree} />
           <Route path="/list-horizontal" component={ListHorizontal} />
           <Route path="/kanban" component={Kanban} />
           <Route path="/priority" component={Priority} />

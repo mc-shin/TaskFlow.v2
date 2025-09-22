@@ -9,7 +9,6 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ChevronDown, ChevronRight, FolderOpen, Target, Circle, Plus, Calendar, User, BarChart3, Check, X, Tag } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
@@ -1016,10 +1015,9 @@ export default function ListTree() {
     }
     
     const handleLabelAdd = (newLabel: string) => {
-      const trimmedLabel = newLabel.trim();
-      if (!trimmedLabel || currentLabels.length >= 2 || trimmedLabel.length > 5) return;
+      if (!newLabel.trim() || currentLabels.length >= 2) return;
       
-      const updatedLabels = [...currentLabels, trimmedLabel];
+      const updatedLabels = [...currentLabels, newLabel.trim()];
       
       if (type === 'project') {
         updateProjectMutation.mutate({ id: itemId, updates: { labels: updatedLabels } });
@@ -1042,58 +1040,19 @@ export default function ListTree() {
       }
     };
     
-    // Get label colors based on index
-    const getLabelColors = (index: number) => {
-      if (index === 0) {
-        return "bg-blue-600 hover:bg-blue-700 text-white border-blue-600";
-      } else {
-        return "bg-amber-600 hover:bg-amber-700 text-white border-amber-600";
-      }
-    };
-    
-    const renderLabelWithTooltip = (label: string, index: number) => {
-      const displayLabel = label.length > 5 ? label.slice(0, 5) : label;
-      const needsTooltip = label.length > 5;
-      
-      const badgeComponent = (
-        <Badge 
-          key={index} 
-          className={`text-xs inline-flex items-center whitespace-nowrap ${getLabelColors(index)}`}
-          data-testid={`badge-label-${itemId}-${index}`}
-        >
-          {displayLabel}
-        </Badge>
-      );
-      
-      if (needsTooltip) {
-        return (
-          <TooltipProvider key={index}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                {badgeComponent}
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>{label}</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        );
-      }
-      
-      return badgeComponent;
-    };
-    
     return (
       <Popover>
         <PopoverTrigger asChild>
           <div 
-            className="cursor-pointer hover:bg-muted/20 rounded-md min-w-28 min-h-6 flex items-center px-1 gap-1 whitespace-nowrap shrink-0"
+            className="cursor-pointer hover:bg-muted/20 rounded-md min-w-16 min-h-6 flex items-center px-1 gap-1 flex-wrap"
             data-testid={`edit-labels-${itemId}`}
           >
             {currentLabels.length > 0 ? (
-              <div className="flex gap-1 items-center whitespace-nowrap">
-                {currentLabels.map((label, index) => renderLabelWithTooltip(label, index))}
-              </div>
+              currentLabels.map((label, index) => (
+                <Badge key={index} variant="outline" className="text-xs bg-slate-600 hover:bg-slate-700 text-white">
+                  {label}
+                </Badge>
+              ))
             ) : (
               <span className="text-muted-foreground text-xs flex items-center gap-1">
                 <Tag className="w-3 h-3" />
@@ -1104,15 +1063,14 @@ export default function ListTree() {
         </PopoverTrigger>
         <PopoverContent className="w-64 p-3" align="start">
           <div className="space-y-3">
-            <h4 className="font-medium text-sm">라벨 편집 (최대 2개, 5글자 이하)</h4>
+            <h4 className="font-medium text-sm">라벨 편집 (최대 2개)</h4>
             
             {/* 입력 필드 */}
             {currentLabels.length < 2 && (
               <div className="flex gap-2">
                 <Input
-                  placeholder="새 라벨 입력 (5글자 이하)"
+                  placeholder="새 라벨 입력"
                   className="flex-1 h-8"
-                  maxLength={5}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
                       const target = e.target as HTMLInputElement;
@@ -1134,7 +1092,7 @@ export default function ListTree() {
                     key={index}
                     className="flex items-center justify-between p-2 rounded bg-muted/50"
                   >
-                    <Badge className={`text-xs ${getLabelColors(index)}`}>
+                    <Badge variant="outline" className="text-xs">
                       {label}
                     </Badge>
                     <Button

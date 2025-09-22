@@ -43,18 +43,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/tasks/:id", async (req, res) => {
     try {
-      // For updates, validate labels separately to allow partial updates
+      // For updates, use partial validation but check labels separately
       const taskData = insertTaskSchema.partial().parse(req.body);
-      if (taskData.labels) {
-        // Validate label constraints: max 2 labels, each max 5 characters
-        if (taskData.labels.length > 2) {
-          return res.status(400).json({ message: "작업은 최대 2개의 라벨만 가질 수 있습니다." });
-        }
-        for (const label of taskData.labels) {
-          if (label.length > 5) {
-            return res.status(400).json({ message: "라벨은 5글자 이하로 입력해주세요." });
-          }
-        }
+      if (taskData.labels && taskData.labels.length > 2) {
+        return res.status(400).json({ message: "작업은 최대 2개의 라벨만 가질 수 있습니다." });
       }
       const task = await storage.updateTask(req.params.id, taskData);
       if (!task) {
@@ -127,18 +119,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/projects/:id", async (req, res) => {
     try {
-      // For updates, validate labels separately to allow partial updates
+      // For updates, use partial validation but check labels separately
       const projectData = insertProjectSchema.partial().parse(req.body);
-      if (projectData.labels) {
-        // Validate label constraints: max 2 labels, each max 5 characters
-        if (projectData.labels.length > 2) {
-          return res.status(400).json({ message: "프로젝트는 최대 2개의 라벨만 가질 수 있습니다." });
-        }
-        for (const label of projectData.labels) {
-          if (label.length > 5) {
-            return res.status(400).json({ message: "라벨은 5글자 이하로 입력해주세요." });
-          }
-        }
+      if (projectData.labels && projectData.labels.length > 2) {
+        return res.status(400).json({ message: "프로젝트는 최대 2개의 라벨만 가질 수 있습니다." });
       }
       const project = await storage.updateProject(req.params.id, projectData);
       if (!project) {
@@ -221,18 +205,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/goals/:id", async (req, res) => {
     try {
       console.log(`[DEBUG] PUT /api/goals/${req.params.id} - Request body:`, JSON.stringify(req.body, null, 2));
-      // For updates, validate labels separately to allow partial updates
+      // For updates, use partial validation but check labels separately
       const goalData = insertGoalSchema.partial().parse(req.body);
-      if (goalData.labels) {
-        // Validate label constraints: max 2 labels, each max 5 characters
-        if (goalData.labels.length > 2) {
-          return res.status(400).json({ message: "목표는 최대 2개의 라벨만 가질 수 있습니다." });
-        }
-        for (const label of goalData.labels) {
-          if (label.length > 5) {
-            return res.status(400).json({ message: "라벨은 5글자 이하로 입력해주세요." });
-          }
-        }
+      if (goalData.labels && goalData.labels.length > 2) {
+        return res.status(400).json({ message: "목표는 최대 2개의 라벨만 가질 수 있습니다." });
       }
       const goal = await storage.updateGoal(req.params.id, goalData);
       console.log(`[DEBUG] PUT /api/goals/${req.params.id} - Updated goal:`, JSON.stringify(goal, null, 2));
