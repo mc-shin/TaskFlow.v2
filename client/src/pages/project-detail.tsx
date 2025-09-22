@@ -9,11 +9,12 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { ArrowLeft, Edit, Save, X, FolderOpen, Target, Circle, Plus, Trash2, Tag } from "lucide-react";
+import { ArrowLeft, Edit, Save, X, FolderOpen, Target, Circle, Plus, Trash2, Tag, Paperclip, Download } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useState } from "react";
 import { useLocation, useRoute } from "wouter";
 import { useToast } from "@/hooks/use-toast";
+import { ObjectUploader } from "@/components/ObjectUploader";
 import { apiRequest } from "@/lib/queryClient";
 import type { ProjectWithDetails, SafeUser } from "@shared/schema";
 import { GoalModal } from "@/components/goal-modal";
@@ -212,6 +213,7 @@ export default function ProjectDetail() {
                 variant="outline"
                 onClick={handleCancel}
                 data-testid="button-cancel"
+                className="w-[89.77px] h-[40px]"
               >
                 <X className="h-4 w-4 mr-2" />
                 취소
@@ -267,9 +269,9 @@ export default function ProjectDetail() {
         <div className="max-w-4xl mx-auto space-y-6">
 
         {/* Project Details */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Main Content */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-3 space-y-6">
             {/* Basic Info */}
             <Card>
               <CardHeader>
@@ -357,7 +359,7 @@ export default function ProjectDetail() {
                             {(editedProject.labels ?? project.labels ?? []).length < 2 && (
                               <div className="flex gap-2">
                                 <Input
-                                  placeholder="새 라벨 입력"
+                                  placeholder="새 라벨 입력 (최대 5글자)"
                                   className="flex-1 h-8"
                                   onKeyDown={(e) => {
                                     if (e.key === 'Enter') {
@@ -699,6 +701,48 @@ export default function ProjectDetail() {
                   <span className="font-medium text-gray-600" data-testid="text-pending-tasks">
                     {calculatedPendingTasks.length}개
                   </span>
+                </div>
+              </CardContent>
+            </Card>
+            
+            {/* File Attachments */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Paperclip className="h-4 w-4" />
+                  파일 첨부
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <ObjectUploader
+                    maxNumberOfFiles={5}
+                    maxFileSize={52428800} // 50MB
+                    onGetUploadParameters={async () => {
+                      const response = await fetch('/api/objects/upload', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' }
+                      });
+                      const data = await response.json();
+                      return { method: 'PUT' as const, url: data.uploadURL };
+                    }}
+                    onComplete={(result) => {
+                      if (result.successful.length > 0) {
+                        toast({
+                          title: "파일 업로드 완료",
+                          description: `${result.successful.length}개의 파일이 업로드되었습니다.`
+                        });
+                      }
+                    }}
+                  >
+                    <div className="flex items-center justify-center gap-2 p-4 border-2 border-dashed border-muted-foreground/25 rounded-lg hover:border-primary/50 transition-colors">
+                      <Paperclip className="h-4 w-4" />
+                      <span>파일을 선택하거나 드래그해서 업로드하세요</span>
+                    </div>
+                  </ObjectUploader>
+                  <p className="text-xs text-muted-foreground">
+                    최대 5개 파일, 각각 50MB까지 업로드 가능합니다.
+                  </p>
                 </div>
               </CardContent>
             </Card>
