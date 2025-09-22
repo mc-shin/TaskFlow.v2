@@ -513,7 +513,7 @@ export default function ListHorizontal() {
     const currentLabels = item.labels || [];
     
     const handleLabelAdd = (newLabel: string) => {
-      if (!newLabel.trim() || currentLabels.length >= 2) return;
+      if (!newLabel.trim() || currentLabels.length >= 2 || newLabel.trim().length > 5) return;
       
       const updatedLabels = [...currentLabels, newLabel.trim()];
       
