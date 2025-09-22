@@ -9,7 +9,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { ArrowLeft, Edit, Save, X, Circle, Target, FolderOpen, Calendar, User, Clock, Trash2, Tag, Paperclip } from "lucide-react";
+import { ArrowLeft, Edit, Save, X, Circle, Target, FolderOpen, Calendar, User, Clock, Trash2, Tag, Paperclip, Download } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useState } from "react";
 import { useLocation, useRoute } from "wouter";
@@ -28,6 +28,7 @@ export default function TaskDetail() {
   const [isEditing, setIsEditing] = useState(false);
   const [editedTask, setEditedTask] = useState<Partial<SafeTaskWithAssignees>>({});
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [attachedFiles, setAttachedFiles] = useState<Array<{ uploadURL: string; name: string }>>([]);
 
   const { data: projects, isLoading } = useQuery({
     queryKey: ["/api/projects"],
@@ -234,9 +235,6 @@ export default function TaskDetail() {
                 <h1 className="text-xl font-semibold" data-testid="text-task-title">
                   {task.title}
                 </h1>
-                <Badge variant={getStatusBadgeVariant(task.status)}>
-                  {task.status}
-                </Badge>
               </div>
             </div>
           </div>
@@ -353,122 +351,122 @@ export default function TaskDetail() {
                   )}
                 </div>
 
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">라벨</label>
-                  {isEditing ? (
-                    <div className="mt-1">
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <div 
-                            className="cursor-pointer hover:bg-muted/20 rounded-md min-w-16 min-h-8 flex items-center px-2 py-1 gap-1 flex-wrap bg-background border border-input"
-                            data-testid={`edit-labels-${task.id}`}
-                          >
-                            {(editedTask.labels ?? task.labels ?? []).length > 0 ? (
-                              (editedTask.labels ?? task.labels ?? []).map((label, index) => (
-                                <Badge 
-                                  key={index} 
-                                  variant="outline" 
-                                  className={`text-xs ${index === 0 ? 'bg-blue-500 hover:bg-blue-600 text-white' : 'bg-green-500 hover:bg-green-600 text-white'}`}
-                                >
-                                  {label}
-                                </Badge>
-                              ))
-                            ) : (
-                              <span className="text-muted-foreground text-xs flex items-center gap-1">
-                                <Tag className="w-3 h-3" />
-                                라벨 추가
-                              </span>
-                            )}
-                          </div>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-64 p-3" align="start">
-                          <div className="space-y-3">
-                            <h4 className="font-medium text-sm">라벨 편집 (최대 2개)</h4>
-                            
-                            {/* 입력 필드 */}
-                            {(editedTask.labels ?? task.labels ?? []).length < 2 && (
-                              <div className="flex gap-2">
-                                <Input
-                                  placeholder="새 라벨 입력 (최대 5글자)"
-                                  className="flex-1 h-8"
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Enter') {
-                                      const target = e.target as HTMLInputElement;
-                                      const newLabel = target.value.trim();
-                                      const currentLabels = editedTask.labels ?? task.labels ?? [];
-                                      if (newLabel && newLabel.length <= 5 && currentLabels.length < 2) {
-                                        const updatedLabels = [...currentLabels, newLabel];
-                                        setEditedTask(prev => ({ ...prev, labels: updatedLabels }));
-                                        target.value = '';
-                                      }
-                                    }
-                                  }}
-                                  data-testid={`input-new-label-${task.id}`}
-                                />
-                              </div>
-                            )}
-                            
-                            {/* 기존 라벨 목록 */}
-                            {(editedTask.labels ?? task.labels ?? []).length > 0 && (
-                              <div className="space-y-2">
-                                <div className="text-xs text-muted-foreground">현재 라벨</div>
-                                {(editedTask.labels ?? task.labels ?? []).map((label, index) => (
-                                  <div
-                                    key={index}
-                                    className="flex items-center justify-between p-2 rounded bg-muted/50"
-                                  >
-                                    <Badge variant="outline" className="text-xs">
-                                      {label}
-                                    </Badge>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => {
-                                        const currentLabels = editedTask.labels ?? task.labels ?? [];
-                                        const updatedLabels = currentLabels.filter((_, i) => i !== index);
-                                        setEditedTask(prev => ({ ...prev, labels: updatedLabels }));
-                                      }}
-                                      className="h-6 w-6 p-0"
-                                      data-testid={`button-remove-label-${task.id}-${index}`}
-                                    >
-                                      <X className="w-3 h-3" />
-                                    </Button>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                            
-                            {(editedTask.labels ?? task.labels ?? []).length >= 2 && (
-                              <div className="text-xs text-muted-foreground text-center">
-                                최대 2개의 라벨을 사용할 수 있습니다.
-                              </div>
-                            )}
-                          </div>
-                        </PopoverContent>
-                      </Popover>
-                    </div>
-                  ) : (
-                    <div className="mt-1" data-testid="text-task-labels">
-                      {(task.labels && task.labels.length > 0) ? (
-                        <div className="flex items-center gap-1 flex-wrap">
-                          {task.labels.map((label, index) => (
-                            <Badge 
-                              key={index} 
-                              variant="outline" 
-                              className={`text-xs ${index === 0 ? 'bg-blue-500 hover:bg-blue-600 text-white' : 'bg-green-500 hover:bg-green-600 text-white'}`}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">라벨</label>
+                    {isEditing ? (
+                      <div className="mt-1">
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <div 
+                              className="cursor-pointer hover:bg-muted/20 rounded-md min-w-16 min-h-8 flex items-center px-2 py-1 gap-1 flex-wrap bg-background border border-input"
+                              data-testid={`edit-labels-${task.id}`}
                             >
-                              {label}
-                            </Badge>
-                          ))}
-                        </div>
-                      ) : (
-                        <span className="text-muted-foreground">라벨이 없습니다</span>
-                      )}
-                    </div>
-                  )}
-                </div>
+                              {(editedTask.labels ?? task.labels ?? []).length > 0 ? (
+                                (editedTask.labels ?? task.labels ?? []).map((label, index) => (
+                                  <Badge 
+                                    key={index} 
+                                    variant="outline" 
+                                    className={`text-xs ${index === 0 ? 'bg-blue-500 hover:bg-blue-600 text-white' : 'bg-green-500 hover:bg-green-600 text-white'}`}
+                                  >
+                                    {label}
+                                  </Badge>
+                                ))
+                              ) : (
+                                <span className="text-muted-foreground text-xs flex items-center gap-1">
+                                  <Tag className="w-3 h-3" />
+                                  라벨 추가
+                                </span>
+                              )}
+                            </div>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-64 p-3" align="start">
+                            <div className="space-y-3">
+                              <h4 className="font-medium text-sm">라벨 편집 (최대 2개)</h4>
+                              
+                              {/* 입력 필드 */}
+                              {(editedTask.labels ?? task.labels ?? []).length < 2 && (
+                                <div className="flex gap-2">
+                                  <Input
+                                    placeholder="새 라벨 입력 (최대 5글자)"
+                                    className="flex-1 h-8"
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') {
+                                        const target = e.target as HTMLInputElement;
+                                        const newLabel = target.value.trim();
+                                        const currentLabels = editedTask.labels ?? task.labels ?? [];
+                                        if (newLabel && newLabel.length <= 5 && currentLabels.length < 2) {
+                                          const updatedLabels = [...currentLabels, newLabel];
+                                          setEditedTask(prev => ({ ...prev, labels: updatedLabels }));
+                                          target.value = '';
+                                        }
+                                      }
+                                    }}
+                                    data-testid={`input-new-label-${task.id}`}
+                                  />
+                                </div>
+                              )}
+                              
+                              {/* 기존 라벨 목록 */}
+                              {(editedTask.labels ?? task.labels ?? []).length > 0 && (
+                                <div className="space-y-2">
+                                  <div className="text-xs text-muted-foreground">현재 라벨</div>
+                                  {(editedTask.labels ?? task.labels ?? []).map((label, index) => (
+                                    <div
+                                      key={index}
+                                      className="flex items-center justify-between p-2 rounded bg-muted/50"
+                                    >
+                                      <Badge variant="outline" className="text-xs">
+                                        {label}
+                                      </Badge>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => {
+                                          const currentLabels = editedTask.labels ?? task.labels ?? [];
+                                          const updatedLabels = currentLabels.filter((_, i) => i !== index);
+                                          setEditedTask(prev => ({ ...prev, labels: updatedLabels }));
+                                        }}
+                                        className="h-6 w-6 p-0"
+                                        data-testid={`button-remove-label-${task.id}-${index}`}
+                                      >
+                                        <X className="w-3 h-3" />
+                                      </Button>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                              
+                              {(editedTask.labels ?? task.labels ?? []).length >= 2 && (
+                                <div className="text-xs text-muted-foreground text-center">
+                                  최대 2개의 라벨을 사용할 수 있습니다.
+                                </div>
+                              )}
+                            </div>
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                    ) : (
+                      <div className="mt-1" data-testid="text-task-labels">
+                        {(task.labels && task.labels.length > 0) ? (
+                          <div className="flex items-center gap-1 flex-wrap">
+                            {task.labels.map((label, index) => (
+                              <Badge 
+                                key={index} 
+                                variant="outline" 
+                                className={`text-xs ${index === 0 ? 'bg-blue-500 hover:bg-blue-600 text-white' : 'bg-green-500 hover:bg-green-600 text-white'}`}
+                              >
+                                {label}
+                              </Badge>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">라벨이 없습니다</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
 
-                <div className="grid grid-cols-1 gap-4">
                   <div>
                     <label className="text-sm font-medium text-muted-foreground">우선순위</label>
                     {isEditing ? (
@@ -546,6 +544,93 @@ export default function TaskDetail() {
                       ) : (
                         "설정되지 않음"
                       )}
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+            
+            {/* File Attachments */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Paperclip className="h-4 w-4" />
+                  파일 첨부
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <ObjectUploader
+                    maxNumberOfFiles={5}
+                    maxFileSize={52428800} // 50MB
+                    onGetUploadParameters={async () => {
+                      const response = await fetch('/api/objects/upload', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' }
+                      });
+                      const data = await response.json();
+                      return { method: 'PUT' as const, url: data.uploadURL };
+                    }}
+                    onComplete={(result) => {
+                      if (result.successful.length > 0) {
+                        setAttachedFiles(prev => [...prev, ...result.successful]);
+                        toast({
+                          title: "파일 업로드 완료",
+                          description: `${result.successful.length}개의 파일이 업로드되었습니다.`
+                        });
+                      }
+                    }}
+                  >
+                    <div className="flex items-center justify-center gap-2 p-4 border-2 border-dashed border-muted-foreground/25 rounded-lg hover:border-primary/50 transition-colors" data-testid="button-upload-file">
+                      <Paperclip className="h-4 w-4" />
+                      <span>파일을 선택하거나 드래그해서 업로드하세요</span>
+                    </div>
+                  </ObjectUploader>
+                  <p className="text-xs text-muted-foreground">
+                    최대 5개 파일, 각각 50MB까지 업로드 가능합니다.
+                  </p>
+                  
+                  {/* 업로드된 파일 목록 */}
+                  {attachedFiles.length > 0 && (
+                    <div className="mt-4 pt-3 border-t">
+                      <h4 className="text-sm font-medium mb-2">첨부된 파일 ({attachedFiles.length}개)</h4>
+                      <div className="space-y-2">
+                        {attachedFiles.map((file, index) => (
+                          <div key={index} className="flex items-center justify-between p-2 bg-muted/50 rounded-lg">
+                            <div className="flex items-center gap-2">
+                              <Paperclip className="h-4 w-4 text-muted-foreground" />
+                              <span className="text-sm font-medium truncate">{file.name}</span>
+                            </div>
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => {
+                                  const link = document.createElement('a');
+                                  link.href = file.uploadURL;
+                                  link.download = file.name;
+                                  link.click();
+                                }}
+                                className="h-8 w-8 p-0"
+                                data-testid={`button-download-file-${index}`}
+                              >
+                                <Download className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => {
+                                  setAttachedFiles(prev => prev.filter((_, i) => i !== index));
+                                }}
+                                className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                                data-testid={`button-remove-file-${index}`}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -681,48 +766,6 @@ export default function TaskDetail() {
                     <p className="text-sm text-muted-foreground">목표</p>
                   </div>
                 </button>
-              </CardContent>
-            </Card>
-            
-            {/* File Attachments */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Paperclip className="h-4 w-4" />
-                  파일 첨부
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <ObjectUploader
-                    maxNumberOfFiles={5}
-                    maxFileSize={52428800} // 50MB
-                    onGetUploadParameters={async () => {
-                      const response = await fetch('/api/objects/upload', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' }
-                      });
-                      const data = await response.json();
-                      return { method: 'PUT' as const, url: data.uploadURL };
-                    }}
-                    onComplete={(result) => {
-                      if (result.successful.length > 0) {
-                        toast({
-                          title: "파일 업로드 완료",
-                          description: `${result.successful.length}개의 파일이 업로드되었습니다.`
-                        });
-                      }
-                    }}
-                  >
-                    <div className="flex items-center justify-center gap-2 p-4 border-2 border-dashed border-muted-foreground/25 rounded-lg hover:border-primary/50 transition-colors" data-testid="button-upload-file">
-                      <Paperclip className="h-4 w-4" />
-                      <span>파일을 선택하거나 드래그해서 업로드하세요</span>
-                    </div>
-                  </ObjectUploader>
-                  <p className="text-xs text-muted-foreground">
-                    최대 5개 파일, 각각 50MB까지 업로드 가능합니다.
-                  </p>
-                </div>
               </CardContent>
             </Card>
 

@@ -34,6 +34,7 @@ export default function ProjectDetail() {
     projectTitle: '' 
   });
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [attachedFiles, setAttachedFiles] = useState<Array<{ uploadURL: string; name: string }>>([]);
 
   const { data: projects, isLoading } = useQuery({
     queryKey: ["/api/projects"],
@@ -565,6 +566,93 @@ export default function ProjectDetail() {
                 </CardContent>
               </Card>
             )}
+            
+            {/* File Attachments */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Paperclip className="h-4 w-4" />
+                  파일 첨부
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <ObjectUploader
+                    maxNumberOfFiles={5}
+                    maxFileSize={52428800} // 50MB
+                    onGetUploadParameters={async () => {
+                      const response = await fetch('/api/objects/upload', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' }
+                      });
+                      const data = await response.json();
+                      return { method: 'PUT' as const, url: data.uploadURL };
+                    }}
+                    onComplete={(result) => {
+                      if (result.successful.length > 0) {
+                        setAttachedFiles(prev => [...prev, ...result.successful]);
+                        toast({
+                          title: "파일 업로드 완료",
+                          description: `${result.successful.length}개의 파일이 업로드되었습니다.`
+                        });
+                      }
+                    }}
+                  >
+                    <div className="flex items-center justify-center gap-2 p-4 border-2 border-dashed border-muted-foreground/25 rounded-lg hover:border-primary/50 transition-colors" data-testid="button-upload-file">
+                      <Paperclip className="h-4 w-4" />
+                      <span>파일을 선택하거나 드래그해서 업로드하세요</span>
+                    </div>
+                  </ObjectUploader>
+                  <p className="text-xs text-muted-foreground">
+                    최대 5개 파일, 각각 50MB까지 업로드 가능합니다.
+                  </p>
+                  
+                  {/* 업로드된 파일 목록 */}
+                  {attachedFiles.length > 0 && (
+                    <div className="mt-4 pt-3 border-t">
+                      <h4 className="text-sm font-medium mb-2">첨부된 파일 ({attachedFiles.length}개)</h4>
+                      <div className="space-y-2">
+                        {attachedFiles.map((file, index) => (
+                          <div key={index} className="flex items-center justify-between p-2 bg-muted/50 rounded-lg">
+                            <div className="flex items-center gap-2">
+                              <Paperclip className="h-4 w-4 text-muted-foreground" />
+                              <span className="text-sm font-medium truncate">{file.name}</span>
+                            </div>
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => {
+                                  const link = document.createElement('a');
+                                  link.href = file.uploadURL;
+                                  link.download = file.name;
+                                  link.click();
+                                }}
+                                className="h-8 w-8 p-0"
+                                data-testid={`button-download-file-${index}`}
+                              >
+                                <Download className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => {
+                                  setAttachedFiles(prev => prev.filter((_, i) => i !== index));
+                                }}
+                                className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                                data-testid={`button-remove-file-${index}`}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
           {/* Sidebar */}
@@ -705,47 +793,6 @@ export default function ProjectDetail() {
               </CardContent>
             </Card>
             
-            {/* File Attachments */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Paperclip className="h-4 w-4" />
-                  파일 첨부
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <ObjectUploader
-                    maxNumberOfFiles={5}
-                    maxFileSize={52428800} // 50MB
-                    onGetUploadParameters={async () => {
-                      const response = await fetch('/api/objects/upload', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' }
-                      });
-                      const data = await response.json();
-                      return { method: 'PUT' as const, url: data.uploadURL };
-                    }}
-                    onComplete={(result) => {
-                      if (result.successful.length > 0) {
-                        toast({
-                          title: "파일 업로드 완료",
-                          description: `${result.successful.length}개의 파일이 업로드되었습니다.`
-                        });
-                      }
-                    }}
-                  >
-                    <div className="flex items-center justify-center gap-2 p-4 border-2 border-dashed border-muted-foreground/25 rounded-lg hover:border-primary/50 transition-colors">
-                      <Paperclip className="h-4 w-4" />
-                      <span>파일을 선택하거나 드래그해서 업로드하세요</span>
-                    </div>
-                  </ObjectUploader>
-                  <p className="text-xs text-muted-foreground">
-                    최대 5개 파일, 각각 50MB까지 업로드 가능합니다.
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
           </div>
         </div>
         </div>
