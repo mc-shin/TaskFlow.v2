@@ -224,7 +224,7 @@ export default function GoalDetail() {
           </div>
         </div>
         
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 min-w-[160px] justify-end">
           {isEditing ? (
             <>
               <Button 

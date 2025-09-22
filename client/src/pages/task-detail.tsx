@@ -239,70 +239,70 @@ export default function TaskDetail() {
               </div>
             </div>
           </div>
-          
-          <div className="flex items-center gap-2">
-            {isEditing ? (
-              <>
-                <Button 
-                  onClick={handleSave}
-                  disabled={updateTaskMutation.isPending}
-                  data-testid="button-save"
-                >
-                  <Save className="h-4 w-4 mr-2" />
-                  저장
-                </Button>
-                <Button 
-                  variant="outline"
-                  onClick={handleCancel}
-                  data-testid="button-cancel"
-                >
-                  <X className="h-4 w-4 mr-2" />
-                  취소
-                </Button>
-              </>
-            ) : (
-              <>
-                <Button 
-                  onClick={() => setIsEditing(true)}
-                  data-testid="button-edit"
-                >
-                  <Edit className="h-4 w-4 mr-2" />
-                  수정
-                </Button>
-                <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-                  <AlertDialogTrigger asChild>
-                    <Button 
-                      variant="destructive"
-                      disabled={deleteTaskMutation.isPending}
-                      data-testid="button-delete"
-                    >
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      삭제
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>app.riido.io 내용:</AlertDialogTitle>
-                      <AlertDialogDescription className="text-left">
-                        <div className="space-y-2">
-                          <div>[-] 작업을 삭제하시겠습니까?</div>
-                          <div className="text-sm text-muted-foreground">
-                            삭제된 작업은 복구할 수 없습니다.
-                          </div>
+        </div>
+        
+        <div className="flex items-center gap-2 min-w-[160px] justify-end">
+          {isEditing ? (
+            <>
+              <Button 
+                onClick={handleSave}
+                disabled={updateTaskMutation.isPending}
+                data-testid="button-save"
+              >
+                <Save className="h-4 w-4 mr-2" />
+                저장
+              </Button>
+              <Button 
+                variant="outline"
+                onClick={handleCancel}
+                data-testid="button-cancel"
+              >
+                <X className="h-4 w-4 mr-2" />
+                취소
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button 
+                onClick={() => setIsEditing(true)}
+                data-testid="button-edit"
+              >
+                <Edit className="h-4 w-4 mr-2" />
+                수정
+              </Button>
+              <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+                <AlertDialogTrigger asChild>
+                  <Button 
+                    variant="destructive"
+                    disabled={deleteTaskMutation.isPending}
+                    data-testid="button-delete"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    삭제
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>app.riido.io 내용:</AlertDialogTitle>
+                    <AlertDialogDescription className="text-left">
+                      <div className="space-y-2">
+                        <div>[-] 작업을 삭제하시겠습니까?</div>
+                        <div className="text-sm text-muted-foreground">
+                          삭제된 작업은 복구할 수 없습니다.
                         </div>
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>취소</AlertDialogCancel>
-                      <AlertDialogAction onClick={handleDelete} className="bg-blue-600 hover:bg-blue-700">
-                        확인
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
+                      </div>
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>취소</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDelete} className="bg-blue-600 hover:bg-blue-700">
+                      확인
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
                 </AlertDialog>
               </>
             )}
-        </div>
         </div>
       </header>
 
