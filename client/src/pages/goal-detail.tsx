@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { ArrowLeft, Edit, Save, X, Target, Circle, FolderOpen, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
@@ -179,7 +180,8 @@ export default function GoalDetail() {
     );
   }
 
-  const assignee = goal.assigneeId ? (users as SafeUser[])?.find(u => u.id === goal.assigneeId) : undefined;
+  // Get assignees from goal.assignees or derive from assigneeIds
+  const assignees = goal.assignees || (goal.assigneeIds ? goal.assigneeIds.map(id => (users as SafeUser[])?.find(u => u.id === id)).filter(Boolean) as SafeUser[] : []);
 
   // Calculate task statistics from goal tasks
   const goalTasksStats = goal?.tasks || [];
@@ -480,41 +482,71 @@ export default function GoalDetail() {
               </CardContent>
             </Card>
 
-            {/* Assignee */}
+            {/* Assignees */}
             <Card>
               <CardHeader>
-                <CardTitle>담당자</CardTitle>
+                <CardTitle>담당자 ({goal.assignees?.length || 0}명)</CardTitle>
               </CardHeader>
               <CardContent>
                 {isEditing ? (
-                  <Select
-                    value={editedGoal.assigneeId === null ? "none" : editedGoal.assigneeId ?? goal.assigneeId ?? "none"}
-                    onValueChange={(value) => setEditedGoal(prev => ({ ...prev, assigneeId: value === "none" ? null : value }))}
-                  >
-                    <SelectTrigger className="w-full" data-testid="select-goal-assignee">
-                      <SelectValue placeholder="담당자를 선택하세요" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">담당자 없음</SelectItem>
-                      {Array.isArray(users) ? (users as SafeUser[]).map((user) => (
-                        <SelectItem key={user.id} value={user.id}>
-                          {user.name}
-                        </SelectItem>
-                      )) : null}
-                    </SelectContent>
-                  </Select>
+                  <div className="space-y-3">
+                    <p className="text-sm font-medium">담당자 선택</p>
+                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                      {Array.isArray(users) ? (users as SafeUser[]).map((user) => {
+                        const currentAssigneeIds = editedGoal.assigneeIds ?? goal.assigneeIds ?? [];
+                        const isSelected = currentAssigneeIds.includes(user.id);
+                        
+                        return (
+                          <div key={user.id} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`assignee-${user.id}`}
+                              checked={isSelected}
+                              onCheckedChange={(checked) => {
+                                const currentIds = editedGoal.assigneeIds ?? goal.assigneeIds ?? [];
+                                let newIds: string[];
+                                
+                                if (checked) {
+                                  newIds = [...currentIds, user.id];
+                                } else {
+                                  newIds = currentIds.filter(id => id !== user.id);
+                                }
+                                
+                                setEditedGoal(prev => ({ ...prev, assigneeIds: newIds }));
+                              }}
+                              data-testid={`checkbox-assignee-${user.id}`}
+                            />
+                            <label
+                              htmlFor={`assignee-${user.id}`}
+                              className="flex items-center gap-2 cursor-pointer flex-1 p-2 rounded hover:bg-muted/50"
+                            >
+                              <Avatar className="w-6 h-6">
+                                <AvatarFallback className="text-xs">
+                                  {user.initials}
+                                </AvatarFallback>
+                              </Avatar>
+                              <span className="text-sm">{user.name}</span>
+                            </label>
+                          </div>
+                        );
+                      }) : null}
+                    </div>
+                  </div>
                 ) : (
-                  assignee ? (
-                    <div className="flex items-center gap-3">
-                      <Avatar>
-                        <AvatarFallback className="bg-primary text-primary-foreground">
-                          {assignee.initials}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <p className="font-medium" data-testid="text-assignee-name">{assignee.name}</p>
-                        <p className="text-sm text-muted-foreground">@{assignee.username}</p>
-                      </div>
+                  assignees && assignees.length > 0 ? (
+                    <div className="space-y-2">
+                      {assignees.map((assignee, index) => (
+                        <div key={assignee.id} className="flex items-center gap-3">
+                          <Avatar>
+                            <AvatarFallback className="bg-primary text-primary-foreground">
+                              {assignee.initials}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p className="font-medium" data-testid={`text-assignee-name-${index}`}>{assignee.name}</p>
+                            <p className="text-sm text-muted-foreground">@{assignee.username}</p>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   ) : (
                     <p className="text-muted-foreground">담당자가 지정되지 않았습니다.</p>

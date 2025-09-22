@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { ArrowLeft, Edit, Save, X, FolderOpen, Target, Circle, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
@@ -467,41 +468,71 @@ export default function ProjectDetail() {
               </CardContent>
             </Card>
 
-            {/* Owner */}
+            {/* Owners */}
             <Card>
               <CardHeader>
-                <CardTitle>담당자</CardTitle>
+                <CardTitle>담당자 ({project.owners?.length || 0}명)</CardTitle>
               </CardHeader>
               <CardContent>
                 {isEditing ? (
-                  <Select
-                    value={editedProject.ownerId === null ? "none" : editedProject.ownerId ?? project.ownerId ?? "none"}
-                    onValueChange={(value) => setEditedProject(prev => ({ ...prev, ownerId: value === "none" ? null : value }))}
-                  >
-                    <SelectTrigger className="w-full" data-testid="select-project-owner">
-                      <SelectValue placeholder="담당자를 선택하세요" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">담당자 없음</SelectItem>
-                      {Array.isArray(users) ? (users as SafeUser[]).map((user) => (
-                        <SelectItem key={user.id} value={user.id}>
-                          {user.name}
-                        </SelectItem>
-                      )) : null}
-                    </SelectContent>
-                  </Select>
+                  <div className="space-y-3">
+                    <p className="text-sm font-medium">담당자 선택</p>
+                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                      {Array.isArray(users) ? (users as SafeUser[]).map((user) => {
+                        const currentOwnerIds = editedProject.ownerIds ?? project.ownerIds ?? [];
+                        const isSelected = currentOwnerIds.includes(user.id);
+                        
+                        return (
+                          <div key={user.id} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`owner-${user.id}`}
+                              checked={isSelected}
+                              onCheckedChange={(checked) => {
+                                const currentIds = editedProject.ownerIds ?? project.ownerIds ?? [];
+                                let newIds: string[];
+                                
+                                if (checked) {
+                                  newIds = [...currentIds, user.id];
+                                } else {
+                                  newIds = currentIds.filter(id => id !== user.id);
+                                }
+                                
+                                setEditedProject(prev => ({ ...prev, ownerIds: newIds }));
+                              }}
+                              data-testid={`checkbox-owner-${user.id}`}
+                            />
+                            <label
+                              htmlFor={`owner-${user.id}`}
+                              className="flex items-center gap-2 cursor-pointer flex-1 p-2 rounded hover:bg-muted/50"
+                            >
+                              <Avatar className="w-6 h-6">
+                                <AvatarFallback className="text-xs">
+                                  {user.initials}
+                                </AvatarFallback>
+                              </Avatar>
+                              <span className="text-sm">{user.name}</span>
+                            </label>
+                          </div>
+                        );
+                      }) : null}
+                    </div>
+                  </div>
                 ) : (
-                  project.owner ? (
-                    <div className="flex items-center gap-3">
-                      <Avatar>
-                        <AvatarFallback className="bg-primary text-primary-foreground">
-                          {project.owner.initials}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <p className="font-medium" data-testid="text-owner-name">{project.owner.name}</p>
-                        <p className="text-sm text-muted-foreground">@{project.owner.username}</p>
-                      </div>
+                  project.owners && project.owners.length > 0 ? (
+                    <div className="space-y-2">
+                      {project.owners.map((owner, index) => (
+                        <div key={owner.id} className="flex items-center gap-3">
+                          <Avatar>
+                            <AvatarFallback className="bg-primary text-primary-foreground">
+                              {owner.initials}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p className="font-medium" data-testid={`text-owner-name-${index}`}>{owner.name}</p>
+                            <p className="text-sm text-muted-foreground">@{owner.username}</p>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   ) : (
                     <p className="text-muted-foreground">담당자가 지정되지 않았습니다.</p>
