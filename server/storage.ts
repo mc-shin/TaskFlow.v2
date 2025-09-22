@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type Task, type InsertTask, type Activity, type InsertActivity, type TaskWithAssignees, type ActivityWithDetails, type Project, type InsertProject, type ProjectWithOwners, type UserWithStats, type SafeUser, type SafeUserWithStats, type SafeTaskWithAssignees, type SafeActivityWithDetails, type Meeting, type InsertMeeting, type MeetingComment, type InsertMeetingComment, type MeetingAttachment, type InsertMeetingAttachment, type MeetingCommentWithAuthor, type MeetingWithDetails, type Goal, type InsertGoal, type GoalWithTasks, type ProjectWithDetails } from "@shared/schema";
+import { type User, type InsertUser, type Task, type InsertTask, type Activity, type InsertActivity, type TaskWithAssignees, type ActivityWithDetails, type Project, type InsertProject, type ProjectWithOwners, type UserWithStats, type SafeUser, type SafeUserWithStats, type SafeTaskWithAssignees, type SafeActivityWithDetails, type Meeting, type InsertMeeting, type MeetingComment, type InsertMeetingComment, type MeetingAttachment, type InsertMeetingAttachment, type MeetingCommentWithAuthor, type MeetingWithDetails, type Goal, type InsertGoal, type GoalWithTasks, type ProjectWithDetails, type Attachment, type InsertAttachment } from "@shared/schema";
 import { randomUUID } from "crypto";
 
 export interface IStorage {
@@ -59,6 +59,11 @@ export interface IStorage {
   getMeetingAttachments(meetingId: string): Promise<MeetingAttachment[]>;
   createMeetingAttachment(attachment: InsertMeetingAttachment): Promise<MeetingAttachment>;
   deleteMeetingAttachment(id: string): Promise<boolean>;
+  
+  // General Attachment methods
+  getAttachments(entityType: string, entityId: string): Promise<Attachment[]>;
+  createAttachment(attachment: InsertAttachment): Promise<Attachment>;
+  deleteAttachment(id: string): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
@@ -112,6 +117,7 @@ export class MemStorage implements IStorage {
   private meetings: Map<string, Meeting>;
   private meetingComments: Map<string, MeetingComment>;
   private meetingAttachments: Map<string, MeetingAttachment>;
+  private attachments: Map<string, Attachment>;
 
   constructor() {
     this.users = new Map();
@@ -122,6 +128,7 @@ export class MemStorage implements IStorage {
     this.meetings = new Map();
     this.meetingComments = new Map();
     this.meetingAttachments = new Map();
+    this.attachments = new Map();
     
     // Initialize with some default data
     this.initializeDefaultData();
@@ -1139,6 +1146,31 @@ export class MemStorage implements IStorage {
 
   async deleteMeetingAttachment(id: string): Promise<boolean> {
     return this.meetingAttachments.delete(id);
+  }
+
+  // General Attachment methods
+  async getAttachments(entityType: string, entityId: string): Promise<Attachment[]> {
+    return Array.from(this.attachments.values())
+      .filter(attachment => attachment.entityType === entityType && attachment.entityId === entityId)
+      .sort((a, b) => (a.createdAt ? new Date(a.createdAt).getTime() : 0) - (b.createdAt ? new Date(b.createdAt).getTime() : 0));
+  }
+
+  async createAttachment(insertAttachment: InsertAttachment): Promise<Attachment> {
+    const id = randomUUID();
+    const now = new Date();
+    const attachment: Attachment = {
+      ...insertAttachment,
+      id,
+      fileSize: insertAttachment.fileSize ?? null,
+      mimeType: insertAttachment.mimeType ?? null,
+      createdAt: now
+    };
+    this.attachments.set(id, attachment);
+    return attachment;
+  }
+
+  async deleteAttachment(id: string): Promise<boolean> {
+    return this.attachments.delete(id);
   }
 }
 

@@ -96,6 +96,18 @@ export const meetingComments = pgTable("meeting_comments", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+export const attachments = pgTable("attachments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  fileName: text("file_name").notNull(),
+  filePath: text("file_path").notNull(),
+  fileSize: integer("file_size"),
+  mimeType: text("mime_type"),
+  uploadedBy: varchar("uploaded_by").references(() => users.id).notNull(),
+  entityType: text("entity_type").notNull(), // 'project' | 'goal' | 'task'
+  entityId: varchar("entity_id").notNull(), // project/goal/task ID
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
 });
@@ -161,6 +173,11 @@ export const insertMeetingCommentSchema = createInsertSchema(meetingComments).om
   updatedAt: true,
 });
 
+export const insertAttachmentSchema = createInsertSchema(attachments).omit({
+  id: true,
+  createdAt: true,
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 
@@ -184,6 +201,9 @@ export type MeetingAttachment = typeof meetingAttachments.$inferSelect;
 
 export type InsertMeetingComment = z.infer<typeof insertMeetingCommentSchema>;
 export type MeetingComment = typeof meetingComments.$inferSelect;
+
+export type InsertAttachment = z.infer<typeof insertAttachmentSchema>;
+export type Attachment = typeof attachments.$inferSelect;
 
 export type MeetingCommentWithAuthor = MeetingComment & {
   author: SafeUser;

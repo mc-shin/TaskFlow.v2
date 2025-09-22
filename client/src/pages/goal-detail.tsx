@@ -514,7 +514,7 @@ export default function GoalDetail() {
                         headers: { 'Content-Type': 'application/json' }
                       });
                       const data = await response.json();
-                      return { method: 'PUT' as const, url: data.uploadURL };
+                      return { method: 'PUT' as const, url: data.uploadURL, objectPath: data.objectPath };
                     }}
                     onComplete={(result) => {
                       if (result.successful.length > 0) {
@@ -550,11 +550,20 @@ export default function GoalDetail() {
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                onClick={() => {
-                                  const link = document.createElement('a');
-                                  link.href = file.uploadURL;
-                                  link.download = file.name;
-                                  link.click();
+                                onClick={async () => {
+                                  try {
+                                    const response = await fetch(file.objectPath);
+                                    if (response.ok) {
+                                      const blob = await response.blob();
+                                      const link = document.createElement('a');
+                                      link.href = URL.createObjectURL(blob);
+                                      link.download = file.name;
+                                      link.click();
+                                      URL.revokeObjectURL(link.href);
+                                    }
+                                  } catch (error) {
+                                    console.error('Download failed:', error);
+                                  }
                                 }}
                                 className="h-8 w-8 p-0"
                                 data-testid={`button-download-file-${index}`}

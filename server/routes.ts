@@ -578,6 +578,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // General attachments API
+  app.get("/api/attachments/:entityType/:entityId", async (req, res) => {
+    try {
+      const { entityType, entityId } = req.params;
+      const attachments = await storage.getAttachments(entityType, entityId);
+      res.json(attachments);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch attachments" });
+    }
+  });
+
+  app.post("/api/attachments", async (req, res) => {
+    try {
+      if (!req.body.fileName || !req.body.filePath || !req.body.entityType || !req.body.entityId) {
+        return res.status(400).json({ error: "fileName, filePath, entityType, and entityId are required" });
+      }
+
+      const objectStorageService = new ObjectStorageService();
+      const objectPath = objectStorageService.normalizeObjectEntityPath(req.body.filePath);
+      
+      const attachment = await storage.createAttachment({
+        fileName: req.body.fileName,
+        filePath: objectPath,
+        fileSize: req.body.fileSize || null,
+        mimeType: req.body.mimeType || null,
+        uploadedBy: "hyejin", // For now, using default user
+        entityType: req.body.entityType,
+        entityId: req.body.entityId
+      });
+
+      res.json(attachment);
+    } catch (error) {
+      console.error("Error creating attachment:", error);
+      res.status(500).json({ message: "Failed to create attachment" });
+    }
+  });
+
+  app.delete("/api/attachments/:id", async (req, res) => {
+    try {
+      const deleted = await storage.deleteAttachment(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ message: "Attachment not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete attachment" });
+    }
+  });
+
   app.put("/api/meeting-attachments", async (req, res) => {
     if (!req.body.fileURL) {
       return res.status(400).json({ error: "fileURL is required" });

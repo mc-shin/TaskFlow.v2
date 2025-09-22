@@ -11,7 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { ArrowLeft, Edit, Save, X, FolderOpen, Target, Circle, Plus, Trash2, Tag, Paperclip, Download } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation, useRoute } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { ObjectUploader } from "@/components/ObjectUploader";
@@ -34,7 +34,7 @@ export default function ProjectDetail() {
     projectTitle: '' 
   });
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [attachedFiles, setAttachedFiles] = useState<Array<{ uploadURL: string; name: string }>>([]);
+  const [attachedFiles, setAttachedFiles] = useState<Array<{ id?: string; uploadURL: string; name: string; objectPath: string }>>([]);
 
   const { data: projects, isLoading } = useQuery({
     queryKey: ["/api/projects"],
@@ -44,7 +44,24 @@ export default function ProjectDetail() {
     queryKey: ["/api/users"],
   });
 
+  const { data: attachments } = useQuery({
+    queryKey: ["/api/attachments", "project", projectId],
+    enabled: !!projectId,
+  });
+
   const project = (projects as ProjectWithDetails[])?.find(p => p.id === projectId);
+
+  // Update attached files when attachments are loaded
+  useEffect(() => {
+    if (attachments) {
+      setAttachedFiles(attachments.map((att: any) => ({
+        id: att.id,
+        uploadURL: att.filePath,
+        name: att.fileName,
+        objectPath: att.filePath
+      })));
+    }
+  }, [attachments]);
 
   // Calculate statistics from goal tasks only (no direct project tasks)
   const goalTasks = project?.goals?.flatMap(goal => goal.tasks || []) || [];
@@ -524,11 +541,21 @@ export default function ProjectDetail() {
                         headers: { 'Content-Type': 'application/json' }
                       });
                       const data = await response.json();
-                      return { method: 'PUT' as const, url: data.uploadURL };
+                      return { method: 'PUT' as const, url: data.uploadURL, objectPath: data.objectPath };
                     }}
-                    onComplete={(result) => {
+                    onComplete={async (result) => {
                       if (result.successful.length > 0) {
-                        setAttachedFiles(prev => [...prev, ...result.successful]);
+                        // Save to database
+                        for (const file of result.successful) {
+                          await apiRequest("POST", "/api/attachments", {
+                            fileName: file.name,
+                            filePath: file.uploadURL,
+                            entityType: "project",
+                            entityId: projectId
+                          });
+                        }
+                        // Refresh attachments
+                        queryClient.invalidateQueries({ queryKey: ["/api/attachments", "project", projectId] });
                         toast({
                           title: "파일 업로드 완료",
                           description: `${result.successful.length}개의 파일이 업로드되었습니다.`
@@ -560,11 +587,20 @@ export default function ProjectDetail() {
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                onClick={() => {
-                                  const link = document.createElement('a');
-                                  link.href = file.uploadURL;
-                                  link.download = file.name;
-                                  link.click();
+                                onClick={async () => {
+                                  try {
+                                    const response = await fetch(file.objectPath);
+                                    if (response.ok) {
+                                      const blob = await response.blob();
+                                      const link = document.createElement('a');
+                                      link.href = URL.createObjectURL(blob);
+                                      link.download = file.name;
+                                      link.click();
+                                      URL.revokeObjectURL(link.href);
+                                    }
+                                  } catch (error) {
+                                    console.error('Download failed:', error);
+                                  }
                                 }}
                                 className="h-8 w-8 p-0"
                                 data-testid={`button-download-file-${index}`}
@@ -574,8 +610,24 @@ export default function ProjectDetail() {
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                onClick={() => {
-                                  setAttachedFiles(prev => prev.filter((_, i) => i !== index));
+                                onClick={async () => {
+                                  try {
+                                    if (file.id) {
+                                      await apiRequest("DELETE", `/api/attachments/${file.id}`);
+                                    }
+                                    setAttachedFiles(prev => prev.filter((_, i) => i !== index));
+                                    toast({
+                                      title: "파일 삭제 완료",
+                                      description: "파일이 성공적으로 삭제되었습니다.",
+                                    });
+                                  } catch (error) {
+                                    console.error('Delete failed:', error);
+                                    toast({
+                                      title: "삭제 실패",
+                                      description: "파일 삭제 중 오류가 발생했습니다.",
+                                      variant: "destructive"
+                                    });
+                                  }
                                 }}
                                 className="h-8 w-8 p-0 text-destructive hover:text-destructive"
                                 data-testid={`button-remove-file-${index}`}
