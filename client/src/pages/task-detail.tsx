@@ -14,7 +14,7 @@ import { useState } from "react";
 import { useLocation, useRoute } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import type { ProjectWithDetails, GoalWithTasks, SafeTaskWithAssignee, SafeUser } from "@shared/schema";
+import type { ProjectWithDetails, GoalWithTasks, SafeTaskWithAssignees, SafeUser } from "@shared/schema";
 
 export default function TaskDetail() {
   const [, params] = useRoute("/detail/task/:id");
@@ -24,7 +24,7 @@ export default function TaskDetail() {
   
   const taskId = params?.id;
   const [isEditing, setIsEditing] = useState(false);
-  const [editedTask, setEditedTask] = useState<Partial<SafeTaskWithAssignee>>({});
+  const [editedTask, setEditedTask] = useState<Partial<SafeTaskWithAssignees>>({});
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   const { data: projects, isLoading } = useQuery({
@@ -36,7 +36,7 @@ export default function TaskDetail() {
   });
 
   // Find the task and its parent goal/project
-  let task: SafeTaskWithAssignee | undefined;
+  let task: SafeTaskWithAssignees | undefined;
   let parentGoal: GoalWithTasks | undefined;
   let parentProject: ProjectWithDetails | undefined;
   
@@ -54,7 +54,7 @@ export default function TaskDetail() {
   }
 
   const updateTaskMutation = useMutation({
-    mutationFn: async (updates: Partial<SafeTaskWithAssignee>) => {
+    mutationFn: async (updates: Partial<SafeTaskWithAssignees>) => {
       return await apiRequest("PUT", `/api/tasks/${taskId}`, updates);
     },
     onSuccess: () => {
