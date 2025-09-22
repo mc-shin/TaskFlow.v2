@@ -77,6 +77,11 @@
   html {
     scrollbar-gutter: stable;
   }
+  
+  /* Ensure consistent scrollbar space for all detail pages */
+  main {
+    scrollbar-gutter: stable;
+  }
 }
 
 .progress-circle {

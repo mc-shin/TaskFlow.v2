@@ -53,7 +53,7 @@ export default function ProjectDetail() {
 
   // Update attached files when attachments are loaded
   useEffect(() => {
-    if (attachments) {
+    if (attachments && Array.isArray(attachments)) {
       setAttachedFiles(attachments.map((att: any) => ({
         id: att.id,
         uploadURL: att.filePath,
@@ -375,10 +375,12 @@ export default function ProjectDetail() {
                             
                             {/* 입력 필드 */}
                             {(editedProject.labels ?? project.labels ?? []).length < 2 && (
-                              <div className="flex gap-2">
-                                <Input
-                                  placeholder="새 라벨 입력 (최대 5글자)"
-                                  className="flex-1 h-8"
+                              <div className="space-y-2">
+                                <div className="flex gap-2">
+                                  <Input
+                                    placeholder="새 라벨 입력 (최대 5글자)"
+                                    className="flex-1 h-8"
+                                    maxLength={5}
                                   onKeyDown={(e) => {
                                     if (e.key === 'Enter') {
                                       const target = e.target as HTMLInputElement;
@@ -391,8 +393,10 @@ export default function ProjectDetail() {
                                       }
                                     }
                                   }}
-                                  data-testid={`input-new-label-${project.id}`}
-                                />
+                                    data-testid={`input-new-label-${project.id}`}
+                                  />
+                                </div>
+                                <div className="text-xs text-muted-foreground">최대 5글자</div>
                               </div>
                             )}
                             

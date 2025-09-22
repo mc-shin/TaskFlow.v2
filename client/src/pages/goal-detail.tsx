@@ -34,7 +34,7 @@ export default function GoalDetail() {
     goalTitle: '' 
   });
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [attachedFiles, setAttachedFiles] = useState<Array<{ uploadURL: string; name: string }>>([]);
+  const [attachedFiles, setAttachedFiles] = useState<Array<{ id?: string; uploadURL: string; name: string; objectPath?: string }>>([]);
 
   const { data: projects, isLoading } = useQuery({
     queryKey: ["/api/projects"],
@@ -371,10 +371,12 @@ export default function GoalDetail() {
                             
                             {/* 입력 필드 */}
                             {(editedGoal.labels ?? goal.labels ?? []).length < 2 && (
-                              <div className="flex gap-2">
-                                <Input
-                                  placeholder="새 라벨 입력 (최대 5글자)"
-                                  className="flex-1 h-8"
+                              <div className="space-y-2">
+                                <div className="flex gap-2">
+                                  <Input
+                                    placeholder="새 라벨 입력 (최대 5글자)"
+                                    className="flex-1 h-8"
+                                    maxLength={5}
                                   onKeyDown={(e) => {
                                     if (e.key === 'Enter') {
                                       const target = e.target as HTMLInputElement;
@@ -387,8 +389,10 @@ export default function GoalDetail() {
                                       }
                                     }
                                   }}
-                                  data-testid={`input-new-label-${goal.id}`}
-                                />
+                                    data-testid={`input-new-label-${goal.id}`}
+                                  />
+                                </div>
+                                <div className="text-xs text-muted-foreground">최대 5글자</div>
                               </div>
                             )}
                             
@@ -552,7 +556,8 @@ export default function GoalDetail() {
                                 variant="ghost"
                                 onClick={async () => {
                                   try {
-                                    const response = await fetch(file.objectPath);
+                                    const objectPath = file.objectPath || file.uploadURL;
+                                    const response = await fetch(`/api/objects/${objectPath}`);
                                     if (response.ok) {
                                       const blob = await response.blob();
                                       const link = document.createElement('a');

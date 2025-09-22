@@ -386,10 +386,12 @@ export default function TaskDetail() {
                               
                               {/* 입력 필드 */}
                               {(editedTask.labels ?? task.labels ?? []).length < 2 && (
-                                <div className="flex gap-2">
-                                  <Input
-                                    placeholder="새 라벨 입력 (최대 5글자)"
-                                    className="flex-1 h-8"
+                                <div className="space-y-2">
+                                  <div className="flex gap-2">
+                                    <Input
+                                      placeholder="새 라벨 입력 (최대 5글자)"
+                                      className="flex-1 h-8"
+                                      maxLength={5}
                                     onKeyDown={(e) => {
                                       if (e.key === 'Enter') {
                                         const target = e.target as HTMLInputElement;
@@ -402,8 +404,10 @@ export default function TaskDetail() {
                                         }
                                       }
                                     }}
-                                    data-testid={`input-new-label-${task.id}`}
-                                  />
+                                      data-testid={`input-new-label-${task.id}`}
+                                    />
+                                  </div>
+                                  <div className="text-xs text-muted-foreground">최대 5글자</div>
                                 </div>
                               )}
                               

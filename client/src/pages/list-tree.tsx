@@ -1073,19 +1073,23 @@ export default function ListTree() {
             
             {/* 입력 필드 */}
             {currentLabels.length < 2 && (
-              <div className="flex gap-2">
-                <Input
-                  placeholder="새 라벨 입력"
-                  className="flex-1 h-8"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      const target = e.target as HTMLInputElement;
-                      handleLabelAdd(target.value);
-                      target.value = '';
-                    }
-                  }}
-                  data-testid={`input-new-label-${itemId}`}
-                />
+              <div className="space-y-2">
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="새 라벨 입력"
+                    className="flex-1 h-8"
+                    maxLength={5}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        const target = e.target as HTMLInputElement;
+                        handleLabelAdd(target.value);
+                        target.value = '';
+                      }
+                    }}
+                    data-testid={`input-new-label-${itemId}`}
+                  />
+                </div>
+                <div className="text-xs text-muted-foreground">최대 5글자</div>
               </div>
             )}
             
