@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertTaskSchema, insertActivitySchema, insertProjectSchema, insertGoalSchema, insertMeetingSchema, insertMeetingCommentSchema, insertMeetingAttachmentSchema } from "@shared/schema";
+import { insertTaskSchema, insertTaskWithValidationSchema, insertActivitySchema, insertProjectSchema, insertProjectWithValidationSchema, insertGoalSchema, insertGoalWithValidationSchema, insertMeetingSchema, insertMeetingCommentSchema, insertMeetingAttachmentSchema } from "@shared/schema";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { z } from "zod";
 
@@ -30,7 +30,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/tasks", async (req, res) => {
     try {
-      const taskData = insertTaskSchema.parse(req.body);
+      const taskData = insertTaskWithValidationSchema.parse(req.body);
       const task = await storage.createTask(taskData);
       res.status(201).json(task);
     } catch (error) {
@@ -43,7 +43,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/tasks/:id", async (req, res) => {
     try {
+      // For updates, use partial validation but check labels separately
       const taskData = insertTaskSchema.partial().parse(req.body);
+      if (taskData.labels && taskData.labels.length > 2) {
+        return res.status(400).json({ message: "작업은 최대 2개의 라벨만 가질 수 있습니다." });
+      }
       const task = await storage.updateTask(req.params.id, taskData);
       if (!task) {
         return res.status(404).json({ message: "Task not found" });
@@ -102,7 +106,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/projects", async (req, res) => {
     try {
-      const projectData = insertProjectSchema.parse(req.body);
+      const projectData = insertProjectWithValidationSchema.parse(req.body);
       const project = await storage.createProject(projectData);
       res.status(201).json(project);
     } catch (error) {
@@ -115,7 +119,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/projects/:id", async (req, res) => {
     try {
+      // For updates, use partial validation but check labels separately
       const projectData = insertProjectSchema.partial().parse(req.body);
+      if (projectData.labels && projectData.labels.length > 2) {
+        return res.status(400).json({ message: "프로젝트는 최대 2개의 라벨만 가질 수 있습니다." });
+      }
       const project = await storage.updateProject(req.params.id, projectData);
       if (!project) {
         return res.status(404).json({ message: "Project not found" });
@@ -183,7 +191,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/goals", async (req, res) => {
     try {
-      const goalData = insertGoalSchema.parse(req.body);
+      const goalData = insertGoalWithValidationSchema.parse(req.body);
       const goal = await storage.createGoal(goalData);
       res.status(201).json(goal);
     } catch (error) {
@@ -197,7 +205,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/goals/:id", async (req, res) => {
     try {
       console.log(`[DEBUG] PUT /api/goals/${req.params.id} - Request body:`, JSON.stringify(req.body, null, 2));
+      // For updates, use partial validation but check labels separately
       const goalData = insertGoalSchema.partial().parse(req.body);
+      if (goalData.labels && goalData.labels.length > 2) {
+        return res.status(400).json({ message: "목표는 최대 2개의 라벨만 가질 수 있습니다." });
+      }
       const goal = await storage.updateGoal(req.params.id, goalData);
       console.log(`[DEBUG] PUT /api/goals/${req.params.id} - Updated goal:`, JSON.stringify(goal, null, 2));
       if (!goal) {

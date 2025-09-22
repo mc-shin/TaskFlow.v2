@@ -104,7 +104,9 @@ export const insertProjectSchema = createInsertSchema(projects).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
-}).refine((data) => {
+});
+
+export const insertProjectWithValidationSchema = insertProjectSchema.refine((data) => {
   return !data.labels || data.labels.length <= 2;
 }, {
   message: "프로젝트는 최대 2개의 라벨만 가질 수 있습니다.",
@@ -115,7 +117,9 @@ export const insertGoalSchema = createInsertSchema(goals).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
-}).refine((data) => {
+});
+
+export const insertGoalWithValidationSchema = insertGoalSchema.refine((data) => {
   return !data.labels || data.labels.length <= 2;
 }, {
   message: "목표는 최대 2개의 라벨만 가질 수 있습니다.",
@@ -126,7 +130,9 @@ export const insertTaskSchema = createInsertSchema(tasks).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
-}).refine((data) => {
+});
+
+export const insertTaskWithValidationSchema = insertTaskSchema.refine((data) => {
   return !data.labels || data.labels.length <= 2;
 }, {
   message: "작업은 최대 2개의 라벨만 가질 수 있습니다.",

@@ -8,13 +8,15 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { insertTaskSchema, type TaskWithAssignee } from "@shared/schema";
+import { insertTaskSchema, type TaskWithAssignees } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
 
 const taskFormSchema = insertTaskSchema.extend({
   deadline: z.string().optional(),
+  // For backward compatibility with single assignee field
+  assigneeId: z.string().optional(),
 });
 
 type TaskFormData = z.infer<typeof taskFormSchema>;
@@ -22,7 +24,7 @@ type TaskFormData = z.infer<typeof taskFormSchema>;
 interface TaskModalProps {
   isOpen: boolean;
   onClose: () => void;
-  editingTask?: TaskWithAssignee | null;
+  editingTask?: TaskWithAssignees | null;
   goalId?: string;
   goalTitle?: string;
 }
@@ -44,6 +46,7 @@ export function TaskModal({ isOpen, onClose, editingTask, goalId, goalTitle }: T
       priority: "중간",
       deadline: "",
       duration: 0,
+      assigneeIds: [],
       assigneeId: "none",
       goalId: goalId || "",
       projectId: "",
@@ -59,7 +62,8 @@ export function TaskModal({ isOpen, onClose, editingTask, goalId, goalTitle }: T
         priority: editingTask.priority || "중간",
         deadline: editingTask.deadline || "",
         duration: editingTask.duration || 0,
-        assigneeId: editingTask.assigneeId || "none",
+        assigneeIds: editingTask.assigneeIds || [],
+        assigneeId: (editingTask.assigneeIds && editingTask.assigneeIds.length > 0) ? editingTask.assigneeIds[0] : "none",
       });
     } else {
       form.reset({
@@ -69,6 +73,7 @@ export function TaskModal({ isOpen, onClose, editingTask, goalId, goalTitle }: T
         priority: "중간",
         deadline: "",
         duration: 0,
+        assigneeIds: [],
         assigneeId: "none",
       });
     }
@@ -79,7 +84,7 @@ export function TaskModal({ isOpen, onClose, editingTask, goalId, goalTitle }: T
       const taskData = {
         ...data,
         goalId: goalId || data.goalId || null,
-        assigneeId: data.assigneeId === "none" ? null : data.assigneeId,
+        assigneeIds: data.assigneeId === "none" ? [] : [data.assigneeId],
       };
       const response = await apiRequest("POST", "/api/tasks", taskData);
       return response.json();
