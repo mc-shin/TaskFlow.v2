@@ -5,10 +5,11 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CheckCircle, Clock, AlertTriangle, User, Plus, Eye, Target, FolderOpen, Trash2, Check } from "lucide-react";
+import { CheckCircle, Clock, AlertTriangle, User, Plus, Eye, Target, FolderOpen, Trash2, Check, X, Tag } from "lucide-react";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import type { SafeTaskWithAssignees, ProjectWithDetails, GoalWithTasks, SafeUser } from "@shared/schema";
@@ -24,7 +25,7 @@ interface FlattenedItem {
   participant: { id: string; name: string } | null;
   ownerIds?: string[];
   assigneeIds?: string[];
-  label: string;
+  labels: string[];
   status: string;
   score: number;
   importance: string;
@@ -162,7 +163,7 @@ export default function ListHorizontal() {
         deadline: project.deadline,
         participant: project.ownerIds && project.ownerIds.length > 0 ? { id: project.ownerIds[0], name: '소유자' } : null,
         ownerIds: project.ownerIds || undefined,
-        label: project.code,
+        labels: project.labels || [],
         status: `${project.completedTasks}/${project.totalTasks}`,
         score: project.progressPercentage || 0,
         importance: '중간',
@@ -181,7 +182,7 @@ export default function ListHorizontal() {
             deadline: null,
             participant: null,
             assigneeIds: goal.assigneeIds || undefined,
-            label: `${project.code}-G`,
+            labels: goal.labels || [],
             status: `${goal.completedTasks || 0}/${goal.totalTasks || 0}`,
             score: goal.progressPercentage || 0,
             importance: '중간',
@@ -200,7 +201,7 @@ export default function ListHorizontal() {
                 deadline: task.deadline,
                 participant: task.assignees && task.assignees.length > 0 ? { id: task.assignees[0].id, name: task.assignees[0].name } : null,
                 assigneeIds: task.assigneeIds || undefined,
-                label: `${project.code}-T`,
+                labels: task.labels || [],
                 status: task.status,
                 score: task.duration || 0,
                 importance: task.priority || '중간',
@@ -508,6 +509,115 @@ export default function ListHorizontal() {
     );
   };
 
+  const renderEditableLabels = (item: FlattenedItem) => {
+    const currentLabels = item.labels || [];
+    
+    const handleLabelAdd = (newLabel: string) => {
+      if (!newLabel.trim() || currentLabels.length >= 2) return;
+      
+      const updatedLabels = [...currentLabels, newLabel.trim()];
+      
+      if (item.type === 'project') {
+        updateProjectMutation.mutate({ id: item.id, data: { labels: updatedLabels } });
+      } else if (item.type === 'goal') {
+        updateGoalMutation.mutate({ id: item.id, data: { labels: updatedLabels } });
+      } else if (item.type === 'task') {
+        updateTaskMutation.mutate({ taskId: item.id, data: { labels: updatedLabels } });
+      }
+    };
+    
+    const handleLabelRemove = (labelToRemove: string) => {
+      const updatedLabels = currentLabels.filter(label => label !== labelToRemove);
+      
+      if (item.type === 'project') {
+        updateProjectMutation.mutate({ id: item.id, data: { labels: updatedLabels } });
+      } else if (item.type === 'goal') {
+        updateGoalMutation.mutate({ id: item.id, data: { labels: updatedLabels } });
+      } else if (item.type === 'task') {
+        updateTaskMutation.mutate({ taskId: item.id, data: { labels: updatedLabels } });
+      }
+    };
+    
+    return (
+      <Popover>
+        <PopoverTrigger asChild>
+          <div 
+            className="cursor-pointer hover:bg-muted rounded-md w-40 min-h-8 flex items-center px-1 gap-1 flex-wrap"
+            data-testid={`edit-labels-${item.id}`}
+          >
+            {currentLabels.length > 0 ? (
+              currentLabels.map((label, index) => (
+                <Badge key={index} variant="outline" className="text-xs">
+                  {label}
+                </Badge>
+              ))
+            ) : (
+              <span className="text-muted-foreground text-sm flex items-center gap-1">
+                <Tag className="w-3 h-3" />
+                라벨 추가
+              </span>
+            )}
+          </div>
+        </PopoverTrigger>
+        <PopoverContent className="w-64 p-3" align="start">
+          <div className="space-y-3">
+            <h4 className="font-medium text-sm">라벨 편집 (최대 2개)</h4>
+            
+            {/* 입력 필드 */}
+            {currentLabels.length < 2 && (
+              <div className="flex gap-2">
+                <Input
+                  placeholder="새 라벨 입력"
+                  className="flex-1 h-8"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      const target = e.target as HTMLInputElement;
+                      handleLabelAdd(target.value);
+                      target.value = '';
+                    }
+                  }}
+                  data-testid={`input-new-label-${item.id}`}
+                />
+              </div>
+            )}
+            
+            {/* 기존 라벨 목록 */}
+            {currentLabels.length > 0 && (
+              <div className="space-y-2">
+                <div className="text-xs text-muted-foreground">현재 라벨</div>
+                {currentLabels.map((label, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center justify-between p-2 rounded bg-muted/50"
+                  >
+                    <Badge variant="outline" className="text-xs">
+                      {label}
+                    </Badge>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleLabelRemove(label)}
+                      className="h-6 w-6 p-0"
+                      data-testid={`button-remove-label-${item.id}-${index}`}
+                    >
+                      <X className="w-3 h-3" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            {currentLabels.length >= 2 && (
+              <div className="text-xs text-muted-foreground text-center">
+                최대 2개의 라벨을 사용할 수 있습니다.
+              </div>
+            )}
+          </div>
+        </PopoverContent>
+      </Popover>
+    );
+  };
+  
   const renderEditableStatus = (item: FlattenedItem) => {
     if (item.type !== 'task' || !item.task) {
       return (
@@ -699,9 +809,7 @@ export default function ListHorizontal() {
                     {renderEditableAssignee(item)}
                   </TableCell>
                   <TableCell>
-                    <Badge variant="outline" data-testid={`badge-label-${item.id}`}>
-                      {item.label}
-                    </Badge>
+                    {renderEditableLabels(item)}
                   </TableCell>
                   <TableCell>
                     {renderEditableStatus(item)}

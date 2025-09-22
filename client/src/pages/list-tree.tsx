@@ -8,7 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ChevronDown, ChevronRight, FolderOpen, Target, Circle, Plus, Calendar, User, BarChart3, Check } from "lucide-react";
+import { ChevronDown, ChevronRight, FolderOpen, Target, Circle, Plus, Calendar, User, BarChart3, Check, X, Tag } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
@@ -999,59 +999,124 @@ export default function ListTree() {
   };
 
   // 라벨 편집 기능
-  const renderEditableLabel = (itemId: string, type: 'project' | 'goal' | 'task', label: string | null) => {
-    const isEditing = editingField?.itemId === itemId && editingField?.field === 'label';
+  const renderEditableLabel = (itemId: string, type: 'project' | 'goal' | 'task', labels: string[]) => {
+    const currentLabels = labels || [];
     
-    // 프로젝트와 목표는 라벨 편집 불가, 빈값 표시
-    if (type !== 'task') {
-      return <span className="text-muted-foreground text-sm">-</span>;
+    // Get current item data
+    let currentItem: any = null;
+    if (type === 'project') {
+      currentItem = (projects as ProjectWithDetails[])?.find(p => p.id === itemId);
+    } else if (type === 'goal') {
+      currentItem = (projects as ProjectWithDetails[])?.flatMap(p => p.goals || []).find(g => g.id === itemId);
+    } else if (type === 'task') {
+      currentItem = (projects as ProjectWithDetails[])
+        ?.flatMap(p => [...(p.tasks || []), ...(p.goals || []).flatMap(g => g.tasks || [])])
+        .find(t => t.id === itemId);
     }
     
-    if (isEditing) {
-      return (
-        <Input 
-          value={editingValue} 
-          onChange={(e) => setEditingValue(e.target.value)}
-          onBlur={() => {
-            const updates = { label: editingValue || null };
-            updateTaskMutation.mutate({ id: itemId, updates });
-            cancelEditing();
-          }}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              const updates = { label: editingValue || null };
-              updateTaskMutation.mutate({ id: itemId, updates });
-              cancelEditing();
-            }
-            if (e.key === 'Escape') {
-              cancelEditing();
-            }
-          }}
-          className="h-6 text-xs"
-          data-testid={`edit-label-${itemId}`}
-          autoFocus
-        />
-      );
-    }
+    const handleLabelAdd = (newLabel: string) => {
+      if (!newLabel.trim() || currentLabels.length >= 2) return;
+      
+      const updatedLabels = [...currentLabels, newLabel.trim()];
+      
+      if (type === 'project') {
+        updateProjectMutation.mutate({ id: itemId, updates: { labels: updatedLabels } });
+      } else if (type === 'goal') {
+        updateGoalMutation.mutate({ id: itemId, updates: { labels: updatedLabels } });
+      } else if (type === 'task') {
+        updateTaskMutation.mutate({ id: itemId, updates: { labels: updatedLabels } });
+      }
+    };
+    
+    const handleLabelRemove = (labelToRemove: string) => {
+      const updatedLabels = currentLabels.filter(label => label !== labelToRemove);
+      
+      if (type === 'project') {
+        updateProjectMutation.mutate({ id: itemId, updates: { labels: updatedLabels } });
+      } else if (type === 'goal') {
+        updateGoalMutation.mutate({ id: itemId, updates: { labels: updatedLabels } });
+      } else if (type === 'task') {
+        updateTaskMutation.mutate({ id: itemId, updates: { labels: updatedLabels } });
+      }
+    };
     
     return (
-      <div 
-        className="cursor-pointer flex items-center min-h-[24px]"
-        onClick={() => startEditing(itemId, 'label', type, label || '')}
-        data-testid={`text-label-${itemId}`}
-      >
-        {label ? (
-          <Badge 
-            className="bg-slate-600 hover:bg-slate-700 text-white text-xs px-2 py-1 font-medium"
+      <Popover>
+        <PopoverTrigger asChild>
+          <div 
+            className="cursor-pointer hover:bg-muted/20 rounded-md min-w-16 min-h-6 flex items-center px-1 gap-1 flex-wrap"
+            data-testid={`edit-labels-${itemId}`}
           >
-            {label}
-          </Badge>
-        ) : (
-          <div className="text-muted-foreground text-xs hover:bg-muted/20 px-2 py-1 rounded">
-            라벨 없음
+            {currentLabels.length > 0 ? (
+              currentLabels.map((label, index) => (
+                <Badge key={index} variant="outline" className="text-xs bg-slate-600 hover:bg-slate-700 text-white">
+                  {label}
+                </Badge>
+              ))
+            ) : (
+              <span className="text-muted-foreground text-xs flex items-center gap-1">
+                <Tag className="w-3 h-3" />
+                라벨
+              </span>
+            )}
           </div>
-        )}
-      </div>
+        </PopoverTrigger>
+        <PopoverContent className="w-64 p-3" align="start">
+          <div className="space-y-3">
+            <h4 className="font-medium text-sm">라벨 편집 (최대 2개)</h4>
+            
+            {/* 입력 필드 */}
+            {currentLabels.length < 2 && (
+              <div className="flex gap-2">
+                <Input
+                  placeholder="새 라벨 입력"
+                  className="flex-1 h-8"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      const target = e.target as HTMLInputElement;
+                      handleLabelAdd(target.value);
+                      target.value = '';
+                    }
+                  }}
+                  data-testid={`input-new-label-${itemId}`}
+                />
+              </div>
+            )}
+            
+            {/* 기존 라벨 목록 */}
+            {currentLabels.length > 0 && (
+              <div className="space-y-2">
+                <div className="text-xs text-muted-foreground">현재 라벨</div>
+                {currentLabels.map((label, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center justify-between p-2 rounded bg-muted/50"
+                  >
+                    <Badge variant="outline" className="text-xs">
+                      {label}
+                    </Badge>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleLabelRemove(label)}
+                      className="h-6 w-6 p-0"
+                      data-testid={`button-remove-label-${itemId}-${index}`}
+                    >
+                      <X className="w-3 h-3" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            {currentLabels.length >= 2 && (
+              <div className="text-xs text-muted-foreground text-center">
+                최대 2개의 라벨을 사용할 수 있습니다.
+              </div>
+            )}
+          </div>
+        </PopoverContent>
+      </Popover>
     );
   };
 
@@ -1274,7 +1339,7 @@ export default function ListTree() {
                         {renderEditableAssignee(project.id, 'project', project.owners && project.owners.length > 0 ? project.owners[0] : null, project.ownerIds)}
                       </div>
                       <div className="col-span-1">
-                        {renderEditableLabel(project.id, 'project', null)}
+                        {renderEditableLabel(project.id, 'project', project.labels || [])}
                       </div>
                       <div className="col-span-1">
                         {renderEditableStatus(project.id, 'project', '', project.progressPercentage || 0)}
@@ -1343,7 +1408,7 @@ export default function ListTree() {
                                 {renderEditableAssignee(goal.id, 'goal', goal.assigneeIds && goal.assigneeIds.length > 0 ? (users as SafeUser[])?.find(u => u.id === goal.assigneeIds![0]) || null : null, undefined, goal.assigneeIds)}
                               </div>
                               <div className="col-span-1">
-                                {renderEditableLabel(goal.id, 'goal', null)}
+                                {renderEditableLabel(goal.id, 'goal', goal.labels || [])}
                               </div>
                               <div className="col-span-1">
                                 {renderEditableStatus(goal.id, 'goal', '', goal.progressPercentage || 0)}
@@ -1385,7 +1450,7 @@ export default function ListTree() {
                                       {renderEditableAssignee(task.id, 'task', task.assignees && task.assignees.length > 0 ? task.assignees[0] : null, undefined, task.assigneeIds)}
                                     </div>
                                     <div className="col-span-1">
-                                      {renderEditableLabel(task.id, 'task', task.label)}
+                                      {renderEditableLabel(task.id, 'task', task.labels || [])}
                                     </div>
                                     <div className="col-span-1">
                                       {renderEditableStatus(task.id, 'task', task.status, getProgressFromStatus(task.status))}
