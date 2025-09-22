@@ -79,6 +79,15 @@ The application is designed as a monorepo with shared schemas between client and
 
 ## Recent Changes
 
+### List Tree UI/UX Improvements (September 18, 2025)
+- **Assignee Field Row Consistency**: Fixed layout shifts when editing assignee fields in the list view. The row now maintains consistent height and layout between edit and display modes, preventing visual jumps during inline editing.
+- **Hierarchical Checkbox Selection**: Implemented intelligent checkbox selection behavior where:
+  - Selecting a project automatically selects all its goals and tasks
+  - Selecting a goal automatically selects all its tasks
+  - Deselecting a parent item deselects all its children
+  - When all children are individually selected, the parent automatically becomes selected
+  - Provides intuitive bulk selection capabilities for project management workflows
+
 ### Meeting Management Enhancements (September 12, 2025)
 - **Optional End Time**: Meeting edit forms now treat end time as optional, with proper validation and null handling throughout the system. UI clearly indicates end time as "(선택사항)" (optional).
 - **File Attachments & Downloads**: Implemented complete attachment system for meetings with file upload, display, and download capabilities. Download functionality uses direct fetch calls to object storage streaming endpoints with proper error handling and user feedback.

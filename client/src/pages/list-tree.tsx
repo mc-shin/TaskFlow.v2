@@ -9,6 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ChevronDown, ChevronRight, FolderOpen, Target, Circle, Plus, Calendar, User, BarChart3 } from "lucide-react";
 import { useState, useEffect } from "react";
+import { useLocation } from "wouter";
+import { useToast } from "@/hooks/use-toast";
 import type { SafeTaskWithAssignee, ProjectWithDetails, GoalWithTasks, SafeUser } from "@shared/schema";
 import { ProjectModal } from "@/components/project-modal";
 import { GoalModal } from "@/components/goal-modal";
@@ -22,6 +24,8 @@ export default function ListTree() {
     queryKey: ["/api/projects"],
   });
 
+  const [_, setLocation] = useLocation();
+  const { toast } = useToast();
   
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
   const [expandedGoals, setExpandedGoals] = useState<Set<string>>(new Set());
@@ -51,6 +55,201 @@ export default function ListTree() {
 
   const queryClient = useQueryClient();
   
+  // Function to update progress for parent items (goals and projects) by modifying child tasks
+  const updateProgressForParentItem = async (itemId: string, type: 'goal' | 'project', targetProgress: number): Promise<number> => {
+    if (!projects) return targetProgress;
+    
+    let childTasks: SafeTaskWithAssignee[] = [];
+    
+    if (type === 'goal') {
+      // Find all tasks under this goal
+      (projects as ProjectWithDetails[]).forEach(project => {
+        const goal = project.goals?.find(g => g.id === itemId);
+        if (goal?.tasks) {
+          childTasks = goal.tasks;
+        }
+      });
+    } else if (type === 'project') {
+      // Find all tasks under all goals in this project
+      const project = (projects as ProjectWithDetails[]).find(p => p.id === itemId);
+      if (project?.goals) {
+        project.goals.forEach(goal => {
+          if (goal.tasks) {
+            childTasks.push(...goal.tasks);
+          }
+        });
+      }
+      // Also include direct project tasks if any
+      if (project?.tasks) {
+        childTasks.push(...project.tasks);
+      }
+    }
+    
+    if (childTasks.length === 0) return targetProgress;
+    
+    // Improved progress calculation algorithm
+    const totalTasks = childTasks.length;
+    console.log(`Updating progress for ${type} ${itemId} to ${targetProgress}% with ${totalTasks} child tasks`);
+    
+    // Get current distribution
+    const currentDistribution = childTasks.reduce((acc, task) => {
+      if (task.status === '완료') acc.completed++;
+      else if (task.status === '진행중') acc.inProgress++;
+      else acc.notStarted++;
+      return acc;
+    }, { completed: 0, inProgress: 0, notStarted: 0 });
+    
+    const currentProgress = (currentDistribution.completed * 100 + currentDistribution.inProgress * 50) / totalTasks;
+    console.log(`Current progress: ${currentProgress}% (${currentDistribution.completed} completed, ${currentDistribution.inProgress} in-progress, ${currentDistribution.notStarted} not-started)`);
+    
+    // Find optimal distribution with preference for minimal changes
+    let bestDistribution = currentDistribution;
+    let bestError = Math.abs(currentProgress - targetProgress);
+    let bestChangeCount = 0;
+    
+    // Try all possible combinations, preferring distributions with fewer changes
+    for (let completed = 0; completed <= totalTasks; completed++) {
+      for (let inProgress = 0; inProgress <= (totalTasks - completed); inProgress++) {
+        const notStarted = totalTasks - completed - inProgress;
+        const actualProgress = (completed * 100 + inProgress * 50) / totalTasks;
+        const error = Math.abs(actualProgress - targetProgress);
+        
+        // Calculate how many task status changes would be needed
+        const changeCount = Math.abs(completed - currentDistribution.completed) + 
+                          Math.abs(inProgress - currentDistribution.inProgress) + 
+                          Math.abs(notStarted - currentDistribution.notStarted);
+        
+        // Prefer solution with lower error, or same error with fewer changes
+        if (error < bestError || (error === bestError && changeCount < bestChangeCount)) {
+          bestError = error;
+          bestDistribution = { completed, inProgress, notStarted };
+          bestChangeCount = changeCount;
+        }
+      }
+    }
+    
+    const finalProgress = (bestDistribution.completed * 100 + bestDistribution.inProgress * 50) / totalTasks;
+    console.log(`Best distribution: ${bestDistribution.completed} completed, ${bestDistribution.inProgress} in-progress, ${bestDistribution.notStarted} not-started`);
+    console.log(`This gives ${finalProgress}% progress (target: ${targetProgress}%, error: ${bestError.toFixed(1)}%)`);
+    
+    // Deterministic task assignment to exactly match target distribution
+    const updates: Array<{task: SafeTaskWithAssignee, newStatus: string}> = [];
+    
+    // Create target assignment arrays for each status
+    const targetAssignment: {[status: string]: SafeTaskWithAssignee[]} = {
+      '진행전': [],
+      '진행중': [],
+      '완료': []
+    };
+    
+    // Group tasks by current status
+    const tasksByStatus = {
+      '진행전': childTasks.filter(t => t.status === '진행전'),
+      '진행중': childTasks.filter(t => t.status === '진행중'),
+      '완료': childTasks.filter(t => t.status === '완료')
+    };
+    
+    // First, assign tasks that can keep their current status (minimize changes)
+    const keepNotStarted = Math.min(tasksByStatus['진행전'].length, bestDistribution.notStarted);
+    const keepInProgress = Math.min(tasksByStatus['진행중'].length, bestDistribution.inProgress);
+    const keepCompleted = Math.min(tasksByStatus['완료'].length, bestDistribution.completed);
+    
+    targetAssignment['진행전'].push(...tasksByStatus['진행전'].slice(0, keepNotStarted));
+    targetAssignment['진행중'].push(...tasksByStatus['진행중'].slice(0, keepInProgress));
+    targetAssignment['완료'].push(...tasksByStatus['완료'].slice(0, keepCompleted));
+    
+    // Collect remaining tasks that need reassignment
+    const remainingTasks = [
+      ...tasksByStatus['진행전'].slice(keepNotStarted),
+      ...tasksByStatus['진행중'].slice(keepInProgress),
+      ...tasksByStatus['완료'].slice(keepCompleted)
+    ];
+    
+    // Calculate remaining slots needed for each status
+    const remainingSlots = {
+      '진행전': bestDistribution.notStarted - keepNotStarted,
+      '진행중': bestDistribution.inProgress - keepInProgress,
+      '완료': bestDistribution.completed - keepCompleted
+    };
+    
+    // Assign remaining tasks to fill the remaining slots, preferring minimal status changes
+    let taskIndex = 0;
+    
+    // Sort remaining tasks by how close they are to their target status (prefer one-step changes)
+    remainingTasks.sort((a, b) => {
+      const getStatusOrder = (status: string) => {
+        if (status === '진행전') return 0;
+        if (status === '진행중') return 1;
+        return 2; // '완료'
+      };
+      
+      const aOrder = getStatusOrder(a.status);
+      const bOrder = getStatusOrder(b.status);
+      return aOrder - bOrder;
+    });
+    
+    // Fill remaining slots in order of preference
+    for (const status of ['진행전', '진행중', '완료'] as const) {
+      while (remainingSlots[status] > 0 && taskIndex < remainingTasks.length) {
+        targetAssignment[status].push(remainingTasks[taskIndex]);
+        remainingSlots[status]--;
+        taskIndex++;
+      }
+    }
+    
+    // Generate updates for tasks that changed status
+    for (const [targetStatus, tasks] of Object.entries(targetAssignment)) {
+      for (const task of tasks) {
+        if (task.status !== targetStatus) {
+          updates.push({ task, newStatus: targetStatus });
+          console.log(`Updating task "${task.title}" from ${task.status} to ${targetStatus}`);
+        }
+      }
+    }
+    
+    // Verify the final distribution
+    const finalDistribution = {
+      completed: targetAssignment['완료'].length,
+      inProgress: targetAssignment['진행중'].length,
+      notStarted: targetAssignment['진행전'].length
+    };
+    console.log(`Final verification: ${finalDistribution.completed} completed, ${finalDistribution.inProgress} in-progress, ${finalDistribution.notStarted} not-started`);
+    
+    if (finalDistribution.completed !== bestDistribution.completed || 
+        finalDistribution.inProgress !== bestDistribution.inProgress || 
+        finalDistribution.notStarted !== bestDistribution.notStarted) {
+      console.error('Distribution mismatch! Target:', bestDistribution, 'Actual:', finalDistribution);
+    }
+    
+    // Apply updates using direct API calls to avoid individual query invalidations
+    const updatePromises = updates.map(async (update) => {
+      try {
+        await apiRequest("PUT", `/api/tasks/${update.task.id}`, { status: update.newStatus });
+        return { success: true, update };
+      } catch (error) {
+        console.error(`Failed to update task "${update.task.title}":`, error);
+        return { success: false, update, error };
+      }
+    });
+    
+    const results = await Promise.allSettled(updatePromises);
+    const failedUpdates = results.filter(result => 
+      result.status === 'rejected' || 
+      (result.status === 'fulfilled' && !result.value.success)
+    );
+    
+    if (failedUpdates.length > 0) {
+      console.error(`${failedUpdates.length} task updates failed`);
+      throw new Error(`${failedUpdates.length} out of ${updates.length} task updates failed`);
+    }
+    
+    // Invalidate queries once after all updates are complete
+    queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+    
+    // Return the actual achieved progress
+    return finalProgress;
+  };
+  
   // Show/hide toast based on selection
   useEffect(() => {
     setShowSelectionToast(selectedItems.size > 0);
@@ -78,16 +277,165 @@ export default function ListTree() {
   
   const toggleItemSelection = (itemId: string) => {
     const newSelected = new Set(selectedItems);
-    if (newSelected.has(itemId)) {
-      newSelected.delete(itemId);
+    
+    // Helper function to find all child items of a project or goal
+    const getChildItems = (parentId: string, parentType: 'project' | 'goal'): string[] => {
+      const childIds: string[] = [];
+      
+      if (parentType === 'project') {
+        // Find all goals and tasks under this project
+        const project = (projects as ProjectWithDetails[])?.find(p => p.id === parentId);
+        if (project?.goals) {
+          project.goals.forEach(goal => {
+            childIds.push(goal.id);
+            if (goal.tasks) {
+              goal.tasks.forEach(task => {
+                childIds.push(task.id);
+              });
+            }
+          });
+        }
+      } else if (parentType === 'goal') {
+        // Find all tasks under this goal
+        (projects as ProjectWithDetails[])?.forEach(project => {
+          const goal = project.goals?.find(g => g.id === parentId);
+          if (goal?.tasks) {
+            goal.tasks.forEach(task => {
+              childIds.push(task.id);
+            });
+          }
+        });
+      }
+      
+      return childIds;
+    };
+    
+    // Helper function to find parent items
+    const getParentItems = (childId: string): { projectId?: string; goalId?: string } => {
+      for (const project of (projects as ProjectWithDetails[]) || []) {
+        // Check if this is a goal of the project
+        const goal = project.goals?.find(g => g.id === childId);
+        if (goal) {
+          return { projectId: project.id };
+        }
+        
+        // Check if this is a task of any goal in the project
+        for (const goal of project.goals || []) {
+          const task = goal.tasks?.find(t => t.id === childId);
+          if (task) {
+            return { projectId: project.id, goalId: goal.id };
+          }
+        }
+      }
+      return {};
+    };
+    
+    // Determine the type of the selected item
+    let itemType: 'project' | 'goal' | 'task' = 'task';
+    const isProject = (projects as ProjectWithDetails[])?.some(p => p.id === itemId);
+    if (isProject) {
+      itemType = 'project';
     } else {
-      newSelected.add(itemId);
+      // Check if it's a goal
+      const isGoal = (projects as ProjectWithDetails[])?.some(p => 
+        p.goals?.some(g => g.id === itemId)
+      );
+      if (isGoal) {
+        itemType = 'goal';
+      }
     }
+    
+    // For parent items (project/goal), check if they should be considered "selected" 
+    // either directly or because all their children are selected
+    let isCurrentlySelected = newSelected.has(itemId);
+    if (!isCurrentlySelected && (itemType === 'project' || itemType === 'goal')) {
+      const childIds = getChildItems(itemId, itemType);
+      // Consider parent selected if all children are selected
+      if (childIds.length > 0) {
+        isCurrentlySelected = childIds.every(childId => newSelected.has(childId));
+      }
+    }
+    
+    if (isCurrentlySelected) {
+      // Deselecting: remove the item and all its children
+      newSelected.delete(itemId);
+      
+      if (itemType === 'project' || itemType === 'goal') {
+        const childIds = getChildItems(itemId, itemType);
+        childIds.forEach(childId => newSelected.delete(childId));
+      }
+    } else {
+      // Selecting: add the item and all its children
+      newSelected.add(itemId);
+      
+      if (itemType === 'project' || itemType === 'goal') {
+        const childIds = getChildItems(itemId, itemType);
+        childIds.forEach(childId => newSelected.add(childId));
+      }
+    }
+    
+    // No automatic parent selection when selecting child items
+    // Users should explicitly select parent items if they want them selected
+    
     setSelectedItems(newSelected);
   };
   
   const clearSelection = () => {
     setSelectedItems(new Set());
+  };
+
+  // Delete selected items
+  const deleteSelectedItems = async () => {
+    const selectedArray = Array.from(selectedItems);
+    
+    try {
+      // Categorize selected items by type
+      const projectIds: string[] = [];
+      const goalIds: string[] = [];
+      const taskIds: string[] = [];
+      
+      selectedArray.forEach(itemId => {
+        // Check if it's a project
+        const isProject = (projects as ProjectWithDetails[])?.some(p => p.id === itemId);
+        if (isProject) {
+          projectIds.push(itemId);
+          return;
+        }
+        
+        // Check if it's a goal
+        const isGoal = (projects as ProjectWithDetails[])?.some(p => 
+          p.goals?.some(g => g.id === itemId)
+        );
+        if (isGoal) {
+          goalIds.push(itemId);
+          return;
+        }
+        
+        // Otherwise it's a task
+        taskIds.push(itemId);
+      });
+      
+      // Delete tasks first (to avoid foreign key conflicts)
+      for (const taskId of taskIds) {
+        await deleteTaskMutation.mutateAsync(taskId);
+      }
+      
+      // Then delete goals
+      for (const goalId of goalIds) {
+        await deleteGoalMutation.mutateAsync(goalId);
+      }
+      
+      // Finally delete projects
+      for (const projectId of projectIds) {
+        await deleteProjectMutation.mutateAsync(projectId);
+      }
+      
+      // Clear selection after successful deletion
+      clearSelection();
+    } catch (error) {
+      console.error('Failed to delete selected items:', error);
+      // TODO: Show error toast to user
+    }
   };
 
   // Inline editing functions
@@ -106,7 +454,30 @@ export default function ListTree() {
     mutationFn: async (data: { id: string; updates: any }) => {
       return await apiRequest("PUT", `/api/projects/${data.id}`, data.updates);
     },
-    onSuccess: () => {
+    onMutate: async ({ id, updates }) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["/api/projects"] });
+
+      // Snapshot the previous value
+      const previousProjects = queryClient.getQueryData(["/api/projects"]);
+
+      // Optimistically update the cache
+      queryClient.setQueryData(["/api/projects"], (old: ProjectWithDetails[] | undefined) => {
+        if (!old) return old;
+        
+        return old.map(project => 
+          project.id === id ? { ...project, ...updates } : project
+        );
+      });
+
+      return { previousProjects };
+    },
+    onError: (err, newProject, context) => {
+      if (context?.previousProjects) {
+        queryClient.setQueryData(["/api/projects"], context.previousProjects);
+      }
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
     }
   });
@@ -115,7 +486,33 @@ export default function ListTree() {
     mutationFn: async (data: { id: string; updates: any }) => {
       return await apiRequest("PUT", `/api/goals/${data.id}`, data.updates);
     },
-    onSuccess: () => {
+    onMutate: async ({ id, updates }) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["/api/projects"] });
+
+      // Snapshot the previous value
+      const previousProjects = queryClient.getQueryData(["/api/projects"]);
+
+      // Optimistically update the cache
+      queryClient.setQueryData(["/api/projects"], (old: ProjectWithDetails[] | undefined) => {
+        if (!old) return old;
+        
+        return old.map(project => ({
+          ...project,
+          goals: project.goals?.map(goal => 
+            goal.id === id ? { ...goal, ...updates } : goal
+          )
+        }));
+      });
+
+      return { previousProjects };
+    },
+    onError: (err, newGoal, context) => {
+      if (context?.previousProjects) {
+        queryClient.setQueryData(["/api/projects"], context.previousProjects);
+      }
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
     }
   });
@@ -124,13 +521,77 @@ export default function ListTree() {
     mutationFn: async (data: { id: string; updates: any }) => {
       return await apiRequest("PUT", `/api/tasks/${data.id}`, data.updates);
     },
+    onMutate: async ({ id, updates }) => {
+      // Cancel outgoing refetches to prevent optimistic update from being overwritten
+      await queryClient.cancelQueries({ queryKey: ["/api/projects"] });
+
+      // Snapshot the previous value
+      const previousProjects = queryClient.getQueryData(["/api/projects"]);
+
+      // Optimistically update the cache
+      queryClient.setQueryData(["/api/projects"], (old: ProjectWithDetails[] | undefined) => {
+        if (!old) return old;
+        
+        return old.map(project => ({
+          ...project,
+          goals: project.goals?.map(goal => ({
+            ...goal,
+            tasks: goal.tasks?.map(task => 
+              task.id === id ? { ...task, ...updates } : task
+            )
+          }))
+        }));
+      });
+
+      return { previousProjects, taskId: id, updates };
+    },
+    onSuccess: (data, variables) => {
+      // Backend now stores progress field, no manual cache update needed
+    },
+    onError: (err, newTask, context) => {
+      // Revert the optimistic update on error
+      if (context?.previousProjects) {
+        queryClient.setQueryData(["/api/projects"], context.previousProjects);
+      }
+    },
+    onSettled: () => {
+      // Always refetch after error or success to ensure data consistency
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+    }
+  });
+
+  // Delete mutations
+  const deleteProjectMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return await apiRequest("DELETE", `/api/projects/${id}`);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
     }
   });
 
-  const saveEdit = () => {
+  const deleteGoalMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return await apiRequest("DELETE", `/api/goals/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+    }
+  });
+
+  const deleteTaskMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return await apiRequest("DELETE", `/api/tasks/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+    }
+  });
+
+  const saveEdit = async () => {
     if (!editingField) return;
+    
+    console.log(`SaveEdit called for ${editingField.type} ${editingField.itemId}, field: ${editingField.field}, value: ${editingValue}`);
     
     const updates: any = {};
     
@@ -145,9 +606,61 @@ export default function ListTree() {
     } else if (editingField.field === 'status') {
       updates.status = editingValue;
     } else if (editingField.field === 'progress') {
-      // Progress is calculated, not directly editable for projects/goals
+      const progressValue = parseInt(editingValue);
+      
       if (editingField.type === 'task') {
-        updates.status = parseInt(editingValue) === 100 ? '완료' : '진행중';
+        // Map progress to status for backend
+        let finalStatus: string;
+        
+        if (progressValue === 0) {
+          finalStatus = '진행전';
+        } else if (progressValue === 100) {
+          finalStatus = '완료';
+        } else {
+          finalStatus = '진행중';
+        }
+        
+        updates.status = finalStatus;
+        updates.progress = progressValue;
+        
+        toast({
+          title: "진행도 업데이트",
+          description: `작업 진행도가 ${progressValue}%로 업데이트되었습니다.`,
+        });
+      } else if (editingField.type === 'goal' || editingField.type === 'project') {
+        // For goals and projects, we need to update their child tasks to achieve target progress
+        // Skip the normal update flow and handle this specially
+        console.log(`Calling updateProgressForParentItem for ${editingField.type} ${editingField.itemId} with target ${progressValue}%`);
+        try {
+          const achievedProgress = await updateProgressForParentItem(editingField.itemId, editingField.type, progressValue);
+          console.log(`updateProgressForParentItem completed successfully`);
+          
+          const itemTypeName = editingField.type === 'goal' ? '목표' : '프로젝트';
+          
+          const description = Math.round(achievedProgress) === progressValue 
+            ? `${itemTypeName} 진행도가 ${progressValue}%로 업데이트되고 하위 작업들이 조정되었습니다.`
+            : `${itemTypeName} 진행도가 ${Math.round(achievedProgress)}%로 조정되었습니다 (목표: ${progressValue}%).`;
+            
+          toast({
+            title: "진행도 업데이트 완료",
+            description,
+          });
+          
+          // Navigate to graph view after successful progress update
+          setTimeout(() => {
+            setLocation('/');
+          }, 1500);
+          
+        } catch (error) {
+          console.error('Error in updateProgressForParentItem:', error);
+          toast({
+            title: "진행도 업데이트 실패",
+            description: "진행도 업데이트 중 오류가 발생했습니다. 다시 시도해주세요.",
+            variant: "destructive",
+          });
+        }
+        cancelEditing();
+        return;
       }
     } else if (editingField.field === 'importance') {
       if (editingField.type === 'task') {
@@ -157,11 +670,35 @@ export default function ListTree() {
     }
 
     if (editingField.type === 'project') {
-      updateProjectMutation.mutate({ id: editingField.itemId, updates });
+      updateProjectMutation.mutate({ id: editingField.itemId, updates }, {
+        onSuccess: () => {
+          if (editingField.field === 'progress') {
+            setTimeout(() => {
+              setLocation('/');
+            }, 1500);
+          }
+        }
+      });
     } else if (editingField.type === 'goal') {
-      updateGoalMutation.mutate({ id: editingField.itemId, updates });
+      updateGoalMutation.mutate({ id: editingField.itemId, updates }, {
+        onSuccess: () => {
+          if (editingField.field === 'progress') {
+            setTimeout(() => {
+              setLocation('/');
+            }, 1500);
+          }
+        }
+      });
     } else if (editingField.type === 'task') {
-      updateTaskMutation.mutate({ id: editingField.itemId, updates });
+      updateTaskMutation.mutate({ id: editingField.itemId, updates }, {
+        onSuccess: () => {
+          if (editingField.field === 'progress') {
+            setTimeout(() => {
+              setLocation('/');
+            }, 1500);
+          }
+        }
+      });
     }
   };
 
@@ -217,7 +754,7 @@ export default function ListTree() {
     
     if (isEditing) {
       return (
-        <div className="w-28 min-w-[7rem] max-w-[7rem]">
+        <div className="w-28 min-w-[7rem] max-w-[7rem] h-8 flex items-center">
           <Select value={editingValue} onValueChange={(value) => {
             setEditingValue(value);
             const updates: any = {};
@@ -263,7 +800,7 @@ export default function ListTree() {
     
     return (
       <div 
-        className="cursor-pointer hover:bg-muted/20 px-1 py-1 rounded w-28 min-w-[7rem] max-w-[7rem] overflow-hidden"
+        className="cursor-pointer hover:bg-muted/20 px-1 py-1 rounded w-28 min-w-[7rem] max-w-[7rem] h-8 flex items-center overflow-hidden"
         onClick={() => startEditing(itemId, 'assignee', type, currentUserId || 'none')}
       >
         {assignee ? (
@@ -282,71 +819,110 @@ export default function ListTree() {
     );
   };
 
-  const renderEditableStatus = (itemId: string, type: 'project' | 'goal' | 'task', status: string) => {
-    const isEditing = editingField?.itemId === itemId && editingField?.field === 'status';
+  // Function to derive status from progress
+  const getStatusFromProgress = (progress: number): string => {
+    if (progress === 0) return '진행전';
+    if (progress >= 100) return '완료';
+    return '진행중';
+  };
+
+  // Function to derive progress from status
+  const getProgressFromStatus = (status: string): number => {
+    if (status === '진행전') return 0;
+    if (status === '완료') return 100;
+    return 50; // '진행중'
+  };
+
+  const renderEditableStatus = (itemId: string, type: 'project' | 'goal' | 'task', status: string, progress?: number) => {
+    // Status is now read-only and derived from progress if progress is provided
+    const displayStatus = progress !== undefined ? getStatusFromProgress(progress) : status;
+    
+    return (
+      <Badge 
+        variant={getStatusBadgeVariant(displayStatus)} 
+        className="text-xs cursor-default"
+        data-testid={`status-${itemId}`}
+      >
+        {displayStatus}
+      </Badge>
+    );
+  };
+
+  const renderEditableProgress = (itemId: string, type: 'project' | 'goal' | 'task', progress: number, status?: string) => {
+    // Only tasks can have their progress edited directly
+    if (type !== 'task') {
+      return (
+        <div className="flex items-center gap-2 px-1 py-1">
+          <Progress value={progress} className="flex-1" />
+          <span className="text-xs text-muted-foreground w-8">
+            {progress}%
+          </span>
+        </div>
+      );
+    }
+
+    const isEditing = editingField?.itemId === itemId && editingField?.field === 'progress';
+    
+    // Progress options for dropdown (10% increments)
+    const progressOptions = Array.from({ length: 11 }, (_, i) => i * 10);
+
+    const handleProgressSelect = async (value: string) => {
+      const progressValue = parseInt(value);
+      
+      // Map progress to status for backend
+      let finalStatus: string;
+      
+      if (progressValue === 0) {
+        finalStatus = '진행전';
+      } else if (progressValue === 100) {
+        finalStatus = '완료';
+      } else {
+        finalStatus = '진행중';
+      }
+
+      try {
+        await updateTaskMutation.mutateAsync({
+          id: itemId,
+          updates: { status: finalStatus, progress: progressValue }
+        });
+        
+        toast({
+          title: "진행도 업데이트",
+          description: `작업 진행도가 ${progressValue}%로 업데이트되었습니다.`,
+        });
+      } catch (error) {
+        console.error('Progress update failed:', error);
+        toast({
+          title: "업데이트 실패",
+          description: "진행도 업데이트 중 오류가 발생했습니다.",
+          variant: "destructive",
+        });
+      }
+      
+      cancelEditing();
+    };
     
     if (isEditing) {
       return (
-        <Select value={editingValue} onValueChange={(value) => {
-          setEditingValue(value);
-          const updates = { status: value };
-          
-          if (type === 'project') {
-            updateProjectMutation.mutate({ id: itemId, updates });
-          } else if (type === 'goal') {
-            updateGoalMutation.mutate({ id: itemId, updates });
-          } else {
-            updateTaskMutation.mutate({ id: itemId, updates });
-          }
-          cancelEditing();
-        }}>
-          <SelectTrigger className="h-6 text-xs" data-testid={`edit-status-${itemId}`}>
+        <Select value={progress.toString()} onValueChange={handleProgressSelect}>
+          <SelectTrigger className="h-6 text-xs w-16" data-testid={`edit-progress-${itemId}`}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="진행전">진행전</SelectItem>
-            <SelectItem value="진행중">진행중</SelectItem>
-            <SelectItem value="완료">완료</SelectItem>
+            {progressOptions.map((option) => (
+              <SelectItem key={option} value={option.toString()}>
+                {option}%
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       );
     }
     
     return (
-      <Badge 
-        variant={getStatusBadgeVariant(status)} 
-        className="text-xs cursor-pointer hover:opacity-80"
-        onClick={() => startEditing(itemId, 'status', type, status)}
-      >
-        {status}
-      </Badge>
-    );
-  };
-
-  const renderEditableProgress = (itemId: string, type: 'project' | 'goal' | 'task', progress: number, status?: string) => {
-    const isEditing = editingField?.itemId === itemId && editingField?.field === 'progress';
-    
-    if (isEditing && type === 'task') {
-      return (
-        <Input
-          type="number"
-          min="0"
-          max="100"
-          value={editingValue}
-          onChange={(e) => setEditingValue(e.target.value)}
-          onKeyDown={handleKeyPress}
-          onBlur={saveEdit}
-          className="h-6 text-xs w-16"
-          autoFocus
-          data-testid={`edit-progress-${itemId}`}
-        />
-      );
-    }
-    
-    return (
       <div 
-        className={`flex items-center gap-2 ${type === 'task' ? 'cursor-pointer hover:bg-muted/20 px-1 py-1 rounded' : ''}`}
-        onClick={type === 'task' ? () => startEditing(itemId, 'progress', type, status === '완료' ? '100' : '50') : undefined}
+        className="flex items-center gap-2 cursor-pointer hover:bg-muted/20 px-1 py-1 rounded"
+        onClick={() => startEditing(itemId, 'progress', type, progress.toString())}
       >
         <Progress value={progress} className="flex-1" />
         <span className="text-xs text-muted-foreground w-8">
@@ -601,9 +1177,13 @@ export default function ListTree() {
                           )}
                         </Button>
                         <FolderOpen className="w-4 h-4 text-blue-600" />
-                        <span className="font-medium" data-testid={`text-project-name-${project.id}`}>
+                        <button 
+                          className="font-medium hover:text-blue-600 cursor-pointer transition-colors text-left" 
+                          onClick={() => setLocation(`/detail/project/${project.id}`)}
+                          data-testid={`text-project-name-${project.id}`}
+                        >
                           {project.name}
-                        </span>
+                        </button>
                         <Badge variant="outline" className="text-xs">
                           {project.code}
                         </Badge>
@@ -631,7 +1211,7 @@ export default function ListTree() {
                         {renderEditableLabel(project.id, 'project', null)}
                       </div>
                       <div className="col-span-1">
-                        {renderEditableStatus(project.id, 'project', '진행중')}
+                        {renderEditableStatus(project.id, 'project', '', project.progressPercentage || 0)}
                       </div>
                       <div className="col-span-2">
                         {renderEditableProgress(project.id, 'project', project.progressPercentage || 0)}
@@ -669,9 +1249,13 @@ export default function ListTree() {
                                   )}
                                 </Button>
                                 <Target className="w-4 h-4 text-green-600" />
-                                <span className="font-medium" data-testid={`text-goal-name-${goal.id}`}>
+                                <button 
+                                  className="font-medium hover:text-green-600 cursor-pointer transition-colors text-left" 
+                                  onClick={() => setLocation(`/detail/goal/${goal.id}`)}
+                                  data-testid={`text-goal-name-${goal.id}`}
+                                >
                                   {goal.title}
-                                </span>
+                                </button>
                                 <Button
                                   variant="ghost"
                                   size="sm"
@@ -687,16 +1271,16 @@ export default function ListTree() {
                                 </Button>
                               </div>
                               <div className="col-span-1">
-                                {renderEditableDeadline(goal.id, 'goal', null)}
+                                {renderEditableDeadline(goal.id, 'goal', goal.deadline)}
                               </div>
                               <div className="col-span-1">
-                                {renderEditableAssignee(goal.id, 'goal', null)}
+                                {renderEditableAssignee(goal.id, 'goal', goal.assigneeId ? (users as SafeUser[])?.find(u => u.id === goal.assigneeId) || null : null, goal.assigneeId)}
                               </div>
                               <div className="col-span-1">
                                 {renderEditableLabel(goal.id, 'goal', null)}
                               </div>
                               <div className="col-span-1">
-                                {renderEditableStatus(goal.id, 'goal', '목표')}
+                                {renderEditableStatus(goal.id, 'goal', '', goal.progressPercentage || 0)}
                               </div>
                               <div className="col-span-2">
                                 {renderEditableProgress(goal.id, 'goal', goal.progressPercentage || 0)}
@@ -720,9 +1304,13 @@ export default function ListTree() {
                                         data-testid={`checkbox-task-${task.id}`}
                                       />
                                       <Circle className="w-4 h-4 text-orange-600" />
-                                      <span className="font-medium" data-testid={`text-task-name-${task.id}`}>
+                                      <button 
+                                        className="font-medium hover:text-orange-600 cursor-pointer transition-colors text-left" 
+                                        onClick={() => setLocation(`/detail/task/${task.id}`)}
+                                        data-testid={`text-task-name-${task.id}`}
+                                      >
                                         {task.title}
-                                      </span>
+                                      </button>
                                     </div>
                                     <div className="col-span-1">
                                       {renderEditableDeadline(task.id, 'task', task.deadline)}
@@ -734,10 +1322,10 @@ export default function ListTree() {
                                       {renderEditableLabel(task.id, 'task', task.label)}
                                     </div>
                                     <div className="col-span-1">
-                                      {renderEditableStatus(task.id, 'task', task.status)}
+                                      {renderEditableStatus(task.id, 'task', task.status, getProgressFromStatus(task.status))}
                                     </div>
                                     <div className="col-span-2">
-                                      {renderEditableProgress(task.id, 'task', task.status === '완료' ? 100 : 50, task.status)}
+                                      {renderEditableProgress(task.id, 'task', task.progress ?? getProgressFromStatus(task.status), task.status)}
                                     </div>
                                     <div className="col-span-1">
                                       {renderEditableImportance(task.id, 'task', task.priority || '중간')}
@@ -773,6 +1361,16 @@ export default function ListTree() {
               data-testid="button-clear-selection"
             >
               선택 해제
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              className="bg-red-600 hover:bg-red-700 text-sm"
+              onClick={deleteSelectedItems}
+              disabled={deleteProjectMutation.isPending || deleteGoalMutation.isPending || deleteTaskMutation.isPending}
+              data-testid="button-delete-selection"
+            >
+              {(deleteProjectMutation.isPending || deleteGoalMutation.isPending || deleteTaskMutation.isPending) ? '삭제 중...' : '삭제'}
             </Button>
             <Button
               variant="default"

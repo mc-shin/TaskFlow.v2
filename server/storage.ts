@@ -62,6 +62,48 @@ export interface IStorage {
 }
 
 export class MemStorage implements IStorage {
+  // Helper function to get task progress - use stored progress value if available, otherwise derive from status
+  private getTaskProgress(task: Task | { status: string; progress?: number | null }): number {
+    // If progress is explicitly stored, use that value
+    if ('progress' in task && task.progress !== null && task.progress !== undefined) {
+      return task.progress;
+    }
+    
+    // Otherwise, derive from status for backward compatibility
+    switch (task.status) {
+      case '완료': return 100;
+      case '진행전': return 0;
+      default: return 50;
+    }
+  }
+
+  // Helper function to calculate average progress from tasks
+  private calculateAverageProgress(tasks: Task[]): number {
+    if (tasks.length === 0) return 0;
+    const totalProgress = tasks.reduce((sum, task) => sum + this.getTaskProgress(task), 0);
+    return totalProgress / tasks.length;
+  }
+  
+  // Backfill progress values for existing tasks that might not have proper progress set
+  private backfillTaskProgress(): void {
+    for (const task of Array.from(this.tasks.values())) {
+      // Only update if progress is 0 and status suggests otherwise
+      if (task.progress === 0) {
+        let correctedProgress: number | null = null;
+        
+        if (task.status === '완료') {
+          correctedProgress = 100;
+        } else if (task.status === '진행중') {
+          correctedProgress = 50;
+        }
+        
+        if (correctedProgress !== null) {
+          task.progress = correctedProgress;
+          task.updatedAt = new Date();
+        }
+      }
+    }
+  }
   private users: Map<string, User>;
   private projects: Map<string, Project>;
   private goals: Map<string, Goal>;
@@ -168,6 +210,9 @@ export class MemStorage implements IStorage {
     for (const task of defaultTasks) {
       await this.createTask(task);
     }
+    
+    // Backfill progress values for any existing tasks that might have been created without proper progress
+    this.backfillTaskProgress();
 
     // Initialize meetings
     const defaultMeetings = [
@@ -300,7 +345,7 @@ export class MemStorage implements IStorage {
         return new Date(task.deadline) < new Date();
       });
       
-      const progressPercentage = projectTasks.length > 0 ? (completedTasks.length / projectTasks.length) * 100 : 0;
+      const progressPercentage = this.calculateAverageProgress(projectTasks);
       
       // Add assignee info to tasks
       const tasksWithAssignees: SafeTaskWithAssignee[] = [];
@@ -335,25 +380,34 @@ export class MemStorage implements IStorage {
       const ownerUser = project.ownerId ? await this.getUser(project.ownerId) : undefined;
       const owner = ownerUser ? (({ password, ...safeUser }) => safeUser)(ownerUser) : undefined;
       
-      // Get all tasks for this project
-      const projectTasks = Array.from(this.tasks.values()).filter(task => task.projectId === project.id);
-      const completedTasks = projectTasks.filter(task => task.status === "완료");
-      const overdueTasks = projectTasks.filter(task => {
+      // Get all direct project tasks
+      const directProjectTasks = Array.from(this.tasks.values()).filter(task => task.projectId === project.id);
+      
+      // Get goals for this project with their tasks
+      const projectGoals = Array.from(this.goals.values()).filter(goal => goal.projectId === project.id);
+      
+      // Collect all tasks from all goals within this project
+      const allGoalTasks: Task[] = [];
+      projectGoals.forEach(goal => {
+        const goalTasks = Array.from(this.tasks.values()).filter(task => task.goalId === goal.id);
+        allGoalTasks.push(...goalTasks);
+      });
+      
+      // Combine direct project tasks with all goal tasks for progress calculation
+      const allProjectTasks = [...directProjectTasks, ...allGoalTasks];
+      const completedTasks = allProjectTasks.filter(task => task.status === "완료");
+      const overdueTasks = allProjectTasks.filter(task => {
         if (!task.deadline) return false;
         return new Date(task.deadline) < new Date();
       });
       
-      const progressPercentage = projectTasks.length > 0 ? (completedTasks.length / projectTasks.length) * 100 : 0;
-      
-      // Get goals for this project with their tasks
-      const projectGoals = Array.from(this.goals.values()).filter(goal => goal.projectId === project.id);
       const goalsWithTasks: GoalWithTasks[] = [];
       
       for (const goal of projectGoals) {
         // Get tasks for this goal
         const goalTasks = Array.from(this.tasks.values()).filter(task => task.goalId === goal.id);
         const goalCompletedTasks = goalTasks.filter(task => task.status === "완료");
-        const goalProgressPercentage = goalTasks.length > 0 ? (goalCompletedTasks.length / goalTasks.length) * 100 : 0;
+        const goalProgressPercentage = this.calculateAverageProgress(goalTasks);
         
         // Add assignee info to goal tasks
         const goalTasksWithAssignees: SafeTaskWithAssignee[] = [];
@@ -372,9 +426,20 @@ export class MemStorage implements IStorage {
         });
       }
       
-      // Add assignee info to project tasks
+      // Calculate project progress as average of goal progress
+      let projectProgressPercentage: number;
+      if (goalsWithTasks.length > 0) {
+        // Project progress = sum of goal progress / number of goals
+        const totalGoalProgress = goalsWithTasks.reduce((sum, goal) => sum + (goal.progressPercentage || 0), 0);
+        projectProgressPercentage = totalGoalProgress / goalsWithTasks.length;
+      } else {
+        // If no goals, use direct project tasks for progress calculation
+        projectProgressPercentage = this.calculateAverageProgress(directProjectTasks);
+      }
+      
+      // Add assignee info to direct project tasks
       const tasksWithAssignees: SafeTaskWithAssignee[] = [];
-      for (const task of projectTasks) {
+      for (const task of directProjectTasks) {
         const assigneeUser = task.assigneeId ? await this.getUser(task.assigneeId) : undefined;
         const assignee = assigneeUser ? (({ password, ...safeUser }) => safeUser)(assigneeUser) : undefined;
         tasksWithAssignees.push({ ...task, assignee });
@@ -385,9 +450,9 @@ export class MemStorage implements IStorage {
         owner,
         goals: goalsWithTasks,
         tasks: tasksWithAssignees,
-        totalTasks: projectTasks.length,
+        totalTasks: allProjectTasks.length,
         completedTasks: completedTasks.length,
-        progressPercentage: Math.round(progressPercentage),
+        progressPercentage: Math.round(projectProgressPercentage),
         hasOverdueTasks: overdueTasks.length > 0,
         overdueTaskCount: overdueTasks.length,
       });
@@ -404,18 +469,46 @@ export class MemStorage implements IStorage {
     
     const ownerUser = project.ownerId ? await this.getUser(project.ownerId) : undefined;
     const owner = ownerUser ? (({ password, ...safeUser }) => safeUser)(ownerUser) : undefined;
-    const projectTasks = Array.from(this.tasks.values()).filter(task => task.projectId === project.id);
-    const completedTasks = projectTasks.filter(task => task.status === "완료");
-    const overdueTasks = projectTasks.filter(task => {
+    
+    // Get all direct project tasks
+    const directProjectTasks = Array.from(this.tasks.values()).filter(task => task.projectId === project.id);
+    
+    // Get goals for this project
+    const projectGoals = Array.from(this.goals.values()).filter(goal => goal.projectId === project.id);
+    
+    // Collect all tasks from all goals within this project
+    const allGoalTasks: Task[] = [];
+    projectGoals.forEach(goal => {
+      const goalTasks = Array.from(this.tasks.values()).filter(task => task.goalId === goal.id);
+      allGoalTasks.push(...goalTasks);
+    });
+    
+    // Combine direct project tasks with all goal tasks for progress calculation
+    const allProjectTasks = [...directProjectTasks, ...allGoalTasks];
+    const completedTasks = allProjectTasks.filter(task => task.status === "완료");
+    const overdueTasks = allProjectTasks.filter(task => {
       if (!task.deadline) return false;
       return new Date(task.deadline) < new Date();
     });
     
-    const progressPercentage = projectTasks.length > 0 ? (completedTasks.length / projectTasks.length) * 100 : 0;
+    // Calculate project progress using the same logic as getAllProjectsWithDetails
+    let progressPercentage: number;
+    if (projectGoals.length > 0) {
+      // Project progress = average of goal progress
+      const goalProgressSum = projectGoals.reduce((sum, goal) => {
+        const goalTasks = Array.from(this.tasks.values()).filter(task => task.goalId === goal.id);
+        const goalProgress = this.calculateAverageProgress(goalTasks);
+        return sum + goalProgress;
+      }, 0);
+      progressPercentage = goalProgressSum / projectGoals.length;
+    } else {
+      // If no goals, use direct project tasks for progress calculation
+      progressPercentage = this.calculateAverageProgress(directProjectTasks);
+    }
     
-    // Add assignee info to tasks
+    // Add assignee info to direct project tasks
     const tasksWithAssignees: SafeTaskWithAssignee[] = [];
-    for (const task of projectTasks) {
+    for (const task of directProjectTasks) {
       const assigneeUser = task.assigneeId ? await this.getUser(task.assigneeId) : undefined;
       const assignee = assigneeUser ? (({ password, ...safeUser }) => safeUser)(assigneeUser) : undefined;
       tasksWithAssignees.push({ ...task, assignee });
@@ -425,7 +518,7 @@ export class MemStorage implements IStorage {
       ...project,
       owner,
       tasks: tasksWithAssignees,
-      totalTasks: projectTasks.length,
+      totalTasks: allProjectTasks.length,
       completedTasks: completedTasks.length,
       progressPercentage: Math.round(progressPercentage),
       hasOverdueTasks: overdueTasks.length > 0,
@@ -515,7 +608,7 @@ export class MemStorage implements IStorage {
       const goalTasks = Array.from(this.tasks.values()).filter(task => task.goalId === goal.id);
       const completedTasks = goalTasks.filter(task => task.status === "완료");
       
-      const progressPercentage = goalTasks.length > 0 ? (completedTasks.length / goalTasks.length) * 100 : 0;
+      const progressPercentage = this.calculateAverageProgress(goalTasks);
       
       // Add assignee info to tasks
       const tasksWithAssignees: SafeTaskWithAssignee[] = [];
@@ -546,7 +639,7 @@ export class MemStorage implements IStorage {
     const goalTasks = Array.from(this.tasks.values()).filter(task => task.goalId === goal.id);
     const completedTasks = goalTasks.filter(task => task.status === "완료");
     
-    const progressPercentage = goalTasks.length > 0 ? (completedTasks.length / goalTasks.length) * 100 : 0;
+    const progressPercentage = this.calculateAverageProgress(goalTasks);
     
     // Add assignee info to tasks
     const tasksWithAssignees: SafeTaskWithAssignee[] = [];
@@ -654,6 +747,24 @@ export class MemStorage implements IStorage {
       }
     }
     
+    // Initialize progress based on status if not explicitly provided
+    let initialProgress = insertTask.progress;
+    const status = insertTask.status || "진행전";
+    
+    if (initialProgress === undefined || initialProgress === null) {
+      switch (status) {
+        case '완료':
+          initialProgress = 100;
+          break;
+        case '진행전':
+          initialProgress = 0;
+          break;
+        default:
+          initialProgress = 50;
+          break;
+      }
+    }
+    
     const task: Task = { 
       ...insertTask, 
       id, 
@@ -662,7 +773,8 @@ export class MemStorage implements IStorage {
       duration: insertTask.duration || null,
       priority: insertTask.priority || null,
       label: insertTask.label || null,
-      status: insertTask.status || "진행전",
+      status: status,
+      progress: initialProgress,
       assigneeId: insertTask.assigneeId || null,
       projectId: finalProjectId,
       goalId: insertTask.goalId || null,
