@@ -504,68 +504,6 @@ export default function ProjectDetail() {
                 </div>
               </CardContent>
             </Card>
-
-            {/* Goals - Hidden when editing */}
-            {!isEditing && (
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle>목표 ({project.goals?.length || 0}개)</CardTitle>
-                    <Button 
-                      onClick={handleAddGoal}
-                      size="sm"
-                      data-testid="button-add-goal"
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      목표 추가
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent className="max-h-96 overflow-y-auto" data-testid="goals-content-container">
-                  {project.goals && project.goals.length > 0 ? (
-                    <div className="space-y-3">
-                      {project.goals.map((goal) => (
-                        <div
-                          key={goal.id}
-                          className="p-4 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
-                          onClick={() => handleGoalClick(goal.id)}
-                          data-testid={`card-goal-${goal.id}`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                              <Target className="h-5 w-5 text-green-600" />
-                              <div>
-                                <h4 className="font-medium" data-testid={`text-goal-title-${goal.id}`}>
-                                  {goal.title}
-                                </h4>
-                                <p className="text-sm text-muted-foreground">
-                                  작업 {goal.totalTasks || 0}개 · 완료 {goal.completedTasks || 0}개
-                                </p>
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <div className="text-sm font-medium">{goal.progressPercentage || 0}%</div>
-                              <Progress 
-                                value={goal.progressPercentage || 0} 
-                                className="w-20 h-2 mt-1"
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-8">
-                      <p className="text-muted-foreground mb-4">목표가 없습니다.</p>
-                      <Button onClick={handleAddGoal} data-testid="button-add-first-goal">
-                        <Plus className="h-4 w-4 mr-2" />
-                        첫 번째 목표 추가
-                      </Button>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
             
             {/* File Attachments */}
             <Card>
@@ -653,6 +591,68 @@ export default function ProjectDetail() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Goals - Hidden when editing */}
+            {!isEditing && (
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle>목표 ({project.goals?.length || 0}개)</CardTitle>
+                    <Button 
+                      onClick={handleAddGoal}
+                      size="sm"
+                      data-testid="button-add-goal"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      목표 추가
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent className="max-h-96 overflow-y-auto" data-testid="goals-content-container">
+                  {project.goals && project.goals.length > 0 ? (
+                    <div className="space-y-3">
+                      {project.goals.map((goal) => (
+                        <div
+                          key={goal.id}
+                          className="p-4 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
+                          onClick={() => handleGoalClick(goal.id)}
+                          data-testid={`card-goal-${goal.id}`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <Target className="h-5 w-5 text-green-600" />
+                              <div>
+                                <h4 className="font-medium" data-testid={`text-goal-title-${goal.id}`}>
+                                  {goal.title}
+                                </h4>
+                                <p className="text-sm text-muted-foreground">
+                                  작업 {goal.totalTasks || 0}개 · 완료 {goal.completedTasks || 0}개
+                                </p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-sm font-medium">{goal.progressPercentage || 0}%</div>
+                              <Progress 
+                                value={goal.progressPercentage || 0} 
+                                className="w-20 h-2 mt-1"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <p className="text-muted-foreground mb-4">목표가 없습니다.</p>
+                      <Button onClick={handleAddGoal} data-testid="button-add-first-goal">
+                        <Plus className="h-4 w-4 mr-2" />
+                        첫 번째 목표 추가
+                      </Button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
           </div>
 
           {/* Sidebar */}
