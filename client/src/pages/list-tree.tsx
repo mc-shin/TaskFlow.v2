@@ -1049,7 +1049,11 @@ export default function ListTree() {
           >
             {currentLabels.length > 0 ? (
               currentLabels.map((label, index) => (
-                <Badge key={index} variant="outline" className="text-xs bg-slate-600 hover:bg-slate-700 text-white">
+                <Badge 
+                  key={index} 
+                  variant="outline" 
+                  className={`text-xs ${index === 0 ? 'bg-blue-500 hover:bg-blue-600 text-white' : 'bg-green-500 hover:bg-green-600 text-white'}`}
+                >
                   {label}
                 </Badge>
               ))
