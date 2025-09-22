@@ -19,7 +19,7 @@ export const projects = pgTable("projects", {
   description: text("description"),
   deadline: text("deadline"),
   status: text("status").default("진행전"), // 진행전, 진행중, 완료
-  ownerId: varchar("owner_id").references(() => users.id),
+  ownerIds: text("owner_ids").array().default(sql`'{}'`), // Multiple owners
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -30,7 +30,7 @@ export const goals = pgTable("goals", {
   description: text("description"),
   deadline: text("deadline"),
   status: text("status").default("진행전"), // 진행전, 진행중, 완료
-  assigneeId: varchar("assignee_id").references(() => users.id),
+  assigneeIds: text("assignee_ids").array().default(sql`'{}'`), // Multiple assignees
   projectId: varchar("project_id").references(() => projects.id).notNull(),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -46,7 +46,7 @@ export const tasks = pgTable("tasks", {
   deadline: text("deadline"),
   duration: integer("duration").default(0),
   progress: integer("progress").default(0), // 진행도 (0-100)
-  assigneeId: varchar("assignee_id").references(() => users.id),
+  assigneeIds: text("assignee_ids").array().default(sql`'{}'`), // Multiple assignees
   goalId: varchar("goal_id").references(() => goals.id),
   projectId: varchar("project_id").references(() => projects.id), // Keep for backward compatibility
   createdAt: timestamp("created_at").defaultNow(),
@@ -171,12 +171,12 @@ export type MeetingWithDetails = Meeting & {
   comments?: MeetingCommentWithAuthor[];
 };
 
-export type TaskWithAssignee = Task & {
-  assignee?: User;
+export type TaskWithAssignees = Task & {
+  assignees?: User[];
 };
 
-export type SafeTaskWithAssignee = Task & {
-  assignee?: SafeUser;
+export type SafeTaskWithAssignees = Task & {
+  assignees?: SafeUser[];
 };
 
 
@@ -199,16 +199,17 @@ export type UserWithStats = User & {
 };
 
 export type GoalWithTasks = Goal & {
-  tasks?: SafeTaskWithAssignee[];
+  tasks?: SafeTaskWithAssignees[];
   totalTasks?: number;
   completedTasks?: number;
   progressPercentage?: number;
+  assignees?: SafeUser[];
 };
 
 export type ProjectWithDetails = Project & {
-  owner?: SafeUser;
+  owners?: SafeUser[];
   goals?: GoalWithTasks[];
-  tasks?: SafeTaskWithAssignee[];
+  tasks?: SafeTaskWithAssignees[];
   totalTasks?: number;
   completedTasks?: number;
   progressPercentage?: number;
@@ -216,9 +217,9 @@ export type ProjectWithDetails = Project & {
   overdueTaskCount?: number;
 };
 
-export type ProjectWithOwner = Project & {
-  owner?: SafeUser;
-  tasks?: SafeTaskWithAssignee[];
+export type ProjectWithOwners = Project & {
+  owners?: SafeUser[];
+  tasks?: SafeTaskWithAssignees[];
   totalTasks?: number;
   completedTasks?: number;
   progressPercentage?: number;
