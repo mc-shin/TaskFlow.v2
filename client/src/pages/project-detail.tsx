@@ -549,7 +549,7 @@ export default function ProjectDetail() {
                         for (const file of result.successful) {
                           await apiRequest("POST", "/api/attachments", {
                             fileName: file.name,
-                            filePath: file.uploadURL,
+                            filePath: file.objectPath,
                             entityType: "project",
                             entityId: projectId
                           });
