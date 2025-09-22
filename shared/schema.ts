@@ -19,7 +19,7 @@ export const projects = pgTable("projects", {
   description: text("description"),
   deadline: text("deadline"),
   status: text("status").default("진행전"), // 진행전, 진행중, 완료
-  labels: text("labels").array().default(sql`'{}'`), // Labels (최대 2개)
+  labels: text("labels").array().default(sql`'{}'`), // Labels (최대 2개, 각 5글자 이하)
   ownerIds: text("owner_ids").array().default(sql`'{}'`), // Multiple owners
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -31,7 +31,7 @@ export const goals = pgTable("goals", {
   description: text("description"),
   deadline: text("deadline"),
   status: text("status").default("진행전"), // 진행전, 진행중, 완료
-  labels: text("labels").array().default(sql`'{}'`), // Labels (최대 2개)
+  labels: text("labels").array().default(sql`'{}'`), // Labels (최대 2개, 각 5글자 이하)
   assigneeIds: text("assignee_ids").array().default(sql`'{}'`), // Multiple assignees
   projectId: varchar("project_id").references(() => projects.id).notNull(),
   createdAt: timestamp("created_at").defaultNow(),
@@ -44,7 +44,7 @@ export const tasks = pgTable("tasks", {
   description: text("description"),
   status: text("status").notNull().default("진행전"), // 진행전, 진행중, 완료
   priority: text("priority").default("중간"), // 높음, 중간, 낮음
-  labels: text("labels").array().default(sql`'{}'`), // Labels (최대 2개)
+  labels: text("labels").array().default(sql`'{}'`), // Labels (최대 2개, 각 5글자 이하)
   deadline: text("deadline"),
   duration: integer("duration").default(0),
   progress: integer("progress").default(0), // 진행도 (0-100)
@@ -106,11 +106,8 @@ export const insertProjectSchema = createInsertSchema(projects).omit({
   updatedAt: true,
 });
 
-export const insertProjectWithValidationSchema = insertProjectSchema.refine((data) => {
-  return !data.labels || data.labels.length <= 2;
-}, {
-  message: "프로젝트는 최대 2개의 라벨만 가질 수 있습니다.",
-  path: ["labels"],
+export const insertProjectWithValidationSchema = insertProjectSchema.extend({
+  labels: z.array(z.string().min(1).max(5, "라벨은 5글자 이하로 입력해주세요.")).max(2, "프로젝트는 최대 2개의 라벨만 가질 수 있습니다.").optional(),
 });
 
 export const insertGoalSchema = createInsertSchema(goals).omit({
@@ -119,11 +116,8 @@ export const insertGoalSchema = createInsertSchema(goals).omit({
   updatedAt: true,
 });
 
-export const insertGoalWithValidationSchema = insertGoalSchema.refine((data) => {
-  return !data.labels || data.labels.length <= 2;
-}, {
-  message: "목표는 최대 2개의 라벨만 가질 수 있습니다.",
-  path: ["labels"],
+export const insertGoalWithValidationSchema = insertGoalSchema.extend({
+  labels: z.array(z.string().min(1).max(5, "라벨은 5글자 이하로 입력해주세요.")).max(2, "목표는 최대 2개의 라벨만 가질 수 있습니다.").optional(),
 });
 
 export const insertTaskSchema = createInsertSchema(tasks).omit({
@@ -132,11 +126,8 @@ export const insertTaskSchema = createInsertSchema(tasks).omit({
   updatedAt: true,
 });
 
-export const insertTaskWithValidationSchema = insertTaskSchema.refine((data) => {
-  return !data.labels || data.labels.length <= 2;
-}, {
-  message: "작업은 최대 2개의 라벨만 가질 수 있습니다.",
-  path: ["labels"],
+export const insertTaskWithValidationSchema = insertTaskSchema.extend({
+  labels: z.array(z.string().min(1).max(5, "라벨은 5글자 이하로 입력해주세요.")).max(2, "작업은 최대 2개의 라벨만 가질 수 있습니다.").optional(),
 });
 
 export const insertActivitySchema = createInsertSchema(activities).omit({
