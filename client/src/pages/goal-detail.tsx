@@ -204,10 +204,23 @@ export default function GoalDetail() {
             목록으로
           </Button>
           <div className="flex items-center gap-2">
-            <Target className="h-6 w-6 text-green-600" />
-            <h1 className="text-xl font-semibold" data-testid="text-goal-title">
-              {goal.title}
-            </h1>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <button 
+                onClick={handleProjectClick}
+                className="hover:text-foreground transition-colors flex items-center gap-1"
+                data-testid="breadcrumb-project"
+              >
+                <FolderOpen className="h-4 w-4" />
+                {parentProject.name}
+              </button>
+              <span>/</span>
+              <div className="flex items-center gap-2 text-foreground">
+                <Target className="h-5 w-5 text-green-600" />
+                <h1 className="text-xl font-semibold" data-testid="text-goal-title">
+                  {goal.title}
+                </h1>
+              </div>
+            </div>
           </div>
         </div>
         
@@ -279,22 +292,6 @@ export default function GoalDetail() {
       {/* Main Content */}
       <main className="flex-1 p-6 overflow-auto" data-testid="main-content">
         <div className="max-w-4xl mx-auto space-y-6">
-
-        {/* Breadcrumb */}
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <button 
-            onClick={handleProjectClick}
-            className="hover:text-foreground transition-colors"
-            data-testid="breadcrumb-project"
-          >
-            <div className="flex items-center gap-1">
-              <FolderOpen className="h-4 w-4" />
-              {parentProject.name}
-            </div>
-          </button>
-          <span>/</span>
-          <span className="text-foreground font-medium">{goal.title}</span>
-        </div>
 
         {/* Goal Details */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

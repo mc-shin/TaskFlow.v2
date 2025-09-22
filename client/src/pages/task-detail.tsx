@@ -209,13 +209,34 @@ export default function TaskDetail() {
             목록으로
           </Button>
           <div className="flex items-center gap-2">
-            <Circle className="h-6 w-6 text-orange-600" />
-            <h1 className="text-xl font-semibold" data-testid="text-task-title">
-                {task.title}
-              </h1>
-              <Badge variant={getStatusBadgeVariant(task.status)}>
-                {task.status}
-              </Badge>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <button 
+                onClick={handleProjectClick}
+                className="hover:text-foreground transition-colors flex items-center gap-1"
+                data-testid="breadcrumb-project"
+              >
+                <FolderOpen className="h-4 w-4" />
+                {parentProject.name}
+              </button>
+              <span>/</span>
+              <button 
+                onClick={handleGoalClick}
+                className="hover:text-foreground transition-colors flex items-center gap-1"
+                data-testid="breadcrumb-goal"
+              >
+                <Target className="h-4 w-4" />
+                {parentGoal.title}
+              </button>
+              <span>/</span>
+              <div className="flex items-center gap-2 text-foreground">
+                <Circle className="h-5 w-5 text-orange-600" />
+                <h1 className="text-xl font-semibold" data-testid="text-task-title">
+                  {task.title}
+                </h1>
+                <Badge variant={getStatusBadgeVariant(task.status)}>
+                  {task.status}
+                </Badge>
+              </div>
             </div>
           </div>
           
@@ -282,38 +303,12 @@ export default function TaskDetail() {
               </>
             )}
         </div>
+        </div>
       </header>
 
       {/* Main Content */}
       <main className="flex-1 p-6 overflow-auto" data-testid="main-content">
         <div className="max-w-4xl mx-auto space-y-6">
-
-        {/* Breadcrumb */}
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <button 
-            onClick={handleProjectClick}
-            className="hover:text-foreground transition-colors"
-            data-testid="breadcrumb-project"
-          >
-            <div className="flex items-center gap-1">
-              <FolderOpen className="h-4 w-4" />
-              {parentProject.name}
-            </div>
-          </button>
-          <span>/</span>
-          <button 
-            onClick={handleGoalClick}
-            className="hover:text-foreground transition-colors"
-            data-testid="breadcrumb-goal"
-          >
-            <div className="flex items-center gap-1">
-              <Target className="h-4 w-4" />
-              {parentGoal.title}
-            </div>
-          </button>
-          <span>/</span>
-          <span className="text-foreground font-medium">{task.title}</span>
-        </div>
 
         {/* Task Details */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

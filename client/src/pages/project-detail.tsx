@@ -187,11 +187,13 @@ export default function ProjectDetail() {
             목록으로
           </Button>
           <div className="flex items-center gap-2">
-            <FolderOpen className="h-6 w-6 text-blue-600" />
-            <h1 className="text-xl font-semibold" data-testid="text-project-title">
-              {project.name}
-            </h1>
-            <Badge variant="outline">{project.code}</Badge>
+            <div className="flex items-center gap-2 text-foreground">
+              <FolderOpen className="h-6 w-6 text-blue-600" />
+              <h1 className="text-xl font-semibold" data-testid="text-project-title">
+                {project.name}
+              </h1>
+              <Badge variant="outline">{project.code}</Badge>
+            </div>
           </div>
         </div>
         
