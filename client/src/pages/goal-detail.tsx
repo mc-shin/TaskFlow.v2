@@ -340,7 +340,7 @@ export default function GoalDetail() {
                     <Popover>
                       <PopoverTrigger asChild>
                         <div 
-                          className="cursor-pointer hover:bg-muted/20 rounded-md min-w-16 min-h-8 flex items-center px-2 py-1 gap-1 flex-wrap border border-dashed border-muted-foreground/30"
+                          className="cursor-pointer hover:bg-muted/20 rounded-md min-w-16 min-h-8 flex items-center px-2 py-1 gap-1 flex-wrap"
                           data-testid={`edit-labels-${goal.id}`}
                         >
                           {(goal.labels && goal.labels.length > 0) ? (

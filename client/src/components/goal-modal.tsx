@@ -72,6 +72,7 @@ export function GoalModal({ isOpen, onClose, projectId, projectTitle }: GoalModa
     createGoalMutation.mutate({
       ...data,
       projectId: projectId, // Ensure projectId is set
+      status: "진행중", // Set status to 진행중 when creating goals from project detail page
     });
   };
 
