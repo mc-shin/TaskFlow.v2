@@ -180,6 +180,12 @@ export default function GoalDetail() {
 
   const assignee = goal.assigneeId ? (users as SafeUser[])?.find(u => u.id === goal.assigneeId) : undefined;
 
+  // Calculate task statistics from goal tasks
+  const goalTasksStats = goal?.tasks || [];
+  const completedTasksStats = goalTasksStats.filter(task => task.status === '완료');
+  const inProgressTasksStats = goalTasksStats.filter(task => task.status === '진행중');
+  const pendingTasksStats = goalTasksStats.filter(task => task.status === '진행전');
+
   return (
     <div className="p-6">
       <div className="max-w-4xl mx-auto space-y-6">
@@ -532,13 +538,19 @@ export default function GoalDetail() {
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">완료된 작업</span>
                   <span className="font-medium text-green-600" data-testid="text-completed-tasks">
-                    {goal.completedTasks || 0}개
+                    {completedTasksStats.length}개
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">남은 작업</span>
-                  <span className="font-medium" data-testid="text-remaining-tasks">
-                    {(goal.totalTasks || 0) - (goal.completedTasks || 0)}개
+                  <span className="text-sm text-muted-foreground">진행중 작업</span>
+                  <span className="font-medium text-blue-600" data-testid="text-inprogress-tasks">
+                    {inProgressTasksStats.length}개
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">진행전 작업</span>
+                  <span className="font-medium text-gray-600" data-testid="text-pending-tasks">
+                    {pendingTasksStats.length}개
                   </span>
                 </div>
               </CardContent>

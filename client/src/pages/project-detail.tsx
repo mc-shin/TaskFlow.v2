@@ -45,6 +45,8 @@ export default function ProjectDetail() {
   // Calculate statistics from goal tasks only (no direct project tasks)
   const goalTasks = project?.goals?.flatMap(goal => goal.tasks || []) || [];
   const calculatedCompletedTasks = goalTasks.filter(task => task.status === '완료');
+  const calculatedInProgressTasks = goalTasks.filter(task => task.status === '진행중');
+  const calculatedPendingTasks = goalTasks.filter(task => task.status === '진행전');
 
   const updateProjectMutation = useMutation({
     mutationFn: async (updates: Partial<ProjectWithDetails>) => {
@@ -513,14 +515,18 @@ export default function ProjectDetail() {
                     {calculatedCompletedTasks.length}개
                   </span>
                 </div>
-                {project.hasOverdueTasks && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">지연된 작업</span>
-                    <span className="font-medium text-red-600" data-testid="text-overdue-tasks">
-                      {project.overdueTaskCount || 0}개
-                    </span>
-                  </div>
-                )}
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">진행중 작업</span>
+                  <span className="font-medium text-blue-600" data-testid="text-inprogress-tasks">
+                    {calculatedInProgressTasks.length}개
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">진행전 작업</span>
+                  <span className="font-medium text-gray-600" data-testid="text-pending-tasks">
+                    {calculatedPendingTasks.length}개
+                  </span>
+                </div>
               </CardContent>
             </Card>
           </div>
