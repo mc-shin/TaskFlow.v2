@@ -42,13 +42,9 @@ export default function ProjectDetail() {
 
   const project = (projects as ProjectWithDetails[])?.find(p => p.id === projectId);
 
-  // Calculate accurate statistics from the actual data
-  const directTasks = project?.tasks || [];
+  // Calculate statistics from goal tasks only (no direct project tasks)
   const goalTasks = project?.goals?.flatMap(goal => goal.tasks || []) || [];
-  const allCalculatedTasks = [...directTasks, ...goalTasks];
-  const calculatedCompletedTasks = allCalculatedTasks.filter(task => task.status === '완료');
-  const directCompletedTasks = directTasks.filter(task => task.status === '완료');
-  const goalCompletedTasks = goalTasks.filter(task => task.status === '완료');
+  const calculatedCompletedTasks = goalTasks.filter(task => task.status === '완료');
 
   const updateProjectMutation = useMutation({
     mutationFn: async (updates: Partial<ProjectWithDetails>) => {
@@ -317,38 +313,6 @@ export default function ProjectDetail() {
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">마감일</label>
-                  {isEditing ? (
-                    <Input
-                      type="date"
-                      value={editedProject.deadline ?? project.deadline ?? ''}
-                      onChange={(e) => setEditedProject(prev => ({ ...prev, deadline: e.target.value }))}
-                      className="mt-1"
-                      data-testid="input-project-deadline"
-                    />
-                  ) : (
-                    <div className="mt-1" data-testid="text-project-deadline">
-                      {project.deadline ? (
-                        <div className="flex items-center gap-2">
-                          <span>{new Date(project.deadline).toLocaleDateString('ko-KR')}</span>
-                          <span className={`px-2 py-1 text-xs rounded font-medium ${
-                            calculateDDay(project.deadline).includes('D+')
-                              ? 'bg-red-100 text-red-700'
-                              : calculateDDay(project.deadline) === 'D-Day'
-                              ? 'bg-orange-100 text-orange-700'
-                              : 'bg-blue-100 text-blue-700'
-                          }`}>
-                            {calculateDDay(project.deadline)}
-                          </span>
-                        </div>
-                      ) : (
-                        "설정되지 않음"
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                <div>
                   <label className="text-sm font-medium text-muted-foreground">상태</label>
                   {isEditing ? (
                     <Select
@@ -379,56 +343,40 @@ export default function ProjectDetail() {
                     </div>
                   )}
                 </div>
+
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">마감일</label>
+                  {isEditing ? (
+                    <Input
+                      type="date"
+                      value={editedProject.deadline ?? project.deadline ?? ''}
+                      onChange={(e) => setEditedProject(prev => ({ ...prev, deadline: e.target.value }))}
+                      className="mt-1"
+                      data-testid="input-project-deadline"
+                    />
+                  ) : (
+                    <div className="mt-1" data-testid="text-project-deadline">
+                      {project.deadline ? (
+                        <div className="flex items-center gap-2">
+                          <span>{new Date(project.deadline).toLocaleDateString('ko-KR')}</span>
+                          <span className={`px-2 py-1 text-xs rounded font-medium ${
+                            calculateDDay(project.deadline).includes('D+')
+                              ? 'bg-red-100 text-red-700'
+                              : calculateDDay(project.deadline) === 'D-Day'
+                              ? 'bg-orange-100 text-orange-700'
+                              : 'bg-blue-100 text-blue-700'
+                          }`}>
+                            {calculateDDay(project.deadline)}
+                          </span>
+                        </div>
+                      ) : (
+                        "설정되지 않음"
+                      )}
+                    </div>
+                  )}
+                </div>
               </CardContent>
             </Card>
-
-            {/* Direct Project Tasks */}
-            {project.tasks && project.tasks.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>직접 작업 ({project.tasks.length}개)</CardTitle>
-                </CardHeader>
-                <CardContent className="max-h-48 overflow-y-auto">
-                  <div className="space-y-3">
-                    {project.tasks.map((task) => (
-                      <div
-                        key={task.id}
-                        className="p-3 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
-                        onClick={() => handleTaskClick(task.id)}
-                        data-testid={`card-direct-task-${task.id}`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <Circle className="h-4 w-4 text-orange-600" />
-                            <div>
-                              <h4 className="font-medium text-sm">{task.title}</h4>
-                              <div className="flex items-center gap-2 mt-1">
-                                <Badge 
-                                  variant={task.status === '완료' ? 'default' : 'secondary'}
-                                  className="text-xs"
-                                >
-                                  {task.status}
-                                </Badge>
-                                {task.assignee && (
-                                  <span className="text-xs text-muted-foreground">
-                                    {task.assignee.name}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <div className="text-xs font-medium">
-                              {task.progress ?? 0}%
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
 
             {/* Goals */}
             <Card>
@@ -502,16 +450,16 @@ export default function ProjectDetail() {
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-2xl font-bold" data-testid="text-progress-percentage">
-                      {allCalculatedTasks.length > 0 ? Math.round((calculatedCompletedTasks.length / allCalculatedTasks.length) * 100) : 0}%
+                      {goalTasks.length > 0 ? Math.round((calculatedCompletedTasks.length / goalTasks.length) * 100) : 0}%
                     </span>
                   </div>
                   <Progress 
-                    value={allCalculatedTasks.length > 0 ? Math.round((calculatedCompletedTasks.length / allCalculatedTasks.length) * 100) : 0} 
+                    value={goalTasks.length > 0 ? Math.round((calculatedCompletedTasks.length / goalTasks.length) * 100) : 0} 
                     className="h-3"
                     data-testid="progress-bar"
                   />
                   <div className="text-sm text-muted-foreground">
-                    전체 작업 {allCalculatedTasks.length}개 중 {calculatedCompletedTasks.length}개 완료
+                    전체 작업 {goalTasks.length}개 중 {calculatedCompletedTasks.length}개 완료
                   </div>
                 </div>
               </CardContent>
@@ -554,26 +502,14 @@ export default function ProjectDetail() {
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">직접 작업</span>
-                  <span className="font-medium" data-testid="text-direct-tasks">
-                    {directTasks.length}개 ({directCompletedTasks.length}개 완료)
+                  <span className="text-sm text-muted-foreground">전체 작업</span>
+                  <span className="font-medium" data-testid="text-total-tasks">
+                    {goalTasks.length}개
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">목표 내 작업</span>
-                  <span className="font-medium" data-testid="text-goal-tasks">
-                    {goalTasks.length}개 ({goalCompletedTasks.length}개 완료)
-                  </span>
-                </div>
-                <div className="flex items-center justify-between border-t pt-2">
-                  <span className="text-sm font-medium">전체 작업</span>
-                  <span className="font-semibold" data-testid="text-total-tasks">
-                    {allCalculatedTasks.length}개
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">완룮된 작업</span>
-                  <span className="font-semibold text-green-600" data-testid="text-completed-tasks">
+                  <span className="text-sm text-muted-foreground">완료된 작업</span>
+                  <span className="font-medium text-green-600" data-testid="text-completed-tasks">
                     {calculatedCompletedTasks.length}개
                   </span>
                 </div>

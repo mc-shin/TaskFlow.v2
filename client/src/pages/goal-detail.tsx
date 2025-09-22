@@ -325,6 +325,15 @@ export default function GoalDetail() {
                 </div>
 
                 <div>
+                  <label className="text-sm font-medium text-muted-foreground">상태</label>
+                  <p className="mt-1" data-testid="text-goal-status">
+                    <Badge variant={goal.status === '완료' ? 'default' : 'secondary'}>
+                      {goal.status}
+                    </Badge>
+                  </p>
+                </div>
+
+                <div>
                   <label className="text-sm font-medium text-muted-foreground">마감일</label>
                   {isEditing ? (
                     <Input
@@ -354,15 +363,6 @@ export default function GoalDetail() {
                       )}
                     </div>
                   )}
-                </div>
-
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">상태</label>
-                  <p className="mt-1" data-testid="text-goal-status">
-                    <Badge variant={goal.status === '완료' ? 'default' : 'secondary'}>
-                      {goal.status}
-                    </Badge>
-                  </p>
                 </div>
               </CardContent>
             </Card>

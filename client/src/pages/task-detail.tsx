@@ -353,28 +353,14 @@ export default function TaskDetail() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="text-sm font-medium text-muted-foreground">상태</label>
-                    {isEditing ? (
-                      <Select
-                        value={editedTask.status ?? task.status}
-                        onValueChange={(value) => setEditedTask(prev => ({ ...prev, status: value }))}
-                      >
-                        <SelectTrigger className="mt-1" data-testid="select-task-status">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="진행전">진행전</SelectItem>
-                          <SelectItem value="진행중">진행중</SelectItem>
-                          <SelectItem value="완료">완료</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      <p className="mt-1" data-testid="text-task-status">
-                        <Badge variant={getStatusBadgeVariant(task.status)}>
-                          {task.status}
-                        </Badge>
-                      </p>
-                    )}
+                    <label className="text-sm font-medium text-muted-foreground">라벨</label>
+                    <p className="mt-1" data-testid="text-task-label">
+                      {task.label ? (
+                        <Badge variant="secondary">{task.label}</Badge>
+                      ) : (
+                        <span className="text-muted-foreground">라벨이 없습니다</span>
+                      )}
+                    </p>
                   </div>
 
                   <div>
@@ -399,6 +385,31 @@ export default function TaskDetail() {
                       </p>
                     )}
                   </div>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">상태</label>
+                  {isEditing ? (
+                    <Select
+                      value={editedTask.status ?? task.status}
+                      onValueChange={(value) => setEditedTask(prev => ({ ...prev, status: value }))}
+                    >
+                      <SelectTrigger className="mt-1" data-testid="select-task-status">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="진행전">진행전</SelectItem>
+                        <SelectItem value="진행중">진행중</SelectItem>
+                        <SelectItem value="완료">완료</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <p className="mt-1" data-testid="text-task-status">
+                      <Badge variant={getStatusBadgeVariant(task.status)}>
+                        {task.status}
+                      </Badge>
+                    </p>
+                  )}
                 </div>
 
                 <div>
@@ -432,15 +443,6 @@ export default function TaskDetail() {
                     </div>
                   )}
                 </div>
-
-                {task.label && (
-                  <div>
-                    <label className="text-sm font-medium text-muted-foreground">라벨</label>
-                    <p className="mt-1" data-testid="text-task-label">
-                      <Badge variant="secondary">{task.label}</Badge>
-                    </p>
-                  </div>
-                )}
               </CardContent>
             </Card>
           </div>
