@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { ArrowLeft, Edit, Save, X, FolderOpen, Target, Circle, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useLocation, useRoute } from "wouter";
@@ -29,6 +30,7 @@ export default function ProjectDetail() {
     projectId: '', 
     projectTitle: '' 
   });
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   const { data: projects, isLoading } = useQuery({
     queryKey: ["/api/projects"],
@@ -39,6 +41,14 @@ export default function ProjectDetail() {
   });
 
   const project = (projects as ProjectWithDetails[])?.find(p => p.id === projectId);
+
+  // Calculate accurate statistics from the actual data
+  const directTasks = project?.tasks || [];
+  const goalTasks = project?.goals?.flatMap(goal => goal.tasks || []) || [];
+  const allCalculatedTasks = [...directTasks, ...goalTasks];
+  const calculatedCompletedTasks = allCalculatedTasks.filter(task => task.status === '완료');
+  const directCompletedTasks = directTasks.filter(task => task.status === '완료');
+  const goalCompletedTasks = goalTasks.filter(task => task.status === '완료');
 
   const updateProjectMutation = useMutation({
     mutationFn: async (updates: Partial<ProjectWithDetails>) => {
@@ -131,9 +141,8 @@ export default function ProjectDetail() {
   };
 
   const handleDelete = () => {
-    if (window.confirm('정말로 이 프로젝트를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) {
-      deleteProjectMutation.mutate();
-    }
+    deleteProjectMutation.mutate();
+    setDeleteDialogOpen(false);
   };
 
   if (isLoading) {
@@ -216,15 +225,37 @@ export default function ProjectDetail() {
                   <Edit className="h-4 w-4 mr-2" />
                   수정
                 </Button>
-                <Button 
-                  variant="destructive"
-                  onClick={handleDelete}
-                  disabled={deleteProjectMutation.isPending}
-                  data-testid="button-delete"
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  삭제
-                </Button>
+                <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+                  <AlertDialogTrigger asChild>
+                    <Button 
+                      variant="destructive"
+                      disabled={deleteProjectMutation.isPending}
+                      data-testid="button-delete"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      삭제
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>app.riido.io 내용:</AlertDialogTitle>
+                      <AlertDialogDescription className="text-left">
+                        <div className="space-y-2">
+                          <div>[-] 프로젝트를 삭제하시겠습니까?</div>
+                          <div className="text-sm text-muted-foreground">
+                            해당 프로젝트의 모든 목표와 작업이 함께 삭제됩니다.
+                          </div>
+                        </div>
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>취소</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleDelete} className="bg-blue-600 hover:bg-blue-700">
+                        확인
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </>
             )}
           </div>
@@ -351,6 +382,54 @@ export default function ProjectDetail() {
               </CardContent>
             </Card>
 
+            {/* Direct Project Tasks */}
+            {project.tasks && project.tasks.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>직접 작업 ({project.tasks.length}개)</CardTitle>
+                </CardHeader>
+                <CardContent className="max-h-48 overflow-y-auto">
+                  <div className="space-y-3">
+                    {project.tasks.map((task) => (
+                      <div
+                        key={task.id}
+                        className="p-3 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
+                        onClick={() => handleTaskClick(task.id)}
+                        data-testid={`card-direct-task-${task.id}`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <Circle className="h-4 w-4 text-orange-600" />
+                            <div>
+                              <h4 className="font-medium text-sm">{task.title}</h4>
+                              <div className="flex items-center gap-2 mt-1">
+                                <Badge 
+                                  variant={task.status === '완료' ? 'default' : 'secondary'}
+                                  className="text-xs"
+                                >
+                                  {task.status}
+                                </Badge>
+                                {task.assignee && (
+                                  <span className="text-xs text-muted-foreground">
+                                    {task.assignee.name}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-xs font-medium">
+                              {task.progress ?? 0}%
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Goals */}
             <Card>
               <CardHeader>
@@ -423,16 +502,16 @@ export default function ProjectDetail() {
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-2xl font-bold" data-testid="text-progress-percentage">
-                      {project.progressPercentage || 0}%
+                      {allCalculatedTasks.length > 0 ? Math.round((calculatedCompletedTasks.length / allCalculatedTasks.length) * 100) : 0}%
                     </span>
                   </div>
                   <Progress 
-                    value={project.progressPercentage || 0} 
+                    value={allCalculatedTasks.length > 0 ? Math.round((calculatedCompletedTasks.length / allCalculatedTasks.length) * 100) : 0} 
                     className="h-3"
                     data-testid="progress-bar"
                   />
                   <div className="text-sm text-muted-foreground">
-                    전체 작업 {project.totalTasks || 0}개 중 {project.completedTasks || 0}개 완료
+                    전체 작업 {allCalculatedTasks.length}개 중 {calculatedCompletedTasks.length}개 완료
                   </div>
                 </div>
               </CardContent>
@@ -475,15 +554,27 @@ export default function ProjectDetail() {
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">전체 작업</span>
-                  <span className="font-medium" data-testid="text-total-tasks">
-                    {project.totalTasks || 0}개
+                  <span className="text-sm text-muted-foreground">직접 작업</span>
+                  <span className="font-medium" data-testid="text-direct-tasks">
+                    {directTasks.length}개 ({directCompletedTasks.length}개 완료)
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">완료된 작업</span>
-                  <span className="font-medium text-green-600" data-testid="text-completed-tasks">
-                    {project.completedTasks || 0}개
+                  <span className="text-sm text-muted-foreground">목표 내 작업</span>
+                  <span className="font-medium" data-testid="text-goal-tasks">
+                    {goalTasks.length}개 ({goalCompletedTasks.length}개 완료)
+                  </span>
+                </div>
+                <div className="flex items-center justify-between border-t pt-2">
+                  <span className="text-sm font-medium">전체 작업</span>
+                  <span className="font-semibold" data-testid="text-total-tasks">
+                    {allCalculatedTasks.length}개
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">완룮된 작업</span>
+                  <span className="font-semibold text-green-600" data-testid="text-completed-tasks">
+                    {calculatedCompletedTasks.length}개
                   </span>
                 </div>
                 {project.hasOverdueTasks && (

@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { ArrowLeft, Edit, Save, X, Target, Circle, FolderOpen, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useLocation, useRoute } from "wouter";
@@ -28,6 +29,7 @@ export default function GoalDetail() {
     goalId: '', 
     goalTitle: '' 
   });
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   const { data: projects, isLoading } = useQuery({
     queryKey: ["/api/projects"],
@@ -144,9 +146,8 @@ export default function GoalDetail() {
   };
 
   const handleDelete = () => {
-    if (window.confirm('정말로 이 목표를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) {
-      deleteGoalMutation.mutate();
-    }
+    deleteGoalMutation.mutate();
+    setDeleteDialogOpen(false);
   };
 
   if (isLoading) {
@@ -230,15 +231,37 @@ export default function GoalDetail() {
                   <Edit className="h-4 w-4 mr-2" />
                   수정
                 </Button>
-                <Button 
-                  variant="destructive"
-                  onClick={handleDelete}
-                  disabled={deleteGoalMutation.isPending}
-                  data-testid="button-delete"
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  삭제
-                </Button>
+                <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+                  <AlertDialogTrigger asChild>
+                    <Button 
+                      variant="destructive"
+                      disabled={deleteGoalMutation.isPending}
+                      data-testid="button-delete"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      삭제
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>app.riido.io 내용:</AlertDialogTitle>
+                      <AlertDialogDescription className="text-left">
+                        <div className="space-y-2">
+                          <div>[-] 목표를 삭제하시겠습니까?</div>
+                          <div className="text-sm text-muted-foreground">
+                            해당 목표의 모든 작업이 함께 삭제됩니다.
+                          </div>
+                        </div>
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>취소</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleDelete} className="bg-blue-600 hover:bg-blue-700">
+                        확인
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </>
             )}
           </div>

@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { ArrowLeft, Edit, Save, X, Circle, Target, FolderOpen, Calendar, User, Clock, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useLocation, useRoute } from "wouter";
@@ -23,6 +24,7 @@ export default function TaskDetail() {
   const taskId = params?.id;
   const [isEditing, setIsEditing] = useState(false);
   const [editedTask, setEditedTask] = useState<Partial<SafeTaskWithAssignee>>({});
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   const { data: projects, isLoading } = useQuery({
     queryKey: ["/api/projects"],
@@ -159,9 +161,8 @@ export default function TaskDetail() {
   };
 
   const handleDelete = () => {
-    if (window.confirm('정말로 이 작업을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) {
-      deleteTaskMutation.mutate();
-    }
+    deleteTaskMutation.mutate();
+    setDeleteDialogOpen(false);
   };
 
   if (isLoading) {
@@ -246,15 +247,37 @@ export default function TaskDetail() {
                   <Edit className="h-4 w-4 mr-2" />
                   수정
                 </Button>
-                <Button 
-                  variant="destructive"
-                  onClick={handleDelete}
-                  disabled={deleteTaskMutation.isPending}
-                  data-testid="button-delete"
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  삭제
-                </Button>
+                <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+                  <AlertDialogTrigger asChild>
+                    <Button 
+                      variant="destructive"
+                      disabled={deleteTaskMutation.isPending}
+                      data-testid="button-delete"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      삭제
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>app.riido.io 내용:</AlertDialogTitle>
+                      <AlertDialogDescription className="text-left">
+                        <div className="space-y-2">
+                          <div>[-] 작업을 삭제하시겠습니까?</div>
+                          <div className="text-sm text-muted-foreground">
+                            삭제된 작업은 복구할 수 없습니다.
+                          </div>
+                        </div>
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>취소</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleDelete} className="bg-blue-600 hover:bg-blue-700">
+                        확인
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </>
             )}
           </div>
