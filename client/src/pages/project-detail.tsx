@@ -702,6 +702,7 @@ export default function ProjectDetail() {
             </Card>
           </div>
         </div>
+        </div>
       </main>
       
       {/* Goal Modal */}

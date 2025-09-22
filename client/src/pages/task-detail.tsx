@@ -196,22 +196,21 @@ export default function TaskDetail() {
   }
 
   return (
-    <div className="p-6">
-      <div className="max-w-4xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              onClick={() => setLocation("/list")}
-              data-testid="button-back"
-            >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              목록으로
-            </Button>
-            <div className="flex items-center gap-2">
-              <Circle className="h-6 w-6 text-orange-600" />
-              <h1 className="text-2xl font-bold" data-testid="text-task-title">
+    <>
+      {/* Header */}
+      <header className="h-16 bg-card border-b border-border flex items-center justify-between px-6">
+        <div className="flex items-center gap-4">
+          <Button
+            variant="ghost"
+            onClick={() => setLocation("/list")}
+            data-testid="button-back"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            목록으로
+          </Button>
+          <div className="flex items-center gap-2">
+            <Circle className="h-6 w-6 text-orange-600" />
+            <h1 className="text-xl font-semibold" data-testid="text-task-title">
                 {task.title}
               </h1>
               <Badge variant={getStatusBadgeVariant(task.status)}>
@@ -282,8 +281,12 @@ export default function TaskDetail() {
                 </AlertDialog>
               </>
             )}
-          </div>
         </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="flex-1 p-6 overflow-auto" data-testid="main-content">
+        <div className="max-w-4xl mx-auto space-y-6">
 
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -686,7 +689,8 @@ export default function TaskDetail() {
 
           </div>
         </div>
-      </div>
-    </div>
+        </div>
+      </main>
+    </>
   );
 }

@@ -191,80 +191,79 @@ export default function GoalDetail() {
   const pendingTasksStats = goalTasksStats.filter(task => task.status === '진행전');
 
   return (
-    <div className="p-6">
-      <div className="max-w-4xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              onClick={() => setLocation("/list")}
-              data-testid="button-back"
-            >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              목록으로
-            </Button>
-            <div className="flex items-center gap-2">
-              <Target className="h-6 w-6 text-green-600" />
-              <h1 className="text-2xl font-bold" data-testid="text-goal-title">
-                {goal.title}
-              </h1>
-            </div>
-          </div>
-          
+    <>
+      {/* Header */}
+      <header className="h-16 bg-card border-b border-border flex items-center justify-between px-6">
+        <div className="flex items-center gap-4">
+          <Button
+            variant="ghost"
+            onClick={() => setLocation("/list")}
+            data-testid="button-back"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            목록으로
+          </Button>
           <div className="flex items-center gap-2">
-            {isEditing ? (
-              <>
-                <Button 
-                  onClick={handleSave}
-                  disabled={updateGoalMutation.isPending}
-                  data-testid="button-save"
-                >
-                  <Save className="h-4 w-4 mr-2" />
-                  저장
-                </Button>
-                <Button 
-                  variant="outline"
-                  onClick={handleCancel}
-                  data-testid="button-cancel"
-                >
-                  <X className="h-4 w-4 mr-2" />
-                  취소
-                </Button>
-              </>
-            ) : (
-              <>
-                <Button 
-                  onClick={() => setIsEditing(true)}
-                  data-testid="button-edit"
-                >
-                  <Edit className="h-4 w-4 mr-2" />
-                  수정
-                </Button>
-                <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-                  <AlertDialogTrigger asChild>
-                    <Button 
-                      variant="destructive"
-                      disabled={deleteGoalMutation.isPending}
-                      data-testid="button-delete"
-                    >
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      삭제
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>app.riido.io 내용:</AlertDialogTitle>
-                      <AlertDialogDescription className="text-left">
-                        <div className="space-y-2">
-                          <div>[-] 목표를 삭제하시겠습니까?</div>
-                          <div className="text-sm text-muted-foreground">
-                            해당 목표의 모든 작업이 함께 삭제됩니다.
-                          </div>
+            <Target className="h-6 w-6 text-green-600" />
+            <h1 className="text-xl font-semibold" data-testid="text-goal-title">
+              {goal.title}
+            </h1>
+          </div>
+        </div>
+        
+        <div className="flex items-center gap-2">
+          {isEditing ? (
+            <>
+              <Button 
+                onClick={handleSave}
+                disabled={updateGoalMutation.isPending}
+                data-testid="button-save"
+              >
+                <Save className="h-4 w-4 mr-2" />
+                저장
+              </Button>
+              <Button 
+                variant="outline"
+                onClick={handleCancel}
+                data-testid="button-cancel"
+              >
+                <X className="h-4 w-4 mr-2" />
+                취소
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button 
+                onClick={() => setIsEditing(true)}
+                data-testid="button-edit"
+              >
+                <Edit className="h-4 w-4 mr-2" />
+                수정
+              </Button>
+              <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+                <AlertDialogTrigger asChild>
+                  <Button 
+                    variant="destructive"
+                    disabled={deleteGoalMutation.isPending}
+                    data-testid="button-delete"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    삭제
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>app.riido.io 내용:</AlertDialogTitle>
+                    <AlertDialogDescription className="text-left">
+                      <div className="space-y-2">
+                        <div>[-] 목표를 삭제하시겠습니까?</div>
+                        <div className="text-sm text-muted-foreground">
+                          해당 목표의 모든 작업이 함께 삭제됩니다.
                         </div>
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
+                      </div>
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
                       <AlertDialogCancel>취소</AlertDialogCancel>
                       <AlertDialogAction onClick={handleDelete} className="bg-blue-600 hover:bg-blue-700">
                         확인
@@ -274,8 +273,12 @@ export default function GoalDetail() {
                 </AlertDialog>
               </>
             )}
-          </div>
         </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="flex-1 p-6 overflow-auto" data-testid="main-content">
+        <div className="max-w-4xl mx-auto space-y-6">
 
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -727,7 +730,8 @@ export default function GoalDetail() {
             </Card>
           </div>
         </div>
-      </div>
+        </div>
+      </main>
       
       {/* Task Modal */}
       <TaskModal 
@@ -736,6 +740,6 @@ export default function GoalDetail() {
         goalId={taskModalState.goalId}
         goalTitle={taskModalState.goalTitle}
       />
-    </div>
+    </>
   );
 }
