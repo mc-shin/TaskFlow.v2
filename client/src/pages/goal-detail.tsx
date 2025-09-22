@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { ArrowLeft, Edit, Save, X, Target, Circle, FolderOpen, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
@@ -485,20 +486,39 @@ export default function GoalDetail() {
                 <CardTitle>담당자</CardTitle>
               </CardHeader>
               <CardContent>
-                {assignee ? (
-                  <div className="flex items-center gap-3">
-                    <Avatar>
-                      <AvatarFallback className="bg-primary text-primary-foreground">
-                        {assignee.initials}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="font-medium" data-testid="text-assignee-name">{assignee.name}</p>
-                      <p className="text-sm text-muted-foreground">@{assignee.username}</p>
-                    </div>
-                  </div>
+                {isEditing ? (
+                  <Select
+                    value={editedGoal.assigneeId === null ? "none" : editedGoal.assigneeId ?? goal.assigneeId ?? "none"}
+                    onValueChange={(value) => setEditedGoal(prev => ({ ...prev, assigneeId: value === "none" ? null : value }))}
+                  >
+                    <SelectTrigger className="w-full" data-testid="select-goal-assignee">
+                      <SelectValue placeholder="담당자를 선택하세요" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">담당자 없음</SelectItem>
+                      {Array.isArray(users) ? (users as SafeUser[]).map((user) => (
+                        <SelectItem key={user.id} value={user.id}>
+                          {user.name}
+                        </SelectItem>
+                      )) : null}
+                    </SelectContent>
+                  </Select>
                 ) : (
-                  <p className="text-muted-foreground">담당자가 지정되지 않았습니다.</p>
+                  assignee ? (
+                    <div className="flex items-center gap-3">
+                      <Avatar>
+                        <AvatarFallback className="bg-primary text-primary-foreground">
+                          {assignee.initials}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-medium" data-testid="text-assignee-name">{assignee.name}</p>
+                        <p className="text-sm text-muted-foreground">@{assignee.username}</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-muted-foreground">담당자가 지정되지 않았습니다.</p>
+                  )
                 )}
               </CardContent>
             </Card>

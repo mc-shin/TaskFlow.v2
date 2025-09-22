@@ -354,13 +354,23 @@ export default function TaskDetail() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="text-sm font-medium text-muted-foreground">라벨</label>
-                    <p className="mt-1" data-testid="text-task-label">
-                      {task.label ? (
-                        <Badge variant="secondary">{task.label}</Badge>
-                      ) : (
-                        <span className="text-muted-foreground">라벨이 없습니다</span>
-                      )}
-                    </p>
+                    {isEditing ? (
+                      <Input
+                        value={editedTask.label ?? task.label ?? ''}
+                        onChange={(e) => setEditedTask(prev => ({ ...prev, label: e.target.value }))}
+                        className="mt-1"
+                        placeholder="라벨을 입력하세요"
+                        data-testid="input-task-label"
+                      />
+                    ) : (
+                      <p className="mt-1" data-testid="text-task-label">
+                        {task.label ? (
+                          <Badge variant="secondary">{task.label}</Badge>
+                        ) : (
+                          <span className="text-muted-foreground">라벨이 없습니다</span>
+                        )}
+                      </p>
+                    )}
                   </div>
 
                   <div>
@@ -479,20 +489,39 @@ export default function TaskDetail() {
                 <CardTitle>담당자</CardTitle>
               </CardHeader>
               <CardContent>
-                {task.assignee ? (
-                  <div className="flex items-center gap-3">
-                    <Avatar>
-                      <AvatarFallback className="bg-primary text-primary-foreground">
-                        {task.assignee.initials}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="font-medium" data-testid="text-assignee-name">{task.assignee.name}</p>
-                      <p className="text-sm text-muted-foreground">@{task.assignee.username}</p>
-                    </div>
-                  </div>
+                {isEditing ? (
+                  <Select
+                    value={editedTask.assigneeId === null ? "none" : editedTask.assigneeId ?? task.assigneeId ?? "none"}
+                    onValueChange={(value) => setEditedTask(prev => ({ ...prev, assigneeId: value === "none" ? null : value }))}
+                  >
+                    <SelectTrigger className="w-full" data-testid="select-task-assignee">
+                      <SelectValue placeholder="담당자를 선택하세요" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">담당자 없음</SelectItem>
+                      {Array.isArray(users) ? (users as SafeUser[]).map((user) => (
+                        <SelectItem key={user.id} value={user.id}>
+                          {user.name}
+                        </SelectItem>
+                      )) : null}
+                    </SelectContent>
+                  </Select>
                 ) : (
-                  <p className="text-muted-foreground">담당자가 지정되지 않았습니다.</p>
+                  task.assignee ? (
+                    <div className="flex items-center gap-3">
+                      <Avatar>
+                        <AvatarFallback className="bg-primary text-primary-foreground">
+                          {task.assignee.initials}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-medium" data-testid="text-assignee-name">{task.assignee.name}</p>
+                        <p className="text-sm text-muted-foreground">@{task.assignee.username}</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-muted-foreground">담당자가 지정되지 않았습니다.</p>
+                  )
                 )}
               </CardContent>
             </Card>

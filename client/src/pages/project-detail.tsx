@@ -473,20 +473,39 @@ export default function ProjectDetail() {
                 <CardTitle>담당자</CardTitle>
               </CardHeader>
               <CardContent>
-                {project.owner ? (
-                  <div className="flex items-center gap-3">
-                    <Avatar>
-                      <AvatarFallback className="bg-primary text-primary-foreground">
-                        {project.owner.initials}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="font-medium" data-testid="text-owner-name">{project.owner.name}</p>
-                      <p className="text-sm text-muted-foreground">@{project.owner.username}</p>
-                    </div>
-                  </div>
+                {isEditing ? (
+                  <Select
+                    value={editedProject.ownerId === null ? "none" : editedProject.ownerId ?? project.ownerId ?? "none"}
+                    onValueChange={(value) => setEditedProject(prev => ({ ...prev, ownerId: value === "none" ? null : value }))}
+                  >
+                    <SelectTrigger className="w-full" data-testid="select-project-owner">
+                      <SelectValue placeholder="담당자를 선택하세요" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">담당자 없음</SelectItem>
+                      {Array.isArray(users) ? (users as SafeUser[]).map((user) => (
+                        <SelectItem key={user.id} value={user.id}>
+                          {user.name}
+                        </SelectItem>
+                      )) : null}
+                    </SelectContent>
+                  </Select>
                 ) : (
-                  <p className="text-muted-foreground">담당자가 지정되지 않았습니다.</p>
+                  project.owner ? (
+                    <div className="flex items-center gap-3">
+                      <Avatar>
+                        <AvatarFallback className="bg-primary text-primary-foreground">
+                          {project.owner.initials}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-medium" data-testid="text-owner-name">{project.owner.name}</p>
+                        <p className="text-sm text-muted-foreground">@{project.owner.username}</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-muted-foreground">담당자가 지정되지 않았습니다.</p>
+                  )
                 )}
               </CardContent>
             </Card>
