@@ -360,11 +360,11 @@ export default function TaskDetail() {
                       <Popover>
                         <PopoverTrigger asChild>
                           <div 
-                            className="cursor-pointer hover:bg-muted/20 rounded-md min-w-16 min-h-8 flex items-center px-2 py-1 gap-1 flex-wrap border border-dashed border-muted-foreground/30"
+                            className="cursor-pointer hover:bg-muted/20 rounded-md min-w-16 min-h-8 flex items-center px-2 py-1 gap-1 flex-wrap bg-background border border-input"
                             data-testid={`edit-labels-${task.id}`}
                           >
-                            {(task.labels && task.labels.length > 0) ? (
-                              task.labels.map((label, index) => (
+                            {(editedTask.labels ?? task.labels ?? []).length > 0 ? (
+                              (editedTask.labels ?? task.labels ?? []).map((label, index) => (
                                 <Badge 
                                   key={index} 
                                   variant="outline" 
@@ -386,7 +386,7 @@ export default function TaskDetail() {
                             <h4 className="font-medium text-sm">라벨 편집 (최대 2개)</h4>
                             
                             {/* 입력 필드 */}
-                            {(!task.labels || task.labels.length < 2) && (
+                            {(editedTask.labels ?? task.labels ?? []).length < 2 && (
                               <div className="flex gap-2">
                                 <Input
                                   placeholder="새 라벨 입력"
@@ -395,9 +395,10 @@ export default function TaskDetail() {
                                     if (e.key === 'Enter') {
                                       const target = e.target as HTMLInputElement;
                                       const newLabel = target.value.trim();
-                                      if (newLabel && newLabel.length <= 5 && (!task.labels || task.labels.length < 2)) {
-                                        const updatedLabels = [...(task.labels || []), newLabel];
-                                        updateTaskMutation.mutate({ labels: updatedLabels });
+                                      const currentLabels = editedTask.labels ?? task.labels ?? [];
+                                      if (newLabel && newLabel.length <= 5 && currentLabels.length < 2) {
+                                        const updatedLabels = [...currentLabels, newLabel];
+                                        setEditedTask(prev => ({ ...prev, labels: updatedLabels }));
                                         target.value = '';
                                       }
                                     }
@@ -408,10 +409,10 @@ export default function TaskDetail() {
                             )}
                             
                             {/* 기존 라벨 목록 */}
-                            {task.labels && task.labels.length > 0 && (
+                            {(editedTask.labels ?? task.labels ?? []).length > 0 && (
                               <div className="space-y-2">
                                 <div className="text-xs text-muted-foreground">현재 라벨</div>
-                                {task.labels.map((label, index) => (
+                                {(editedTask.labels ?? task.labels ?? []).map((label, index) => (
                                   <div
                                     key={index}
                                     className="flex items-center justify-between p-2 rounded bg-muted/50"
@@ -423,8 +424,9 @@ export default function TaskDetail() {
                                       variant="ghost"
                                       size="sm"
                                       onClick={() => {
-                                        const updatedLabels = task.labels!.filter((_, i) => i !== index);
-                                        updateTaskMutation.mutate({ labels: updatedLabels });
+                                        const currentLabels = editedTask.labels ?? task.labels ?? [];
+                                        const updatedLabels = currentLabels.filter((_, i) => i !== index);
+                                        setEditedTask(prev => ({ ...prev, labels: updatedLabels }));
                                       }}
                                       className="h-6 w-6 p-0"
                                       data-testid={`button-remove-label-${task.id}-${index}`}
@@ -436,7 +438,7 @@ export default function TaskDetail() {
                               </div>
                             )}
                             
-                            {task.labels && task.labels.length >= 2 && (
+                            {(editedTask.labels ?? task.labels ?? []).length >= 2 && (
                               <div className="text-xs text-muted-foreground text-center">
                                 최대 2개의 라벨을 사용할 수 있습니다.
                               </div>

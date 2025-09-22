@@ -323,11 +323,11 @@ export default function ProjectDetail() {
                       <Popover>
                         <PopoverTrigger asChild>
                           <div 
-                            className="cursor-pointer hover:bg-muted/20 rounded-md min-w-16 min-h-8 flex items-center px-2 py-1 gap-1 flex-wrap border border-dashed border-muted-foreground/30"
+                            className="cursor-pointer hover:bg-muted/20 rounded-md min-w-16 min-h-8 flex items-center px-2 py-1 gap-1 flex-wrap bg-background border border-input"
                             data-testid={`edit-labels-${project.id}`}
                           >
-                            {(project.labels && project.labels.length > 0) ? (
-                              project.labels.map((label, index) => (
+                            {(editedProject.labels ?? project.labels ?? []).length > 0 ? (
+                              (editedProject.labels ?? project.labels ?? []).map((label, index) => (
                                 <Badge 
                                   key={index} 
                                   variant="outline" 
@@ -349,7 +349,7 @@ export default function ProjectDetail() {
                             <h4 className="font-medium text-sm">라벨 편집 (최대 2개)</h4>
                             
                             {/* 입력 필드 */}
-                            {(!project.labels || project.labels.length < 2) && (
+                            {(editedProject.labels ?? project.labels ?? []).length < 2 && (
                               <div className="flex gap-2">
                                 <Input
                                   placeholder="새 라벨 입력"
@@ -358,9 +358,10 @@ export default function ProjectDetail() {
                                     if (e.key === 'Enter') {
                                       const target = e.target as HTMLInputElement;
                                       const newLabel = target.value.trim();
-                                      if (newLabel && newLabel.length <= 5 && (!project.labels || project.labels.length < 2)) {
-                                        const updatedLabels = [...(project.labels || []), newLabel];
-                                        updateProjectMutation.mutate({ labels: updatedLabels });
+                                      const currentLabels = editedProject.labels ?? project.labels ?? [];
+                                      if (newLabel && newLabel.length <= 5 && currentLabels.length < 2) {
+                                        const updatedLabels = [...currentLabels, newLabel];
+                                        setEditedProject(prev => ({ ...prev, labels: updatedLabels }));
                                         target.value = '';
                                       }
                                     }
@@ -371,10 +372,10 @@ export default function ProjectDetail() {
                             )}
                             
                             {/* 기존 라벨 목록 */}
-                            {project.labels && project.labels.length > 0 && (
+                            {(editedProject.labels ?? project.labels ?? []).length > 0 && (
                               <div className="space-y-2">
                                 <div className="text-xs text-muted-foreground">현재 라벨</div>
-                                {project.labels.map((label, index) => (
+                                {(editedProject.labels ?? project.labels ?? []).map((label, index) => (
                                   <div
                                     key={index}
                                     className="flex items-center justify-between p-2 rounded bg-muted/50"
@@ -386,8 +387,9 @@ export default function ProjectDetail() {
                                       variant="ghost"
                                       size="sm"
                                       onClick={() => {
-                                        const updatedLabels = project.labels!.filter((_, i) => i !== index);
-                                        updateProjectMutation.mutate({ labels: updatedLabels });
+                                        const currentLabels = editedProject.labels ?? project.labels ?? [];
+                                        const updatedLabels = currentLabels.filter((_, i) => i !== index);
+                                        setEditedProject(prev => ({ ...prev, labels: updatedLabels }));
                                       }}
                                       className="h-6 w-6 p-0"
                                       data-testid={`button-remove-label-${project.id}-${index}`}
@@ -399,7 +401,7 @@ export default function ProjectDetail() {
                               </div>
                             )}
                             
-                            {project.labels && project.labels.length >= 2 && (
+                            {(editedProject.labels ?? project.labels ?? []).length >= 2 && (
                               <div className="text-xs text-muted-foreground text-center">
                                 최대 2개의 라벨을 사용할 수 있습니다.
                               </div>
