@@ -28,7 +28,7 @@ export default function TaskDetail() {
   const [isEditing, setIsEditing] = useState(false);
   const [editedTask, setEditedTask] = useState<Partial<SafeTaskWithAssignees>>({});
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [attachedFiles, setAttachedFiles] = useState<Array<{ uploadURL: string; name: string }>>([]);
+  const [attachedFiles, setAttachedFiles] = useState<Array<{ uploadURL: string; name: string; objectPath: string }>>([]);
 
   const { data: projects, isLoading } = useQuery({
     queryKey: ["/api/projects"],
@@ -569,7 +569,7 @@ export default function TaskDetail() {
                         headers: { 'Content-Type': 'application/json' }
                       });
                       const data = await response.json();
-                      return { method: 'PUT' as const, url: data.uploadURL };
+                      return { method: 'PUT' as const, url: data.uploadURL, objectPath: data.objectPath };
                     }}
                     onComplete={(result) => {
                       if (result.successful.length > 0) {
@@ -605,11 +605,25 @@ export default function TaskDetail() {
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                onClick={() => {
-                                  const link = document.createElement('a');
-                                  link.href = file.uploadURL;
-                                  link.download = file.name;
-                                  link.click();
+                                onClick={async () => {
+                                  try {
+                                    const response = await fetch(file.objectPath);
+                                    if (response.ok) {
+                                      const blob = await response.blob();
+                                      const link = document.createElement('a');
+                                      link.href = URL.createObjectURL(blob);
+                                      link.download = file.name;
+                                      link.click();
+                                      URL.revokeObjectURL(link.href);
+                                    }
+                                  } catch (error) {
+                                    console.error('Download failed:', error);
+                                    toast({
+                                      title: "다운로드 실패",
+                                      description: "파일 다운로드 중 오류가 발생했습니다.",
+                                      variant: "destructive"
+                                    });
+                                  }
                                 }}
                                 className="h-8 w-8 p-0"
                                 data-testid={`button-download-file-${index}`}
@@ -619,8 +633,26 @@ export default function TaskDetail() {
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                onClick={() => {
-                                  setAttachedFiles(prev => prev.filter((_, i) => i !== index));
+                                onClick={async () => {
+                                  try {
+                                    const response = await fetch(`/api${file.objectPath}`, { method: 'DELETE' });
+                                    if (response.ok) {
+                                      setAttachedFiles(prev => prev.filter((_, i) => i !== index));
+                                      toast({
+                                        title: "파일 삭제 완료",
+                                        description: "파일이 성공적으로 삭제되었습니다.",
+                                      });
+                                    } else {
+                                      throw new Error('Delete failed');
+                                    }
+                                  } catch (error) {
+                                    console.error('Delete failed:', error);
+                                    toast({
+                                      title: "삭제 실패",
+                                      description: "파일 삭제 중 오류가 발생했습니다.",
+                                      variant: "destructive"
+                                    });
+                                  }
                                 }}
                                 className="h-8 w-8 p-0 text-destructive hover:text-destructive"
                                 data-testid={`button-remove-file-${index}`}

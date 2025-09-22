@@ -8,8 +8,9 @@ interface ObjectUploaderProps {
   onGetUploadParameters: () => Promise<{
     method: "PUT";
     url: string;
+    objectPath?: string;
   }>;
-  onComplete?: (result: { successful: Array<{ uploadURL: string; name: string }> }) => void;
+  onComplete?: (result: { successful: Array<{ uploadURL: string; name: string; objectPath: string }> }) => void;
   buttonClassName?: string;
   children: ReactNode;
 }
@@ -58,7 +59,7 @@ export function ObjectUploader({
     if (!files || files.length === 0) return;
 
     setIsUploading(true);
-    const successful: Array<{ uploadURL: string; name: string }> = [];
+    const successful: Array<{ uploadURL: string; name: string; objectPath: string }> = [];
 
     try {
       const fileArray = Array.from(files);
@@ -70,7 +71,8 @@ export function ObjectUploader({
           continue;
         }
 
-        const { url } = await onGetUploadParameters();
+        const uploadParams = await onGetUploadParameters();
+        const { url, objectPath } = uploadParams;
         
         const response = await fetch(url, {
           method: 'PUT',
@@ -84,6 +86,7 @@ export function ObjectUploader({
           successful.push({
             uploadURL: url.split('?')[0], // Remove query parameters to get clean URL
             name: file.name,
+            objectPath: objectPath || url.split('?')[0], // Use objectPath if available, fallback to clean URL
           });
         }
       }

@@ -555,7 +555,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/objects/upload", async (req, res) => {
     const objectStorageService = new ObjectStorageService();
     const uploadURL = await objectStorageService.getObjectEntityUploadURL();
-    res.json({ uploadURL });
+    
+    // Extract object path from the upload URL for later downloads
+    const objectPath = objectStorageService.normalizeObjectEntityPath(uploadURL);
+    
+    res.json({ uploadURL, objectPath });
+  });
+
+  // Delete object
+  app.delete("/api/objects/*", async (req, res) => {
+    const objectStorageService = new ObjectStorageService();
+    try {
+      const objectFile = await objectStorageService.getObjectEntityFile(req.path.replace('/api', ''));
+      await objectFile.delete();
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting object:", error);
+      if (error instanceof ObjectNotFoundError) {
+        return res.sendStatus(404);
+      }
+      return res.sendStatus(500);
+    }
   });
 
   app.put("/api/meeting-attachments", async (req, res) => {
