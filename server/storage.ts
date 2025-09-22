@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type Task, type InsertTask, type Activity, type InsertActivity, type TaskWithAssignee, type ActivityWithDetails, type Project, type InsertProject, type ProjectWithOwner, type UserWithStats, type SafeUser, type SafeUserWithStats, type SafeTaskWithAssignee, type SafeActivityWithDetails, type Meeting, type InsertMeeting, type MeetingComment, type InsertMeetingComment, type MeetingAttachment, type InsertMeetingAttachment, type MeetingCommentWithAuthor, type MeetingWithDetails, type Goal, type InsertGoal, type GoalWithTasks, type ProjectWithDetails } from "@shared/schema";
+import { type User, type InsertUser, type Task, type InsertTask, type Activity, type InsertActivity, type TaskWithAssignees, type ActivityWithDetails, type Project, type InsertProject, type ProjectWithOwners, type UserWithStats, type SafeUser, type SafeUserWithStats, type SafeTaskWithAssignees, type SafeActivityWithDetails, type Meeting, type InsertMeeting, type MeetingComment, type InsertMeetingComment, type MeetingAttachment, type InsertMeetingAttachment, type MeetingCommentWithAuthor, type MeetingWithDetails, type Goal, type InsertGoal, type GoalWithTasks, type ProjectWithDetails } from "@shared/schema";
 import { randomUUID } from "crypto";
 
 export interface IStorage {
@@ -12,9 +12,9 @@ export interface IStorage {
   updateUserLastLogin(id: string): Promise<void>;
 
   // Project methods
-  getAllProjects(): Promise<ProjectWithOwner[]>;
+  getAllProjects(): Promise<ProjectWithOwners[]>;
   getAllProjectsWithDetails(): Promise<ProjectWithDetails[]>;
-  getProject(id: string): Promise<ProjectWithOwner | undefined>;
+  getProject(id: string): Promise<ProjectWithOwners | undefined>;
   createProject(project: InsertProject): Promise<Project>;
   updateProject(id: string, project: Partial<InsertProject>): Promise<Project | undefined>;
   deleteProject(id: string): Promise<boolean>;
@@ -28,14 +28,14 @@ export interface IStorage {
   getGoalsByProject(projectId: string): Promise<GoalWithTasks[]>;
 
   // Task methods
-  getAllTasks(): Promise<SafeTaskWithAssignee[]>;
-  getTask(id: string): Promise<SafeTaskWithAssignee | undefined>;
+  getAllTasks(): Promise<SafeTaskWithAssignees[]>;
+  getTask(id: string): Promise<SafeTaskWithAssignees | undefined>;
   createTask(task: InsertTask): Promise<Task>;
   updateTask(id: string, task: Partial<InsertTask>): Promise<Task | undefined>;
   deleteTask(id: string): Promise<boolean>;
-  getTasksByStatus(status: string): Promise<SafeTaskWithAssignee[]>;
-  getTasksByProject(projectId: string): Promise<SafeTaskWithAssignee[]>;
-  getTasksByGoal(goalId: string): Promise<SafeTaskWithAssignee[]>;
+  getTasksByStatus(status: string): Promise<SafeTaskWithAssignees[]>;
+  getTasksByProject(projectId: string): Promise<SafeTaskWithAssignees[]>;
+  getTasksByGoal(goalId: string): Promise<SafeTaskWithAssignees[]>;
 
   // Activity methods
   getAllActivities(): Promise<SafeActivityWithDetails[]>;
@@ -148,7 +148,7 @@ export class MemStorage implements IStorage {
         description: "성장 기능 구현",
         deadline: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // D-14
         status: "진행중",
-        ownerId: userArray[0]?.id || null
+        ownerIds: userArray[0]?.id ? [userArray[0].id] : []
       },
       { 
         name: "v0.10.4 업데이트", 
@@ -156,7 +156,7 @@ export class MemStorage implements IStorage {
         description: "앱 업데이트",
         deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // D-7
         status: "진행중",
-        ownerId: userArray[1]?.id || null
+        ownerIds: userArray[1]?.id ? [userArray[1].id] : []
       },
       { 
         name: "디스코드 연동", 
@@ -164,7 +164,7 @@ export class MemStorage implements IStorage {
         description: "디스코드 연동 기능",
         deadline: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // D-1
         status: "진행전",
-        ownerId: userArray[2]?.id || null
+        ownerIds: userArray[2]?.id ? [userArray[2].id] : []
       },
     ];
 
@@ -175,11 +175,11 @@ export class MemStorage implements IStorage {
     // Initialize goals for projects
     const projectArray = Array.from(this.projects.values());
     const defaultGoals = [
-      { title: "메인 기능 개발", description: "핵심 기능 구현", deadline: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], status: "진행중", assigneeId: userArray[0]?.id, projectId: projectArray[0]?.id },
-      { title: "UI/UX 개선", description: "사용자 인터페이스 개선", deadline: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], status: "목표", assigneeId: userArray[1]?.id, projectId: projectArray[0]?.id },
-      { title: "API 연동", description: "외부 API 연동 작업", deadline: null, status: "진행전", assigneeId: userArray[1]?.id, projectId: projectArray[1]?.id },
-      { title: "시스템 최적화", description: "성능 및 안정성 개선", deadline: null, status: "목표", assigneeId: userArray[0]?.id, projectId: projectArray[1]?.id },
-      { title: "연동 기능", description: "다른 서비스와의 연동", deadline: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], status: "진행전", assigneeId: userArray[2]?.id, projectId: projectArray[2]?.id },
+      { title: "메인 기능 개발", description: "핵심 기능 구현", deadline: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], status: "진행중", assigneeIds: userArray[0]?.id ? [userArray[0].id] : [], projectId: projectArray[0]?.id },
+      { title: "UI/UX 개선", description: "사용자 인터페이스 개선", deadline: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], status: "목표", assigneeIds: userArray[1]?.id ? [userArray[1].id] : [], projectId: projectArray[0]?.id },
+      { title: "API 연동", description: "외부 API 연동 작업", deadline: null, status: "진행전", assigneeIds: userArray[1]?.id ? [userArray[1].id] : [], projectId: projectArray[1]?.id },
+      { title: "시스템 최적화", description: "성능 및 안정성 개선", deadline: null, status: "목표", assigneeIds: userArray[0]?.id ? [userArray[0].id] : [], projectId: projectArray[1]?.id },
+      { title: "연동 기능", description: "다른 서비스와의 연동", deadline: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], status: "진행전", assigneeIds: userArray[2]?.id ? [userArray[2].id] : [], projectId: projectArray[2]?.id },
     ];
 
     for (const goal of defaultGoals) {
@@ -190,21 +190,21 @@ export class MemStorage implements IStorage {
     const goalArray = Array.from(this.goals.values());
     const defaultTasks = [
       // Goal 1 tasks (메인 기능 개발)
-      { title: "지금 벙크 성장 기능", description: "", status: "완료", goalId: goalArray[0]?.id, projectId: projectArray[0]?.id, assigneeId: userArray[0]?.id, deadline: null, duration: 0, priority: "높음", label: "개발" },
-      { title: "업데이트 창 폭을 정함", description: "", status: "진행전", goalId: goalArray[0]?.id, projectId: projectArray[0]?.id, assigneeId: userArray[0]?.id, deadline: null, duration: 0, priority: "중간", label: "디자인" },
-      { title: "프로젝트 UI 개선", description: "", status: "진행전", projectId: projectArray[0]?.id, assigneeId: userArray[1]?.id, deadline: null, duration: 0, priority: "중간", label: "UI" },
-      { title: "지금벙 API 연동", description: "", status: "진행중", projectId: projectArray[0]?.id, assigneeId: userArray[0]?.id, deadline: null, duration: 0, priority: "높음", label: "API" },
-      { title: "지금벙 Webhook 설정", description: "", status: "진행전", projectId: projectArray[0]?.id, assigneeId: userArray[1]?.id, deadline: null, duration: 0, priority: "중간", label: "설정" },
+      { title: "지금 벙크 성장 기능", description: "", status: "완료", goalId: goalArray[0]?.id, projectId: projectArray[0]?.id, assigneeIds: userArray[0]?.id ? [userArray[0].id] : [], deadline: null, duration: 0, priority: "높음", label: "개발" },
+      { title: "업데이트 창 폭을 정함", description: "", status: "진행전", goalId: goalArray[0]?.id, projectId: projectArray[0]?.id, assigneeIds: userArray[0]?.id ? [userArray[0].id] : [], deadline: null, duration: 0, priority: "중간", label: "디자인" },
+      { title: "프로젝트 UI 개선", description: "", status: "진행전", projectId: projectArray[0]?.id, assigneeIds: userArray[1]?.id ? [userArray[1].id] : [], deadline: null, duration: 0, priority: "중간", label: "UI" },
+      { title: "지금벙 API 연동", description: "", status: "진행중", projectId: projectArray[0]?.id, assigneeIds: userArray[0]?.id ? [userArray[0].id] : [], deadline: null, duration: 0, priority: "높음", label: "API" },
+      { title: "지금벙 Webhook 설정", description: "", status: "진행전", projectId: projectArray[0]?.id, assigneeIds: userArray[1]?.id ? [userArray[1].id] : [], deadline: null, duration: 0, priority: "중간", label: "설정" },
       
       // RIIDO-27 tasks  
-      { title: "미니 번번 생성 및 알림 기능", description: "", status: "완료", projectId: projectArray[1]?.id, assigneeId: userArray[1]?.id, deadline: null, duration: 0, priority: "높음", label: "기능" },
-      { title: "넥스트 센터 개선 - 블랙 센터네트 업데이트", description: "", status: "진행전", projectId: projectArray[1]?.id, assigneeId: userArray[1]?.id, deadline: null, duration: 0, priority: "중간", label: "업데이트" },
-      { title: "널링앱 설정창 이동을 성능 향 숫 안정 개선", description: "", status: "진행전", projectId: projectArray[1]?.id, assigneeId: userArray[0]?.id, deadline: null, duration: 0, priority: "중간", label: "성능" },
-      { title: "리스트에서 차례 드래그로널스 기능 발밑", description: "", status: "진행전", projectId: projectArray[1]?.id, assigneeId: userArray[2]?.id, deadline: null, duration: 0, priority: "낮음", label: "기능" },
-      { title: "리스트에서 차례 사제지 즤저 방밎 입한", description: "", status: "진행전", projectId: projectArray[1]?.id, assigneeId: userArray[1]?.id, deadline: null, duration: 0, priority: "낮음", label: "기능" },
+      { title: "미니 번번 생성 및 알림 기능", description: "", status: "완료", projectId: projectArray[1]?.id, assigneeIds: userArray[1]?.id ? [userArray[1].id] : [], deadline: null, duration: 0, priority: "높음", label: "기능" },
+      { title: "넥스트 센터 개선 - 블랙 센터네트 업데이트", description: "", status: "진행전", projectId: projectArray[1]?.id, assigneeIds: userArray[1]?.id ? [userArray[1].id] : [], deadline: null, duration: 0, priority: "중간", label: "업데이트" },
+      { title: "널링앱 설정창 이동을 성능 향 숫 안정 개선", description: "", status: "진행전", projectId: projectArray[1]?.id, assigneeIds: userArray[0]?.id ? [userArray[0].id] : [], deadline: null, duration: 0, priority: "중간", label: "성능" },
+      { title: "리스트에서 차례 드래그로널스 기능 발밑", description: "", status: "진행전", projectId: projectArray[1]?.id, assigneeIds: userArray[2]?.id ? [userArray[2].id] : [], deadline: null, duration: 0, priority: "낮음", label: "기능" },
+      { title: "리스트에서 차례 사제지 즤저 방밎 입한", description: "", status: "진행전", projectId: projectArray[1]?.id, assigneeIds: userArray[1]?.id ? [userArray[1].id] : [], deadline: null, duration: 0, priority: "낮음", label: "기능" },
       
       // RIIDO-70 tasks
-      { title: "차례 변경사항에 대한 알림", description: "", status: "진행전", projectId: projectArray[2]?.id, assigneeId: userArray[2]?.id, deadline: null, duration: 0, priority: "중간", label: "알림" },
+      { title: "차례 변경사항에 대한 알림", description: "", status: "진행전", projectId: projectArray[2]?.id, assigneeIds: userArray[2]?.id ? [userArray[2].id] : [], deadline: null, duration: 0, priority: "중간", label: "알림" },
     ];
 
     for (const task of defaultTasks) {
@@ -294,7 +294,7 @@ export class MemStorage implements IStorage {
     const usersWithStats: SafeUserWithStats[] = [];
     
     for (const user of users) {
-      const userTasks = Array.from(this.tasks.values()).filter(task => task.assigneeId === user.id);
+      const userTasks = Array.from(this.tasks.values()).filter(task => task.assigneeIds && task.assigneeIds.includes(user.id));
       const completedTasks = userTasks.filter(task => task.status === "완료");
       const overdueTasks = userTasks.filter(task => {
         if (!task.deadline) return false;
@@ -331,13 +331,21 @@ export class MemStorage implements IStorage {
   }
 
   // Project methods
-  async getAllProjects(): Promise<ProjectWithOwner[]> {
+  async getAllProjects(): Promise<ProjectWithOwners[]> {
     const projects = Array.from(this.projects.values());
-    const projectsWithOwner: ProjectWithOwner[] = [];
+    const projectsWithOwner: ProjectWithOwners[] = [];
     
     for (const project of projects) {
-      const ownerUser = project.ownerId ? await this.getUser(project.ownerId) : undefined;
-      const owner = ownerUser ? (({ password, ...safeUser }) => safeUser)(ownerUser) : undefined;
+      const owners: SafeUser[] = [];
+      if (project.ownerIds && Array.isArray(project.ownerIds)) {
+        for (const ownerId of project.ownerIds) {
+          const ownerUser = await this.getUser(ownerId);
+          if (ownerUser) {
+            const { password, ...safeOwner } = ownerUser;
+            owners.push(safeOwner);
+          }
+        }
+      }
       const projectTasks = Array.from(this.tasks.values()).filter(task => task.projectId === project.id);
       const completedTasks = projectTasks.filter(task => task.status === "완료");
       const overdueTasks = projectTasks.filter(task => {
@@ -347,17 +355,25 @@ export class MemStorage implements IStorage {
       
       const progressPercentage = this.calculateAverageProgress(projectTasks);
       
-      // Add assignee info to tasks
-      const tasksWithAssignees: SafeTaskWithAssignee[] = [];
+      // Add assignees info to tasks
+      const tasksWithAssignees: SafeTaskWithAssignees[] = [];
       for (const task of projectTasks) {
-        const assigneeUser = task.assigneeId ? await this.getUser(task.assigneeId) : undefined;
-        const assignee = assigneeUser ? (({ password, ...safeUser }) => safeUser)(assigneeUser) : undefined;
-        tasksWithAssignees.push({ ...task, assignee });
+        const assignees: SafeUser[] = [];
+        if (task.assigneeIds && Array.isArray(task.assigneeIds)) {
+          for (const assigneeId of task.assigneeIds) {
+            const assigneeUser = await this.getUser(assigneeId);
+            if (assigneeUser) {
+              const { password, ...safeAssignee } = assigneeUser;
+              assignees.push(safeAssignee);
+            }
+          }
+        }
+        tasksWithAssignees.push({ ...task, assignees });
       }
       
       projectsWithOwner.push({
         ...project,
-        owner,
+        owners,
         tasks: tasksWithAssignees,
         totalTasks: projectTasks.length,
         completedTasks: completedTasks.length,
@@ -377,8 +393,16 @@ export class MemStorage implements IStorage {
     const projectsWithDetails: ProjectWithDetails[] = [];
     
     for (const project of projects) {
-      const ownerUser = project.ownerId ? await this.getUser(project.ownerId) : undefined;
-      const owner = ownerUser ? (({ password, ...safeUser }) => safeUser)(ownerUser) : undefined;
+      const owners: SafeUser[] = [];
+      if (project.ownerIds && Array.isArray(project.ownerIds)) {
+        for (const ownerId of project.ownerIds) {
+          const ownerUser = await this.getUser(ownerId);
+          if (ownerUser) {
+            const { password, ...safeOwner } = ownerUser;
+            owners.push(safeOwner);
+          }
+        }
+      }
       
       // Get all direct project tasks
       const directProjectTasks = Array.from(this.tasks.values()).filter(task => task.projectId === project.id);
@@ -409,12 +433,20 @@ export class MemStorage implements IStorage {
         const goalCompletedTasks = goalTasks.filter(task => task.status === "완료");
         const goalProgressPercentage = this.calculateAverageProgress(goalTasks);
         
-        // Add assignee info to goal tasks
-        const goalTasksWithAssignees: SafeTaskWithAssignee[] = [];
+        // Add assignees info to goal tasks
+        const goalTasksWithAssignees: SafeTaskWithAssignees[] = [];
         for (const task of goalTasks) {
-          const assigneeUser = task.assigneeId ? await this.getUser(task.assigneeId) : undefined;
-          const assignee = assigneeUser ? (({ password, ...safeUser }) => safeUser)(assigneeUser) : undefined;
-          goalTasksWithAssignees.push({ ...task, assignee });
+          const assignees: SafeUser[] = [];
+          if (task.assigneeIds && Array.isArray(task.assigneeIds)) {
+            for (const assigneeId of task.assigneeIds) {
+              const assigneeUser = await this.getUser(assigneeId);
+              if (assigneeUser) {
+                const { password, ...safeAssignee } = assigneeUser;
+                assignees.push(safeAssignee);
+              }
+            }
+          }
+          goalTasksWithAssignees.push({ ...task, assignees });
         }
         
         goalsWithTasks.push({
@@ -437,17 +469,25 @@ export class MemStorage implements IStorage {
         projectProgressPercentage = this.calculateAverageProgress(directProjectTasks);
       }
       
-      // Add assignee info to direct project tasks
-      const tasksWithAssignees: SafeTaskWithAssignee[] = [];
+      // Add assignees info to direct project tasks
+      const tasksWithAssignees: SafeTaskWithAssignees[] = [];
       for (const task of directProjectTasks) {
-        const assigneeUser = task.assigneeId ? await this.getUser(task.assigneeId) : undefined;
-        const assignee = assigneeUser ? (({ password, ...safeUser }) => safeUser)(assigneeUser) : undefined;
-        tasksWithAssignees.push({ ...task, assignee });
+        const assignees: SafeUser[] = [];
+        if (task.assigneeIds && Array.isArray(task.assigneeIds)) {
+          for (const assigneeId of task.assigneeIds) {
+            const assigneeUser = await this.getUser(assigneeId);
+            if (assigneeUser) {
+              const { password, ...safeAssignee } = assigneeUser;
+              assignees.push(safeAssignee);
+            }
+          }
+        }
+        tasksWithAssignees.push({ ...task, assignees });
       }
       
       projectsWithDetails.push({
         ...project,
-        owner,
+        owners,
         goals: goalsWithTasks,
         tasks: tasksWithAssignees,
         totalTasks: allProjectTasks.length,
@@ -463,12 +503,20 @@ export class MemStorage implements IStorage {
     );
   }
 
-  async getProject(id: string): Promise<ProjectWithOwner | undefined> {
+  async getProject(id: string): Promise<ProjectWithOwners | undefined> {
     const project = this.projects.get(id);
     if (!project) return undefined;
     
-    const ownerUser = project.ownerId ? await this.getUser(project.ownerId) : undefined;
-    const owner = ownerUser ? (({ password, ...safeUser }) => safeUser)(ownerUser) : undefined;
+    const owners: SafeUser[] = [];
+    if (project.ownerIds && Array.isArray(project.ownerIds)) {
+      for (const ownerId of project.ownerIds) {
+        const ownerUser = await this.getUser(ownerId);
+        if (ownerUser) {
+          const { password, ...safeOwner } = ownerUser;
+          owners.push(safeOwner);
+        }
+      }
+    }
     
     // Get all direct project tasks
     const directProjectTasks = Array.from(this.tasks.values()).filter(task => task.projectId === project.id);
@@ -506,17 +554,25 @@ export class MemStorage implements IStorage {
       progressPercentage = this.calculateAverageProgress(directProjectTasks);
     }
     
-    // Add assignee info to direct project tasks
-    const tasksWithAssignees: SafeTaskWithAssignee[] = [];
+    // Add assignees info to direct project tasks
+    const tasksWithAssignees: SafeTaskWithAssignees[] = [];
     for (const task of directProjectTasks) {
-      const assigneeUser = task.assigneeId ? await this.getUser(task.assigneeId) : undefined;
-      const assignee = assigneeUser ? (({ password, ...safeUser }) => safeUser)(assigneeUser) : undefined;
-      tasksWithAssignees.push({ ...task, assignee });
+      const assignees: SafeUser[] = [];
+      if (task.assigneeIds && Array.isArray(task.assigneeIds)) {
+        for (const assigneeId of task.assigneeIds) {
+          const assigneeUser = await this.getUser(assigneeId);
+          if (assigneeUser) {
+            const { password, ...safeAssignee } = assigneeUser;
+            assignees.push(safeAssignee);
+          }
+        }
+      }
+      tasksWithAssignees.push({ ...task, assignees });
     }
     
     return {
       ...project,
-      owner,
+      owners,
       tasks: tasksWithAssignees,
       totalTasks: allProjectTasks.length,
       completedTasks: completedTasks.length,
@@ -535,18 +591,18 @@ export class MemStorage implements IStorage {
       description: insertProject.description || null,
       deadline: insertProject.deadline || null,
       status: insertProject.status || null,
-      ownerId: insertProject.ownerId || null,
+      ownerIds: insertProject.ownerIds || [],
       createdAt: now,
       updatedAt: now
     };
     this.projects.set(id, project);
     
     // Create activity
-    if (insertProject.ownerId) {
+    if (insertProject.ownerIds && insertProject.ownerIds.length > 0) {
       await this.createActivity({
         description: `새 프로젝트가 생성되었습니다`,
         taskId: null,
-        userId: insertProject.ownerId,
+        userId: insertProject.ownerIds[0], // Use first owner for activity
       });
     }
     
@@ -589,12 +645,12 @@ export class MemStorage implements IStorage {
     return deleted;
   }
 
-  async getTasksByProject(projectId: string): Promise<SafeTaskWithAssignee[]> {
+  async getTasksByProject(projectId: string): Promise<SafeTaskWithAssignees[]> {
     const allTasks = await this.getAllTasks();
     return allTasks.filter(task => task.projectId === projectId);
   }
 
-  async getTasksByGoal(goalId: string): Promise<SafeTaskWithAssignee[]> {
+  async getTasksByGoal(goalId: string): Promise<SafeTaskWithAssignees[]> {
     const allTasks = await this.getAllTasks();
     return allTasks.filter(task => task.goalId === goalId);
   }
@@ -610,12 +666,20 @@ export class MemStorage implements IStorage {
       
       const progressPercentage = this.calculateAverageProgress(goalTasks);
       
-      // Add assignee info to tasks
-      const tasksWithAssignees: SafeTaskWithAssignee[] = [];
+      // Add assignees info to tasks
+      const tasksWithAssignees: SafeTaskWithAssignees[] = [];
       for (const task of goalTasks) {
-        const assigneeUser = task.assigneeId ? await this.getUser(task.assigneeId) : undefined;
-        const assignee = assigneeUser ? (({ password, ...safeUser }) => safeUser)(assigneeUser) : undefined;
-        tasksWithAssignees.push({ ...task, assignee });
+        const assignees: SafeUser[] = [];
+        if (task.assigneeIds && Array.isArray(task.assigneeIds)) {
+          for (const assigneeId of task.assigneeIds) {
+            const assigneeUser = await this.getUser(assigneeId);
+            if (assigneeUser) {
+              const { password, ...safeAssignee } = assigneeUser;
+              assignees.push(safeAssignee);
+            }
+          }
+        }
+        tasksWithAssignees.push({ ...task, assignees });
       }
       
       goalsWithTasks.push({
@@ -641,12 +705,20 @@ export class MemStorage implements IStorage {
     
     const progressPercentage = this.calculateAverageProgress(goalTasks);
     
-    // Add assignee info to tasks
-    const tasksWithAssignees: SafeTaskWithAssignee[] = [];
+    // Add assignees info to tasks
+    const tasksWithAssignees: SafeTaskWithAssignees[] = [];
     for (const task of goalTasks) {
-      const assigneeUser = task.assigneeId ? await this.getUser(task.assigneeId) : undefined;
-      const assignee = assigneeUser ? (({ password, ...safeUser }) => safeUser)(assigneeUser) : undefined;
-      tasksWithAssignees.push({ ...task, assignee });
+      const assignees: SafeUser[] = [];
+      if (task.assigneeIds && Array.isArray(task.assigneeIds)) {
+        for (const assigneeId of task.assigneeIds) {
+          const assigneeUser = await this.getUser(assigneeId);
+          if (assigneeUser) {
+            const { password, ...safeAssignee } = assigneeUser;
+            assignees.push(safeAssignee);
+          }
+        }
+      }
+      tasksWithAssignees.push({ ...task, assignees });
     }
     
     return {
@@ -667,7 +739,7 @@ export class MemStorage implements IStorage {
       description: insertGoal.description || null,
       deadline: insertGoal.deadline || null,
       status: insertGoal.status || null,
-      assigneeId: insertGoal.assigneeId || null,
+      assigneeIds: insertGoal.assigneeIds || [],
       createdAt: now,
       updatedAt: now
     };
@@ -710,14 +782,22 @@ export class MemStorage implements IStorage {
     return Array.from(this.users.values());
   }
 
-  async getAllTasks(): Promise<SafeTaskWithAssignee[]> {
+  async getAllTasks(): Promise<SafeTaskWithAssignees[]> {
     const tasks = Array.from(this.tasks.values());
-    const tasksWithAssignees: SafeTaskWithAssignee[] = [];
+    const tasksWithAssignees: SafeTaskWithAssignees[] = [];
     
     for (const task of tasks) {
-      const assigneeUser = task.assigneeId ? await this.getUser(task.assigneeId) : undefined;
-      const assignee = assigneeUser ? (({ password, ...safeUser }) => safeUser)(assigneeUser) : undefined;
-      tasksWithAssignees.push({ ...task, assignee });
+      const assignees: SafeUser[] = [];
+      if (task.assigneeIds && Array.isArray(task.assigneeIds)) {
+        for (const assigneeId of task.assigneeIds) {
+          const assigneeUser = await this.getUser(assigneeId);
+          if (assigneeUser) {
+            const { password, ...safeAssignee } = assigneeUser;
+            assignees.push(safeAssignee);
+          }
+        }
+      }
+      tasksWithAssignees.push({ ...task, assignees });
     }
     
     return tasksWithAssignees.sort((a, b) => 
@@ -725,13 +805,21 @@ export class MemStorage implements IStorage {
     );
   }
 
-  async getTask(id: string): Promise<SafeTaskWithAssignee | undefined> {
+  async getTask(id: string): Promise<SafeTaskWithAssignees | undefined> {
     const task = this.tasks.get(id);
     if (!task) return undefined;
     
-    const assigneeUser = task.assigneeId ? await this.getUser(task.assigneeId) : undefined;
-    const assignee = assigneeUser ? (({ password, ...safeUser }) => safeUser)(assigneeUser) : undefined;
-    return { ...task, assignee };
+    const assignees: SafeUser[] = [];
+    if (task.assigneeIds && Array.isArray(task.assigneeIds)) {
+      for (const assigneeId of task.assigneeIds) {
+        const assigneeUser = await this.getUser(assigneeId);
+        if (assigneeUser) {
+          const { password, ...safeAssignee } = assigneeUser;
+          assignees.push(safeAssignee);
+        }
+      }
+    }
+    return { ...task, assignees };
   }
 
   async createTask(insertTask: InsertTask): Promise<Task> {
@@ -775,7 +863,7 @@ export class MemStorage implements IStorage {
       label: insertTask.label || null,
       status: status,
       progress: initialProgress,
-      assigneeId: insertTask.assigneeId || null,
+      assigneeIds: insertTask.assigneeIds || [],
       projectId: finalProjectId,
       goalId: insertTask.goalId || null,
       createdAt: now,
@@ -784,11 +872,11 @@ export class MemStorage implements IStorage {
     this.tasks.set(id, task);
     
     // Create activity
-    if (insertTask.assigneeId) {
+    if (insertTask.assigneeIds && insertTask.assigneeIds.length > 0) {
       await this.createActivity({
         description: `새 작업이 생성되었습니다`,
         taskId: id,
-        userId: insertTask.assigneeId,
+        userId: insertTask.assigneeIds[0], // Use first assignee for activity
       });
     }
     
@@ -818,11 +906,11 @@ export class MemStorage implements IStorage {
     this.tasks.set(id, updatedTask);
     
     // Create activity
-    if (updateData.assigneeId) {
+    if (updateData.assigneeIds && updateData.assigneeIds.length > 0) {
       await this.createActivity({
         description: `작업이 수정되었습니다`,
         taskId: id,
-        userId: updateData.assigneeId,
+        userId: updateData.assigneeIds[0], // Use first assignee for activity
       });
     }
     
@@ -844,7 +932,7 @@ export class MemStorage implements IStorage {
     return deleted;
   }
 
-  async getTasksByStatus(status: string): Promise<SafeTaskWithAssignee[]> {
+  async getTasksByStatus(status: string): Promise<SafeTaskWithAssignees[]> {
     const allTasks = await this.getAllTasks();
     return allTasks.filter(task => task.status === status);
   }

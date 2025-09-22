@@ -11,7 +11,7 @@ import { ChevronDown, ChevronRight, FolderOpen, Target, Circle, Plus, Calendar, 
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
-import type { SafeTaskWithAssignee, ProjectWithDetails, GoalWithTasks, SafeUser } from "@shared/schema";
+import type { SafeTaskWithAssignees, ProjectWithDetails, GoalWithTasks, SafeUser } from "@shared/schema";
 import { ProjectModal } from "@/components/project-modal";
 import { GoalModal } from "@/components/goal-modal";
 import { TaskModal } from "@/components/task-modal";
@@ -59,7 +59,7 @@ export default function ListTree() {
   const updateProgressForParentItem = async (itemId: string, type: 'goal' | 'project', targetProgress: number): Promise<number> => {
     if (!projects) return targetProgress;
     
-    let childTasks: SafeTaskWithAssignee[] = [];
+    let childTasks: SafeTaskWithAssignees[] = [];
     
     if (type === 'goal') {
       // Find all tasks under this goal
@@ -133,10 +133,10 @@ export default function ListTree() {
     console.log(`This gives ${finalProgress}% progress (target: ${targetProgress}%, error: ${bestError.toFixed(1)}%)`);
     
     // Deterministic task assignment to exactly match target distribution
-    const updates: Array<{task: SafeTaskWithAssignee, newStatus: string}> = [];
+    const updates: Array<{task: SafeTaskWithAssignees, newStatus: string}> = [];
     
     // Create target assignment arrays for each status
-    const targetAssignment: {[status: string]: SafeTaskWithAssignee[]} = {
+    const targetAssignment: {[status: string]: SafeTaskWithAssignees[]} = {
       '진행전': [],
       '진행중': [],
       '완료': []
@@ -1205,7 +1205,7 @@ export default function ListTree() {
                         {renderEditableDeadline(project.id, 'project', project.deadline)}
                       </div>
                       <div className="col-span-1">
-                        {renderEditableAssignee(project.id, 'project', project.owner || null, project.ownerId)}
+                        {renderEditableAssignee(project.id, 'project', project.owners && project.owners.length > 0 ? project.owners[0] : null, project.ownerIds && project.ownerIds.length > 0 ? project.ownerIds[0] : null)}
                       </div>
                       <div className="col-span-1">
                         {renderEditableLabel(project.id, 'project', null)}
@@ -1274,7 +1274,7 @@ export default function ListTree() {
                                 {renderEditableDeadline(goal.id, 'goal', goal.deadline)}
                               </div>
                               <div className="col-span-1">
-                                {renderEditableAssignee(goal.id, 'goal', goal.assigneeId ? (users as SafeUser[])?.find(u => u.id === goal.assigneeId) || null : null, goal.assigneeId)}
+                                {renderEditableAssignee(goal.id, 'goal', goal.assigneeIds && goal.assigneeIds.length > 0 ? (users as SafeUser[])?.find(u => u.id === goal.assigneeIds![0]) || null : null, goal.assigneeIds && goal.assigneeIds.length > 0 ? goal.assigneeIds[0] : null)}
                               </div>
                               <div className="col-span-1">
                                 {renderEditableLabel(goal.id, 'goal', null)}
@@ -1316,7 +1316,7 @@ export default function ListTree() {
                                       {renderEditableDeadline(task.id, 'task', task.deadline)}
                                     </div>
                                     <div className="col-span-1">
-                                      {renderEditableAssignee(task.id, 'task', task.assignee || null)}
+                                      {renderEditableAssignee(task.id, 'task', task.assignees && task.assignees.length > 0 ? task.assignees[0] : null)}
                                     </div>
                                     <div className="col-span-1">
                                       {renderEditableLabel(task.id, 'task', task.label)}
