@@ -383,14 +383,35 @@ export default function ListHorizontal() {
     }
 
     const handleAssigneeToggle = (userId: string, isSelected: boolean) => {
+      // Get the latest assignee IDs from the current cache/data to avoid stale closure issues
+      const latestData = queryClient.getQueryData(["/api/projects"]) as ProjectWithDetails[] | undefined;
+      let latestCurrentAssigneeIds: string[] = [];
+      
+      if (latestData) {
+        if (item.type === 'project') {
+          const latestProject = latestData.find(p => p.id === item.id);
+          latestCurrentAssigneeIds = Array.isArray(latestProject?.ownerIds) ? latestProject.ownerIds : [];
+        } else if (item.type === 'goal') {
+          const latestGoal = latestData.flatMap(p => p.goals || []).find(g => g.id === item.id);
+          latestCurrentAssigneeIds = Array.isArray(latestGoal?.assigneeIds) ? latestGoal.assigneeIds : [];
+        } else if (item.type === 'task') {
+          const latestTask = latestData
+            .flatMap(p => [...(p.tasks || []), ...(p.goals || []).flatMap(g => g.tasks || [])])
+            .find(t => t.id === item.id);
+          latestCurrentAssigneeIds = Array.isArray(latestTask?.assigneeIds) ? latestTask.assigneeIds : [];
+        }
+      }
+      
       let newAssigneeIds: string[];
       
       if (isSelected) {
-        // Add user to assignees
-        newAssigneeIds = [...currentAssigneeIds, userId];
+        // Add user to assignees if not already present
+        newAssigneeIds = latestCurrentAssigneeIds.includes(userId) 
+          ? latestCurrentAssigneeIds 
+          : [...latestCurrentAssigneeIds, userId];
       } else {
         // Remove user from assignees
-        newAssigneeIds = currentAssigneeIds.filter(id => id !== userId);
+        newAssigneeIds = latestCurrentAssigneeIds.filter(id => id !== userId);
       }
       
       if (item.type === 'project') {
@@ -440,12 +461,32 @@ export default function ListHorizontal() {
             </h4>
             <div className="space-y-1 max-h-48 overflow-y-auto">
               {(users as SafeUser[])?.map(user => {
-                const isSelected = currentAssigneeIds.includes(user.id);
+                // Always get the latest data for checkbox state to avoid stale display
+                const latestData = queryClient.getQueryData(["/api/projects"]) as ProjectWithDetails[] | undefined;
+                let latestAssigneeIds: string[] = [];
+                
+                if (latestData) {
+                  if (item.type === 'project') {
+                    const latestProject = latestData.find(p => p.id === item.id);
+                    latestAssigneeIds = Array.isArray(latestProject?.ownerIds) ? latestProject.ownerIds : [];
+                  } else if (item.type === 'goal') {
+                    const latestGoal = latestData.flatMap(p => p.goals || []).find(g => g.id === item.id);
+                    latestAssigneeIds = Array.isArray(latestGoal?.assigneeIds) ? latestGoal.assigneeIds : [];
+                  } else if (item.type === 'task') {
+                    const latestTask = latestData
+                      .flatMap(p => [...(p.tasks || []), ...(p.goals || []).flatMap(g => g.tasks || [])])
+                      .find(t => t.id === item.id);
+                    latestAssigneeIds = Array.isArray(latestTask?.assigneeIds) ? latestTask.assigneeIds : [];
+                  }
+                }
+                
+                const isSelected = latestAssigneeIds.includes(user.id);
                 return (
                   <div
                     key={user.id}
                     className="flex items-center gap-2 hover:bg-muted/50 p-2 rounded cursor-pointer"
                     onClick={() => handleAssigneeToggle(user.id, !isSelected)}
+                    data-testid={`checkbox-user-${user.id}`}
                   >
                     <Checkbox
                       checked={isSelected}

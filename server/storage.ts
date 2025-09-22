@@ -433,6 +433,18 @@ export class MemStorage implements IStorage {
         const goalCompletedTasks = goalTasks.filter(task => task.status === "완료");
         const goalProgressPercentage = this.calculateAverageProgress(goalTasks);
         
+        // Add assignees info to goal itself
+        const goalAssignees: SafeUser[] = [];
+        if (goal.assigneeIds && Array.isArray(goal.assigneeIds)) {
+          for (const assigneeId of goal.assigneeIds) {
+            const assigneeUser = await this.getUser(assigneeId);
+            if (assigneeUser) {
+              const { password, ...safeAssignee } = assigneeUser;
+              goalAssignees.push(safeAssignee);
+            }
+          }
+        }
+        
         // Add assignees info to goal tasks
         const goalTasksWithAssignees: SafeTaskWithAssignees[] = [];
         for (const task of goalTasks) {
@@ -451,6 +463,7 @@ export class MemStorage implements IStorage {
         
         goalsWithTasks.push({
           ...goal,
+          assignees: goalAssignees,
           tasks: goalTasksWithAssignees,
           totalTasks: goalTasks.length,
           completedTasks: goalCompletedTasks.length,

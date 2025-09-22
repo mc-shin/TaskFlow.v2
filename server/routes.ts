@@ -196,13 +196,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/goals/:id", async (req, res) => {
     try {
+      console.log(`[DEBUG] PUT /api/goals/${req.params.id} - Request body:`, JSON.stringify(req.body, null, 2));
       const goalData = insertGoalSchema.partial().parse(req.body);
       const goal = await storage.updateGoal(req.params.id, goalData);
+      console.log(`[DEBUG] PUT /api/goals/${req.params.id} - Updated goal:`, JSON.stringify(goal, null, 2));
       if (!goal) {
         return res.status(404).json({ message: "Goal not found" });
       }
       res.json(goal);
     } catch (error) {
+      console.log(`[ERROR] PUT /api/goals/${req.params.id} - Error:`, error);
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Invalid goal data", errors: error.errors });
       }
