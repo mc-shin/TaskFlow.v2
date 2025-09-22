@@ -494,87 +494,6 @@ export default function GoalDetail() {
                 </div>
               </CardContent>
             </Card>
-
-            {/* Tasks - Hidden when editing */}
-            {!isEditing && (
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle>작업 ({goal.tasks?.length || 0}개)</CardTitle>
-                    <Button 
-                      onClick={handleAddTask}
-                      size="sm"
-                      data-testid="button-add-task"
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      작업 추가
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent className="max-h-96 overflow-y-auto" data-testid="tasks-content-container">
-                  {goal.tasks && goal.tasks.length > 0 ? (
-                    <div className="space-y-3">
-                      {goal.tasks.map((task) => (
-                        <div
-                          key={task.id}
-                          className="p-4 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
-                          onClick={() => handleTaskClick(task.id)}
-                          data-testid={`card-task-${task.id}`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                              <Circle className="h-4 w-4 text-orange-600" />
-                              <div>
-                                <h4 className="font-medium" data-testid={`text-task-title-${task.id}`}>
-                                  {task.title}
-                                </h4>
-                                <div className="flex items-center gap-2 mt-1">
-                                  <Badge 
-                                    variant={task.status === '완료' ? 'default' : 'secondary'}
-                                    className="text-xs"
-                                  >
-                                    {task.status}
-                                  </Badge>
-                                  {task.assignees && task.assignees.length > 0 && (
-                                    <div className="flex items-center gap-1">
-                                      <Avatar className="h-4 w-4">
-                                        <AvatarFallback className="text-xs">
-                                          {task.assignees[0].initials}
-                                        </AvatarFallback>
-                                      </Avatar>
-                                      <span className="text-xs text-muted-foreground">
-                                        {task.assignees[0].name}
-                                      </span>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <div className="text-sm font-medium">
-                                {task.progress ?? 0}%
-                              </div>
-                              <Progress 
-                                value={task.progress ?? 0} 
-                                className="w-20 h-2 mt-1"
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-8">
-                      <p className="text-muted-foreground mb-4">작업이 없습니다.</p>
-                      <Button onClick={handleAddTask} data-testid="button-add-first-task">
-                        <Plus className="h-4 w-4 mr-2" />
-                        첫 번째 작업 추가
-                      </Button>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            )}
             
             {/* File Attachments */}
             <Card>
@@ -662,6 +581,87 @@ export default function GoalDetail() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Tasks - Hidden when editing */}
+            {!isEditing && (
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle>작업 ({goal.tasks?.length || 0}개)</CardTitle>
+                    <Button 
+                      onClick={handleAddTask}
+                      size="sm"
+                      data-testid="button-add-task"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      작업 추가
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent className="max-h-96 overflow-y-auto" data-testid="tasks-content-container">
+                  {goal.tasks && goal.tasks.length > 0 ? (
+                    <div className="space-y-3">
+                      {goal.tasks.map((task) => (
+                        <div
+                          key={task.id}
+                          className="p-4 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
+                          onClick={() => handleTaskClick(task.id)}
+                          data-testid={`card-task-${task.id}`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <Circle className="h-4 w-4 text-orange-600" />
+                              <div>
+                                <h4 className="font-medium" data-testid={`text-task-title-${task.id}`}>
+                                  {task.title}
+                                </h4>
+                                <div className="flex items-center gap-2 mt-1">
+                                  <Badge 
+                                    variant={task.status === '완료' ? 'default' : 'secondary'}
+                                    className="text-xs"
+                                  >
+                                    {task.status}
+                                  </Badge>
+                                  {task.assignees && task.assignees.length > 0 && (
+                                    <div className="flex items-center gap-1">
+                                      <Avatar className="h-4 w-4">
+                                        <AvatarFallback className="text-xs">
+                                          {task.assignees[0].initials}
+                                        </AvatarFallback>
+                                      </Avatar>
+                                      <span className="text-xs text-muted-foreground">
+                                        {task.assignees[0].name}
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-sm font-medium">
+                                {task.progress ?? 0}%
+                              </div>
+                              <Progress 
+                                value={task.progress ?? 0} 
+                                className="w-20 h-2 mt-1"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <p className="text-muted-foreground mb-4">작업이 없습니다.</p>
+                      <Button onClick={handleAddTask} data-testid="button-add-first-task">
+                        <Plus className="h-4 w-4 mr-2" />
+                        첫 번째 작업 추가
+                      </Button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
           </div>
 
           {/* Sidebar */}
