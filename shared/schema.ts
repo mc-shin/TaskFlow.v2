@@ -45,7 +45,6 @@ export const tasks = pgTable("tasks", {
   label: text("label"), // 라벨 필드 추가
   deadline: text("deadline"),
   duration: integer("duration").default(0),
-  progress: integer("progress").default(0), // 진행도 (0-100)
   assigneeId: varchar("assignee_id").references(() => users.id),
   goalId: varchar("goal_id").references(() => goals.id),
   projectId: varchar("project_id").references(() => projects.id), // Keep for backward compatibility

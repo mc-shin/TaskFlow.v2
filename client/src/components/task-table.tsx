@@ -53,21 +53,23 @@ export function TaskTable({ onEditTask }: TaskTableProps) {
     }
   };
 
-  const getStatusBadgeVariant = (status: string) => {
-    switch (status) {
-      case "진행전":
-        return "secondary" as const;
-      case "진행중":
-        return "default" as const;
-      case "완료":
-        return "outline" as const;
-      default:
-        return "outline" as const;
+  const getStatusBadge = (status: string, deadline?: string) => {
+    if (!deadline) return <Badge variant="secondary">기한 없음</Badge>;
+    
+    const deadlineDate = new Date(deadline);
+    const today = new Date();
+    const diffTime = deadlineDate.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays < 0) {
+      return <Badge variant="destructive">D+{Math.abs(diffDays)}</Badge>;
+    } else if (diffDays === 0) {
+      return <Badge className="bg-yellow-500 text-white">D-Day</Badge>;
+    } else if (diffDays <= 3) {
+      return <Badge className="bg-orange-500 text-white">D-{diffDays}</Badge>;
+    } else {
+      return <Badge className="bg-green-500 text-white">D-{diffDays}</Badge>;
     }
-  };
-
-  const getStatusBadge = (status: string) => {
-    return <Badge variant={getStatusBadgeVariant(status)}>{status}</Badge>;
   };
 
   const getStatusColor = (status: string) => {
@@ -124,6 +126,7 @@ export function TaskTable({ onEditTask }: TaskTableProps) {
             <thead>
               <tr className="border-b border-border">
                 <th className="text-left p-4 text-sm font-medium text-muted-foreground">작업</th>
+                <th className="text-left p-4 text-sm font-medium text-muted-foreground">소요시간</th>
                 <th className="text-left p-4 text-sm font-medium text-muted-foreground">마감기한</th>
                 <th className="text-left p-4 text-sm font-medium text-muted-foreground">상태</th>
                 <th className="text-left p-4 text-sm font-medium text-muted-foreground">담당자</th>
@@ -145,11 +148,14 @@ export function TaskTable({ onEditTask }: TaskTableProps) {
                       </span>
                     </div>
                   </td>
+                  <td className="p-4 text-muted-foreground" data-testid={`text-task-duration-${task.id}`}>
+                    {task.duration || 0}
+                  </td>
                   <td className="p-4 text-muted-foreground" data-testid={`text-task-deadline-${task.id}`}>
                     {task.deadline ? new Date(task.deadline).toLocaleDateString('ko-KR') : '-'}
                   </td>
                   <td className="p-4" data-testid={`badge-task-status-${task.id}`}>
-                    {getStatusBadge(task.status)}
+                    {getStatusBadge(task.status, task.deadline)}
                   </td>
                   <td className="p-4">
                     {task.assignee && (
@@ -191,7 +197,7 @@ export function TaskTable({ onEditTask }: TaskTableProps) {
               
               {(!(tasks as TaskWithAssignee[]) || (tasks as TaskWithAssignee[]).length === 0) && (
                 <tr>
-                  <td colSpan={5} className="p-8 text-center text-muted-foreground" data-testid="text-empty-tasks">
+                  <td colSpan={6} className="p-8 text-center text-muted-foreground" data-testid="text-empty-tasks">
                     작업이 없습니다. 새 작업을 생성해보세요.
                   </td>
                 </tr>
