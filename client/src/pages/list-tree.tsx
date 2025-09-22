@@ -7,7 +7,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronDown, ChevronRight, FolderOpen, Target, Circle, Plus, Calendar, User, BarChart3 } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ChevronDown, ChevronRight, FolderOpen, Target, Circle, Plus, Calendar, User, BarChart3, Check } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
@@ -749,9 +750,6 @@ export default function ListTree() {
   };
 
   const renderEditableAssignee = (itemId: string, type: 'project' | 'goal' | 'task', assignee: SafeUser | null, ownerIds?: string[] | null, assigneeIds?: string[] | null) => {
-    const isEditing = editingField?.itemId === itemId && editingField?.field === 'assignee';
-    const currentUserId = type === 'project' ? (ownerIds && ownerIds.length > 0 ? ownerIds[0] : null) : assignee?.id;
-    
     // Get all assignees for display
     const currentAssigneeIds = type === 'project' ? 
       (Array.isArray(ownerIds) ? ownerIds : []) : 
@@ -759,75 +757,90 @@ export default function ListTree() {
     const assignees = currentAssigneeIds.map(id => 
       (users as SafeUser[])?.find(user => user.id === id)
     ).filter(Boolean) as SafeUser[];
+
+    const handleAssigneeToggle = (userId: string, isSelected: boolean) => {
+      const updates: any = {};
+      let newAssigneeIds: string[];
+      
+      if (isSelected) {
+        // Add user to assignees
+        newAssigneeIds = [...currentAssigneeIds, userId];
+      } else {
+        // Remove user from assignees
+        newAssigneeIds = currentAssigneeIds.filter(id => id !== userId);
+      }
+      
+      if (type === 'project') {
+        updates.ownerIds = newAssigneeIds;
+      } else {
+        updates.assigneeIds = newAssigneeIds;
+      }
+      
+      if (type === 'project') {
+        updateProjectMutation.mutate({ id: itemId, updates });
+      } else if (type === 'goal') {
+        updateGoalMutation.mutate({ id: itemId, updates });
+      } else {
+        updateTaskMutation.mutate({ id: itemId, updates });
+      }
+    };
     
-    if (isEditing) {
-      return (
-        <div className="w-28 min-w-[7rem] max-w-[7rem] h-8 flex items-center">
-          <Select value={editingValue} onValueChange={(value) => {
-            setEditingValue(value);
-            const updates: any = {};
-            if (type === 'project') {
-              updates.ownerIds = value === 'none' ? [] : [value];
-            } else {
-              updates.assigneeIds = value === 'none' ? [] : [value];
-            }
-            
-            if (type === 'project') {
-              updateProjectMutation.mutate({ id: itemId, updates });
-            } else if (type === 'goal') {
-              updateGoalMutation.mutate({ id: itemId, updates });
-            } else {
-              updateTaskMutation.mutate({ id: itemId, updates });
-            }
-            cancelEditing();
-          }}>
-            <SelectTrigger className="h-6 text-xs w-full" data-testid={`edit-assignee-${itemId}`}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="none">
-                <span className="text-muted-foreground">담당자 없음</span>
-              </SelectItem>
-              {(users as SafeUser[])?.map(user => (
-                <SelectItem key={user.id} value={user.id}>
-                  <div className="flex items-center gap-2">
+    return (
+      <Popover>
+        <PopoverTrigger asChild>
+          <div 
+            className="cursor-pointer hover:bg-muted/20 px-1 py-1 rounded w-28 min-w-[7rem] max-w-[7rem] h-8 flex items-center overflow-hidden"
+            data-testid={`edit-assignee-${itemId}`}
+          >
+            {assignees.length > 0 ? (
+              <div className="flex items-center gap-1 truncate">
+                {assignees.slice(0, 4).map((assignee, index) => (
+                  <Avatar key={assignee.id} className="w-6 h-6 flex-shrink-0" style={{ zIndex: assignees.length - index }}>
+                    <AvatarFallback className="text-xs bg-primary text-primary-foreground border border-white">
+                      {assignee.name.charAt(0)}
+                    </AvatarFallback>
+                  </Avatar>
+                ))}
+                {assignees.length > 4 && (
+                  <span className="text-xs text-muted-foreground ml-1">+{assignees.length - 4}</span>
+                )}
+              </div>
+            ) : (
+              <span className="text-muted-foreground text-sm">담당자 없음</span>
+            )}
+          </div>
+        </PopoverTrigger>
+        <PopoverContent className="w-64 p-3" align="start">
+          <div className="space-y-2">
+            <h4 className="font-medium text-sm">
+              {type === 'project' ? '소유자' : '담당자'} 선택
+            </h4>
+            <div className="space-y-1 max-h-48 overflow-y-auto">
+              {(users as SafeUser[])?.map(user => {
+                const isSelected = currentAssigneeIds.includes(user.id);
+                return (
+                  <div
+                    key={user.id}
+                    className="flex items-center gap-2 hover:bg-muted/50 p-2 rounded cursor-pointer"
+                    onClick={() => handleAssigneeToggle(user.id, !isSelected)}
+                  >
+                    <Checkbox
+                      checked={isSelected}
+                      className="pointer-events-none"
+                    />
                     <Avatar className="w-6 h-6">
                       <AvatarFallback className="text-xs">
                         {user.name.charAt(0)}
                       </AvatarFallback>
                     </Avatar>
-                    <span>{user.name}</span>
+                    <span className="text-sm">{user.name}</span>
                   </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      );
-    }
-    
-    return (
-      <div 
-        className="cursor-pointer hover:bg-muted/20 px-1 py-1 rounded w-28 min-w-[7rem] max-w-[7rem] h-8 flex items-center overflow-hidden"
-        onClick={() => startEditing(itemId, 'assignee', type, currentUserId || 'none')}
-      >
-        {assignees.length > 0 ? (
-          <div className="flex items-center gap-1 truncate">
-            {assignees.slice(0, 4).map((assignee, index) => (
-              <Avatar key={assignee.id} className="w-6 h-6 flex-shrink-0" style={{ zIndex: assignees.length - index }}>
-                <AvatarFallback className="text-xs bg-primary text-primary-foreground border border-white">
-                  {assignee.name.charAt(0)}
-                </AvatarFallback>
-              </Avatar>
-            ))}
-            {assignees.length > 4 && (
-              <span className="text-xs text-muted-foreground ml-1">+{assignees.length - 4}</span>
-            )}
+                );
+              })}
+            </div>
           </div>
-        ) : (
-          <span className="text-muted-foreground text-sm">담당자 없음</span>
-        )}
-      </div>
+        </PopoverContent>
+      </Popover>
     );
   };
 

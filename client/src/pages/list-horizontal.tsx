@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CheckCircle, Clock, AlertTriangle, User, Plus, Eye, Target, FolderOpen, Trash2 } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { CheckCircle, Clock, AlertTriangle, User, Plus, Eye, Target, FolderOpen, Trash2, Check } from "lucide-react";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import type { SafeTaskWithAssignees, ProjectWithDetails, GoalWithTasks, SafeUser } from "@shared/schema";
@@ -42,6 +43,24 @@ export default function ListHorizontal() {
     queryKey: ["/api/users"],
   });
   
+  const updateProjectMutation = useMutation({
+    mutationFn: async (data: { id: string; data: any }) => {
+      return await apiRequest("PUT", `/api/projects/${data.id}`, data.data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+    },
+  });
+
+  const updateGoalMutation = useMutation({
+    mutationFn: async (data: { id: string; data: any }) => {
+      return await apiRequest("PUT", `/api/goals/${data.id}`, data.data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+    },
+  });
+
   const updateTaskMutation = useMutation({
     mutationFn: async ({ taskId, data }: { taskId: string; data: any }) => {
       return await apiRequest("PUT", `/api/tasks/${taskId}`, data);
@@ -344,91 +363,107 @@ export default function ListHorizontal() {
   const renderEditableAssignee = (item: FlattenedItem) => {
     // Get assignees based on item type
     let assignees: SafeUser[] = [];
+    let currentAssigneeIds: string[] = [];
     
     if (item.type === 'project') {
-      const ownerIds = Array.isArray(item.ownerIds) ? item.ownerIds : [];
-      assignees = ownerIds.map(id => 
+      currentAssigneeIds = Array.isArray(item.ownerIds) ? item.ownerIds : [];
+      assignees = currentAssigneeIds.map(id => 
         (users as SafeUser[])?.find(user => user.id === id)
       ).filter(Boolean) as SafeUser[];
     } else if (item.type === 'goal') {
-      const assigneeIds = Array.isArray(item.assigneeIds) ? item.assigneeIds : [];
-      assignees = assigneeIds.map(id => 
+      currentAssigneeIds = Array.isArray(item.assigneeIds) ? item.assigneeIds : [];
+      assignees = currentAssigneeIds.map(id => 
         (users as SafeUser[])?.find(user => user.id === id)
       ).filter(Boolean) as SafeUser[];
     } else if (item.type === 'task' && item.task) {
-      const assigneeIds = Array.isArray(item.task.assigneeIds) ? item.task.assigneeIds : [];
-      assignees = assigneeIds.map(id => 
+      currentAssigneeIds = Array.isArray(item.task.assigneeIds) ? item.task.assigneeIds : [];
+      assignees = currentAssigneeIds.map(id => 
         (users as SafeUser[])?.find(user => user.id === id)
       ).filter(Boolean) as SafeUser[];
     }
 
-    if (item.type !== 'task' || !item.task) {
-      return (
-        <div className="w-32 h-8 flex items-center">
-          {assignees.length > 0 ? (
-            <div className="flex items-center gap-1">
-              {assignees.slice(0, 4).map((assignee, index) => (
-                <Avatar key={assignee.id} className="w-6 h-6 flex-shrink-0" style={{ zIndex: assignees.length - index }}>
-                  <AvatarFallback className="text-xs bg-primary text-primary-foreground border border-white">
-                    {assignee.name.charAt(0)}
-                  </AvatarFallback>
-                </Avatar>
-              ))}
-              {assignees.length > 4 && (
-                <span className="text-xs text-muted-foreground ml-1">+{assignees.length - 4}</span>
-              )}
-            </div>
-          ) : (
-            <span className="text-muted-foreground text-sm">-</span>
-          )}
-        </div>
-      );
-    }
+    const handleAssigneeToggle = (userId: string, isSelected: boolean) => {
+      let newAssigneeIds: string[];
+      
+      if (isSelected) {
+        // Add user to assignees
+        newAssigneeIds = [...currentAssigneeIds, userId];
+      } else {
+        // Remove user from assignees
+        newAssigneeIds = currentAssigneeIds.filter(id => id !== userId);
+      }
+      
+      if (item.type === 'project') {
+        // Update project owners
+        const updateData = { ownerIds: newAssigneeIds };
+        updateProjectMutation.mutate({ id: item.id, data: updateData });
+      } else if (item.type === 'goal') {
+        // Update goal assignees
+        const updateData = { assigneeIds: newAssigneeIds };
+        updateGoalMutation.mutate({ id: item.id, data: updateData });
+      } else if (item.type === 'task') {
+        // Update task assignees
+        const updateData = { assigneeIds: newAssigneeIds };
+        updateTaskMutation.mutate({ taskId: item.id, data: updateData });
+      }
+    };
 
     return (
-      <Select
-        value={assignees.length > 0 ? assignees[0].id : "none"}
-        onValueChange={(value) => handleAssigneeChange(item.id, value)}
-        disabled={updateTaskMutation.isPending}
-      >
-        <SelectTrigger className="h-8 w-32 p-1 border-0 shadow-none hover:bg-muted rounded-md" data-testid={`select-assignee-${item.id}`}>
-          <SelectValue>
+      <Popover>
+        <PopoverTrigger asChild>
+          <div 
+            className="cursor-pointer hover:bg-muted rounded-md w-32 h-8 flex items-center px-1"
+            data-testid={`edit-assignee-${item.id}`}
+          >
             {assignees.length > 0 ? (
               <div className="flex items-center gap-1">
-                {assignees.slice(0, 3).map((assignee, index) => (
-                  <Avatar key={assignee.id} className="w-5 h-5 flex-shrink-0" style={{ zIndex: assignees.length - index }}>
+                {assignees.slice(0, 4).map((assignee, index) => (
+                  <Avatar key={assignee.id} className="w-6 h-6 flex-shrink-0" style={{ zIndex: assignees.length - index }}>
                     <AvatarFallback className="text-xs bg-primary text-primary-foreground border border-white">
                       {assignee.name.charAt(0)}
                     </AvatarFallback>
                   </Avatar>
                 ))}
-                {assignees.length > 3 && (
-                  <span className="text-xs text-muted-foreground ml-1">+{assignees.length - 3}</span>
+                {assignees.length > 4 && (
+                  <span className="text-xs text-muted-foreground ml-1">+{assignees.length - 4}</span>
                 )}
               </div>
             ) : (
               <span className="text-muted-foreground text-sm">담당자 없음</span>
             )}
-          </SelectValue>
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="none">
-            <span className="text-muted-foreground">담당자 없음</span>
-          </SelectItem>
-          {Array.isArray(users) ? users.map((user: any) => (
-            <SelectItem key={user.id} value={user.id}>
-              <div className="flex items-center gap-2">
-                <Avatar className="w-6 h-6">
-                  <AvatarFallback className="text-xs">
-                    {user.name.charAt(0)}
-                  </AvatarFallback>
-                </Avatar>
-                <span>{user.name}</span>
-              </div>
-            </SelectItem>
-          )) : null}
-        </SelectContent>
-      </Select>
+          </div>
+        </PopoverTrigger>
+        <PopoverContent className="w-64 p-3" align="start">
+          <div className="space-y-2">
+            <h4 className="font-medium text-sm">
+              {item.type === 'project' ? '소유자' : '담당자'} 선택
+            </h4>
+            <div className="space-y-1 max-h-48 overflow-y-auto">
+              {(users as SafeUser[])?.map(user => {
+                const isSelected = currentAssigneeIds.includes(user.id);
+                return (
+                  <div
+                    key={user.id}
+                    className="flex items-center gap-2 hover:bg-muted/50 p-2 rounded cursor-pointer"
+                    onClick={() => handleAssigneeToggle(user.id, !isSelected)}
+                  >
+                    <Checkbox
+                      checked={isSelected}
+                      className="pointer-events-none"
+                    />
+                    <Avatar className="w-6 h-6">
+                      <AvatarFallback className="text-xs">
+                        {user.name.charAt(0)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="text-sm">{user.name}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </PopoverContent>
+      </Popover>
     );
   };
 
