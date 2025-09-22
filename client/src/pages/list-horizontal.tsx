@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CheckCircle, Clock, AlertTriangle, User, Plus, Eye, Target, FolderOpen, Trash2, Check, X, Tag } from "lucide-react";
+import { parse } from "date-fns";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import type { SafeTaskWithAssignees, ProjectWithDetails, GoalWithTasks, SafeUser } from "@shared/schema";
@@ -274,8 +275,16 @@ export default function ListHorizontal() {
   const formatDeadline = (deadline: string | null) => {
     if (!deadline) return '-';
     
-    const deadlineDate = new Date(deadline);
+    // Use same parsing logic as getDDayColorClass to ensure consistency
+    const deadlineDate = parse(deadline, 'yyyy-MM-dd', new Date());
+    if (isNaN(deadlineDate.getTime())) {
+      return '-';
+    }
+    
     const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    deadlineDate.setHours(0, 0, 0, 0);
+    
     const diffTime = deadlineDate.getTime() - today.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     
@@ -324,6 +333,31 @@ export default function ListHorizontal() {
         return "secondary" as const;
       default:
         return "outline" as const;
+    }
+  };
+
+  const getDDayColorClass = (deadline: string | null) => {
+    if (!deadline) return "text-muted-foreground";
+    
+    // Use same parsing logic as list-tree.tsx to avoid timezone issues
+    const deadlineDate = parse(deadline, 'yyyy-MM-dd', new Date());
+    if (isNaN(deadlineDate.getTime())) {
+      return "text-muted-foreground";
+    }
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    deadlineDate.setHours(0, 0, 0, 0);
+    
+    const diffTime = deadlineDate.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays < 0) {
+      return "px-2 py-1 text-xs rounded font-medium bg-red-100 text-red-700";
+    } else if (diffDays === 0) {
+      return "px-2 py-1 text-xs rounded font-medium bg-orange-100 text-orange-700";
+    } else {
+      return "px-2 py-1 text-xs rounded font-medium bg-blue-100 text-blue-700";
     }
   };
 
@@ -807,7 +841,9 @@ export default function ListHorizontal() {
                     </div>
                   </TableCell>
                   <TableCell data-testid={`text-deadline-${item.id}`}>
-                    {formatDeadline(item.deadline)}
+                    <span className={getDDayColorClass(item.deadline)}>
+                      {formatDeadline(item.deadline)}
+                    </span>
                   </TableCell>
                   <TableCell>
                     {renderEditableAssignee(item)}

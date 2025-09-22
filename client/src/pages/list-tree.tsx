@@ -744,7 +744,9 @@ export default function ListTree() {
         onClick={() => startEditing(itemId, 'deadline', type, deadline || '')}
         data-testid={`text-${type}-deadline-${itemId}`}
       >
-        {formatDeadline(deadline)}
+        <span className={getDDayColorClass(deadline)}>
+          {formatDeadline(deadline)}
+        </span>
       </div>
     );
   };
@@ -1219,6 +1221,30 @@ export default function ListTree() {
         return "secondary" as const;
       default:
         return "outline" as const;
+    }
+  };
+
+  const getDDayColorClass = (deadline: string | null) => {
+    if (!deadline) return "text-muted-foreground";
+    
+    const deadlineDate = parse(deadline, 'yyyy-MM-dd', new Date());
+    if (isNaN(deadlineDate.getTime())) {
+      return "text-muted-foreground";
+    }
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    deadlineDate.setHours(0, 0, 0, 0);
+    
+    const diffTime = deadlineDate.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays < 0) {
+      return "px-2 py-1 text-xs rounded font-medium bg-red-100 text-red-700";
+    } else if (diffDays === 0) {
+      return "px-2 py-1 text-xs rounded font-medium bg-orange-100 text-orange-700";
+    } else {
+      return "px-2 py-1 text-xs rounded font-medium bg-blue-100 text-blue-700";
     }
   };
 
