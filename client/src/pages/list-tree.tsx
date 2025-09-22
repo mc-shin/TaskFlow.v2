@@ -1267,11 +1267,11 @@ export default function ListTree() {
 
       {/* Table Header */}
       <div className="bg-muted/30 p-3 rounded-t-lg border">
-        <div className="grid grid-cols-11 gap-4 text-sm font-medium text-muted-foreground">
+        <div className="grid grid-cols-12 gap-4 text-sm font-medium text-muted-foreground">
           <div className="col-span-4">이름</div>
           <div className="col-span-1">마감일</div>
           <div className="col-span-1">담당자</div>
-          <div className="col-span-1">라벨</div>
+          <div className="col-span-2">라벨</div>
           <div className="col-span-1">상태</div>
           <div className="col-span-2">진행도</div>
           <div className="col-span-1">중요도</div>
@@ -1292,7 +1292,7 @@ export default function ListTree() {
                 <div key={project.id}>
                   {/* Project Row */}
                   <div className="p-3 hover:bg-muted/50 transition-colors">
-                    <div className="grid grid-cols-11 gap-4 items-center">
+                    <div className="grid grid-cols-12 gap-4 items-center">
                       <div className="col-span-4 flex items-center gap-2">
                         <Checkbox
                           checked={selectedItems.has(project.id)}
@@ -1342,7 +1342,7 @@ export default function ListTree() {
                       <div className="col-span-1">
                         {renderEditableAssignee(project.id, 'project', project.owners && project.owners.length > 0 ? project.owners[0] : null, project.ownerIds)}
                       </div>
-                      <div className="col-span-1">
+                      <div className="col-span-2">
                         {renderEditableLabel(project.id, 'project', project.labels || [])}
                       </div>
                       <div className="col-span-1">
@@ -1364,7 +1364,7 @@ export default function ListTree() {
                         <div key={goal.id}>
                           {/* Goal Row */}
                           <div className="p-3 hover:bg-muted/50 transition-colors">
-                            <div className="grid grid-cols-11 gap-4 items-center">
+                            <div className="grid grid-cols-12 gap-4 items-center">
                               <div className="col-span-4 flex items-center gap-2 ml-8">
                                 <Checkbox
                                   checked={selectedItems.has(goal.id)}
@@ -1411,7 +1411,7 @@ export default function ListTree() {
                               <div className="col-span-1">
                                 {renderEditableAssignee(goal.id, 'goal', goal.assigneeIds && goal.assigneeIds.length > 0 ? (users as SafeUser[])?.find(u => u.id === goal.assigneeIds![0]) || null : null, undefined, goal.assigneeIds)}
                               </div>
-                              <div className="col-span-1">
+                              <div className="col-span-2">
                                 {renderEditableLabel(goal.id, 'goal', goal.labels || [])}
                               </div>
                               <div className="col-span-1">
@@ -1431,7 +1431,7 @@ export default function ListTree() {
                             <div className="bg-muted/30">
                               {goal.tasks.map((task) => (
                                 <div key={task.id} className="p-3 hover:bg-muted/50 transition-colors">
-                                  <div className="grid grid-cols-11 gap-4 items-center">
+                                  <div className="grid grid-cols-12 gap-4 items-center">
                                     <div className="col-span-4 flex items-center gap-2 ml-16">
                                       <Checkbox
                                         checked={selectedItems.has(task.id)}
@@ -1453,7 +1453,7 @@ export default function ListTree() {
                                     <div className="col-span-1">
                                       {renderEditableAssignee(task.id, 'task', task.assignees && task.assignees.length > 0 ? task.assignees[0] : null, undefined, task.assigneeIds)}
                                     </div>
-                                    <div className="col-span-1">
+                                    <div className="col-span-2">
                                       {renderEditableLabel(task.id, 'task', task.labels || [])}
                                     </div>
                                     <div className="col-span-1">
