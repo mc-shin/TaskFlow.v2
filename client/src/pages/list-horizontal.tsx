@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { CheckCircle, Clock, AlertTriangle, User, Plus, Eye, Target, FolderOpen, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-import type { SafeTaskWithAssignee, ProjectWithDetails, GoalWithTasks } from "@shared/schema";
+import type { SafeTaskWithAssignees, ProjectWithDetails, GoalWithTasks, SafeUser } from "@shared/schema";
 import { ProjectModal } from "@/components/project-modal";
 import { GoalModal } from "@/components/goal-modal";
 import { TaskModal } from "@/components/task-modal";
@@ -27,7 +27,7 @@ interface FlattenedItem {
   importance: string;
   project: ProjectWithDetails;
   goal: GoalWithTasks | null;
-  task: SafeTaskWithAssignee | null;
+  task: SafeTaskWithAssignees | null;
 }
 
 export default function ListHorizontal() {
@@ -139,7 +139,7 @@ export default function ListHorizontal() {
         type: 'project',
         name: project.name,
         deadline: project.deadline,
-        participant: project.ownerId ? { id: project.ownerId, name: '소유자' } : null,
+        participant: project.ownerIds && project.ownerIds.length > 0 ? { id: project.ownerIds[0], name: '소유자' } : null,
         label: project.code,
         status: `${project.completedTasks}/${project.totalTasks}`,
         score: project.progressPercentage || 0,
@@ -175,7 +175,7 @@ export default function ListHorizontal() {
                 type: 'task',
                 name: task.title,
                 deadline: task.deadline,
-                participant: task.assignee && task.assigneeId ? { id: task.assigneeId, name: task.assignee.name } : null,
+                participant: task.assignees && task.assignees.length > 0 ? { id: task.assignees[0].id, name: task.assignees[0].name } : null,
                 label: `${project.code}-T`,
                 status: task.status,
                 score: task.duration || 0,
@@ -328,7 +328,7 @@ export default function ListHorizontal() {
   };
 
   const handleAssigneeChange = (taskId: string, assigneeId: string) => {
-    const assigneeData = assigneeId === "none" ? { assigneeId: null } : { assigneeId };
+    const assigneeData = assigneeId === "none" ? { assigneeIds: [] } : { assigneeIds: [assigneeId] };
     updateTaskMutation.mutate({ taskId, data: assigneeData });
   };
 

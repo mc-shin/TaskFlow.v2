@@ -599,9 +599,9 @@ export default function ListTree() {
       updates.deadline = editingValue;
     } else if (editingField.field === 'assignee') {
       if (editingField.type === 'project') {
-        updates.ownerId = editingValue === 'none' ? null : editingValue;
+        updates.ownerIds = editingValue === 'none' ? [] : [editingValue];
       } else {
-        updates.assigneeId = editingValue === 'none' ? null : editingValue;
+        updates.assigneeIds = editingValue === 'none' ? [] : [editingValue];
       }
     } else if (editingField.field === 'status') {
       updates.status = editingValue;
@@ -748,9 +748,9 @@ export default function ListTree() {
     );
   };
 
-  const renderEditableAssignee = (itemId: string, type: 'project' | 'goal' | 'task', assignee: SafeUser | null, ownerId?: string | null) => {
+  const renderEditableAssignee = (itemId: string, type: 'project' | 'goal' | 'task', assignee: SafeUser | null, ownerIds?: string[] | null) => {
     const isEditing = editingField?.itemId === itemId && editingField?.field === 'assignee';
-    const currentUserId = type === 'project' ? ownerId : assignee?.id;
+    const currentUserId = type === 'project' ? (ownerIds && ownerIds.length > 0 ? ownerIds[0] : null) : assignee?.id;
     
     if (isEditing) {
       return (
@@ -759,9 +759,9 @@ export default function ListTree() {
             setEditingValue(value);
             const updates: any = {};
             if (type === 'project') {
-              updates.ownerId = value === 'none' ? null : value;
+              updates.ownerIds = value === 'none' ? [] : [value];
             } else {
-              updates.assigneeId = value === 'none' ? null : value;
+              updates.assigneeIds = value === 'none' ? [] : [value];
             }
             
             if (type === 'project') {
