@@ -722,14 +722,14 @@ export default function ListHorizontal() {
   }
 
   return (
-    <div className="container mx-auto p-6">
+    <>
       {/* Header */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">프로젝트 계층 구조</h1>
-            <p className="text-muted-foreground">프로젝트 → 목표 → 작업 계층으로 구성된 상세 구조를 확인합니다</p>
-          </div>
+      <header className="h-16 bg-card border-b border-border flex items-center justify-between px-6">
+        <div>
+          <h1 className="text-xl font-semibold" data-testid="header-title">프로젝트 계층 구조</h1>
+          <p className="text-sm text-muted-foreground" data-testid="header-subtitle">프로젝트 → 목표 → 작업 계층으로 구성된 상세 구조를 확인합니다</p>
+        </div>
+        <div className="flex items-center space-x-4">
           <Button 
             onClick={() => setIsProjectModalOpen(true)}
             data-testid="button-add-project"
@@ -738,7 +738,10 @@ export default function ListHorizontal() {
             새 프로젝트
           </Button>
         </div>
-      </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="flex-1 p-6 overflow-auto" data-testid="main-content">
 
       {/* Selection Summary */}
       {selectedItems.size > 0 && (
@@ -868,6 +871,7 @@ export default function ListHorizontal() {
           </TableBody>
         </Table>
       </Card>
+      </main>
 
       {/* Modals */}
       <ProjectModal 
@@ -888,6 +892,6 @@ export default function ListHorizontal() {
         goalId={taskModalState.goalId}
         goalTitle={taskModalState.goalTitle}
       />
-    </div>
+    </>
   );
 }

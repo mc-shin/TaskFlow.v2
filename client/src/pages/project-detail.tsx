@@ -174,80 +174,79 @@ export default function ProjectDetail() {
   }
 
   return (
-    <div className="p-6">
-      <div className="max-w-4xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              onClick={() => setLocation("/list")}
-              data-testid="button-back"
-            >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              목록으로
-            </Button>
-            <div className="flex items-center gap-2">
-              <FolderOpen className="h-6 w-6 text-blue-600" />
-              <h1 className="text-2xl font-bold" data-testid="text-project-title">
-                {project.name}
-              </h1>
-              <Badge variant="outline">{project.code}</Badge>
-            </div>
-          </div>
-          
+    <>
+      {/* Header */}
+      <header className="h-16 bg-card border-b border-border flex items-center justify-between px-6">
+        <div className="flex items-center gap-4">
+          <Button
+            variant="ghost"
+            onClick={() => setLocation("/list")}
+            data-testid="button-back"
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            목록으로
+          </Button>
           <div className="flex items-center gap-2">
-            {isEditing ? (
-              <>
-                <Button 
-                  onClick={handleSave}
-                  disabled={updateProjectMutation.isPending}
-                  data-testid="button-save"
-                >
-                  <Save className="h-4 w-4 mr-2" />
-                  저장
-                </Button>
-                <Button 
-                  variant="outline"
-                  onClick={handleCancel}
-                  data-testid="button-cancel"
-                >
-                  <X className="h-4 w-4 mr-2" />
-                  취소
-                </Button>
-              </>
-            ) : (
-              <>
-                <Button 
-                  onClick={() => setIsEditing(true)}
-                  data-testid="button-edit"
-                >
-                  <Edit className="h-4 w-4 mr-2" />
-                  수정
-                </Button>
-                <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-                  <AlertDialogTrigger asChild>
-                    <Button 
-                      variant="destructive"
-                      disabled={deleteProjectMutation.isPending}
-                      data-testid="button-delete"
-                    >
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      삭제
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>app.riido.io 내용:</AlertDialogTitle>
-                      <AlertDialogDescription className="text-left">
-                        <div className="space-y-2">
-                          <div>[-] 프로젝트를 삭제하시겠습니까?</div>
-                          <div className="text-sm text-muted-foreground">
-                            해당 프로젝트의 모든 목표와 작업이 함께 삭제됩니다.
-                          </div>
+            <FolderOpen className="h-6 w-6 text-blue-600" />
+            <h1 className="text-xl font-semibold" data-testid="text-project-title">
+              {project.name}
+            </h1>
+            <Badge variant="outline">{project.code}</Badge>
+          </div>
+        </div>
+        
+        <div className="flex items-center gap-2">
+          {isEditing ? (
+            <>
+              <Button 
+                onClick={handleSave}
+                disabled={updateProjectMutation.isPending}
+                data-testid="button-save"
+              >
+                <Save className="h-4 w-4 mr-2" />
+                저장
+              </Button>
+              <Button 
+                variant="outline"
+                onClick={handleCancel}
+                data-testid="button-cancel"
+              >
+                <X className="h-4 w-4 mr-2" />
+                취소
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button 
+                onClick={() => setIsEditing(true)}
+                data-testid="button-edit"
+              >
+                <Edit className="h-4 w-4 mr-2" />
+                수정
+              </Button>
+              <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+                <AlertDialogTrigger asChild>
+                  <Button 
+                    variant="destructive"
+                    disabled={deleteProjectMutation.isPending}
+                    data-testid="button-delete"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    삭제
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>app.riido.io 내용:</AlertDialogTitle>
+                    <AlertDialogDescription className="text-left">
+                      <div className="space-y-2">
+                        <div>[-] 프로젝트를 삭제하시겠습니까?</div>
+                        <div className="text-sm text-muted-foreground">
+                          해당 프로젝트의 모든 목표와 작업이 함께 삭제됩니다.
                         </div>
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
+                      </div>
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
                     <AlertDialogFooter>
                       <AlertDialogCancel>취소</AlertDialogCancel>
                       <AlertDialogAction onClick={handleDelete} className="bg-blue-600 hover:bg-blue-700">
@@ -258,8 +257,12 @@ export default function ProjectDetail() {
                 </AlertDialog>
               </>
             )}
-          </div>
         </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="flex-1 p-6 overflow-auto" data-testid="main-content">
+        <div className="max-w-4xl mx-auto space-y-6">
 
         {/* Project Details */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -699,7 +702,7 @@ export default function ProjectDetail() {
             </Card>
           </div>
         </div>
-      </div>
+      </main>
       
       {/* Goal Modal */}
       <GoalModal 
@@ -708,6 +711,6 @@ export default function ProjectDetail() {
         projectId={goalModalState.projectId}
         projectTitle={goalModalState.projectTitle}
       />
-    </div>
+    </>
   );
 }

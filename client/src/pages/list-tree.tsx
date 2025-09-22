@@ -1273,14 +1273,14 @@ export default function ListTree() {
   }
 
   return (
-    <div className="container mx-auto p-6 relative">
+    <>
       {/* Header */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">프로젝트 관리</h1>
-            <p className="text-muted-foreground">계층 구조로 프로젝트를 관리합니다</p>
-          </div>
+      <header className="h-16 bg-card border-b border-border flex items-center justify-between px-6">
+        <div>
+          <h1 className="text-xl font-semibold" data-testid="header-title">프로젝트 관리</h1>
+          <p className="text-sm text-muted-foreground" data-testid="header-subtitle">계층 구조로 프로젝트를 관리합니다</p>
+        </div>
+        <div className="flex items-center space-x-4">
           <Button 
             onClick={() => setIsProjectModalOpen(true)}
             data-testid="button-add-project"
@@ -1289,7 +1289,10 @@ export default function ListTree() {
             새 프로젝트
           </Button>
         </div>
-      </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="flex-1 p-6 overflow-auto" data-testid="main-content">
 
       {/* Table Header */}
       <div className="bg-muted/30 p-3 rounded-t-lg border">
@@ -1545,6 +1548,8 @@ export default function ListTree() {
         </div>
       )}
 
+      </main>
+
       {/* Modals */}
       <ProjectModal 
         isOpen={isProjectModalOpen} 
@@ -1564,6 +1569,6 @@ export default function ListTree() {
         goalId={taskModalState.goalId}
         goalTitle={taskModalState.goalTitle}
       />
-    </div>
+    </>
   );
 }
