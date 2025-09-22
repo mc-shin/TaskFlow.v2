@@ -21,6 +21,8 @@ interface FlattenedItem {
   name: string;
   deadline: string | null;
   participant: { id: string; name: string } | null;
+  ownerIds?: string[];
+  assigneeIds?: string[];
   label: string;
   status: string;
   score: number;
@@ -140,6 +142,7 @@ export default function ListHorizontal() {
         name: project.name,
         deadline: project.deadline,
         participant: project.ownerIds && project.ownerIds.length > 0 ? { id: project.ownerIds[0], name: '소유자' } : null,
+        ownerIds: project.ownerIds || undefined,
         label: project.code,
         status: `${project.completedTasks}/${project.totalTasks}`,
         score: project.progressPercentage || 0,
@@ -158,6 +161,7 @@ export default function ListHorizontal() {
             name: goal.title,
             deadline: null,
             participant: null,
+            assigneeIds: goal.assigneeIds || undefined,
             label: `${project.code}-G`,
             status: `${goal.completedTasks || 0}/${goal.totalTasks || 0}`,
             score: goal.progressPercentage || 0,
@@ -176,6 +180,7 @@ export default function ListHorizontal() {
                 name: task.title,
                 deadline: task.deadline,
                 participant: task.assignees && task.assignees.length > 0 ? { id: task.assignees[0].id, name: task.assignees[0].name } : null,
+                assigneeIds: task.assigneeIds || undefined,
                 label: `${project.code}-T`,
                 status: task.status,
                 score: task.duration || 0,
@@ -337,28 +342,69 @@ export default function ListHorizontal() {
   };
 
   const renderEditableAssignee = (item: FlattenedItem) => {
+    // Get assignees based on item type
+    let assignees: SafeUser[] = [];
+    
+    if (item.type === 'project') {
+      const ownerIds = Array.isArray(item.ownerIds) ? item.ownerIds : [];
+      assignees = ownerIds.map(id => 
+        (users as SafeUser[])?.find(user => user.id === id)
+      ).filter(Boolean) as SafeUser[];
+    } else if (item.type === 'goal') {
+      const assigneeIds = Array.isArray(item.assigneeIds) ? item.assigneeIds : [];
+      assignees = assigneeIds.map(id => 
+        (users as SafeUser[])?.find(user => user.id === id)
+      ).filter(Boolean) as SafeUser[];
+    } else if (item.type === 'task' && item.task) {
+      const assigneeIds = Array.isArray(item.task.assigneeIds) ? item.task.assigneeIds : [];
+      assignees = assigneeIds.map(id => 
+        (users as SafeUser[])?.find(user => user.id === id)
+      ).filter(Boolean) as SafeUser[];
+    }
+
     if (item.type !== 'task' || !item.task) {
       return (
-        <span className="text-muted-foreground text-sm">-</span>
+        <div className="w-32 h-8 flex items-center">
+          {assignees.length > 0 ? (
+            <div className="flex items-center gap-1">
+              {assignees.slice(0, 4).map((assignee, index) => (
+                <Avatar key={assignee.id} className="w-6 h-6 flex-shrink-0" style={{ zIndex: assignees.length - index }}>
+                  <AvatarFallback className="text-xs bg-primary text-primary-foreground border border-white">
+                    {assignee.name.charAt(0)}
+                  </AvatarFallback>
+                </Avatar>
+              ))}
+              {assignees.length > 4 && (
+                <span className="text-xs text-muted-foreground ml-1">+{assignees.length - 4}</span>
+              )}
+            </div>
+          ) : (
+            <span className="text-muted-foreground text-sm">-</span>
+          )}
+        </div>
       );
     }
 
     return (
       <Select
-        value={item.participant?.id || "none"}
+        value={assignees.length > 0 ? assignees[0].id : "none"}
         onValueChange={(value) => handleAssigneeChange(item.id, value)}
         disabled={updateTaskMutation.isPending}
       >
         <SelectTrigger className="h-8 w-32 p-1 border-0 shadow-none hover:bg-muted rounded-md" data-testid={`select-assignee-${item.id}`}>
           <SelectValue>
-            {item.participant ? (
-              <div className="flex items-center gap-2">
-                <Avatar className="w-6 h-6">
-                  <AvatarFallback className="text-xs">
-                    {item.participant.name.charAt(0)}
-                  </AvatarFallback>
-                </Avatar>
-                <span className="text-sm truncate">{item.participant.name}</span>
+            {assignees.length > 0 ? (
+              <div className="flex items-center gap-1">
+                {assignees.slice(0, 3).map((assignee, index) => (
+                  <Avatar key={assignee.id} className="w-5 h-5 flex-shrink-0" style={{ zIndex: assignees.length - index }}>
+                    <AvatarFallback className="text-xs bg-primary text-primary-foreground border border-white">
+                      {assignee.name.charAt(0)}
+                    </AvatarFallback>
+                  </Avatar>
+                ))}
+                {assignees.length > 3 && (
+                  <span className="text-xs text-muted-foreground ml-1">+{assignees.length - 3}</span>
+                )}
               </div>
             ) : (
               <span className="text-muted-foreground text-sm">담당자 없음</span>

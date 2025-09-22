@@ -748,9 +748,17 @@ export default function ListTree() {
     );
   };
 
-  const renderEditableAssignee = (itemId: string, type: 'project' | 'goal' | 'task', assignee: SafeUser | null, ownerIds?: string[] | null) => {
+  const renderEditableAssignee = (itemId: string, type: 'project' | 'goal' | 'task', assignee: SafeUser | null, ownerIds?: string[] | null, assigneeIds?: string[] | null) => {
     const isEditing = editingField?.itemId === itemId && editingField?.field === 'assignee';
     const currentUserId = type === 'project' ? (ownerIds && ownerIds.length > 0 ? ownerIds[0] : null) : assignee?.id;
+    
+    // Get all assignees for display
+    const currentAssigneeIds = type === 'project' ? 
+      (Array.isArray(ownerIds) ? ownerIds : []) : 
+      (Array.isArray(assigneeIds) ? assigneeIds : []);
+    const assignees = currentAssigneeIds.map(id => 
+      (users as SafeUser[])?.find(user => user.id === id)
+    ).filter(Boolean) as SafeUser[];
     
     if (isEditing) {
       return (
@@ -803,14 +811,18 @@ export default function ListTree() {
         className="cursor-pointer hover:bg-muted/20 px-1 py-1 rounded w-28 min-w-[7rem] max-w-[7rem] h-8 flex items-center overflow-hidden"
         onClick={() => startEditing(itemId, 'assignee', type, currentUserId || 'none')}
       >
-        {assignee ? (
-          <div className="flex items-center gap-2 truncate">
-            <Avatar className="w-6 h-6 flex-shrink-0">
-              <AvatarFallback className="text-xs">
-                {assignee.name.charAt(0)}
-              </AvatarFallback>
-            </Avatar>
-            <span className="text-sm truncate">{assignee.name}</span>
+        {assignees.length > 0 ? (
+          <div className="flex items-center gap-1 truncate">
+            {assignees.slice(0, 4).map((assignee, index) => (
+              <Avatar key={assignee.id} className="w-6 h-6 flex-shrink-0" style={{ zIndex: assignees.length - index }}>
+                <AvatarFallback className="text-xs bg-primary text-primary-foreground border border-white">
+                  {assignee.name.charAt(0)}
+                </AvatarFallback>
+              </Avatar>
+            ))}
+            {assignees.length > 4 && (
+              <span className="text-xs text-muted-foreground ml-1">+{assignees.length - 4}</span>
+            )}
           </div>
         ) : (
           <span className="text-muted-foreground text-sm">담당자 없음</span>
@@ -1205,7 +1217,7 @@ export default function ListTree() {
                         {renderEditableDeadline(project.id, 'project', project.deadline)}
                       </div>
                       <div className="col-span-1">
-                        {renderEditableAssignee(project.id, 'project', project.owners && project.owners.length > 0 ? project.owners[0] : null, project.ownerIds && project.ownerIds.length > 0 ? project.ownerIds[0] : null)}
+                        {renderEditableAssignee(project.id, 'project', project.owners && project.owners.length > 0 ? project.owners[0] : null, project.ownerIds)}
                       </div>
                       <div className="col-span-1">
                         {renderEditableLabel(project.id, 'project', null)}
@@ -1274,7 +1286,7 @@ export default function ListTree() {
                                 {renderEditableDeadline(goal.id, 'goal', goal.deadline)}
                               </div>
                               <div className="col-span-1">
-                                {renderEditableAssignee(goal.id, 'goal', goal.assigneeIds && goal.assigneeIds.length > 0 ? (users as SafeUser[])?.find(u => u.id === goal.assigneeIds![0]) || null : null, goal.assigneeIds && goal.assigneeIds.length > 0 ? goal.assigneeIds[0] : null)}
+                                {renderEditableAssignee(goal.id, 'goal', goal.assigneeIds && goal.assigneeIds.length > 0 ? (users as SafeUser[])?.find(u => u.id === goal.assigneeIds![0]) || null : null, undefined, goal.assigneeIds)}
                               </div>
                               <div className="col-span-1">
                                 {renderEditableLabel(goal.id, 'goal', null)}
@@ -1316,7 +1328,7 @@ export default function ListTree() {
                                       {renderEditableDeadline(task.id, 'task', task.deadline)}
                                     </div>
                                     <div className="col-span-1">
-                                      {renderEditableAssignee(task.id, 'task', task.assignees && task.assignees.length > 0 ? task.assignees[0] : null)}
+                                      {renderEditableAssignee(task.id, 'task', task.assignees && task.assignees.length > 0 ? task.assignees[0] : null, undefined, task.assigneeIds)}
                                     </div>
                                     <div className="col-span-1">
                                       {renderEditableLabel(task.id, 'task', task.label)}
