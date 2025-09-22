@@ -9,7 +9,8 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { ArrowLeft, Edit, Save, X, Target, Circle, FolderOpen, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Edit, Save, X, Target, Circle, FolderOpen, Plus, Trash2, Tag } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useState } from "react";
 import { useLocation, useRoute } from "wouter";
 import { useToast } from "@/hooks/use-toast";
@@ -334,6 +335,99 @@ export default function GoalDetail() {
                 </div>
 
                 <div>
+                  <label className="text-sm font-medium text-muted-foreground">라벨</label>
+                  <div className="mt-1">
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <div 
+                          className="cursor-pointer hover:bg-muted/20 rounded-md min-w-16 min-h-8 flex items-center px-2 py-1 gap-1 flex-wrap border border-dashed border-muted-foreground/30"
+                          data-testid={`edit-labels-${goal.id}`}
+                        >
+                          {(goal.labels && goal.labels.length > 0) ? (
+                            goal.labels.map((label, index) => (
+                              <Badge 
+                                key={index} 
+                                variant="outline" 
+                                className={`text-xs ${index === 0 ? 'bg-blue-500 hover:bg-blue-600 text-white' : 'bg-green-500 hover:bg-green-600 text-white'}`}
+                              >
+                                {label}
+                              </Badge>
+                            ))
+                          ) : (
+                            <span className="text-muted-foreground text-xs flex items-center gap-1">
+                              <Tag className="w-3 h-3" />
+                              라벨 추가
+                            </span>
+                          )}
+                        </div>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-64 p-3" align="start">
+                        <div className="space-y-3">
+                          <h4 className="font-medium text-sm">라벨 편집 (최대 2개)</h4>
+                          
+                          {/* 입력 필드 */}
+                          {(!goal.labels || goal.labels.length < 2) && (
+                            <div className="flex gap-2">
+                              <Input
+                                placeholder="새 라벨 입력"
+                                className="flex-1 h-8"
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    const target = e.target as HTMLInputElement;
+                                    const newLabel = target.value.trim();
+                                    if (newLabel && newLabel.length <= 5 && (!goal.labels || goal.labels.length < 2)) {
+                                      const updatedLabels = [...(goal.labels || []), newLabel];
+                                      updateGoalMutation.mutate({ labels: updatedLabels });
+                                      target.value = '';
+                                    }
+                                  }
+                                }}
+                                data-testid={`input-new-label-${goal.id}`}
+                              />
+                            </div>
+                          )}
+                          
+                          {/* 기존 라벨 목록 */}
+                          {goal.labels && goal.labels.length > 0 && (
+                            <div className="space-y-2">
+                              <div className="text-xs text-muted-foreground">현재 라벨</div>
+                              {goal.labels.map((label, index) => (
+                                <div
+                                  key={index}
+                                  className="flex items-center justify-between p-2 rounded bg-muted/50"
+                                >
+                                  <Badge variant="outline" className="text-xs">
+                                    {label}
+                                  </Badge>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => {
+                                      const updatedLabels = goal.labels!.filter((_, i) => i !== index);
+                                      updateGoalMutation.mutate({ labels: updatedLabels });
+                                    }}
+                                    className="h-6 w-6 p-0"
+                                    data-testid={`button-remove-label-${goal.id}-${index}`}
+                                  >
+                                    <X className="w-3 h-3" />
+                                  </Button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          
+                          {goal.labels && goal.labels.length >= 2 && (
+                            <div className="text-xs text-muted-foreground text-center">
+                              최대 2개의 라벨을 사용할 수 있습니다.
+                            </div>
+                          )}
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </div>
+
+                <div>
                   <label className="text-sm font-medium text-muted-foreground">상태</label>
                   <p className="mt-1" data-testid="text-goal-status">
                     <Badge variant={goal.status === '완료' ? 'default' : 'secondary'}>
@@ -415,15 +509,15 @@ export default function GoalDetail() {
                                 >
                                   {task.status}
                                 </Badge>
-                                {task.assignee && (
+                                {task.assignees && task.assignees.length > 0 && (
                                   <div className="flex items-center gap-1">
                                     <Avatar className="h-4 w-4">
                                       <AvatarFallback className="text-xs">
-                                        {task.assignee.initials}
+                                        {task.assignees[0].initials}
                                       </AvatarFallback>
                                     </Avatar>
                                     <span className="text-xs text-muted-foreground">
-                                      {task.assignee.name}
+                                      {task.assignees[0].name}
                                     </span>
                                   </div>
                                 )}
