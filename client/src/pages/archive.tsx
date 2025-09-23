@@ -317,68 +317,12 @@ export default function Archive() {
   const archivedProjects = useMemo(() => {
     if (!archivedItems.length) return [];
     
-    // Group archived items by project for display
-    const projectMap = new Map();
-    
-    archivedItems.forEach(item => {
-      if (item.type === 'project') {
-        if (!projectMap.has(item.id)) {
-          projectMap.set(item.id, { 
-            ...item, 
-            goals: [], 
-            tasks: [] 
-          });
-        }
-      } else if (item.type === 'goal') {
-        const projectId = item.projectId;
-        if (!projectMap.has(projectId)) {
-          // Create placeholder project for orphaned goals
-          projectMap.set(projectId, {
-            id: projectId,
-            name: 'Unknown Project',
-            goals: [],
-            tasks: []
-          });
-        }
-        const project = projectMap.get(projectId);
-        project.goals.push({ ...item as any, tasks: [] });
-      } else if (item.type === 'task') {
-        const projectId = item.projectId;
-        const goalId = item.goalId;
-        
-        if (!projectMap.has(projectId)) {
-          // Create placeholder project for orphaned tasks
-          projectMap.set(projectId, {
-            id: projectId,
-            name: 'Unknown Project',
-            goals: [],
-            tasks: []
-          });
-        }
-        
-        const project = projectMap.get(projectId);
-        
-        if (goalId) {
-          // Task belongs to a goal
-          let goal = project.goals.find((g: any) => g.id === goalId);
-          if (!goal) {
-            // Create placeholder goal for orphaned tasks
-            goal = {
-              id: goalId,
-              title: 'Unknown Goal',
-              tasks: []
-            };
-            project.goals.push(goal);
-          }
-          goal.tasks.push(item as any);
-        } else {
-          // Direct project task
-          project.tasks.push(item as any);
-        }
-      }
-    });
-    
-    return Array.from(projectMap.values());
+    // Since we only archive projects now, just map them directly
+    return archivedItems.filter(item => item.type === 'project').map(item => ({
+      ...item,
+      goals: [],
+      tasks: []
+    }));
   }, [archivedItems]);
 
   const { data: users } = useQuery({
