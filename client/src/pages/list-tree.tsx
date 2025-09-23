@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ChevronDown, ChevronRight, FolderOpen, Target, Circle, Plus, Calendar, User, BarChart3, Check, X, Tag, Mail, UserPlus } from "lucide-react";
+import { ChevronDown, ChevronRight, FolderOpen, Target, Circle, Plus, Calendar, User, BarChart3, Check, X, Tag, Mail, UserPlus, Trash2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
@@ -49,6 +49,7 @@ export default function ListTree() {
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState('팀원');
   const [emailError, setEmailError] = useState('');
+  const [deletedMemberIds, setDeletedMemberIds] = useState<Set<string>>(new Set());
 
   // Inline editing state
   const [editingField, setEditingField] = useState<{ itemId: string; field: string; type: 'project' | 'goal' | 'task' } | null>(null);
@@ -1733,8 +1734,10 @@ export default function ListTree() {
             {/* Existing Members */}
             <div className="space-y-3">
               <h4 className="text-sm font-medium text-slate-300">하이더의 멤버</h4>
-              <div className="space-y-2 max-h-80 overflow-y-auto">
-                {(users as SafeUser[])?.map((user, index) => (
+              <div className="space-y-2 max-h-80 overflow-y-auto min-h-32">
+                {(users as SafeUser[])
+                  ?.filter(user => !deletedMemberIds.has(user.id))
+                  .map((user, index) => (
                   <div key={user.id} className="flex items-center justify-between p-2 hover:bg-slate-700 rounded" data-testid={`member-row-${user.id}`}>
                     <div className="flex items-center gap-3">
                       <Avatar className="h-8 w-8">
@@ -1744,11 +1747,33 @@ export default function ListTree() {
                       </Avatar>
                       <span className="text-sm font-medium text-white">{user.name}</span>
                     </div>
-                    <Badge variant="outline" className="text-xs border-slate-600 text-slate-300">
-                      {index === 0 ? '관리자' : '팀원'}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="text-xs border-slate-600 text-slate-300">
+                        {index === 0 ? '관리자' : '팀원'}
+                      </Badge>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0 text-slate-400 hover:text-red-400 hover:bg-red-900/20"
+                        onClick={() => {
+                          setDeletedMemberIds(prev => new Set([...Array.from(prev), user.id]));
+                          toast({
+                            title: "멤버 삭제",
+                            description: `${user.name}님이 목록에서 제거되었습니다.`,
+                          });
+                        }}
+                        data-testid={`button-delete-member-${user.id}`}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
                   </div>
                 ))}
+                {(users as SafeUser[])?.filter(user => !deletedMemberIds.has(user.id)).length === 0 && (
+                  <div className="text-center text-slate-400 text-sm py-4">
+                    멤버가 없습니다.
+                  </div>
+                )}
               </div>
             </div>
           </div>
