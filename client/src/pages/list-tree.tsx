@@ -48,6 +48,7 @@ export default function ListTree() {
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState('팀원');
+  const [emailError, setEmailError] = useState('');
 
   // Inline editing state
   const [editingField, setEditingField] = useState<{ itemId: string; field: string; type: 'project' | 'goal' | 'task' } | null>(null);
@@ -1670,7 +1671,7 @@ export default function ListTree() {
 
       {/* Member Invite Modal */}
       <Dialog open={isInviteModalOpen} onOpenChange={setIsInviteModalOpen}>
-        <DialogContent className="max-w-md bg-slate-800 text-white border-slate-700">
+        <DialogContent className="max-w-2xl bg-slate-800 text-white border-slate-700">
           <DialogHeader>
             <DialogTitle className="text-white">초대</DialogTitle>
           </DialogHeader>
@@ -1683,8 +1684,11 @@ export default function ListTree() {
                   type="email"
                   placeholder="kmeod@rido.io"
                   value={inviteEmail}
-                  onChange={(e) => setInviteEmail(e.target.value)}
-                  className="flex-1 bg-slate-700 border-slate-600 text-white placeholder:text-slate-400"
+                  onChange={(e) => {
+                    setInviteEmail(e.target.value);
+                    if (emailError) setEmailError('');
+                  }}
+                  className={`flex-1 bg-slate-700 border-slate-600 text-white placeholder:text-slate-400 ${emailError ? 'border-red-500' : ''}`}
                   data-testid="input-invite-email"
                 />
                 <Select value={inviteRole} onValueChange={setInviteRole}>
@@ -1699,6 +1703,13 @@ export default function ListTree() {
                 <Button 
                   className="bg-blue-600 hover:bg-blue-700 text-white px-6"
                   onClick={() => {
+                    // Email validation
+                    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                    if (!emailRegex.test(inviteEmail)) {
+                      setEmailError('올바른 이메일을 입력해 주세요.');
+                      return;
+                    }
+                    
                     // Handle invite logic here
                     toast({
                       title: "초대 완료",
@@ -1706,6 +1717,7 @@ export default function ListTree() {
                     });
                     setInviteEmail('');
                     setInviteRole('팀원');
+                    setEmailError('');
                   }}
                   disabled={!inviteEmail.trim()}
                   data-testid="button-send-invite"
@@ -1713,6 +1725,9 @@ export default function ListTree() {
                   초대하기
                 </Button>
               </div>
+              {emailError && (
+                <p className="text-red-400 text-sm mt-1" data-testid="text-email-error">{emailError}</p>
+              )}
             </div>
 
             {/* Existing Members */}
