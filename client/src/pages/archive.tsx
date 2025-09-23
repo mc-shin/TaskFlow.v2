@@ -317,11 +317,12 @@ export default function Archive() {
   const archivedProjects = useMemo(() => {
     if (!archivedItems.length) return [];
     
-    // Since we only archive projects now, just map them directly
+    // Since we only archive projects now, just map them directly with their original goals and tasks
     return archivedItems.filter(item => item.type === 'project').map(item => ({
       ...item,
-      goals: [],
-      tasks: []
+      // Keep original goals and tasks if they exist, otherwise default to empty arrays
+      goals: item.goals || [],
+      tasks: item.tasks || []
     }));
   }, [archivedItems]);
 
