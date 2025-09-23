@@ -13,6 +13,56 @@ export default function Archive() {
     queryKey: ["/api/projects"],
   });
 
+  // Get archived items from localStorage
+  const archivedItems = (() => {
+    try {
+      const stored = localStorage.getItem('archivedItems');
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  })();
+
+  // Filter projects to show only archived ones and their archived children
+  const archivedProjects = (projects as ProjectWithDetails[])?.filter(project => {
+    const isProjectArchived = archivedItems.includes(project.id);
+    
+    if (isProjectArchived) {
+      return true; // Show archived projects
+    }
+    
+    if (project.goals) {
+      // Check if any goals or tasks are archived
+      const hasArchivedChildren = project.goals.some(goal => 
+        archivedItems.includes(goal.id) || 
+        (goal.tasks && goal.tasks.some(task => archivedItems.includes(task.id)))
+      );
+      return hasArchivedChildren;
+    }
+    
+    return false;
+  }).map(project => {
+    const isProjectArchived = archivedItems.includes(project.id);
+    
+    if (isProjectArchived) {
+      return project; // Show full project if archived
+    }
+    
+    // Show only archived goals and tasks
+    const archivedGoals = project.goals?.filter(goal => 
+      archivedItems.includes(goal.id) || 
+      (goal.tasks && goal.tasks.some(task => archivedItems.includes(task.id)))
+    ).map(goal => ({
+      ...goal,
+      tasks: goal.tasks?.filter(task => archivedItems.includes(task.id)) || []
+    })) || [];
+    
+    return {
+      ...project,
+      goals: archivedGoals
+    };
+  }) || [];
+
   const { data: users } = useQuery({
     queryKey: ["/api/users"],
   });
@@ -126,14 +176,14 @@ export default function Archive() {
       {/* Content */}
       <Card className="rounded-t-none">
         <CardContent className="p-0">
-          {(!projects || (projects as ProjectWithDetails[]).length === 0) ? (
+          {(!archivedProjects || archivedProjects.length === 0) ? (
             <div className="text-center py-8 text-muted-foreground">
               <p>보관된 항목이 없습니다</p>
               <p className="text-sm mt-1">리스트에서 항목을 보관해주세요</p>
             </div>
           ) : (
             <div className="divide-y">
-              {(projects as ProjectWithDetails[]).map((project) => (
+              {archivedProjects.map((project) => (
                 <div key={project.id}>
                   {/* Project Row */}
                   <div className="p-3 hover:bg-muted/50 transition-colors">

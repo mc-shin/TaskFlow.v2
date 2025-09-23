@@ -26,6 +26,38 @@ export default function ListTree() {
     queryKey: ["/api/projects"],
   });
 
+  // Get archived items from localStorage and filter out archived projects
+  const archivedItems = (() => {
+    try {
+      const stored = localStorage.getItem('archivedItems');
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  })();
+
+  // Filter projects to exclude archived ones
+  const activeProjects = (projects as ProjectWithDetails[])?.filter(project => {
+    return !archivedItems.includes(project.id); // Exclude archived projects
+  }).map(project => {
+    // Filter out archived goals and tasks
+    const activeGoals = project.goals?.filter(goal => {
+      const isGoalArchived = archivedItems.includes(goal.id);
+      if (isGoalArchived) return false;
+      
+      // Filter out archived tasks from goals
+      if (goal.tasks) {
+        goal.tasks = goal.tasks.filter(task => !archivedItems.includes(task.id));
+      }
+      return true;
+    });
+    
+    return {
+      ...project,
+      goals: activeGoals || []
+    };
+  }) || [];
+
   const [_, setLocation] = useLocation();
   const { toast } = useToast();
   
@@ -1411,7 +1443,7 @@ export default function ListTree() {
             </div>
           ) : (
             <div className="divide-y">
-              {(projects as ProjectWithDetails[]).map((project) => (
+              {activeProjects.map((project) => (
                 <div key={project.id}>
                   {/* Project Row */}
                   <div className={`p-3 hover:bg-muted/50 transition-colors ${project.status === '완료' ? 'opacity-50' : ''}`}>
@@ -1650,6 +1682,14 @@ export default function ListTree() {
               size="sm"
               className="bg-blue-600 hover:bg-blue-700 text-sm"
               onClick={() => {
+                // Get existing archived items from localStorage
+                const existingArchived = localStorage.getItem('archivedItems');
+                const archivedItems = existingArchived ? JSON.parse(existingArchived) : [];
+                
+                // Add selected items to archived list
+                const newArchivedItems = [...archivedItems, ...Array.from(selectedItems)];
+                localStorage.setItem('archivedItems', JSON.stringify(newArchivedItems));
+                
                 toast({
                   title: "보관 완료",
                   description: `${selectedItems.size}개 항목이 보관함으로 이동되었습니다.`,
