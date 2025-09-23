@@ -178,8 +178,10 @@ export class MemStorage implements IStorage {
       },
     ];
 
-    for (const project of defaultProjects) {
-      await this.createProject(project);
+    for (let i = 0; i < defaultProjects.length; i++) {
+      const project = defaultProjects[i];
+      const creator = userArray[i % userArray.length]; // Cycle through users
+      await this.createProject(project, creator?.id);
     }
 
     // Initialize goals for projects
@@ -192,8 +194,10 @@ export class MemStorage implements IStorage {
       { title: "연동 기능", description: "다른 서비스와의 연동", deadline: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], status: "진행전", labels: ["연동"], assigneeIds: userArray[2]?.id ? [userArray[2].id] : [], projectId: projectArray[2]?.id },
     ];
 
-    for (const goal of defaultGoals) {
-      await this.createGoal(goal);
+    for (let i = 0; i < defaultGoals.length; i++) {
+      const goal = defaultGoals[i];
+      const creator = userArray[i % userArray.length]; // Cycle through users
+      await this.createGoal(goal, creator?.id);
     }
 
     // Initialize tasks for goals
@@ -217,8 +221,10 @@ export class MemStorage implements IStorage {
       { title: "차례 변경사항에 대한 알림", description: "", status: "진행전", projectId: projectArray[2]?.id, assigneeIds: userArray[2]?.id ? [userArray[2].id] : [], deadline: null, duration: 0, priority: "중간", labels: ["알림", "봇"] },
     ];
 
-    for (const task of defaultTasks) {
-      await this.createTask(task);
+    for (let i = 0; i < defaultTasks.length; i++) {
+      const task = defaultTasks[i];
+      const creator = userArray[i % userArray.length]; // Cycle through users
+      await this.createTask(task, creator?.id);
     }
     
     // Backfill progress values for any existing tasks that might have been created without proper progress
