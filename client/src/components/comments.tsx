@@ -180,112 +180,106 @@ export function Comments({ entityType, entityId, currentUser }: CommentsProps) {
 
         {/* Comments List */}
         <div className="space-y-4">
-          {comments && comments.length > 0 ? (
-            comments.map((comment) => (
-              <div key={comment.id} className="border rounded-lg p-4 space-y-3" data-testid={`comment-${comment.id}`}>
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    <Avatar>
-                      <AvatarFallback className="bg-primary text-primary-foreground">
-                        {comment.author.initials}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="font-medium text-sm" data-testid={`text-comment-author-${comment.id}`}>
-                        {comment.author.name}
-                      </p>
-                      <p className="text-xs text-muted-foreground" data-testid={`text-comment-date-${comment.id}`}>
-                        {comment.createdAt && formatDate(comment.createdAt)}
-                        {comment.updatedAt && comment.createdAt && comment.updatedAt !== comment.createdAt && " (수정됨)"}
-                      </p>
-                    </div>
+          {comments && comments.length > 0 && comments.map((comment) => (
+            <div key={comment.id} className="border rounded-lg p-4 space-y-3" data-testid={`comment-${comment.id}`}>
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <Avatar>
+                    <AvatarFallback className="bg-primary text-primary-foreground">
+                      {comment.author.initials}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <p className="font-medium text-sm" data-testid={`text-comment-author-${comment.id}`}>
+                      {comment.author.name}
+                    </p>
+                    <p className="text-xs text-muted-foreground" data-testid={`text-comment-date-${comment.id}`}>
+                      {comment.createdAt && formatDate(comment.createdAt)}
+                      {comment.updatedAt && comment.createdAt && comment.updatedAt !== comment.createdAt && " (수정됨)"}
+                    </p>
                   </div>
-                  
-                  {/* Action buttons for comment author */}
-                  {currentUser && currentUser.id === comment.authorId && (
-                    <div className="flex items-center gap-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleEditComment(comment)}
-                        data-testid={`button-edit-comment-${comment.id}`}
-                      >
-                        <Edit className="h-3 w-3" />
-                      </Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            data-testid={`button-delete-comment-${comment.id}`}
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>댓글 삭제</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              이 댓글을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>취소</AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={() => handleDeleteComment(comment.id)}
-                              data-testid={`button-confirm-delete-comment-${comment.id}`}
-                            >
-                              삭제
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
-                  )}
                 </div>
-
-                {/* Comment Content */}
-                {editingComment && editingComment.id === comment.id ? (
-                  <div className="space-y-2">
-                    <Textarea
-                      value={editingComment.content}
-                      onChange={(e) => setEditingComment({ ...editingComment, content: e.target.value })}
-                      className="min-h-[60px]"
-                      data-testid={`textarea-edit-comment-${comment.id}`}
-                    />
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setEditingComment(null)}
-                        data-testid={`button-cancel-edit-comment-${comment.id}`}
-                      >
-                        <X className="h-3 w-3 mr-1" />
-                        취소
-                      </Button>
-                      <Button
-                        size="sm"
-                        onClick={handleSaveEdit}
-                        disabled={!editingComment.content.trim()}
-                        data-testid={`button-save-edit-comment-${comment.id}`}
-                      >
-                        <Save className="h-3 w-3 mr-1" />
-                        저장
-                      </Button>
-                    </div>
+                
+                {/* Action buttons for comment author */}
+                {currentUser && currentUser.id === comment.authorId && (
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleEditComment(comment)}
+                      data-testid={`button-edit-comment-${comment.id}`}
+                    >
+                      <Edit className="h-3 w-3" />
+                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          data-testid={`button-delete-comment-${comment.id}`}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>댓글 삭제</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            이 댓글을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>취소</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => handleDeleteComment(comment.id)}
+                            data-testid={`button-confirm-delete-comment-${comment.id}`}
+                          >
+                            삭제
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </div>
-                ) : (
-                  <p className="text-sm whitespace-pre-wrap" data-testid={`text-comment-content-${comment.id}`}>
-                    {comment.content}
-                  </p>
                 )}
               </div>
-            ))
-          ) : (
-            <p className="text-center text-muted-foreground py-8" data-testid="text-no-comments">
-              아직 댓글이 없습니다. 첫 번째 댓글을 작성해보세요!
-            </p>
-          )}
+
+              {/* Comment Content */}
+              {editingComment && editingComment.id === comment.id ? (
+                <div className="space-y-2">
+                  <Textarea
+                    value={editingComment.content}
+                    onChange={(e) => setEditingComment({ ...editingComment, content: e.target.value })}
+                    className="min-h-[60px]"
+                    data-testid={`textarea-edit-comment-${comment.id}`}
+                  />
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setEditingComment(null)}
+                      data-testid={`button-cancel-edit-comment-${comment.id}`}
+                    >
+                      <X className="h-3 w-3 mr-1" />
+                      취소
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={handleSaveEdit}
+                      disabled={!editingComment.content.trim()}
+                      data-testid={`button-save-edit-comment-${comment.id}`}
+                    >
+                      <Save className="h-3 w-3 mr-1" />
+                      저장
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm whitespace-pre-wrap" data-testid={`text-comment-content-${comment.id}`}>
+                  {comment.content}
+                </p>
+              )}
+            </div>
+          ))}
         </div>
       </CardContent>
     </Card>

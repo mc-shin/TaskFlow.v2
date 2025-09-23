@@ -8,7 +8,8 @@ import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ChevronDown, ChevronRight, FolderOpen, Target, Circle, Plus, Calendar, User, BarChart3, Check, X, Tag } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ChevronDown, ChevronRight, FolderOpen, Target, Circle, Plus, Calendar, User, BarChart3, Check, X, Tag, Mail, UserPlus } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
@@ -44,6 +45,8 @@ export default function ListTree() {
     goalId: '', 
     goalTitle: '' 
   });
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
 
   // Inline editing state
   const [editingField, setEditingField] = useState<{ itemId: string; field: string; type: 'project' | 'goal' | 'task' } | null>(null);
@@ -1305,6 +1308,75 @@ export default function ListTree() {
       {/* Main Content */}
       <main className="flex-1 p-6 overflow-auto" data-testid="main-content">
 
+        {/* Project Members Section */}
+        <div className="mb-6">
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <h3 className="text-lg font-semibold">프로젝트 참여자</h3>
+                  <div className="flex items-center gap-2">
+                    {(() => {
+                      // Get all unique assignees from all projects
+                      const allAssignees = new Set<string>();
+                      (projects as ProjectWithDetails[])?.forEach(project => {
+                        // Add project owners
+                        if (project.ownerIds) {
+                          project.ownerIds.forEach(id => allAssignees.add(id));
+                        }
+                        // Add goal assignees
+                        project.goals?.forEach(goal => {
+                          if (goal.assigneeIds) {
+                            goal.assigneeIds.forEach(id => allAssignees.add(id));
+                          }
+                        });
+                        // Add task assignees
+                        project.tasks?.forEach(task => {
+                          if (task.assigneeIds) {
+                            task.assigneeIds.forEach(id => allAssignees.add(id));
+                          }
+                        });
+                        // Add task assignees from goal tasks
+                        project.goals?.forEach(goal => {
+                          goal.tasks?.forEach(task => {
+                            if (task.assigneeIds) {
+                              task.assigneeIds.forEach(id => allAssignees.add(id));
+                            }
+                          });
+                        });
+                      });
+                      
+                      const uniqueMembers = Array.from(allAssignees)
+                        .map(id => (users as SafeUser[])?.find(user => user.id === id))
+                        .filter(Boolean) as SafeUser[];
+                      
+                      return uniqueMembers.map(member => (
+                        <div key={member.id} className="flex items-center gap-2" data-testid={`member-${member.id}`}>
+                          <Avatar className="h-8 w-8">
+                            <AvatarFallback className="bg-primary text-primary-foreground text-sm">
+                              {member.initials}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="text-sm font-medium">{member.name}</span>
+                        </div>
+                      ));
+                    })()}
+                  </div>
+                </div>
+                <Button 
+                  variant="outline" 
+                  className="flex items-center gap-2"
+                  onClick={() => setIsInviteModalOpen(true)}
+                  data-testid="button-invite-member"
+                >
+                  <User className="h-4 w-4" />
+                  멤버 초대
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
       {/* Table Header */}
       <div className="bg-muted/30 p-3 rounded-t-lg border">
         <div className="grid grid-cols-12 gap-4 text-sm font-medium text-muted-foreground">
@@ -1595,6 +1667,77 @@ export default function ListTree() {
         goalId={taskModalState.goalId}
         goalTitle={taskModalState.goalTitle}
       />
+
+      {/* Member Invite Modal */}
+      <Dialog open={isInviteModalOpen} onOpenChange={setIsInviteModalOpen}>
+        <DialogContent className="max-w-md bg-slate-800 text-white border-slate-700">
+          <DialogHeader>
+            <DialogTitle className="text-white">초대</DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-6">
+            {/* Email Input */}
+            <div className="space-y-2">
+              <div className="flex gap-2">
+                <Input
+                  type="email"
+                  placeholder="kmeod@rido.io"
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  className="flex-1 bg-slate-700 border-slate-600 text-white placeholder:text-slate-400"
+                  data-testid="input-invite-email"
+                />
+                <Button 
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-6"
+                  onClick={() => {
+                    // Handle invite logic here
+                    toast({
+                      title: "초대 완료",
+                      description: `${inviteEmail}로 초대를 보냈습니다.`,
+                    });
+                    setInviteEmail('');
+                  }}
+                  disabled={!inviteEmail.trim()}
+                  data-testid="button-send-invite"
+                >
+                  초대하기
+                </Button>
+              </div>
+            </div>
+
+            {/* Existing Members */}
+            <div className="space-y-3">
+              <h4 className="text-sm font-medium text-slate-300">Rido의 멤버</h4>
+              <div className="space-y-2 max-h-80 overflow-y-auto">
+                {(users as SafeUser[])?.map((user, index) => (
+                  <div key={user.id} className="flex items-center gap-3 p-2 hover:bg-slate-700 rounded" data-testid={`member-row-${user.id}`}>
+                    <Avatar className="h-8 w-8">
+                      <AvatarFallback className="bg-blue-600 text-white text-sm">
+                        {user.initials}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-white">{user.name}</span>
+                        <Badge variant="outline" className="text-xs border-slate-600 text-slate-300">
+                          {index === 0 ? 'PM' : index === 1 ? '디자이너' : '프론트엔드 개발자'}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-slate-400">
+                        <span>
+                          {index === 0 ? '서울여자 (9일전)' : '삼육 (3~10년차)'}
+                        </span>
+                        <span>•</span>
+                        <span>관리자</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
