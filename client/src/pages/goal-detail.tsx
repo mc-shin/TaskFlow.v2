@@ -18,6 +18,7 @@ import { ObjectUploader } from "@/components/ObjectUploader";
 import { apiRequest } from "@/lib/queryClient";
 import type { ProjectWithDetails, GoalWithTasks, SafeUser } from "@shared/schema";
 import { TaskModal } from "@/components/task-modal";
+import { Comments } from "@/components/comments";
 
 export default function GoalDetail() {
   const [, params] = useRoute("/detail/goal/:id");
@@ -677,6 +678,13 @@ export default function GoalDetail() {
                 </CardContent>
               </Card>
             )}
+
+            {/* Comments Section */}
+            <Comments 
+              entityType="goal" 
+              entityId={goalId || ""} 
+              currentUser={(users as SafeUser[])?.[0]}
+            />
           </div>
 
           {/* Sidebar */}
@@ -778,25 +786,6 @@ export default function GoalDetail() {
               </CardContent>
             </Card>
 
-            {/* Parent Project */}
-            <Card>
-              <CardHeader>
-                <CardTitle>소속 프로젝트</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <button
-                  onClick={handleProjectClick}
-                  className="flex items-center gap-3 w-full p-2 hover:bg-muted rounded-lg transition-colors"
-                  data-testid="button-parent-project"
-                >
-                  <FolderOpen className="h-5 w-5 text-blue-600" />
-                  <div className="text-left">
-                    <p className="font-medium">{parentProject.name}</p>
-                    <p className="text-sm text-muted-foreground">{parentProject.code}</p>
-                  </div>
-                </button>
-              </CardContent>
-            </Card>
 
             {/* Quick Stats */}
             <Card>

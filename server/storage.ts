@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type Task, type InsertTask, type Activity, type InsertActivity, type TaskWithAssignees, type ActivityWithDetails, type Project, type InsertProject, type ProjectWithOwners, type UserWithStats, type SafeUser, type SafeUserWithStats, type SafeTaskWithAssignees, type SafeActivityWithDetails, type Meeting, type InsertMeeting, type MeetingComment, type InsertMeetingComment, type MeetingAttachment, type InsertMeetingAttachment, type MeetingCommentWithAuthor, type MeetingWithDetails, type Goal, type InsertGoal, type GoalWithTasks, type ProjectWithDetails, type Attachment, type InsertAttachment } from "@shared/schema";
+import { type User, type InsertUser, type Task, type InsertTask, type Activity, type InsertActivity, type TaskWithAssignees, type ActivityWithDetails, type Project, type InsertProject, type ProjectWithOwners, type UserWithStats, type SafeUser, type SafeUserWithStats, type SafeTaskWithAssignees, type SafeActivityWithDetails, type Meeting, type InsertMeeting, type MeetingComment, type InsertMeetingComment, type MeetingAttachment, type InsertMeetingAttachment, type MeetingCommentWithAuthor, type MeetingWithDetails, type Goal, type InsertGoal, type GoalWithTasks, type ProjectWithDetails, type Attachment, type InsertAttachment, type Comment, type InsertComment, type CommentWithAuthor } from "@shared/schema";
 import { randomUUID } from "crypto";
 
 export interface IStorage {
@@ -64,6 +64,12 @@ export interface IStorage {
   getAttachments(entityType: string, entityId: string): Promise<Attachment[]>;
   createAttachment(attachment: InsertAttachment): Promise<Attachment>;
   deleteAttachment(id: string): Promise<boolean>;
+  
+  // Comment methods
+  getComments(entityType: string, entityId: string): Promise<CommentWithAuthor[]>;
+  createComment(comment: InsertComment): Promise<Comment>;
+  updateComment(id: string, content: string): Promise<Comment | undefined>;
+  deleteComment(id: string): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
@@ -118,6 +124,7 @@ export class MemStorage implements IStorage {
   private meetingComments: Map<string, MeetingComment>;
   private meetingAttachments: Map<string, MeetingAttachment>;
   private attachments: Map<string, Attachment>;
+  private comments: Map<string, Comment>;
 
   constructor() {
     this.users = new Map();
@@ -129,6 +136,7 @@ export class MemStorage implements IStorage {
     this.meetingComments = new Map();
     this.meetingAttachments = new Map();
     this.attachments = new Map();
+    this.comments = new Map();
     
     // Initialize with some default data
     this.initializeDefaultData();
@@ -1186,6 +1194,54 @@ export class MemStorage implements IStorage {
 
   async deleteAttachment(id: string): Promise<boolean> {
     return this.attachments.delete(id);
+  }
+
+  // Comment methods
+  async getComments(entityType: string, entityId: string): Promise<CommentWithAuthor[]> {
+    const comments = Array.from(this.comments.values())
+      .filter(comment => comment.entityType === entityType && comment.entityId === entityId)
+      .sort((a, b) => new Date(a.createdAt!).getTime() - new Date(b.createdAt!).getTime());
+
+    const commentsWithAuthor: CommentWithAuthor[] = [];
+    for (const comment of comments) {
+      const author = this.users.get(comment.authorId);
+      if (author) {
+        const { password, ...safeAuthor } = author;
+        commentsWithAuthor.push({ ...comment, author: safeAuthor });
+      }
+    }
+
+    return commentsWithAuthor;
+  }
+
+  async createComment(comment: InsertComment): Promise<Comment> {
+    const id = randomUUID();
+    const now = new Date();
+    const newComment: Comment = {
+      ...comment,
+      id,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.comments.set(id, newComment);
+    return newComment;
+  }
+
+  async updateComment(id: string, content: string): Promise<Comment | undefined> {
+    const comment = this.comments.get(id);
+    if (!comment) return undefined;
+
+    const updatedComment: Comment = {
+      ...comment,
+      content,
+      updatedAt: new Date(),
+    };
+    this.comments.set(id, updatedComment);
+    return updatedComment;
+  }
+
+  async deleteComment(id: string): Promise<boolean> {
+    return this.comments.delete(id);
   }
 }
 

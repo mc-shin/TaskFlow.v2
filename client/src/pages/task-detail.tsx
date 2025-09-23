@@ -17,6 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ObjectUploader } from "@/components/ObjectUploader";
 import { apiRequest } from "@/lib/queryClient";
 import type { ProjectWithDetails, GoalWithTasks, SafeTaskWithAssignees, SafeUser } from "@shared/schema";
+import { Comments } from "@/components/comments";
 
 export default function TaskDetail() {
   const [, params] = useRoute("/detail/task/:id");
@@ -657,6 +658,12 @@ export default function TaskDetail() {
                 </div>
               </CardContent>
             </Card>
+            {/* Comments Section */}
+            <Comments 
+              entityType="task" 
+              entityId={taskId || ""} 
+              currentUser={(users as SafeUser[])?.[0]}
+            />
           </div>
 
           {/* Sidebar */}
@@ -806,37 +813,6 @@ export default function TaskDetail() {
               </CardContent>
             </Card>
 
-            {/* Parent Info */}
-            <Card>
-              <CardHeader>
-                <CardTitle>소속</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <button
-                  onClick={handleProjectClick}
-                  className="flex items-center gap-3 w-full p-2 hover:bg-muted rounded-lg transition-colors"
-                  data-testid="button-parent-project"
-                >
-                  <FolderOpen className="h-5 w-5 text-blue-600" />
-                  <div className="text-left">
-                    <p className="font-medium">{parentProject.name}</p>
-                    <p className="text-sm text-muted-foreground">{parentProject.code}</p>
-                  </div>
-                </button>
-
-                <button
-                  onClick={handleGoalClick}
-                  className="flex items-center gap-3 w-full p-2 hover:bg-muted rounded-lg transition-colors"
-                  data-testid="button-parent-goal"
-                >
-                  <Target className="h-5 w-5 text-green-600" />
-                  <div className="text-left">
-                    <p className="font-medium">{parentGoal.title}</p>
-                    <p className="text-sm text-muted-foreground">목표</p>
-                  </div>
-                </button>
-              </CardContent>
-            </Card>
 
             {/* Audit Trail */}
             <Card>

@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertTaskSchema, insertTaskWithValidationSchema, insertActivitySchema, insertProjectSchema, insertProjectWithValidationSchema, insertGoalSchema, insertGoalWithValidationSchema, insertMeetingSchema, insertMeetingCommentSchema, insertMeetingAttachmentSchema } from "@shared/schema";
+import { insertTaskSchema, insertTaskWithValidationSchema, insertActivitySchema, insertProjectSchema, insertProjectWithValidationSchema, insertGoalSchema, insertGoalWithValidationSchema, insertMeetingSchema, insertMeetingCommentSchema, insertMeetingAttachmentSchema, insertCommentSchema } from "@shared/schema";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { z } from "zod";
 
@@ -662,6 +662,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error setting file path:", error);
       res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  // Comment routes
+  app.get("/api/comments", async (req, res) => {
+    try {
+      const { entityType, entityId } = req.query;
+      if (!entityType || !entityId) {
+        return res.status(400).json({ message: "entityType and entityId are required" });
+      }
+      const comments = await storage.getComments(entityType as string, entityId as string);
+      res.json(comments);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch comments" });
+    }
+  });
+
+  app.post("/api/comments", async (req, res) => {
+    try {
+      const commentData = insertCommentSchema.parse(req.body);
+      const comment = await storage.createComment(commentData);
+      res.status(201).json(comment);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid comment data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create comment" });
+    }
+  });
+
+  app.put("/api/comments/:id", async (req, res) => {
+    try {
+      const { content } = req.body;
+      if (!content || typeof content !== 'string') {
+        return res.status(400).json({ message: "Content is required and must be a string" });
+      }
+      const comment = await storage.updateComment(req.params.id, content);
+      if (!comment) {
+        return res.status(404).json({ message: "Comment not found" });
+      }
+      res.json(comment);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update comment" });
+    }
+  });
+
+  app.delete("/api/comments/:id", async (req, res) => {
+    try {
+      const deleted = await storage.deleteComment(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ message: "Comment not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete comment" });
     }
   });
 

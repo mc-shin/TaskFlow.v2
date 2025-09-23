@@ -18,6 +18,7 @@ import { ObjectUploader } from "@/components/ObjectUploader";
 import { apiRequest } from "@/lib/queryClient";
 import type { ProjectWithDetails, SafeUser } from "@shared/schema";
 import { GoalModal } from "@/components/goal-modal";
+import { Comments } from "@/components/comments";
 
 export default function ProjectDetail() {
   const [, params] = useRoute("/detail/project/:id");
@@ -722,6 +723,13 @@ export default function ProjectDetail() {
                 </CardContent>
               </Card>
             )}
+
+            {/* Comments Section */}
+            <Comments 
+              entityType="project" 
+              entityId={projectId || ""} 
+              currentUser={(users as SafeUser[])?.[0]}
+            />
           </div>
 
           {/* Sidebar */}
