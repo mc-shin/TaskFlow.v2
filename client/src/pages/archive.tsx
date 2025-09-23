@@ -4,8 +4,10 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { ChevronDown, ChevronRight, FolderOpen, Target, Circle, ArrowLeft } from "lucide-react";
-import { useState } from "react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
+import { useToast } from "@/hooks/use-toast";
 import type { SafeTaskWithAssignees, ProjectWithDetails, GoalWithTasks, SafeUser } from "@shared/schema";
 
 export default function Archive() {
@@ -71,6 +73,10 @@ export default function Archive() {
   
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
   const [expandedGoals, setExpandedGoals] = useState<Set<string>>(new Set());
+  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+  const [showSelectionToast, setShowSelectionToast] = useState(false);
+  
+  const { toast } = useToast();
 
   const toggleProject = (projectId: string) => {
     setExpandedProjects(prev => {
@@ -94,6 +100,54 @@ export default function Archive() {
       }
       return newSet;
     });
+  };
+
+  const toggleItemSelection = (itemId: string) => {
+    setSelectedItems(prev => {
+      const newSelected = new Set(prev);
+      if (newSelected.has(itemId)) {
+        newSelected.delete(itemId);
+      } else {
+        newSelected.add(itemId);
+      }
+      return newSelected;
+    });
+  };
+
+  // Show/hide toast based on selection
+  useEffect(() => {
+    setShowSelectionToast(selectedItems.size > 0);
+  }, [selectedItems.size]);
+
+  const clearSelection = () => {
+    setSelectedItems(new Set());
+  };
+
+  const moveToList = () => {
+    try {
+      const existingArchived = localStorage.getItem('archivedItems');
+      const archivedItems = existingArchived ? JSON.parse(existingArchived) : [];
+      
+      // Remove selected items from archived list
+      const selectedArray = Array.from(selectedItems);
+      const newArchivedItems = archivedItems.filter((itemId: string) => !selectedArray.includes(itemId));
+      localStorage.setItem('archivedItems', JSON.stringify(newArchivedItems));
+      
+      toast({
+        title: "리스트로 이동 완료",
+        description: `${selectedItems.size}개 항목이 리스트로 이동되었습니다.`,
+      });
+      clearSelection();
+      
+      // Refresh the page to show updated archived items
+      window.location.reload();
+    } catch (error) {
+      toast({
+        title: "오류",
+        description: "리스트로 이동하는 중 오류가 발생했습니다.",
+        variant: "destructive",
+      });
+    }
   };
 
   const getUserById = (userId: string): SafeUser | undefined => {
@@ -189,6 +243,11 @@ export default function Archive() {
                   <div className={`p-3 hover:bg-muted/50 transition-colors ${project.status === '완료' ? 'opacity-50' : ''}`}>
                     <div className="grid grid-cols-12 gap-4 items-center">
                       <div className="col-span-4 flex items-center gap-2">
+                        <Checkbox
+                          checked={selectedItems.has(project.id)}
+                          onCheckedChange={() => toggleItemSelection(project.id)}
+                          data-testid={`checkbox-project-${project.id}`}
+                        />
                         <Button
                           variant="ghost"
                           size="sm"
@@ -214,7 +273,7 @@ export default function Archive() {
                         </Badge>
                       </div>
                       <div className="col-span-1">
-                        <div className="cursor-default px-1 py-1 rounded text-sm" data-testid={`text-project-deadline-${project.id}`}>
+                        <div className="cursor-default hover:bg-muted/20 px-1 py-1 rounded text-sm" data-testid={`text-project-deadline-${project.id}`}>
                           {formatDate(project.deadline)}
                         </div>
                       </div>
@@ -252,11 +311,11 @@ export default function Archive() {
                       </div>
                       <div className="col-span-1">
                         <Badge 
-                          variant={project.status === '완료' ? 'default' : 'secondary'}
-                          className="text-xs"
+                          variant={project.status === '완료' ? 'default' : project.progressPercentage === 0 ? 'outline' : 'secondary'}
+                          className="text-xs cursor-default"
                           data-testid={`status-${project.id}`}
                         >
-                          {project.status}
+                          {project.status || (project.progressPercentage === 0 ? '진행전' : project.progressPercentage === 100 ? '완료' : '진행중')}
                         </Badge>
                       </div>
                       <div className="col-span-2">
@@ -267,7 +326,7 @@ export default function Archive() {
                               style={{ width: `${project.progressPercentage || 0}%` }}
                             />
                           </div>
-                          <span className="text-xs text-muted-foreground min-w-[3rem]">
+                          <span className="text-xs text-muted-foreground min-w-[2ch]">
                             {project.progressPercentage || 0}%
                           </span>
                         </div>
@@ -287,6 +346,11 @@ export default function Archive() {
                           <div className={`p-3 hover:bg-muted/50 transition-colors ${project.status === '완료' || goal.status === '완료' ? 'opacity-50' : ''}`}>
                             <div className="grid grid-cols-12 gap-4 items-center">
                               <div className="col-span-4 flex items-center gap-2 ml-8">
+                                <Checkbox
+                                  checked={selectedItems.has(goal.id)}
+                                  onCheckedChange={() => toggleItemSelection(goal.id)}
+                                  data-testid={`checkbox-goal-${goal.id}`}
+                                />
                                 <Button
                                   variant="ghost"
                                   size="sm"
@@ -309,7 +373,7 @@ export default function Archive() {
                                 </button>
                               </div>
                               <div className="col-span-1">
-                                <div className="cursor-default px-1 py-1 rounded text-sm" data-testid={`text-goal-deadline-${goal.id}`}>
+                                <div className="cursor-default hover:bg-muted/20 px-1 py-1 rounded text-sm" data-testid={`text-goal-deadline-${goal.id}`}>
                                   {formatDate(goal.deadline)}
                                 </div>
                               </div>
@@ -347,11 +411,11 @@ export default function Archive() {
                               </div>
                               <div className="col-span-1">
                                 <Badge 
-                                  variant={goal.status === '완료' ? 'default' : 'secondary'}
-                                  className="text-xs"
+                                  variant={goal.status === '완료' ? 'default' : goal.progressPercentage === 0 ? 'outline' : 'secondary'}
+                                  className="text-xs cursor-default"
                                   data-testid={`status-${goal.id}`}
                                 >
-                                  {goal.status || '진행전'}
+                                  {goal.status || (goal.progressPercentage === 0 ? '진행전' : goal.progressPercentage === 100 ? '완료' : '진행중')}
                                 </Badge>
                               </div>
                               <div className="col-span-2">
@@ -362,7 +426,7 @@ export default function Archive() {
                                       style={{ width: `${goal.progressPercentage || 0}%` }}
                                     />
                                   </div>
-                                  <span className="text-xs text-muted-foreground min-w-[3rem]">
+                                  <span className="text-xs text-muted-foreground min-w-[2ch]">
                                     {goal.progressPercentage || 0}%
                                   </span>
                                 </div>
@@ -380,6 +444,11 @@ export default function Archive() {
                                 <div key={task.id} className={`p-3 hover:bg-muted/50 transition-colors ${project.status === '완료' || goal.status === '완료' || task.status === '완료' ? 'opacity-50' : ''}`}>
                                   <div className="grid grid-cols-12 gap-4 items-center">
                                     <div className="col-span-4 flex items-center gap-2 ml-16">
+                                      <Checkbox
+                                        checked={selectedItems.has(task.id)}
+                                        onCheckedChange={() => toggleItemSelection(task.id)}
+                                        data-testid={`checkbox-task-${task.id}`}
+                                      />
                                       <Circle className="w-4 h-4 text-orange-600" />
                                       <button 
                                         className="font-medium hover:text-orange-600 cursor-pointer transition-colors text-left" 
@@ -390,7 +459,7 @@ export default function Archive() {
                                       </button>
                                     </div>
                                     <div className="col-span-1">
-                                      <div className="cursor-default px-1 py-1 rounded text-sm" data-testid={`text-task-deadline-${task.id}`}>
+                                      <div className="cursor-default hover:bg-muted/20 px-1 py-1 rounded text-sm" data-testid={`text-task-deadline-${task.id}`}>
                                         {formatDate(task.deadline)}
                                       </div>
                                     </div>
@@ -428,11 +497,11 @@ export default function Archive() {
                                     </div>
                                     <div className="col-span-1">
                                       <Badge 
-                                        variant={task.status === '완료' ? 'default' : 'secondary'}
-                                        className="text-xs"
+                                        variant={task.status === '완료' ? 'default' : task.progress === 0 ? 'outline' : 'secondary'}
+                                        className="text-xs cursor-default"
                                         data-testid={`status-${task.id}`}
                                       >
-                                        {task.status}
+                                        {task.status || (task.progress === 0 ? '진행전' : task.progress === 100 ? '완료' : '진행중')}
                                       </Badge>
                                     </div>
                                     <div className="col-span-2">
@@ -443,13 +512,15 @@ export default function Archive() {
                                             style={{ width: `${task.progress || 0}%` }}
                                           />
                                         </div>
-                                        <span className="text-xs text-muted-foreground min-w-[3rem]">
+                                        <span className="text-xs text-muted-foreground min-w-[2ch]">
                                           {task.progress || 0}%
                                         </span>
                                       </div>
                                     </div>
                                     <div className="col-span-1">
-                                      <span className="text-muted-foreground text-xs">-</span>
+                                      <Badge variant="outline" className="text-xs">
+                                        중간
+                                      </Badge>
                                     </div>
                                   </div>
                                 </div>
@@ -468,6 +539,34 @@ export default function Archive() {
       </Card>
 
       </main>
+
+      {/* Selection Toast */}
+      {showSelectionToast && (
+        <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50">
+          <div className="bg-slate-800 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-4">
+            <span className="text-sm font-medium">
+              {selectedItems.size}개 선택됨
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={clearSelection}
+              className="text-white hover:bg-slate-700 h-8 px-3"
+            >
+              취소
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={moveToList}
+              className="text-white hover:bg-slate-700 h-8 px-3"
+              data-testid="button-move-to-list"
+            >
+              리스트로 이동
+            </Button>
+          </div>
+        </div>
+      )}
     </>
   );
 }
