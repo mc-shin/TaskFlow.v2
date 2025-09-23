@@ -535,6 +535,66 @@ export default function TaskDetail() {
                     </div>
                   )}
                 </div>
+
+                {/* Audit Trail Section */}
+                <div className="border-t pt-4 space-y-3">
+                  <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                    <Clock className="w-4 h-4" />
+                    변경 이력
+                  </h4>
+                  
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                        <User className="w-3 h-3" />
+                        생성자
+                      </label>
+                      <p className="mt-1 text-sm" data-testid="text-task-created-by">
+                        {(() => {
+                          if (!task.createdBy) return "알 수 없음";
+                          const user = (users as SafeUser[])?.find((u: SafeUser) => u.id === task.createdBy || u.username === task.createdBy);
+                          return user?.name || task.createdBy;
+                        })()}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1" data-testid="text-task-created-at">
+                        {task.createdAt ? (() => {
+                          const date = new Date(task.createdAt);
+                          const year = date.getFullYear();
+                          const month = String(date.getMonth() + 1).padStart(2, '0');
+                          const day = String(date.getDate()).padStart(2, '0');
+                          const hour = String(date.getHours()).padStart(2, '0');
+                          const minute = String(date.getMinutes()).padStart(2, '0');
+                          return `${year}년 ${month}월 ${day}일 ${hour}:${minute}`;
+                        })() : '알 수 없음'}
+                      </p>
+                    </div>
+                    
+                    <div>
+                      <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                        <User className="w-3 h-3" />
+                        최종 편집자
+                      </label>
+                      <p className="mt-1 text-sm" data-testid="text-task-updated-by">
+                        {(() => {
+                          if (!task.lastUpdatedBy) return "알 수 없음";
+                          const user = (users as SafeUser[])?.find((u: SafeUser) => u.id === task.lastUpdatedBy || u.username === task.lastUpdatedBy);
+                          return user?.name || task.lastUpdatedBy;
+                        })()}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1" data-testid="text-task-updated-at">
+                        {task.updatedAt ? (() => {
+                          const date = new Date(task.updatedAt);
+                          const year = date.getFullYear();
+                          const month = String(date.getMonth() + 1).padStart(2, '0');
+                          const day = String(date.getDate()).padStart(2, '0');
+                          const hour = String(date.getHours()).padStart(2, '0');
+                          const minute = String(date.getMinutes()).padStart(2, '0');
+                          return `${year}년 ${month}월 ${day}일 ${hour}:${minute}`;
+                        })() : '알 수 없음'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </CardContent>
             </Card>
             

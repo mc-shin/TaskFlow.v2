@@ -9,7 +9,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { ArrowLeft, Edit, Save, X, Target, Circle, FolderOpen, Plus, Trash2, Tag, Paperclip, Download } from "lucide-react";
+import { ArrowLeft, Edit, Save, X, Target, Circle, FolderOpen, Plus, Trash2, Tag, Paperclip, Download, Clock, User } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useState } from "react";
 import { useLocation, useRoute } from "wouter";
@@ -495,6 +495,66 @@ export default function GoalDetail() {
                       )}
                     </div>
                   )}
+                </div>
+
+                {/* Audit Trail Section */}
+                <div className="border-t pt-4 space-y-3">
+                  <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                    <Clock className="w-4 h-4" />
+                    변경 이력
+                  </h4>
+                  
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                        <User className="w-3 h-3" />
+                        생성자
+                      </label>
+                      <p className="mt-1 text-sm" data-testid="text-goal-created-by">
+                        {(() => {
+                          if (!goal.createdBy) return "알 수 없음";
+                          const user = (users as SafeUser[])?.find((u: SafeUser) => u.id === goal.createdBy || u.username === goal.createdBy);
+                          return user?.name || goal.createdBy;
+                        })()}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1" data-testid="text-goal-created-at">
+                        {goal.createdAt ? (() => {
+                          const date = new Date(goal.createdAt);
+                          const year = date.getFullYear();
+                          const month = String(date.getMonth() + 1).padStart(2, '0');
+                          const day = String(date.getDate()).padStart(2, '0');
+                          const hour = String(date.getHours()).padStart(2, '0');
+                          const minute = String(date.getMinutes()).padStart(2, '0');
+                          return `${year}년 ${month}월 ${day}일 ${hour}:${minute}`;
+                        })() : '알 수 없음'}
+                      </p>
+                    </div>
+                    
+                    <div>
+                      <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                        <User className="w-3 h-3" />
+                        최종 편집자
+                      </label>
+                      <p className="mt-1 text-sm" data-testid="text-goal-updated-by">
+                        {(() => {
+                          if (!goal.lastUpdatedBy) return "알 수 없음";
+                          const user = (users as SafeUser[])?.find((u: SafeUser) => u.id === goal.lastUpdatedBy || u.username === goal.lastUpdatedBy);
+                          return user?.name || goal.lastUpdatedBy;
+                        })()}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1" data-testid="text-goal-updated-at">
+                        {goal.updatedAt ? (() => {
+                          const date = new Date(goal.updatedAt);
+                          const year = date.getFullYear();
+                          const month = String(date.getMonth() + 1).padStart(2, '0');
+                          const day = String(date.getDate()).padStart(2, '0');
+                          const hour = String(date.getHours()).padStart(2, '0');
+                          const minute = String(date.getMinutes()).padStart(2, '0');
+                          return `${year}년 ${month}월 ${day}일 ${hour}:${minute}`;
+                        })() : '알 수 없음'}
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>

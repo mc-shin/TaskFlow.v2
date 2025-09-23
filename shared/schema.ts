@@ -21,6 +21,8 @@ export const projects = pgTable("projects", {
   status: text("status").default("진행전"), // 진행전, 진행중, 완료
   labels: text("labels").array().default(sql`'{}'`), // Labels (최대 2개)
   ownerIds: text("owner_ids").array().default(sql`'{}'`), // Multiple owners
+  createdBy: varchar("created_by").references(() => users.id),
+  lastUpdatedBy: varchar("last_updated_by").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -34,6 +36,8 @@ export const goals = pgTable("goals", {
   labels: text("labels").array().default(sql`'{}'`), // Labels (최대 2개)
   assigneeIds: text("assignee_ids").array().default(sql`'{}'`), // Multiple assignees
   projectId: varchar("project_id").references(() => projects.id).notNull(),
+  createdBy: varchar("created_by").references(() => users.id),
+  lastUpdatedBy: varchar("last_updated_by").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -51,6 +55,8 @@ export const tasks = pgTable("tasks", {
   assigneeIds: text("assignee_ids").array().default(sql`'{}'`), // Multiple assignees
   goalId: varchar("goal_id").references(() => goals.id),
   projectId: varchar("project_id").references(() => projects.id), // Keep for backward compatibility
+  createdBy: varchar("created_by").references(() => users.id),
+  lastUpdatedBy: varchar("last_updated_by").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -114,6 +120,8 @@ export const insertUserSchema = createInsertSchema(users).omit({
 
 export const insertProjectSchema = createInsertSchema(projects).omit({
   id: true,
+  createdBy: true,
+  lastUpdatedBy: true,
   createdAt: true,
   updatedAt: true,
 });
@@ -127,6 +135,8 @@ export const insertProjectWithValidationSchema = insertProjectSchema.refine((dat
 
 export const insertGoalSchema = createInsertSchema(goals).omit({
   id: true,
+  createdBy: true,
+  lastUpdatedBy: true,
   createdAt: true,
   updatedAt: true,
 });
@@ -140,6 +150,8 @@ export const insertGoalWithValidationSchema = insertGoalSchema.refine((data) => 
 
 export const insertTaskSchema = createInsertSchema(tasks).omit({
   id: true,
+  createdBy: true,
+  lastUpdatedBy: true,
   createdAt: true,
   updatedAt: true,
 });

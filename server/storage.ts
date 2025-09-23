@@ -15,23 +15,23 @@ export interface IStorage {
   getAllProjects(): Promise<ProjectWithOwners[]>;
   getAllProjectsWithDetails(): Promise<ProjectWithDetails[]>;
   getProject(id: string): Promise<ProjectWithOwners | undefined>;
-  createProject(project: InsertProject): Promise<Project>;
-  updateProject(id: string, project: Partial<InsertProject>): Promise<Project | undefined>;
+  createProject(project: InsertProject, createdBy?: string): Promise<Project>;
+  updateProject(id: string, project: Partial<InsertProject>, lastUpdatedBy?: string): Promise<Project | undefined>;
   deleteProject(id: string): Promise<boolean>;
 
   // Goal methods
   getAllGoals(): Promise<GoalWithTasks[]>;
   getGoal(id: string): Promise<GoalWithTasks | undefined>;
-  createGoal(goal: InsertGoal): Promise<Goal>;
-  updateGoal(id: string, goal: Partial<InsertGoal>): Promise<Goal | undefined>;
+  createGoal(goal: InsertGoal, createdBy?: string): Promise<Goal>;
+  updateGoal(id: string, goal: Partial<InsertGoal>, lastUpdatedBy?: string): Promise<Goal | undefined>;
   deleteGoal(id: string): Promise<boolean>;
   getGoalsByProject(projectId: string): Promise<GoalWithTasks[]>;
 
   // Task methods
   getAllTasks(): Promise<SafeTaskWithAssignees[]>;
   getTask(id: string): Promise<SafeTaskWithAssignees | undefined>;
-  createTask(task: InsertTask): Promise<Task>;
-  updateTask(id: string, task: Partial<InsertTask>): Promise<Task | undefined>;
+  createTask(task: InsertTask, createdBy?: string): Promise<Task>;
+  updateTask(id: string, task: Partial<InsertTask>, lastUpdatedBy?: string): Promise<Task | undefined>;
   deleteTask(id: string): Promise<boolean>;
   getTasksByStatus(status: string): Promise<SafeTaskWithAssignees[]>;
   getTasksByProject(projectId: string): Promise<SafeTaskWithAssignees[]>;
@@ -605,7 +605,7 @@ export class MemStorage implements IStorage {
     };
   }
 
-  async createProject(insertProject: InsertProject): Promise<Project> {
+  async createProject(insertProject: InsertProject, createdBy?: string): Promise<Project> {
     const id = randomUUID();
     const now = new Date();
     const project: Project = { 
@@ -616,6 +616,8 @@ export class MemStorage implements IStorage {
       status: insertProject.status || null,
       labels: insertProject.labels || [],
       ownerIds: insertProject.ownerIds || [],
+      createdBy: createdBy || null,
+      lastUpdatedBy: createdBy || null,
       createdAt: now,
       updatedAt: now
     };
@@ -633,13 +635,14 @@ export class MemStorage implements IStorage {
     return project;
   }
 
-  async updateProject(id: string, updateData: Partial<InsertProject>): Promise<Project | undefined> {
+  async updateProject(id: string, updateData: Partial<InsertProject>, lastUpdatedBy?: string): Promise<Project | undefined> {
     const existingProject = this.projects.get(id);
     if (!existingProject) return undefined;
     
     const updatedProject: Project = {
       ...existingProject,
       ...updateData,
+      lastUpdatedBy: lastUpdatedBy || existingProject.lastUpdatedBy,
       updatedAt: new Date(),
     };
     
@@ -754,7 +757,7 @@ export class MemStorage implements IStorage {
     };
   }
 
-  async createGoal(insertGoal: InsertGoal): Promise<Goal> {
+  async createGoal(insertGoal: InsertGoal, createdBy?: string): Promise<Goal> {
     const id = randomUUID();
     const now = new Date();
     const goal: Goal = { 
@@ -765,6 +768,8 @@ export class MemStorage implements IStorage {
       status: insertGoal.status || null,
       labels: insertGoal.labels || [],
       assigneeIds: insertGoal.assigneeIds || [],
+      createdBy: createdBy || null,
+      lastUpdatedBy: createdBy || null,
       createdAt: now,
       updatedAt: now
     };
@@ -773,13 +778,14 @@ export class MemStorage implements IStorage {
     return goal;
   }
 
-  async updateGoal(id: string, updateData: Partial<InsertGoal>): Promise<Goal | undefined> {
+  async updateGoal(id: string, updateData: Partial<InsertGoal>, lastUpdatedBy?: string): Promise<Goal | undefined> {
     const existingGoal = this.goals.get(id);
     if (!existingGoal) return undefined;
     
     const updatedGoal: Goal = {
       ...existingGoal,
       ...updateData,
+      lastUpdatedBy: lastUpdatedBy || existingGoal.lastUpdatedBy,
       updatedAt: new Date(),
     };
     
@@ -847,7 +853,7 @@ export class MemStorage implements IStorage {
     return { ...task, assignees };
   }
 
-  async createTask(insertTask: InsertTask): Promise<Task> {
+  async createTask(insertTask: InsertTask, createdBy?: string): Promise<Task> {
     const id = randomUUID();
     const now = new Date();
     
@@ -891,6 +897,8 @@ export class MemStorage implements IStorage {
       assigneeIds: insertTask.assigneeIds || [],
       projectId: finalProjectId,
       goalId: insertTask.goalId || null,
+      createdBy: createdBy || null,
+      lastUpdatedBy: createdBy || null,
       createdAt: now,
       updatedAt: now
     };
@@ -908,7 +916,7 @@ export class MemStorage implements IStorage {
     return task;
   }
 
-  async updateTask(id: string, updateData: Partial<InsertTask>): Promise<Task | undefined> {
+  async updateTask(id: string, updateData: Partial<InsertTask>, lastUpdatedBy?: string): Promise<Task | undefined> {
     const existingTask = this.tasks.get(id);
     if (!existingTask) return undefined;
     
@@ -925,6 +933,7 @@ export class MemStorage implements IStorage {
       ...existingTask,
       ...updateData,
       projectId: finalProjectId,
+      lastUpdatedBy: lastUpdatedBy || existingTask.lastUpdatedBy,
       updatedAt: new Date(),
     };
     

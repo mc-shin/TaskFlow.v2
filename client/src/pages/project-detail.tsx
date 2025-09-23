@@ -9,7 +9,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { ArrowLeft, Edit, Save, X, FolderOpen, Target, Circle, Plus, Trash2, Tag, Paperclip, Download } from "lucide-react";
+import { ArrowLeft, Edit, Save, X, FolderOpen, Target, Circle, Plus, Trash2, Tag, Paperclip, Download, Clock, User } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useState, useEffect } from "react";
 import { useLocation, useRoute } from "wouter";
@@ -68,6 +68,11 @@ export default function ProjectDetail() {
   const calculatedCompletedTasks = goalTasks.filter(task => task.status === '완료');
   const calculatedInProgressTasks = goalTasks.filter(task => task.status === '진행중');
   const calculatedPendingTasks = goalTasks.filter(task => task.status === '진행전');
+  
+  // Calculate average progress based on task.progress field (0-100)
+  const averageProgress = goalTasks.length > 0 
+    ? Math.round(goalTasks.reduce((sum, task) => sum + (task.progress || 0), 0) / goalTasks.length)
+    : 0;
 
   const updateProjectMutation = useMutation({
     mutationFn: async (updates: Partial<ProjectWithDetails>) => {
@@ -523,6 +528,66 @@ export default function ProjectDetail() {
                     </div>
                   )}
                 </div>
+
+                {/* Audit Trail Section */}
+                <div className="border-t pt-4 space-y-3">
+                  <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                    <Clock className="w-4 h-4" />
+                    변경 이력
+                  </h4>
+                  
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                        <User className="w-3 h-3" />
+                        생성자
+                      </label>
+                      <p className="mt-1 text-sm" data-testid="text-project-created-by">
+                        {(() => {
+                          if (!project.createdBy) return "알 수 없음";
+                          const user = (users as SafeUser[])?.find((u: SafeUser) => u.id === project.createdBy || u.username === project.createdBy);
+                          return user?.name || project.createdBy;
+                        })()}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1" data-testid="text-project-created-at">
+                        {project.createdAt ? (() => {
+                          const date = new Date(project.createdAt);
+                          const year = date.getFullYear();
+                          const month = String(date.getMonth() + 1).padStart(2, '0');
+                          const day = String(date.getDate()).padStart(2, '0');
+                          const hour = String(date.getHours()).padStart(2, '0');
+                          const minute = String(date.getMinutes()).padStart(2, '0');
+                          return `${year}년 ${month}월 ${day}일 ${hour}:${minute}`;
+                        })() : '알 수 없음'}
+                      </p>
+                    </div>
+                    
+                    <div>
+                      <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                        <User className="w-3 h-3" />
+                        최종 편집자
+                      </label>
+                      <p className="mt-1 text-sm" data-testid="text-project-updated-by">
+                        {(() => {
+                          if (!project.lastUpdatedBy) return "알 수 없음";
+                          const user = (users as SafeUser[])?.find((u: SafeUser) => u.id === project.lastUpdatedBy || u.username === project.lastUpdatedBy);
+                          return user?.name || project.lastUpdatedBy;
+                        })()}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1" data-testid="text-project-updated-at">
+                        {project.updatedAt ? (() => {
+                          const date = new Date(project.updatedAt);
+                          const year = date.getFullYear();
+                          const month = String(date.getMonth() + 1).padStart(2, '0');
+                          const day = String(date.getDate()).padStart(2, '0');
+                          const hour = String(date.getHours()).padStart(2, '0');
+                          const minute = String(date.getMinutes()).padStart(2, '0');
+                          return `${year}년 ${month}월 ${day}일 ${hour}:${minute}`;
+                        })() : '알 수 없음'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </CardContent>
             </Card>
             
@@ -722,16 +787,16 @@ export default function ProjectDetail() {
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-2xl font-bold" data-testid="text-progress-percentage">
-                      {goalTasks.length > 0 ? Math.round((calculatedCompletedTasks.length / goalTasks.length) * 100) : 0}%
+                      {averageProgress}%
                     </span>
                   </div>
                   <Progress 
-                    value={goalTasks.length > 0 ? Math.round((calculatedCompletedTasks.length / goalTasks.length) * 100) : 0} 
+                    value={averageProgress} 
                     className="h-3"
                     data-testid="progress-bar"
                   />
                   <div className="text-sm text-muted-foreground">
-                    전체 작업 {goalTasks.length}개 중 {calculatedCompletedTasks.length}개 완료
+                    전체 작업 {goalTasks.length}개 중 {calculatedCompletedTasks.length}개 완료 (평균 진행도: {averageProgress}%)
                   </div>
                 </div>
               </CardContent>

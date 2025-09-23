@@ -523,13 +523,18 @@ export default function ListTree() {
       return await apiRequest("PUT", `/api/tasks/${data.id}`, data.updates);
     },
     onMutate: async ({ id, updates }) => {
+      // Skip optimistic update for progress changes as they require recalculating project progress
+      if (updates.progress !== undefined) {
+        return { taskId: id, updates };
+      }
+      
       // Cancel outgoing refetches to prevent optimistic update from being overwritten
       await queryClient.cancelQueries({ queryKey: ["/api/projects"] });
 
       // Snapshot the previous value
       const previousProjects = queryClient.getQueryData(["/api/projects"]);
 
-      // Optimistically update the cache
+      // Optimistically update the cache for non-progress updates
       queryClient.setQueryData(["/api/projects"], (old: ProjectWithDetails[] | undefined) => {
         if (!old) return old;
         
@@ -558,6 +563,8 @@ export default function ListTree() {
     onSettled: () => {
       // Always refetch after error or success to ensure data consistency
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      // Force refetch to ensure fresh data
+      queryClient.refetchQueries({ queryKey: ["/api/projects"] });
     }
   });
 
@@ -1382,7 +1389,14 @@ export default function ListTree() {
                         {renderEditableStatus(project.id, 'project', '', project.progressPercentage || 0)}
                       </div>
                       <div className="col-span-2">
-                        {renderEditableProgress(project.id, 'project', project.progressPercentage || 0)}
+                        {(() => {
+                          // Calculate progress based on task.progress fields for consistency
+                          const goalTasks = project.goals?.flatMap(goal => goal.tasks || []) || [];
+                          const averageProgress = goalTasks.length > 0 
+                            ? Math.round(goalTasks.reduce((sum, task) => sum + (task.progress || 0), 0) / goalTasks.length)
+                            : 0;
+                          return renderEditableProgress(project.id, 'project', averageProgress);
+                        })()}
                       </div>
                       <div className="col-span-1">
                         {renderEditableImportance(project.id, 'project', '중간')}
