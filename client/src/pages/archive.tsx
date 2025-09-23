@@ -414,11 +414,12 @@ export default function Archive() {
         });
       }
 
-      // Restore projects to database
+      // Restore projects and their nested goals/tasks to database
       for (const item of selectedProjects) {
         const itemData = item.data || item;
         
-        await createProjectMutation.mutateAsync({
+        // Create project first
+        const projectResponse = await createProjectMutation.mutateAsync({
           name: itemData.name,
           code: itemData.code,
           description: itemData.description,
@@ -426,6 +427,54 @@ export default function Archive() {
           labels: itemData.labels || [],
           owners: itemData.owners || []
         });
+        const createdProject = await projectResponse.json();
+        
+        // Restore goals if they exist
+        if (itemData.goals && itemData.goals.length > 0) {
+          for (const goal of itemData.goals) {
+            const goalResponse = await createGoalMutation.mutateAsync({
+              title: goal.title,
+              description: goal.description,
+              deadline: goal.deadline,
+              projectId: createdProject.id,
+              labels: goal.labels || [],
+              assignees: goal.assignees || []
+            });
+            const createdGoal = await goalResponse.json();
+            
+            // Restore tasks under this goal if they exist
+            if (goal.tasks && goal.tasks.length > 0) {
+              for (const task of goal.tasks) {
+                await createTaskMutation.mutateAsync({
+                  title: task.title,
+                  description: task.description,
+                  status: task.status,
+                  deadline: task.deadline,
+                  importance: task.importance,
+                  goalId: createdGoal.id,
+                  labels: task.labels || [],
+                  assignees: task.assignees || []
+                });
+              }
+            }
+          }
+        }
+        
+        // Restore direct project tasks if they exist
+        if (itemData.tasks && itemData.tasks.length > 0) {
+          for (const task of itemData.tasks) {
+            await createTaskMutation.mutateAsync({
+              title: task.title,
+              description: task.description,
+              status: task.status,
+              deadline: task.deadline,
+              importance: task.importance,
+              goalId: null, // Direct project task
+              labels: task.labels || [],
+              assignees: task.assignees || []
+            });
+          }
+        }
       }
 
       // Remove restored projects from localStorage
@@ -921,7 +970,7 @@ export default function Archive() {
               data-testid="button-restore"
             >
               <Undo2 className="w-4 h-4 mr-2" />
-              리스트로 복원
+              {(createProjectMutation.isPending || createGoalMutation.isPending || createTaskMutation.isPending) ? '복원 중...' : '리스트로 복원'}
             </Button>
           </div>
         </div>
