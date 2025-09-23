@@ -47,6 +47,7 @@ export default function ListTree() {
   });
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteRole, setInviteRole] = useState('팀원');
 
   // Inline editing state
   const [editingField, setEditingField] = useState<{ itemId: string; field: string; type: 'project' | 'goal' | 'task' } | null>(null);
@@ -1364,8 +1365,7 @@ export default function ListTree() {
                   </div>
                 </div>
                 <Button 
-                  variant="outline" 
-                  className="flex items-center gap-2"
+                  className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white"
                   onClick={() => setIsInviteModalOpen(true)}
                   data-testid="button-invite-member"
                 >
@@ -1687,15 +1687,25 @@ export default function ListTree() {
                   className="flex-1 bg-slate-700 border-slate-600 text-white placeholder:text-slate-400"
                   data-testid="input-invite-email"
                 />
+                <Select value={inviteRole} onValueChange={setInviteRole}>
+                  <SelectTrigger className="w-32 bg-slate-700 border-slate-600 text-white" data-testid="select-invite-role">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-slate-700 border-slate-600">
+                    <SelectItem value="관리자" className="text-white hover:bg-slate-600">관리자</SelectItem>
+                    <SelectItem value="팀원" className="text-white hover:bg-slate-600">팀원</SelectItem>
+                  </SelectContent>
+                </Select>
                 <Button 
                   className="bg-blue-600 hover:bg-blue-700 text-white px-6"
                   onClick={() => {
                     // Handle invite logic here
                     toast({
                       title: "초대 완료",
-                      description: `${inviteEmail}로 초대를 보냈습니다.`,
+                      description: `${inviteEmail}로 ${inviteRole} 권한으로 초대를 보냈습니다.`,
                     });
                     setInviteEmail('');
+                    setInviteRole('팀원');
                   }}
                   disabled={!inviteEmail.trim()}
                   data-testid="button-send-invite"
@@ -1707,30 +1717,21 @@ export default function ListTree() {
 
             {/* Existing Members */}
             <div className="space-y-3">
-              <h4 className="text-sm font-medium text-slate-300">Rido의 멤버</h4>
+              <h4 className="text-sm font-medium text-slate-300">하이더의 멤버</h4>
               <div className="space-y-2 max-h-80 overflow-y-auto">
                 {(users as SafeUser[])?.map((user, index) => (
-                  <div key={user.id} className="flex items-center gap-3 p-2 hover:bg-slate-700 rounded" data-testid={`member-row-${user.id}`}>
-                    <Avatar className="h-8 w-8">
-                      <AvatarFallback className="bg-blue-600 text-white text-sm">
-                        {user.initials}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-white">{user.name}</span>
-                        <Badge variant="outline" className="text-xs border-slate-600 text-slate-300">
-                          {index === 0 ? 'PM' : index === 1 ? '디자이너' : '프론트엔드 개발자'}
-                        </Badge>
-                      </div>
-                      <div className="flex items-center gap-2 text-xs text-slate-400">
-                        <span>
-                          {index === 0 ? '서울여자 (9일전)' : '삼육 (3~10년차)'}
-                        </span>
-                        <span>•</span>
-                        <span>관리자</span>
-                      </div>
+                  <div key={user.id} className="flex items-center justify-between p-2 hover:bg-slate-700 rounded" data-testid={`member-row-${user.id}`}>
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-8 w-8">
+                        <AvatarFallback className="bg-blue-600 text-white text-sm">
+                          {user.initials}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="text-sm font-medium text-white">{user.name}</span>
                     </div>
+                    <Badge variant="outline" className="text-xs border-slate-600 text-slate-300">
+                      {index === 0 ? '관리자' : '팀원'}
+                    </Badge>
                   </div>
                 ))}
               </div>
