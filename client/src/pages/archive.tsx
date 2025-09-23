@@ -311,17 +311,11 @@ export default function Archive() {
       archivedItems.includes(goal.id) || 
       (goal.tasks && goal.tasks.some(task => archivedItems.includes(task.id)))
     ).map(goal => {
-      const isGoalArchived = archivedItems.includes(goal.id);
-      if (isGoalArchived) {
-        // If goal itself is archived, show all its tasks
-        return goal;
-      } else {
-        // If only some tasks are archived, show only archived tasks
-        return {
-          ...goal,
-          tasks: goal.tasks?.filter(task => archivedItems.includes(task.id)) || []
-        };
-      }
+      // Always show only archived tasks, regardless of whether goal is archived
+      return {
+        ...goal,
+        tasks: goal.tasks?.filter(task => archivedItems.includes(task.id)) || []
+      };
     }) || [];
     
     // Include archived direct project tasks

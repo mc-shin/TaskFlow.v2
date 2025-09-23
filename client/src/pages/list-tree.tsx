@@ -953,8 +953,53 @@ export default function ListTree() {
     return 50; // '진행중'
   };
 
+  // Function to toggle project completion status
+  const toggleProjectCompletion = async (projectId: string, isCurrentlyCompleted: boolean) => {
+    try {
+      const newStatus = isCurrentlyCompleted ? '진행중' : '완료';
+      const newProgress = isCurrentlyCompleted ? 50 : 100; // If uncompleting, set to in-progress (50%)
+      
+      await updateProjectMutation.mutateAsync({
+        id: projectId,
+        updates: { status: newStatus, progressPercentage: newProgress }
+      });
+      
+      toast({
+        title: isCurrentlyCompleted ? "프로젝트 완료 취소" : "프로젝트 완료",
+        description: isCurrentlyCompleted 
+          ? "프로젝트가 진행중으로 변경되었습니다."
+          : "프로젝트가 완료로 변경되었습니다.",
+      });
+    } catch (error) {
+      console.error('Project completion toggle failed:', error);
+      toast({
+        title: "업데이트 실패",
+        description: "프로젝트 상태 변경 중 오류가 발생했습니다.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const renderEditableStatus = (itemId: string, type: 'project' | 'goal' | 'task', status: string, progress?: number) => {
-    // Status is now read-only and derived from progress if progress is provided
+    // For projects, show completion button instead of status badge
+    if (type === 'project' && progress !== undefined) {
+      const isCompleted = progress >= 100;
+      
+      return (
+        <Button
+          variant={isCompleted ? "destructive" : "default"}
+          size="sm"
+          onClick={() => toggleProjectCompletion(itemId, isCompleted)}
+          disabled={updateProjectMutation.isPending}
+          className="text-xs h-6"
+          data-testid={`button-completion-${itemId}`}
+        >
+          {updateProjectMutation.isPending ? "처리중..." : (isCompleted ? "완료취소" : "완료하기")}
+        </Button>
+      );
+    }
+    
+    // For goals and tasks, show status badge as before
     const displayStatus = progress !== undefined ? getStatusFromProgress(progress) : status;
     
     return (
@@ -1453,7 +1498,7 @@ export default function ListTree() {
               {activeProjects.map((project) => (
                 <div key={project.id}>
                   {/* Project Row */}
-                  <div className={`p-3 hover:bg-muted/50 transition-colors ${project.status === '완료' ? 'opacity-50' : ''}`}>
+                  <div className={`p-3 hover:bg-muted/50 transition-colors ${(project.progressPercentage || 0) >= 100 ? 'opacity-50' : ''}`}>
                     <div className="grid grid-cols-12 gap-4 items-center">
                       <div className="col-span-4 flex items-center gap-2">
                         <Checkbox
@@ -1540,7 +1585,7 @@ export default function ListTree() {
                       {project.goals.map((goal) => (
                         <div key={goal.id}>
                           {/* Goal Row */}
-                          <div className={`p-3 hover:bg-muted/50 transition-colors ${project.status === '완료' || goal.status === '완료' ? 'opacity-50' : ''}`}>
+                          <div className={`p-3 hover:bg-muted/50 transition-colors ${(project.progressPercentage || 0) >= 100 || (goal.progressPercentage || 0) >= 100 ? 'opacity-50' : ''}`}>
                             <div className="grid grid-cols-12 gap-4 items-center">
                               <div className="col-span-4 flex items-center gap-2 ml-8">
                                 <Checkbox
@@ -1607,7 +1652,7 @@ export default function ListTree() {
                           {expandedGoals.has(goal.id) && goal.tasks && (
                             <div className="bg-muted/30">
                               {goal.tasks.map((task) => (
-                                <div key={task.id} className={`p-3 hover:bg-muted/50 transition-colors ${project.status === '완료' || goal.status === '완료' || task.status === '완료' ? 'opacity-50' : ''}`}>
+                                <div key={task.id} className={`p-3 hover:bg-muted/50 transition-colors ${(project.progressPercentage || 0) >= 100 || (goal.progressPercentage || 0) >= 100 || (task.progress || 0) >= 100 ? 'opacity-50' : ''}`}>
                                   <div className="grid grid-cols-12 gap-4 items-center">
                                     <div className="col-span-4 flex items-center gap-2 ml-16">
                                       <Checkbox
