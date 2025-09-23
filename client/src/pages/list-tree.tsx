@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ChevronDown, ChevronRight, FolderOpen, Target, Circle, Plus, Calendar, User, BarChart3, Check, X, Tag, Mail, UserPlus, Trash2, Archive } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import type { SafeTaskWithAssignees, ProjectWithDetails, GoalWithTasks, SafeUser } from "@shared/schema";
@@ -26,15 +26,19 @@ export default function ListTree() {
     queryKey: ["/api/projects"],
   });
 
+  // State for forcing re-evaluation of archived items
+  const [archiveVersion, setArchiveVersion] = useState(0);
+
   // Get archived items from localStorage and filter out archived projects
-  const archivedItems = (() => {
+  // Re-evaluate when archiveVersion changes to react to localStorage updates
+  const archivedItems = useMemo(() => {
     try {
       const stored = localStorage.getItem('archivedItems');
       return stored ? JSON.parse(stored) : [];
     } catch {
       return [];
     }
-  })();
+  }, [archiveVersion]);
 
   // Filter projects to exclude archived ones
   const activeProjects = (projects as ProjectWithDetails[])?.filter(project => {
@@ -1689,18 +1693,36 @@ export default function ListTree() {
               size="sm"
               className="bg-blue-600 hover:bg-blue-700 text-sm"
               onClick={() => {
-                // Get existing archived items from localStorage
+                // Get existing archived items from localStorage with error handling
                 const existingArchived = localStorage.getItem('archivedItems');
-                const archivedItems = existingArchived ? JSON.parse(existingArchived) : [];
+                let archivedItems: string[] = [];
+                try {
+                  archivedItems = existingArchived ? JSON.parse(existingArchived) : [];
+                } catch {
+                  archivedItems = [];
+                }
                 
-                // Add selected items to archived list
-                const newArchivedItems = [...archivedItems, ...Array.from(selectedItems)];
-                localStorage.setItem('archivedItems', JSON.stringify(newArchivedItems));
+                // Add selected items to archived list (only if not already archived)
+                const newItems = Array.from(selectedItems).filter(id => !archivedItems.includes(id));
                 
-                toast({
-                  title: "보관 완료",
-                  description: `${selectedItems.size}개 항목이 보관함으로 이동되었습니다.`,
-                });
+                if (newItems.length > 0) {
+                  // Remove any existing duplicates and add new items
+                  const normalizedItems = Array.from(new Set([...archivedItems, ...newItems]));
+                  localStorage.setItem('archivedItems', JSON.stringify(normalizedItems));
+                  
+                  // Force re-evaluation of archived items
+                  setArchiveVersion(prev => prev + 1);
+                  
+                  toast({
+                    title: "보관 완료",
+                    description: `${newItems.length}개 항목이 보관함으로 이동되었습니다.`,
+                  });
+                } else {
+                  toast({
+                    title: "보관 정보",
+                    description: "선택된 항목이 이미 보관함에 있습니다.",
+                  });
+                }
                 clearSelection();
               }}
               data-testid="button-archive"
