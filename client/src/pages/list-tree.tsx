@@ -36,24 +36,8 @@ export default function ListTree() {
     }
   })();
 
-  // Filter projects to exclude archived ones
-  const activeProjects = (projects as ProjectWithDetails[])?.filter(project => {
-    return !archivedItems.includes(project.id); // Exclude archived projects
-  }).map(project => {
-    // Filter out archived goals and tasks (without mutating original data)
-    const activeGoals = project.goals?.filter(goal => {
-      const isGoalArchived = archivedItems.includes(goal.id);
-      return !isGoalArchived;
-    }).map(goal => ({
-      ...goal,
-      tasks: goal.tasks?.filter(task => !archivedItems.includes(task.id)) || []
-    }));
-    
-    return {
-      ...project,
-      goals: activeGoals || []
-    };
-  }) || [];
+  // Show all projects (including archived ones) but mark them as archived for visual indication
+  const activeProjects = (projects as ProjectWithDetails[]) || [];
 
   const [_, setLocation] = useLocation();
   const { toast } = useToast();
@@ -1443,7 +1427,7 @@ export default function ListTree() {
               {activeProjects.map((project) => (
                 <div key={project.id}>
                   {/* Project Row */}
-                  <div className={`p-3 hover:bg-muted/50 transition-colors ${project.status === '완료' ? 'opacity-50' : ''}`}>
+                  <div className={`p-3 hover:bg-muted/50 transition-colors ${project.status === '완료' ? 'opacity-50' : ''} ${archivedItems.includes(project.id) ? 'bg-muted/30 opacity-60' : ''}`}>
                     <div className="grid grid-cols-12 gap-4 items-center">
                       <div className="col-span-4 flex items-center gap-2">
                         <Checkbox
@@ -1530,7 +1514,7 @@ export default function ListTree() {
                       {project.goals.map((goal) => (
                         <div key={goal.id}>
                           {/* Goal Row */}
-                          <div className={`p-3 hover:bg-muted/50 transition-colors ${project.status === '완료' || goal.status === '완료' ? 'opacity-50' : ''}`}>
+                          <div className={`p-3 hover:bg-muted/50 transition-colors ${project.status === '완료' || goal.status === '완료' ? 'opacity-50' : ''} ${archivedItems.includes(goal.id) ? 'bg-muted/30 opacity-60' : ''}`}>
                             <div className="grid grid-cols-12 gap-4 items-center">
                               <div className="col-span-4 flex items-center gap-2 ml-8">
                                 <Checkbox
@@ -1597,7 +1581,7 @@ export default function ListTree() {
                           {expandedGoals.has(goal.id) && goal.tasks && (
                             <div className="bg-muted/30">
                               {goal.tasks.map((task) => (
-                                <div key={task.id} className={`p-3 hover:bg-muted/50 transition-colors ${project.status === '완료' || goal.status === '완료' || task.status === '완료' ? 'opacity-50' : ''}`}>
+                                <div key={task.id} className={`p-3 hover:bg-muted/50 transition-colors ${project.status === '완료' || goal.status === '완료' || task.status === '완료' ? 'opacity-50' : ''} ${archivedItems.includes(task.id) ? 'bg-muted/30 opacity-60' : ''}`}>
                                   <div className="grid grid-cols-12 gap-4 items-center">
                                     <div className="col-span-4 flex items-center gap-2 ml-16">
                                       <Checkbox
