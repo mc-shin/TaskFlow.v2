@@ -116,38 +116,6 @@ export default function Archive() {
   const toggleItemSelection = (itemId: string) => {
     const newSelected = new Set(selectedItems);
     
-    // Helper function to find all child items of a project or goal
-    const getChildItems = (parentId: string, parentType: 'project' | 'goal'): string[] => {
-      const childIds: string[] = [];
-      
-      if (parentType === 'project') {
-        // Find all goals and tasks under this project
-        const project = (archivedProjects as ProjectWithDetails[])?.find(p => p.id === parentId);
-        if (project?.goals) {
-          project.goals.forEach(goal => {
-            childIds.push(goal.id);
-            if (goal.tasks) {
-              goal.tasks.forEach(task => {
-                childIds.push(task.id);
-              });
-            }
-          });
-        }
-      } else if (parentType === 'goal') {
-        // Find all tasks under this goal
-        (archivedProjects as ProjectWithDetails[])?.forEach(project => {
-          const goal = project.goals?.find(g => g.id === parentId);
-          if (goal?.tasks) {
-            goal.tasks.forEach(task => {
-              childIds.push(task.id);
-            });
-          }
-        });
-      }
-      
-      return childIds;
-    };
-    
     // Determine the type of the selected item
     let itemType: 'project' | 'goal' | 'task' = 'task';
     const isProject = (archivedProjects as ProjectWithDetails[])?.some(p => p.id === itemId);
@@ -194,6 +162,64 @@ export default function Archive() {
     
     setSelectedItems(newSelected);
   };
+
+  // Helper functions for checkbox state display
+  const getChildItems = (parentId: string, parentType: 'project' | 'goal'): string[] => {
+    const childIds: string[] = [];
+    
+    if (parentType === 'project') {
+      // Find all goals and tasks under this project
+      const project = (archivedProjects as ProjectWithDetails[])?.find(p => p.id === parentId);
+      if (project?.goals) {
+        project.goals.forEach(goal => {
+          childIds.push(goal.id);
+          if (goal.tasks) {
+            goal.tasks.forEach(task => {
+              childIds.push(task.id);
+            });
+          }
+        });
+      }
+      // Also include direct project tasks if they exist
+      if (project?.tasks) {
+        project.tasks.forEach(task => {
+          childIds.push(task.id);
+        });
+      }
+    } else if (parentType === 'goal') {
+      // Find all tasks under this goal
+      (archivedProjects as ProjectWithDetails[])?.forEach(project => {
+        const goal = project.goals?.find(g => g.id === parentId);
+        if (goal?.tasks) {
+          goal.tasks.forEach(task => {
+            childIds.push(task.id);
+          });
+        }
+      });
+    }
+    
+    return childIds;
+  };
+
+  const isItemChecked = (itemId: string): boolean => {
+    if (selectedItems.has(itemId)) {
+      return true;
+    }
+    
+    // For parent items, check if all children are selected
+    const isProject = (archivedProjects as ProjectWithDetails[])?.some(p => p.id === itemId);
+    const isGoal = !isProject && (archivedProjects as ProjectWithDetails[])?.some(p => 
+      p.goals?.some(g => g.id === itemId)
+    );
+    
+    if (isProject || isGoal) {
+      const childIds = getChildItems(itemId, isProject ? 'project' : 'goal');
+      return childIds.length > 0 && childIds.every(childId => selectedItems.has(childId));
+    }
+    
+    return false;
+  };
+
 
   // Label display function (read-only for archive)
   const renderLabels = (labels: string[]) => {
@@ -257,8 +283,14 @@ export default function Archive() {
       return true; // Show archived projects
     }
     
+    // Check if any direct project tasks are archived
+    const hasArchivedProjectTasks = project.tasks && project.tasks.some(task => archivedItems.includes(task.id));
+    if (hasArchivedProjectTasks) {
+      return true;
+    }
+    
     if (project.goals) {
-      // Check if any goals or tasks are archived
+      // Check if any goals or goal tasks are archived
       const hasArchivedChildren = project.goals.some(goal => 
         archivedItems.includes(goal.id) || 
         (goal.tasks && goal.tasks.some(task => archivedItems.includes(task.id)))
@@ -274,7 +306,7 @@ export default function Archive() {
       return project; // Show full project if archived
     }
     
-    // Show only archived goals and tasks
+    // Show only archived goals, tasks, and direct project tasks
     const archivedGoals = project.goals?.filter(goal => 
       archivedItems.includes(goal.id) || 
       (goal.tasks && goal.tasks.some(task => archivedItems.includes(task.id)))
@@ -283,9 +315,13 @@ export default function Archive() {
       tasks: goal.tasks?.filter(task => archivedItems.includes(task.id)) || []
     })) || [];
     
+    // Include archived direct project tasks
+    const archivedProjectTasks = project.tasks?.filter(task => archivedItems.includes(task.id)) || [];
+    
     return {
       ...project,
-      goals: archivedGoals
+      goals: archivedGoals,
+      tasks: archivedProjectTasks
     };
   }) || [];
 
@@ -416,7 +452,7 @@ export default function Archive() {
                     <div className="grid grid-cols-12 gap-4 items-center">
                       <div className="col-span-4 flex items-center gap-2">
                         <Checkbox
-                          checked={selectedItems.has(project.id)}
+                          checked={isItemChecked(project.id)}
                           onCheckedChange={() => toggleItemSelection(project.id)}
                           data-testid={`checkbox-project-${project.id}`}
                         />
@@ -503,6 +539,89 @@ export default function Archive() {
                     </div>
                   </div>
 
+                  {/* Direct Project Tasks */}
+                  {expandedProjects.has(project.id) && project.tasks && project.tasks.length > 0 && (
+                    <div className="bg-muted/20">
+                      {project.tasks.map((task) => (
+                        <div key={task.id} className={`p-3 hover:bg-muted/50 transition-colors ${project.status === '완료' || task.status === '완료' ? 'opacity-50' : ''}`}>
+                          <div className="grid grid-cols-12 gap-4 items-center">
+                            <div className="col-span-4 flex items-center gap-2 ml-8">
+                              <Checkbox
+                                checked={isItemChecked(task.id)}
+                                onCheckedChange={() => toggleItemSelection(task.id)}
+                                data-testid={`checkbox-task-${task.id}`}
+                              />
+                              <Circle className="w-4 h-4 text-orange-600" />
+                              <button 
+                                className="font-medium hover:text-orange-600 cursor-pointer transition-colors text-left" 
+                                onClick={() => setLocation(`/detail/task/${task.id}`)}
+                                data-testid={`text-task-name-${task.id}`}
+                              >
+                                {task.title}
+                              </button>
+                            </div>
+                            <div className="col-span-1">
+                              <div 
+                                className="cursor-default hover:bg-muted/20 px-1 py-1 rounded text-sm"
+                                data-testid={`text-task-deadline-${task.id}`}
+                              >
+                                <span className={getDDayColorClass(task.deadline)}>
+                                  {formatDeadline(task.deadline)}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="col-span-1">
+                              <div 
+                                className="cursor-default hover:bg-muted/20 px-1 py-1 rounded w-28 min-w-[7rem] max-w-[7rem] h-8 flex items-center overflow-hidden"
+                                data-testid={`edit-assignee-${task.id}`}
+                              >
+                                {task.assignees && task.assignees.length > 0 ? (
+                                  <div className="flex items-center gap-1 truncate">
+                                    {task.assignees.slice(0, 4).map((assignee, index) => (
+                                      <Avatar key={assignee.id} className="w-6 h-6 flex-shrink-0" style={{ zIndex: task.assignees!.length - index }}>
+                                        <AvatarFallback className="text-xs bg-primary text-primary-foreground border border-white">
+                                          {assignee.name.charAt(0)}
+                                        </AvatarFallback>
+                                      </Avatar>
+                                    ))}
+                                    {task.assignees.length > 4 && (
+                                      <span className="text-xs text-muted-foreground ml-1">+{task.assignees.length - 4}</span>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <span className="text-muted-foreground text-sm">담당자 없음</span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="col-span-2">
+                              {renderLabels(task.labels || [])}
+                            </div>
+                            <div className="col-span-1">
+                              <Badge 
+                                variant={getStatusBadgeVariant(task.status)}
+                                className="text-xs cursor-default"
+                                data-testid={`status-${task.id}`}
+                              >
+                                {task.status}
+                              </Badge>
+                            </div>
+                            <div className="col-span-2">
+                              <div className="flex items-center gap-2 px-1 py-1">
+                                <Progress value={task.progress || 0} className="flex-1" />
+                                <span className="text-xs text-muted-foreground w-8">
+                                  {task.progress || 0}%
+                                </span>
+                              </div>
+                            </div>
+                            <div className="col-span-1">
+                              {renderImportance('task', task.priority)}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
                   {/* Goals */}
                   {expandedProjects.has(project.id) && project.goals && (
                     <div className="bg-muted/20">
@@ -513,7 +632,7 @@ export default function Archive() {
                             <div className="grid grid-cols-12 gap-4 items-center">
                               <div className="col-span-4 flex items-center gap-2 ml-8">
                                 <Checkbox
-                                  checked={selectedItems.has(goal.id)}
+                                  checked={isItemChecked(goal.id)}
                                   onCheckedChange={() => toggleItemSelection(goal.id)}
                                   data-testid={`checkbox-goal-${goal.id}`}
                                 />
@@ -605,7 +724,7 @@ export default function Archive() {
                                   <div className="grid grid-cols-12 gap-4 items-center">
                                     <div className="col-span-4 flex items-center gap-2 ml-16">
                                       <Checkbox
-                                        checked={selectedItems.has(task.id)}
+                                        checked={isItemChecked(task.id)}
                                         onCheckedChange={() => toggleItemSelection(task.id)}
                                         data-testid={`checkbox-task-${task.id}`}
                                       />
