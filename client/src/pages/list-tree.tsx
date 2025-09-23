@@ -1795,7 +1795,7 @@ export default function ListTree() {
                         );
                       })}
                       {filteredUsers.length === 0 && (
-                        <div className="flex items-center justify-center text-slate-400 text-sm py-8">
+                        <div className="h-full flex items-center justify-center text-slate-400 text-sm">
                           멤버가 없습니다.
                         </div>
                       )}
