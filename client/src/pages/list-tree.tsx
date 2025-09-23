@@ -1698,47 +1698,48 @@ export default function ListTree() {
               onClick={async () => {
                 const selectedArray = Array.from(selectedItems);
                 
+                // Filter to only get selected projects
+                const selectedProjectIds: string[] = [];
+                const nonProjectCount = selectedArray.filter(itemId => {
+                  // Check if it's a project
+                  const isProject = (projects as ProjectWithDetails[])?.some(p => p.id === itemId);
+                  if (isProject) {
+                    selectedProjectIds.push(itemId);
+                    return false;
+                  }
+                  return true; // Count non-project items
+                }).length;
+                
+                if (selectedProjectIds.length === 0) {
+                  toast({
+                    title: "보관 제한",
+                    description: "프로젝트 기준으로 이동이 가능합니다.",
+                    variant: "destructive",
+                  });
+                  return;
+                }
+                
+                // Show info message if non-project items were also selected
+                if (nonProjectCount > 0) {
+                  toast({
+                    title: "보관 안내",
+                    description: `선택된 항목 중 ${selectedProjectIds.length}개 프로젝트만 보관됩니다.`,
+                  });
+                }
+                
                 try {
                   // Get existing archived items from localStorage
                   const existingArchived = localStorage.getItem('archivedItems');
                   const archivedItems = existingArchived ? JSON.parse(existingArchived) : [];
                   
-                  // Collect full data for selected items before deletion
+                  // Collect full data for selected projects only
                   const itemsToArchive: any[] = [];
                   
-                  selectedArray.forEach(itemId => {
-                    // Find the full item data
-                    let itemData = null;
-                    
-                    // Check if it's a project
-                    const project = (projects as ProjectWithDetails[])?.find(p => p.id === itemId);
+                  selectedProjectIds.forEach(projectId => {
+                    // Find the project data
+                    const project = (projects as ProjectWithDetails[])?.find(p => p.id === projectId);
                     if (project) {
-                      itemData = { ...project, type: 'project' };
-                    } else {
-                      // Check if it's a goal or task
-                      (projects as ProjectWithDetails[])?.forEach(proj => {
-                        const goal = proj.goals?.find(g => g.id === itemId);
-                        if (goal) {
-                          itemData = { ...goal, type: 'goal', projectId: proj.id };
-                        } else {
-                          // Check tasks in goals
-                          proj.goals?.forEach(g => {
-                            const task = g.tasks?.find(t => t.id === itemId);
-                            if (task) {
-                              itemData = { ...task, type: 'task', goalId: g.id, projectId: proj.id };
-                            }
-                          });
-                          // Check direct project tasks
-                          const projectTask = proj.tasks?.find(t => t.id === itemId);
-                          if (projectTask) {
-                            itemData = { ...projectTask, type: 'task', projectId: proj.id };
-                          }
-                        }
-                      });
-                    }
-                    
-                    if (itemData) {
-                      itemsToArchive.push(itemData);
+                      itemsToArchive.push({ ...project, type: 'project' });
                     }
                   });
                   
@@ -1747,48 +1748,14 @@ export default function ListTree() {
                   localStorage.setItem('archivedItems', JSON.stringify(newArchivedItems));
                   console.log('List page - archived items after move:', newArchivedItems);
                   
-                  // Categorize selected items by type for deletion
-                  const projectIds: string[] = [];
-                  const goalIds: string[] = [];
-                  const taskIds: string[] = [];
-                  
-                  selectedArray.forEach(itemId => {
-                    // Check if it's a project
-                    const isProject = (projects as ProjectWithDetails[])?.some(p => p.id === itemId);
-                    if (isProject) {
-                      projectIds.push(itemId);
-                      return;
-                    }
-                    
-                    // Check if it's a goal
-                    const isGoal = (projects as ProjectWithDetails[])?.some(p => 
-                      p.goals?.some(g => g.id === itemId)
-                    );
-                    if (isGoal) {
-                      goalIds.push(itemId);
-                      return;
-                    }
-                    
-                    // Otherwise it's a task
-                    taskIds.push(itemId);
-                  });
-                  
-                  // Delete items from database (tasks first to avoid foreign key conflicts)
-                  for (const taskId of taskIds) {
-                    await deleteTaskMutation.mutateAsync(taskId);
-                  }
-                  
-                  for (const goalId of goalIds) {
-                    await deleteGoalMutation.mutateAsync(goalId);
-                  }
-                  
-                  for (const projectId of projectIds) {
+                  // Delete selected projects from database
+                  for (const projectId of selectedProjectIds) {
                     await deleteProjectMutation.mutateAsync(projectId);
                   }
                   
                   toast({
                     title: "보관 완료",
-                    description: `${selectedItems.size}개 항목이 보관함으로 이동되었습니다.`,
+                    description: `${selectedProjectIds.length}개 프로젝트가 보관함으로 이동되었습니다.`,
                   });
                   
                   clearSelection();

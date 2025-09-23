@@ -443,60 +443,51 @@ export default function Archive() {
     
     try {
       // Get archived items that match selected IDs
-      const itemsToRestore = archivedItems.filter((item: any) => {
+      const allSelectedItems = archivedItems.filter((item: any) => {
         const itemId = item.id || (item.data && item.data.id);
         return selectedArray.includes(itemId);
       });
-
-      if (itemsToRestore.length === 0) {
+      
+      // Filter to only get selected projects
+      const selectedProjects = allSelectedItems.filter((item: any) => item.type === 'project');
+      const nonProjectCount = allSelectedItems.length - selectedProjects.length;
+      
+      if (selectedProjects.length === 0) {
         toast({
-          title: "복원할 항목이 없습니다",
-          description: "선택된 항목을 찾을 수 없습니다.",
+          title: "복원 제한",
+          description: "프로젝트 기준으로 이동이 가능합니다.",
           variant: "destructive",
         });
         return;
       }
-
-      // Restore items to database
-      for (const item of itemsToRestore) {
-        const itemData = item.data || item;
-        
-        if (item.type === 'project') {
-          await createProjectMutation.mutateAsync({
-            name: itemData.name,
-            code: itemData.code,
-            description: itemData.description,
-            deadline: itemData.deadline,
-            labels: itemData.labels || [],
-            owners: itemData.owners || []
-          });
-        } else if (item.type === 'goal') {
-          await createGoalMutation.mutateAsync({
-            title: itemData.title,
-            description: itemData.description,
-            deadline: itemData.deadline,
-            projectId: item.projectId,
-            labels: itemData.labels || [],
-            assignees: itemData.assignees || []
-          });
-        } else if (item.type === 'task') {
-          await createTaskMutation.mutateAsync({
-            title: itemData.title,
-            description: itemData.description,
-            status: itemData.status,
-            deadline: itemData.deadline,
-            importance: itemData.importance,
-            goalId: item.goalId,
-            labels: itemData.labels || [],
-            assignees: itemData.assignees || []
-          });
-        }
+      
+      // Show info message if non-project items were also selected
+      if (nonProjectCount > 0) {
+        toast({
+          title: "복원 안내",
+          description: `선택된 항목 중 ${selectedProjects.length}개 프로젝트만 복원됩니다.`,
+        });
       }
 
-      // Remove restored items from localStorage
+      // Restore projects to database
+      for (const item of selectedProjects) {
+        const itemData = item.data || item;
+        
+        await createProjectMutation.mutateAsync({
+          name: itemData.name,
+          code: itemData.code,
+          description: itemData.description,
+          deadline: itemData.deadline,
+          labels: itemData.labels || [],
+          owners: itemData.owners || []
+        });
+      }
+
+      // Remove restored projects from localStorage
+      const restoredProjectIds = selectedProjects.map((item: any) => item.id || (item.data && item.data.id));
       const remainingItems = archivedItems.filter((item: any) => {
         const itemId = item.id || (item.data && item.data.id);
-        return !selectedArray.includes(itemId);
+        return !restoredProjectIds.includes(itemId);
       });
       
       localStorage.setItem('archivedItems', JSON.stringify(remainingItems));
@@ -504,7 +495,7 @@ export default function Archive() {
 
       toast({
         title: "복원 완료",
-        description: `${selectedItems.size}개 항목이 리스트로 복원되었습니다.`,
+        description: `${selectedProjects.length}개 프로젝트가 리스트로 복원되었습니다.`,
       });
 
       setSelectedItems(new Set());
