@@ -70,13 +70,6 @@ export default function ProjectDetail() {
   const calculatedInProgressTasks = goalTasks.filter(task => task.status === '진행중');
   const calculatedPendingTasks = goalTasks.filter(task => task.status === '진행전');
   
-  // Function to derive status from progress (same as list-tree page)
-  const getStatusFromProgress = (progress: number): string => {
-    if (progress === 0) return '진행전';
-    if (progress >= 100) return '완료';
-    return '진행중';
-  };
-
   // Calculate progress as "프로젝트 하위 목표 진행도 총합 / 목표 수"
   const goals = project?.goals || [];
   const averageProgress = goals.length > 0 
@@ -500,13 +493,13 @@ export default function ProjectDetail() {
                     <div className="mt-1">
                       <Badge 
                         variant={
-                          getStatusFromProgress(averageProgress) === "완료" ? "default" : 
-                          getStatusFromProgress(averageProgress) === "진행중" ? "secondary" : 
+                          project.status === "완료" ? "default" : 
+                          project.status === "진행중" ? "secondary" : 
                           "outline"
                         }
                         data-testid="badge-project-status"
                       >
-                        {getStatusFromProgress(averageProgress)}
+                        {project.status ?? "진행전"}
                       </Badge>
                     </div>
                   )}

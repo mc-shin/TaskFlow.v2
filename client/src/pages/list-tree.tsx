@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ChevronDown, ChevronRight, FolderOpen, Target, Circle, Plus, Calendar, User, BarChart3, Check, X, Tag, Mail, UserPlus, Trash2, Archive, CheckCircle } from "lucide-react";
+import { ChevronDown, ChevronRight, FolderOpen, Target, Circle, Plus, Calendar, User, BarChart3, Check, X, Tag, Mail, UserPlus, Trash2, Archive } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
@@ -953,56 +953,6 @@ export default function ListTree() {
     return '진행중';
   };
 
-  // Function to render complete button for projects and goals
-  const renderCompleteButton = (itemId: string, type: 'project' | 'goal', progress: number, currentStatus: string) => {
-    const isCompleted = currentStatus === '완료' || getStatusFromProgress(progress) === '완료';
-    const canComplete = progress >= 100 && !isCompleted;
-    
-    const handleComplete = async () => {
-      if (!canComplete) return;
-      
-      try {
-        if (type === 'project') {
-          await updateProjectMutation.mutateAsync({
-            id: itemId,
-            updates: { status: '완료' }
-          });
-        } else if (type === 'goal') {
-          await updateGoalMutation.mutateAsync({
-            id: itemId,
-            updates: { status: '완료' }
-          });
-        }
-        
-        toast({
-          title: "완료 처리",
-          description: `${type === 'project' ? '프로젝트' : '목표'}가 완료되었습니다.`,
-        });
-      } catch (error) {
-        console.error('Complete failed:', error);
-        toast({
-          title: "완료 실패",
-          description: "완료 처리 중 오류가 발생했습니다.",
-          variant: "destructive",
-        });
-      }
-    };
-    
-    return (
-      <Button
-        variant={isCompleted ? "outline" : "ghost"}
-        size="sm"
-        className={`h-6 px-2 ${canComplete ? 'text-green-600 hover:text-green-700 hover:bg-green-50' : 'text-gray-400'} ${isCompleted ? 'bg-green-50 text-green-700' : ''}`}
-        onClick={handleComplete}
-        disabled={!canComplete || updateProjectMutation.isPending || updateGoalMutation.isPending}
-        data-testid={`button-complete-${itemId}`}
-      >
-        <CheckCircle className="w-3 h-3 mr-1" />
-        {isCompleted ? '완료됨' : '완료하기'}
-      </Button>
-    );
-  };
-
   // Function to derive progress from status
   const getProgressFromStatus = (status: string): number => {
     if (status === '진행전') return 0;
@@ -1486,13 +1436,12 @@ export default function ListTree() {
 
       {/* Table Header */}
       <div className="bg-muted/30 p-3 rounded-t-lg border">
-        <div className="grid grid-cols-13 gap-4 text-sm font-medium text-muted-foreground">
+        <div className="grid grid-cols-12 gap-4 text-sm font-medium text-muted-foreground">
           <div className="col-span-4">이름</div>
           <div className="col-span-1">마감일</div>
           <div className="col-span-1">담당자</div>
           <div className="col-span-2">라벨</div>
           <div className="col-span-1">상태</div>
-          <div className="col-span-1">완료</div>
           <div className="col-span-2">진행도</div>
           <div className="col-span-1">중요도</div>
         </div>
@@ -1512,7 +1461,7 @@ export default function ListTree() {
                 <div key={project.id}>
                   {/* Project Row */}
                   <div className={`p-3 hover:bg-muted/50 transition-colors ${project.status === '완료' ? 'opacity-50' : ''}`}>
-                    <div className="grid grid-cols-13 gap-4 items-center">
+                    <div className="grid grid-cols-12 gap-4 items-center">
                       <div className="col-span-4 flex items-center gap-2">
                         <Checkbox
                           checked={selectedItems.has(project.id)}
@@ -1568,9 +1517,6 @@ export default function ListTree() {
                       <div className="col-span-1">
                         {renderEditableStatus(project.id, 'project', '', project.progressPercentage || 0)}
                       </div>
-                      <div className="col-span-1">
-                        {renderCompleteButton(project.id, 'project', project.progressPercentage || 0, getStatusFromProgress(project.progressPercentage || 0))}
-                      </div>
                       <div className="col-span-2">
                         {(() => {
                           // Calculate progress as "프로젝트 하위 목표 진행도 총합 / 목표 수"
@@ -1602,7 +1548,7 @@ export default function ListTree() {
                         <div key={goal.id}>
                           {/* Goal Row */}
                           <div className={`p-3 hover:bg-muted/50 transition-colors ${project.status === '완료' || goal.status === '완료' ? 'opacity-50' : ''}`}>
-                            <div className="grid grid-cols-13 gap-4 items-center">
+                            <div className="grid grid-cols-12 gap-4 items-center">
                               <div className="col-span-4 flex items-center gap-2 ml-8">
                                 <Checkbox
                                   checked={selectedItems.has(goal.id)}
@@ -1655,9 +1601,6 @@ export default function ListTree() {
                               <div className="col-span-1">
                                 {renderEditableStatus(goal.id, 'goal', '', goal.progressPercentage || 0)}
                               </div>
-                              <div className="col-span-1">
-                                {renderCompleteButton(goal.id, 'goal', goal.progressPercentage || 0, getStatusFromProgress(goal.progressPercentage || 0))}
-                              </div>
                               <div className="col-span-2">
                                 {renderEditableProgress(goal.id, 'goal', goal.progressPercentage || 0)}
                               </div>
@@ -1672,7 +1615,7 @@ export default function ListTree() {
                             <div className="bg-muted/30">
                               {goal.tasks.map((task) => (
                                 <div key={task.id} className={`p-3 hover:bg-muted/50 transition-colors ${project.status === '완료' || goal.status === '완료' || task.status === '완료' ? 'opacity-50' : ''}`}>
-                                  <div className="grid grid-cols-13 gap-4 items-center">
+                                  <div className="grid grid-cols-12 gap-4 items-center">
                                     <div className="col-span-4 flex items-center gap-2 ml-16">
                                       <Checkbox
                                         checked={selectedItems.has(task.id)}
@@ -1699,9 +1642,6 @@ export default function ListTree() {
                                     </div>
                                     <div className="col-span-1">
                                       {renderEditableStatus(task.id, 'task', task.status, getProgressFromStatus(task.status))}
-                                    </div>
-                                    <div className="col-span-1">
-                                      <span className="text-muted-foreground text-sm">-</span>
                                     </div>
                                     <div className="col-span-2">
                                       {renderEditableProgress(task.id, 'task', task.progress ?? getProgressFromStatus(task.status), task.status)}
