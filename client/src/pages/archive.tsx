@@ -5,6 +5,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { ChevronDown, ChevronRight, FolderOpen, Target, Circle, ArrowLeft } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useState } from "react";
 import { useLocation } from "wouter";
 import type { SafeTaskWithAssignees, ProjectWithDetails, GoalWithTasks, SafeUser } from "@shared/schema";
@@ -14,6 +15,9 @@ export default function Archive() {
   const { data: projects, isLoading, error } = useQuery({
     queryKey: ["/api/projects"],
   });
+
+  // State for checkbox selections
+  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
 
   // Helper functions from list-tree page for consistent UI
   const formatDeadline = (deadline: string | null) => {
@@ -83,6 +87,76 @@ export default function Archive() {
       default:
         return "secondary" as const;
     }
+  };
+
+  const getImportanceBadgeVariant = (importance: string) => {
+    switch (importance) {
+      case "높음":
+        return "destructive" as const;
+      case "중간":
+        return "default" as const;
+      case "낮음":
+        return "secondary" as const;
+      default:
+        return "secondary" as const;
+    }
+  };
+
+  // Checkbox selection functions
+  const toggleItemSelection = (itemId: string) => {
+    const newSelected = new Set(selectedItems);
+    
+    if (newSelected.has(itemId)) {
+      newSelected.delete(itemId);
+    } else {
+      newSelected.add(itemId);
+    }
+    
+    setSelectedItems(newSelected);
+  };
+
+  // Label display function (read-only for archive)
+  const renderLabels = (labels: string[]) => {
+    const currentLabels = labels || [];
+    
+    return (
+      <div className="cursor-default rounded-md min-w-16 min-h-6 flex items-center px-1 gap-1 flex-wrap">
+        {currentLabels.length > 0 ? (
+          currentLabels.map((label, index) => (
+            <Badge 
+              key={index} 
+              variant="outline" 
+              className={`text-xs ${index === 0 ? 'bg-blue-500 hover:bg-blue-600 text-white' : 'bg-green-500 hover:bg-green-600 text-white'}`}
+            >
+              {label}
+            </Badge>
+          ))
+        ) : (
+          <span className="text-muted-foreground text-sm">-</span>
+        )}
+      </div>
+    );
+  };
+
+  // Importance display function (read-only for archive)
+  const renderImportance = (type: 'project' | 'goal' | 'task', importance?: string) => {
+    // 프로젝트와 목표는 중요도 표시하지 않음
+    if (type !== 'task') {
+      return <span className="text-muted-foreground text-sm">-</span>;
+    }
+    
+    if (!importance) {
+      return <span className="text-muted-foreground text-sm">-</span>;
+    }
+    
+    return (
+      <Badge 
+        variant={getImportanceBadgeVariant(importance)} 
+        className="text-xs cursor-default"
+      >
+        {importance}
+      </Badge>
+    );
   };
 
   // Get archived items from localStorage
@@ -261,6 +335,11 @@ export default function Archive() {
                   <div className={`p-3 hover:bg-muted/50 transition-colors ${project.status === '완료' ? 'opacity-50' : ''}`}>
                     <div className="grid grid-cols-12 gap-4 items-center">
                       <div className="col-span-4 flex items-center gap-2">
+                        <Checkbox
+                          checked={selectedItems.has(project.id)}
+                          onCheckedChange={() => toggleItemSelection(project.id)}
+                          data-testid={`checkbox-project-${project.id}`}
+                        />
                         <Button
                           variant="ghost"
                           size="sm"
@@ -319,17 +398,7 @@ export default function Archive() {
                         </div>
                       </div>
                       <div className="col-span-2">
-                        <div className="flex gap-1">
-                          {project.labels && project.labels.length > 0 ? (
-                            project.labels.map((label, index) => (
-                              <Badge key={index} variant="secondary" className="text-xs">
-                                {label}
-                              </Badge>
-                            ))
-                          ) : (
-                            <span className="text-muted-foreground text-xs">-</span>
-                          )}
-                        </div>
+                        {renderLabels(project.labels || [])}
                       </div>
                       <div className="col-span-1">
                         <Badge 
