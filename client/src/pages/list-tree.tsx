@@ -63,16 +63,6 @@ export default function ListTree() {
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [showSelectionToast, setShowSelectionToast] = useState(false);
   
-  // State for manually completed projects (음영처리용)
-  const [manuallyCompletedProjects, setManuallyCompletedProjects] = useState<Set<string>>(() => {
-    try {
-      const stored = localStorage.getItem('manuallyCompletedProjects');
-      return stored ? new Set(JSON.parse(stored)) : new Set();
-    } catch {
-      return new Set();
-    }
-  });
-  
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [goalModalState, setGoalModalState] = useState<{ isOpen: boolean; projectId: string; projectTitle: string }>({ 
     isOpen: false, 
@@ -428,25 +418,6 @@ export default function ListTree() {
   
   const clearSelection = () => {
     setSelectedItems(new Set());
-  };
-
-  const toggleProjectCompletion = (projectId: string) => {
-    setManuallyCompletedProjects(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(projectId)) {
-        newSet.delete(projectId);
-        console.log('Removed from manually completed:', projectId);
-      } else {
-        newSet.add(projectId);
-        console.log('Added to manually completed:', projectId);
-      }
-      
-      // Save to localStorage
-      localStorage.setItem('manuallyCompletedProjects', JSON.stringify(Array.from(newSet)));
-      console.log('Updated manuallyCompletedProjects:', Array.from(newSet));
-      
-      return newSet;
-    });
   };
 
   // Delete selected items
@@ -1472,10 +1443,7 @@ export default function ListTree() {
               {activeProjects.map((project) => (
                 <div key={project.id}>
                   {/* Project Row */}
-                  <div 
-                    className={`p-3 hover:bg-muted/50 transition-colors ${manuallyCompletedProjects.has(project.id) ? 'opacity-50' : ''}`}
-                    data-manually-completed={manuallyCompletedProjects.has(project.id)}
-                  >
+                  <div className={`p-3 hover:bg-muted/50 transition-colors ${project.status === '완료' ? 'opacity-50' : ''}`}>
                     <div className="grid grid-cols-12 gap-4 items-center">
                       <div className="col-span-4 flex items-center gap-2">
                         <Checkbox
@@ -1519,17 +1487,6 @@ export default function ListTree() {
                         >
                           <Plus className="w-4 h-4" />
                         </Button>
-                        {project.status === '완료' && (
-                          <Button
-                            variant={manuallyCompletedProjects.has(project.id) ? "outline" : "default"}
-                            size="sm"
-                            className="ml-2"
-                            onClick={() => toggleProjectCompletion(project.id)}
-                            data-testid={`button-toggle-completion-${project.id}`}
-                          >
-                            {manuallyCompletedProjects.has(project.id) ? '완료취소' : '완료하기'}
-                          </Button>
-                        )}
                       </div>
                       <div className="col-span-1">
                         {renderEditableDeadline(project.id, 'project', project.deadline)}
@@ -1573,7 +1530,7 @@ export default function ListTree() {
                       {project.goals.map((goal) => (
                         <div key={goal.id}>
                           {/* Goal Row */}
-                          <div className={`p-3 hover:bg-muted/50 transition-colors ${manuallyCompletedProjects.has(project.id) || goal.status === '완료' ? 'opacity-50' : ''}`}>
+                          <div className={`p-3 hover:bg-muted/50 transition-colors ${project.status === '완료' || goal.status === '완료' ? 'opacity-50' : ''}`}>
                             <div className="grid grid-cols-12 gap-4 items-center">
                               <div className="col-span-4 flex items-center gap-2 ml-8">
                                 <Checkbox
@@ -1640,7 +1597,7 @@ export default function ListTree() {
                           {expandedGoals.has(goal.id) && goal.tasks && (
                             <div className="bg-muted/30">
                               {goal.tasks.map((task) => (
-                                <div key={task.id} className={`p-3 hover:bg-muted/50 transition-colors ${manuallyCompletedProjects.has(project.id) || goal.status === '완료' || task.status === '완료' ? 'opacity-50' : ''}`}>
+                                <div key={task.id} className={`p-3 hover:bg-muted/50 transition-colors ${project.status === '완료' || goal.status === '완료' || task.status === '완료' ? 'opacity-50' : ''}`}>
                                   <div className="grid grid-cols-12 gap-4 items-center">
                                     <div className="col-span-4 flex items-center gap-2 ml-16">
                                       <Checkbox
