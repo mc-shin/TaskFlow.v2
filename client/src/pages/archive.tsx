@@ -3,15 +3,87 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
 import { ChevronDown, ChevronRight, FolderOpen, Target, Circle, ArrowLeft } from "lucide-react";
 import { useState } from "react";
 import { useLocation } from "wouter";
 import type { SafeTaskWithAssignees, ProjectWithDetails, GoalWithTasks, SafeUser } from "@shared/schema";
+import { parse } from "date-fns";
 
 export default function Archive() {
   const { data: projects, isLoading, error } = useQuery({
     queryKey: ["/api/projects"],
   });
+
+  // Helper functions from list-tree page for consistent UI
+  const formatDeadline = (deadline: string | null) => {
+    if (!deadline) return '-';
+    
+    // Use same parsing logic as KoreanDatePicker to avoid timezone issues
+    const deadlineDate = parse(deadline, 'yyyy-MM-dd', new Date());
+    
+    if (isNaN(deadlineDate.getTime())) {
+      return '-';
+    }
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    deadlineDate.setHours(0, 0, 0, 0);
+    
+    const diffTime = deadlineDate.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) return '오늘';
+    if (diffDays === 1) return '내일';
+    if (diffDays === -1) return '어제';
+    if (diffDays < 0) return `${Math.abs(diffDays)}일 전`;
+    if (diffDays <= 7) return `${diffDays}일 후`;
+    
+    return deadline;
+  };
+
+  const getDDayColorClass = (deadline: string | null) => {
+    if (!deadline) return "text-muted-foreground";
+    
+    const deadlineDate = parse(deadline, 'yyyy-MM-dd', new Date());
+    if (isNaN(deadlineDate.getTime())) {
+      return "text-muted-foreground";
+    }
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    deadlineDate.setHours(0, 0, 0, 0);
+    
+    const diffTime = deadlineDate.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays < 0) return "text-red-600"; // 지나간 날
+    if (diffDays === 0) return "text-red-500"; // 오늘
+    if (diffDays <= 3) return "text-orange-500"; // 3일 이내
+    if (diffDays <= 7) return "text-yellow-600"; // 7일 이내
+    return "text-muted-foreground"; // 그 외
+  };
+
+  const getStatusFromProgress = (progress: number): string => {
+    if (progress === 0) return '진행전';
+    if (progress >= 100) return '완료';
+    return '진행중';
+  };
+
+  const getStatusBadgeVariant = (status: string) => {
+    switch (status) {
+      case "진행전":
+        return "secondary" as const;
+      case "진행중":
+        return "default" as const;
+      case "완료":
+        return "outline" as const;
+      case "보류":
+        return "destructive" as const;
+      default:
+        return "secondary" as const;
+    }
+  };
 
   // Get archived items from localStorage
   const archivedItems = (() => {
@@ -214,26 +286,35 @@ export default function Archive() {
                         </Badge>
                       </div>
                       <div className="col-span-1">
-                        <div className="cursor-default px-1 py-1 rounded text-sm" data-testid={`text-project-deadline-${project.id}`}>
-                          {formatDate(project.deadline)}
+                        <div 
+                          className="cursor-default hover:bg-muted/20 px-1 py-1 rounded text-sm"
+                          data-testid={`text-project-deadline-${project.id}`}
+                        >
+                          <span className={getDDayColorClass(project.deadline)}>
+                            {formatDeadline(project.deadline)}
+                          </span>
                         </div>
                       </div>
                       <div className="col-span-1">
-                        <div className="flex items-center gap-2">
+                        <div 
+                          className="cursor-default hover:bg-muted/20 px-1 py-1 rounded w-28 min-w-[7rem] max-w-[7rem] h-8 flex items-center overflow-hidden"
+                          data-testid={`edit-assignee-${project.id}`}
+                        >
                           {project.owners && project.owners.length > 0 ? (
-                            <>
-                              <Avatar className="h-6 w-6">
-                                <AvatarFallback className="text-xs bg-blue-600 text-white">
-                                  {project.owners[0].initials}
-                                </AvatarFallback>
-                              </Avatar>
-                              <span className="text-sm">{project.owners[0].name}</span>
-                              {project.owners.length > 1 && (
-                                <span className="text-xs text-muted-foreground">+{project.owners.length - 1}</span>
+                            <div className="flex items-center gap-1 truncate">
+                              {project.owners.slice(0, 4).map((owner, index) => (
+                                <Avatar key={owner.id} className="w-6 h-6 flex-shrink-0" style={{ zIndex: project.owners!.length - index }}>
+                                  <AvatarFallback className="text-xs bg-primary text-primary-foreground border border-white">
+                                    {owner.name.charAt(0)}
+                                  </AvatarFallback>
+                                </Avatar>
+                              ))}
+                              {project.owners.length > 4 && (
+                                <span className="text-xs text-muted-foreground ml-1">+{project.owners.length - 4}</span>
                               )}
-                            </>
+                            </div>
                           ) : (
-                            <span className="text-muted-foreground text-xs">-</span>
+                            <span className="text-muted-foreground text-sm">담당자 없음</span>
                           )}
                         </div>
                       </div>
@@ -252,22 +333,17 @@ export default function Archive() {
                       </div>
                       <div className="col-span-1">
                         <Badge 
-                          variant={project.status === '완료' ? 'default' : 'secondary'}
-                          className="text-xs"
+                          variant={getStatusBadgeVariant(getStatusFromProgress(project.progressPercentage || 0))}
+                          className="text-xs cursor-default"
                           data-testid={`status-${project.id}`}
                         >
-                          {project.status}
+                          {getStatusFromProgress(project.progressPercentage || 0)}
                         </Badge>
                       </div>
                       <div className="col-span-2">
                         <div className="flex items-center gap-2 px-1 py-1">
-                          <div className="w-full bg-muted rounded-full h-2">
-                            <div 
-                              className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                              style={{ width: `${project.progressPercentage || 0}%` }}
-                            />
-                          </div>
-                          <span className="text-xs text-muted-foreground min-w-[3rem]">
+                          <Progress value={project.progressPercentage || 0} className="flex-1" />
+                          <span className="text-xs text-muted-foreground w-8">
                             {project.progressPercentage || 0}%
                           </span>
                         </div>
@@ -309,26 +385,35 @@ export default function Archive() {
                                 </button>
                               </div>
                               <div className="col-span-1">
-                                <div className="cursor-default px-1 py-1 rounded text-sm" data-testid={`text-goal-deadline-${goal.id}`}>
-                                  {formatDate(goal.deadline)}
+                                <div 
+                                  className="cursor-default hover:bg-muted/20 px-1 py-1 rounded text-sm"
+                                  data-testid={`text-goal-deadline-${goal.id}`}
+                                >
+                                  <span className={getDDayColorClass(goal.deadline)}>
+                                    {formatDeadline(goal.deadline)}
+                                  </span>
                                 </div>
                               </div>
                               <div className="col-span-1">
-                                <div className="flex items-center gap-2">
+                                <div 
+                                  className="cursor-default hover:bg-muted/20 px-1 py-1 rounded w-28 min-w-[7rem] max-w-[7rem] h-8 flex items-center overflow-hidden"
+                                  data-testid={`edit-assignee-${goal.id}`}
+                                >
                                   {goal.assignees && goal.assignees.length > 0 ? (
-                                    <>
-                                      <Avatar className="h-6 w-6">
-                                        <AvatarFallback className="text-xs bg-green-600 text-white">
-                                          {goal.assignees[0].initials}
-                                        </AvatarFallback>
-                                      </Avatar>
-                                      <span className="text-sm">{goal.assignees[0].name}</span>
-                                      {goal.assignees.length > 1 && (
-                                        <span className="text-xs text-muted-foreground">+{goal.assignees.length - 1}</span>
+                                    <div className="flex items-center gap-1 truncate">
+                                      {goal.assignees.slice(0, 4).map((assignee, index) => (
+                                        <Avatar key={assignee.id} className="w-6 h-6 flex-shrink-0" style={{ zIndex: goal.assignees!.length - index }}>
+                                          <AvatarFallback className="text-xs bg-primary text-primary-foreground border border-white">
+                                            {assignee.name.charAt(0)}
+                                          </AvatarFallback>
+                                        </Avatar>
+                                      ))}
+                                      {goal.assignees.length > 4 && (
+                                        <span className="text-xs text-muted-foreground ml-1">+{goal.assignees.length - 4}</span>
                                       )}
-                                    </>
+                                    </div>
                                   ) : (
-                                    <span className="text-muted-foreground text-xs">-</span>
+                                    <span className="text-muted-foreground text-sm">담당자 없음</span>
                                   )}
                                 </div>
                               </div>
@@ -347,22 +432,17 @@ export default function Archive() {
                               </div>
                               <div className="col-span-1">
                                 <Badge 
-                                  variant={goal.status === '완료' ? 'default' : 'secondary'}
-                                  className="text-xs"
+                                  variant={getStatusBadgeVariant(getStatusFromProgress(goal.progressPercentage || 0))}
+                                  className="text-xs cursor-default"
                                   data-testid={`status-${goal.id}`}
                                 >
-                                  {goal.status || '진행전'}
+                                  {getStatusFromProgress(goal.progressPercentage || 0)}
                                 </Badge>
                               </div>
                               <div className="col-span-2">
                                 <div className="flex items-center gap-2 px-1 py-1">
-                                  <div className="w-full bg-muted rounded-full h-2">
-                                    <div 
-                                      className="bg-green-600 h-2 rounded-full transition-all duration-300"
-                                      style={{ width: `${goal.progressPercentage || 0}%` }}
-                                    />
-                                  </div>
-                                  <span className="text-xs text-muted-foreground min-w-[3rem]">
+                                  <Progress value={goal.progressPercentage || 0} className="flex-1" />
+                                  <span className="text-xs text-muted-foreground w-8">
                                     {goal.progressPercentage || 0}%
                                   </span>
                                 </div>
@@ -390,26 +470,35 @@ export default function Archive() {
                                       </button>
                                     </div>
                                     <div className="col-span-1">
-                                      <div className="cursor-default px-1 py-1 rounded text-sm" data-testid={`text-task-deadline-${task.id}`}>
-                                        {formatDate(task.deadline)}
+                                      <div 
+                                        className="cursor-default hover:bg-muted/20 px-1 py-1 rounded text-sm"
+                                        data-testid={`text-task-deadline-${task.id}`}
+                                      >
+                                        <span className={getDDayColorClass(task.deadline)}>
+                                          {formatDeadline(task.deadline)}
+                                        </span>
                                       </div>
                                     </div>
                                     <div className="col-span-1">
-                                      <div className="flex items-center gap-2">
+                                      <div 
+                                        className="cursor-default hover:bg-muted/20 px-1 py-1 rounded w-28 min-w-[7rem] max-w-[7rem] h-8 flex items-center overflow-hidden"
+                                        data-testid={`edit-assignee-${task.id}`}
+                                      >
                                         {task.assignees && task.assignees.length > 0 ? (
-                                          <>
-                                            <Avatar className="h-6 w-6">
-                                              <AvatarFallback className="text-xs bg-orange-600 text-white">
-                                                {task.assignees[0].initials}
-                                              </AvatarFallback>
-                                            </Avatar>
-                                            <span className="text-sm">{task.assignees[0].name}</span>
-                                            {task.assignees.length > 1 && (
-                                              <span className="text-xs text-muted-foreground">+{task.assignees.length - 1}</span>
+                                          <div className="flex items-center gap-1 truncate">
+                                            {task.assignees.slice(0, 4).map((assignee, index) => (
+                                              <Avatar key={assignee.id} className="w-6 h-6 flex-shrink-0" style={{ zIndex: task.assignees!.length - index }}>
+                                                <AvatarFallback className="text-xs bg-primary text-primary-foreground border border-white">
+                                                  {assignee.name.charAt(0)}
+                                                </AvatarFallback>
+                                              </Avatar>
+                                            ))}
+                                            {task.assignees.length > 4 && (
+                                              <span className="text-xs text-muted-foreground ml-1">+{task.assignees.length - 4}</span>
                                             )}
-                                          </>
+                                          </div>
                                         ) : (
-                                          <span className="text-muted-foreground text-xs">-</span>
+                                          <span className="text-muted-foreground text-sm">담당자 없음</span>
                                         )}
                                       </div>
                                     </div>
@@ -428,8 +517,8 @@ export default function Archive() {
                                     </div>
                                     <div className="col-span-1">
                                       <Badge 
-                                        variant={task.status === '완료' ? 'default' : 'secondary'}
-                                        className="text-xs"
+                                        variant={getStatusBadgeVariant(task.status)}
+                                        className="text-xs cursor-default"
                                         data-testid={`status-${task.id}`}
                                       >
                                         {task.status}
@@ -437,13 +526,8 @@ export default function Archive() {
                                     </div>
                                     <div className="col-span-2">
                                       <div className="flex items-center gap-2 px-1 py-1">
-                                        <div className="w-full bg-muted rounded-full h-2">
-                                          <div 
-                                            className="bg-orange-600 h-2 rounded-full transition-all duration-300"
-                                            style={{ width: `${task.progress || 0}%` }}
-                                          />
-                                        </div>
-                                        <span className="text-xs text-muted-foreground min-w-[3rem]">
+                                        <Progress value={task.progress || 0} className="flex-1" />
+                                        <span className="text-xs text-muted-foreground w-8">
                                           {task.progress || 0}%
                                         </span>
                                       </div>
