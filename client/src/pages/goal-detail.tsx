@@ -687,48 +687,19 @@ export default function GoalDetail() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {isEditing ? (
-                    <div>
-                      <label className="text-sm font-medium text-muted-foreground">진행도 (%)</label>
-                      <Select 
-                        value={(editedGoal.progressPercentage ?? goal.progressPercentage ?? 0).toString()}
-                        onValueChange={(value) => {
-                          const progressValue = parseInt(value);
-                          setEditedGoal(prev => ({ 
-                            ...prev, 
-                            progressPercentage: progressValue
-                          }));
-                        }}
-                      >
-                        <SelectTrigger className="mt-1 h-10" data-testid="select-goal-progress">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {Array.from({ length: 11 }, (_, i) => i * 10).map((progress) => (
-                            <SelectItem key={progress} value={progress.toString()}>
-                              {progress}%
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="flex items-center justify-between">
-                        <span className="text-2xl font-bold" data-testid="text-progress-percentage">
-                          {goal.progressPercentage || 0}%
-                        </span>
-                      </div>
-                      <Progress 
-                        value={goal.progressPercentage || 0} 
-                        className="h-3"
-                        data-testid="progress-bar"
-                      />
-                      <div className="text-sm text-muted-foreground">
-                        전체 작업 {goal.totalTasks || 0}개 중 {goal.completedTasks || 0}개 완료
-                      </div>
-                    </>
-                  )}
+                  <div className="flex items-center justify-between">
+                    <span className="text-2xl font-bold" data-testid="text-progress-percentage">
+                      {goal.progressPercentage || 0}%
+                    </span>
+                  </div>
+                  <Progress 
+                    value={goal.progressPercentage || 0} 
+                    className="h-3"
+                    data-testid="progress-bar"
+                  />
+                  <div className="text-sm text-muted-foreground">
+                    전체 작업 {goal.totalTasks || 0}개 중 {goal.completedTasks || 0}개 완료
+                  </div>
                 </div>
               </CardContent>
             </Card>
