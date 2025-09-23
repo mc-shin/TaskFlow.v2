@@ -13,6 +13,7 @@ import ListHorizontal from "@/pages/list-horizontal";
 import Kanban from "@/pages/kanban";
 import Priority from "@/pages/priority";
 import Backlog from "@/pages/backlog";
+import Archive from "@/pages/archive";
 import Meeting from "@/pages/meeting";
 import NewMeeting from "@/pages/new-meeting";
 import MeetingDetail from "@/pages/meeting-detail";
@@ -36,6 +37,7 @@ function Router() {
           <Route path="/kanban" component={Kanban} />
           <Route path="/priority" component={Priority} />
           <Route path="/backlog" component={Backlog} />
+          <Route path="/archive" component={Archive} />
           <Route path="/meeting" component={Meeting} />
           <Route path="/meeting/new" component={NewMeeting} />
           <Route path="/meeting/:id" component={MeetingDetail} />

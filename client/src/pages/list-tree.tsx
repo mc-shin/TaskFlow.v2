@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ChevronDown, ChevronRight, FolderOpen, Target, Circle, Plus, Calendar, User, BarChart3, Check, X, Tag, Mail, UserPlus, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronRight, FolderOpen, Target, Circle, Plus, Calendar, User, BarChart3, Check, X, Tag, Mail, UserPlus, Trash2, Archive } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
@@ -1299,6 +1299,14 @@ export default function ListTree() {
         </div>
         <div className="flex items-center space-x-4">
           <Button 
+            variant="outline"
+            onClick={() => setLocation('/archive')}
+            data-testid="button-archive-page"
+          >
+            <Archive className="w-4 h-4 mr-2" />
+            보관함
+          </Button>
+          <Button 
             onClick={() => setIsProjectModalOpen(true)}
             data-testid="button-add-project"
           >
@@ -1405,7 +1413,7 @@ export default function ListTree() {
               {(projects as ProjectWithDetails[]).map((project) => (
                 <div key={project.id}>
                   {/* Project Row */}
-                  <div className="p-3 hover:bg-muted/50 transition-colors">
+                  <div className={`p-3 hover:bg-muted/50 transition-colors ${project.status === '완료' ? 'opacity-50' : ''}`}>
                     <div className="grid grid-cols-12 gap-4 items-center">
                       <div className="col-span-4 flex items-center gap-2">
                         <Checkbox
@@ -1640,6 +1648,16 @@ export default function ListTree() {
               variant="default"
               size="sm"
               className="bg-blue-600 hover:bg-blue-700 text-sm"
+              onClick={() => {
+                toast({
+                  title: "보관 완료",
+                  description: `${selectedItems.size}개 항목이 보관함으로 이동되었습니다.`,
+                });
+                clearSelection();
+                setTimeout(() => {
+                  setLocation('/archive');
+                }, 1000);
+              }}
               data-testid="button-archive"
             >
               보관하기
@@ -1734,7 +1752,7 @@ export default function ListTree() {
             {/* Existing Members */}
             <div className="space-y-3">
               <h4 className="text-sm font-medium text-slate-300">하이더의 멤버</h4>
-              <div className="space-y-2 max-h-80 overflow-y-auto min-h-32">
+              <div className="space-y-2 overflow-y-auto" style={{minHeight: '340px', maxHeight: '340px'}}>
                 {(() => {
                   const allUsers = Array.isArray(users) ? users as SafeUser[] : [];
                   const filteredUsers = allUsers.filter(user => !deletedMemberIds.has(user.id));
@@ -1777,7 +1795,7 @@ export default function ListTree() {
                         );
                       })}
                       {filteredUsers.length === 0 && (
-                        <div className="text-center text-slate-400 text-sm py-4">
+                        <div className="flex items-center justify-center text-slate-400 text-sm py-8">
                           멤버가 없습니다.
                         </div>
                       )}
