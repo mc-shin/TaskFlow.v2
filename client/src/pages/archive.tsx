@@ -198,10 +198,10 @@ export default function Archive() {
       // Find all goals and tasks under this project
       const project = archivedProjects?.find(p => p.id === parentId);
       if (project?.goals) {
-        project.goals.forEach(goal => {
+        project.goals.forEach((goal: any) => {
           childIds.push(goal.id);
           if (goal.tasks) {
-            goal.tasks.forEach(task => {
+            goal.tasks.forEach((task: any) => {
               childIds.push(task.id);
             });
           }
@@ -209,16 +209,16 @@ export default function Archive() {
       }
       // Also include direct project tasks if they exist
       if (project?.tasks) {
-        project.tasks.forEach(task => {
+        project.tasks.forEach((task: any) => {
           childIds.push(task.id);
         });
       }
     } else if (parentType === 'goal') {
       // Find all tasks under this goal
       archivedProjects?.forEach(project => {
-        const goal = project.goals?.find(g => g.id === parentId);
+        const goal = project.goals?.find((g: any) => g.id === parentId);
         if (goal?.tasks) {
-          goal.tasks.forEach(task => {
+          goal.tasks.forEach((task: any) => {
             childIds.push(task.id);
           });
         }
@@ -341,7 +341,7 @@ export default function Archive() {
           });
         }
         const project = projectMap.get(projectId);
-        project.goals.push({ ...item, tasks: [] });
+        project.goals.push({ ...item as any, tasks: [] });
       } else if (item.type === 'task') {
         const projectId = item.projectId;
         const goalId = item.goalId;
@@ -370,10 +370,10 @@ export default function Archive() {
             };
             project.goals.push(goal);
           }
-          goal.tasks.push(item);
+          goal.tasks.push(item as any);
         } else {
           // Direct project task
-          project.tasks.push(item);
+          project.tasks.push(item as any);
         }
       }
     });
@@ -638,7 +638,7 @@ export default function Archive() {
                         >
                           {project.owners && project.owners.length > 0 ? (
                             <div className="flex items-center gap-1 truncate">
-                              {project.owners.slice(0, 4).map((owner, index) => (
+                              {project.owners.slice(0, 4).map((owner: any, index: number) => (
                                 <Avatar key={owner.id} className="w-6 h-6 flex-shrink-0" style={{ zIndex: project.owners!.length - index }}>
                                   <AvatarFallback className="text-xs bg-primary text-primary-foreground border border-white">
                                     {owner.name.charAt(0)}
@@ -683,7 +683,7 @@ export default function Archive() {
                   {/* Direct Project Tasks */}
                   {expandedProjects.has(project.id) && project.tasks && project.tasks.length > 0 && (
                     <div className="bg-muted/20">
-                      {project.tasks.map((task) => (
+                      {project.tasks.map((task: any) => (
                         <div key={task.id} className={`p-3 hover:bg-muted/50 transition-colors ${project.status === '완료' || task.status === '완료' ? 'opacity-50' : ''}`}>
                           <div className="grid grid-cols-12 gap-4 items-center">
                             <div className="col-span-4 flex items-center gap-2 ml-8">
@@ -718,7 +718,7 @@ export default function Archive() {
                               >
                                 {task.assignees && task.assignees.length > 0 ? (
                                   <div className="flex items-center gap-1 truncate">
-                                    {task.assignees.slice(0, 4).map((assignee, index) => (
+                                    {task.assignees.slice(0, 4).map((assignee: any, index: number) => (
                                       <Avatar key={assignee.id} className="w-6 h-6 flex-shrink-0" style={{ zIndex: task.assignees!.length - index }}>
                                         <AvatarFallback className="text-xs bg-primary text-primary-foreground border border-white">
                                           {assignee.name.charAt(0)}
@@ -766,7 +766,7 @@ export default function Archive() {
                   {/* Goals */}
                   {expandedProjects.has(project.id) && project.goals && (
                     <div className="bg-muted/20">
-                      {project.goals.map((goal) => (
+                      {project.goals.map((goal: any) => (
                         <div key={goal.id}>
                           {/* Goal Row */}
                           <div className={`p-3 hover:bg-muted/50 transition-colors ${project.status === '완료' || goal.status === '완료' ? 'opacity-50' : ''}`}>
@@ -815,7 +815,7 @@ export default function Archive() {
                                 >
                                   {goal.assignees && goal.assignees.length > 0 ? (
                                     <div className="flex items-center gap-1 truncate">
-                                      {goal.assignees.slice(0, 4).map((assignee, index) => (
+                                      {goal.assignees.slice(0, 4).map((assignee: any, index: number) => (
                                         <Avatar key={assignee.id} className="w-6 h-6 flex-shrink-0" style={{ zIndex: goal.assignees!.length - index }}>
                                           <AvatarFallback className="text-xs bg-primary text-primary-foreground border border-white">
                                             {assignee.name.charAt(0)}
@@ -860,7 +860,7 @@ export default function Archive() {
                           {/* Tasks */}
                           {expandedGoals.has(goal.id) && goal.tasks && (
                             <div className="bg-muted/30">
-                              {goal.tasks.map((task) => (
+                              {goal.tasks.map((task: any) => (
                                 <div key={task.id} className={`p-3 hover:bg-muted/50 transition-colors ${project.status === '완료' || goal.status === '완료' || task.status === '완료' ? 'opacity-50' : ''}`}>
                                   <div className="grid grid-cols-12 gap-4 items-center">
                                     <div className="col-span-4 flex items-center gap-2 ml-16">
@@ -895,7 +895,7 @@ export default function Archive() {
                                       >
                                         {task.assignees && task.assignees.length > 0 ? (
                                           <div className="flex items-center gap-1 truncate">
-                                            {task.assignees.slice(0, 4).map((assignee, index) => (
+                                            {task.assignees.slice(0, 4).map((assignee: any, index: number) => (
                                               <Avatar key={assignee.id} className="w-6 h-6 flex-shrink-0" style={{ zIndex: task.assignees!.length - index }}>
                                                 <AvatarFallback className="text-xs bg-primary text-primary-foreground border border-white">
                                                   {assignee.name.charAt(0)}
