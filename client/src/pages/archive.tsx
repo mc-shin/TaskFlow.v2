@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { ChevronDown, ChevronRight, FolderOpen, Target, Circle, ArrowLeft } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useLocation } from "wouter";
 import type { SafeTaskWithAssignees, ProjectWithDetails, GoalWithTasks, SafeUser } from "@shared/schema";
 import { parse } from "date-fns";
@@ -169,7 +169,7 @@ export default function Archive() {
     
     if (parentType === 'project') {
       // Find all goals and tasks under this project
-      const project = (archivedProjects as ProjectWithDetails[])?.find(p => p.id === parentId);
+      const project = archivedProjects?.find(p => p.id === parentId);
       if (project?.goals) {
         project.goals.forEach(goal => {
           childIds.push(goal.id);
@@ -188,7 +188,7 @@ export default function Archive() {
       }
     } else if (parentType === 'goal') {
       // Find all tasks under this goal
-      (archivedProjects as ProjectWithDetails[])?.forEach(project => {
+      archivedProjects?.forEach(project => {
         const goal = project.goals?.find(g => g.id === parentId);
         if (goal?.tasks) {
           goal.tasks.forEach(task => {
@@ -265,65 +265,108 @@ export default function Archive() {
     );
   };
 
-  // Get archived items from localStorage
-  const archivedItems = (() => {
+  // State for archived items with direct localStorage access
+  const [archivedItems, setArchivedItems] = useState<any[]>([]);
+  
+  // Function to read from localStorage
+  const readArchivedItems = () => {
     try {
       const stored = localStorage.getItem('archivedItems');
-      return stored ? JSON.parse(stored) : [];
+      const parsed = stored ? JSON.parse(stored) : [];
+      console.log('Archive page - localStorage archivedItems:', parsed);
+      setArchivedItems(parsed);
+      return parsed;
     } catch {
+      console.log('Archive page - failed to parse localStorage archivedItems');
+      setArchivedItems([]);
       return [];
     }
-  })();
-
-  // Filter projects to show only archived ones and their archived children
-  const archivedProjects = (projects as ProjectWithDetails[])?.filter(project => {
-    const isProjectArchived = archivedItems.includes(project.id);
+  };
+  
+  // Read archived items on mount and when page becomes visible
+  useEffect(() => {
+    readArchivedItems();
     
-    if (isProjectArchived) {
-      return true; // Show archived projects
-    }
-    
-    // Check if any direct project tasks are archived
-    const hasArchivedProjectTasks = project.tasks && project.tasks.some(task => archivedItems.includes(task.id));
-    if (hasArchivedProjectTasks) {
-      return true;
-    }
-    
-    if (project.goals) {
-      // Check if any goals or goal tasks are archived
-      const hasArchivedChildren = project.goals.some(goal => 
-        archivedItems.includes(goal.id) || 
-        (goal.tasks && goal.tasks.some(task => archivedItems.includes(task.id)))
-      );
-      return hasArchivedChildren;
-    }
-    
-    return false;
-  }).map(project => {
-    const isProjectArchived = archivedItems.includes(project.id);
-    
-    if (isProjectArchived) {
-      return project; // Show full project if archived
-    }
-    
-    // Show only archived goals, tasks, and direct project tasks
-    const archivedGoals = project.goals?.filter(goal => 
-      archivedItems.includes(goal.id) || 
-      (goal.tasks && goal.tasks.some(task => archivedItems.includes(task.id)))
-    ).map(goal => ({
-      ...goal,
-      tasks: goal.tasks?.filter(task => archivedItems.includes(task.id)) || []
-    })) || [];
-    
-    // Include archived direct project tasks
-    const archivedProjectTasks = project.tasks?.filter(task => archivedItems.includes(task.id)) || [];
-    
-    return {
-      ...project,
-      goals: archivedGoals,
-      tasks: archivedProjectTasks
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        readArchivedItems();
+      }
     };
-  }) || [];
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
+
+  // Create archive display structure from localStorage items
+  const archivedProjects = useMemo(() => {
+    if (!archivedItems.length) return [];
+    
+    // Group archived items by project for display
+    const projectMap = new Map();
+    
+    archivedItems.forEach(item => {
+      if (item.type === 'project') {
+        if (!projectMap.has(item.id)) {
+          projectMap.set(item.id, { 
+            ...item, 
+            goals: [], 
+            tasks: [] 
+          });
+        }
+      } else if (item.type === 'goal') {
+        const projectId = item.projectId;
+        if (!projectMap.has(projectId)) {
+          // Create placeholder project for orphaned goals
+          projectMap.set(projectId, {
+            id: projectId,
+            name: 'Unknown Project',
+            goals: [],
+            tasks: []
+          });
+        }
+        const project = projectMap.get(projectId);
+        project.goals.push({ ...item, tasks: [] });
+      } else if (item.type === 'task') {
+        const projectId = item.projectId;
+        const goalId = item.goalId;
+        
+        if (!projectMap.has(projectId)) {
+          // Create placeholder project for orphaned tasks
+          projectMap.set(projectId, {
+            id: projectId,
+            name: 'Unknown Project',
+            goals: [],
+            tasks: []
+          });
+        }
+        
+        const project = projectMap.get(projectId);
+        
+        if (goalId) {
+          // Task belongs to a goal
+          let goal = project.goals.find((g: any) => g.id === goalId);
+          if (!goal) {
+            // Create placeholder goal for orphaned tasks
+            goal = {
+              id: goalId,
+              title: 'Unknown Goal',
+              tasks: []
+            };
+            project.goals.push(goal);
+          }
+          goal.tasks.push(item);
+        } else {
+          // Direct project task
+          project.tasks.push(item);
+        }
+      }
+    });
+    
+    return Array.from(projectMap.values());
+  }, [archivedItems]);
 
   const { data: users } = useQuery({
     queryKey: ["/api/users"],

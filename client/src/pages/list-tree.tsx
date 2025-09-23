@@ -1678,27 +1678,119 @@ export default function ListTree() {
               variant="default"
               size="sm"
               className="bg-blue-600 hover:bg-blue-700 text-sm"
-              onClick={() => {
-                // Get existing archived items from localStorage
-                const existingArchived = localStorage.getItem('archivedItems');
-                const archivedItems = existingArchived ? JSON.parse(existingArchived) : [];
+              onClick={async () => {
+                const selectedArray = Array.from(selectedItems);
                 
-                // Add selected items to archived list
-                const newArchivedItems = [...archivedItems, ...Array.from(selectedItems)];
-                localStorage.setItem('archivedItems', JSON.stringify(newArchivedItems));
-                
-                toast({
-                  title: "보관 완료",
-                  description: `${selectedItems.size}개 항목이 보관함으로 이동되었습니다.`,
-                });
-                clearSelection();
-                setTimeout(() => {
-                  setLocation('/archive');
-                }, 1000);
+                try {
+                  // Get existing archived items from localStorage
+                  const existingArchived = localStorage.getItem('archivedItems');
+                  const archivedItems = existingArchived ? JSON.parse(existingArchived) : [];
+                  
+                  // Collect full data for selected items before deletion
+                  const itemsToArchive: any[] = [];
+                  
+                  selectedArray.forEach(itemId => {
+                    // Find the full item data
+                    let itemData = null;
+                    
+                    // Check if it's a project
+                    const project = (projects as ProjectWithDetails[])?.find(p => p.id === itemId);
+                    if (project) {
+                      itemData = { ...project, type: 'project' };
+                    } else {
+                      // Check if it's a goal or task
+                      (projects as ProjectWithDetails[])?.forEach(proj => {
+                        const goal = proj.goals?.find(g => g.id === itemId);
+                        if (goal) {
+                          itemData = { ...goal, type: 'goal', projectId: proj.id };
+                        } else {
+                          // Check tasks in goals
+                          proj.goals?.forEach(g => {
+                            const task = g.tasks?.find(t => t.id === itemId);
+                            if (task) {
+                              itemData = { ...task, type: 'task', goalId: g.id, projectId: proj.id };
+                            }
+                          });
+                          // Check direct project tasks
+                          const projectTask = proj.tasks?.find(t => t.id === itemId);
+                          if (projectTask) {
+                            itemData = { ...projectTask, type: 'task', projectId: proj.id };
+                          }
+                        }
+                      });
+                    }
+                    
+                    if (itemData) {
+                      itemsToArchive.push(itemData);
+                    }
+                  });
+                  
+                  // Add items with full data to archived list
+                  const newArchivedItems = [...archivedItems, ...itemsToArchive];
+                  localStorage.setItem('archivedItems', JSON.stringify(newArchivedItems));
+                  console.log('List page - archived items after move:', newArchivedItems);
+                  
+                  // Categorize selected items by type for deletion
+                  const projectIds: string[] = [];
+                  const goalIds: string[] = [];
+                  const taskIds: string[] = [];
+                  
+                  selectedArray.forEach(itemId => {
+                    // Check if it's a project
+                    const isProject = (projects as ProjectWithDetails[])?.some(p => p.id === itemId);
+                    if (isProject) {
+                      projectIds.push(itemId);
+                      return;
+                    }
+                    
+                    // Check if it's a goal
+                    const isGoal = (projects as ProjectWithDetails[])?.some(p => 
+                      p.goals?.some(g => g.id === itemId)
+                    );
+                    if (isGoal) {
+                      goalIds.push(itemId);
+                      return;
+                    }
+                    
+                    // Otherwise it's a task
+                    taskIds.push(itemId);
+                  });
+                  
+                  // Delete items from database (tasks first to avoid foreign key conflicts)
+                  for (const taskId of taskIds) {
+                    await deleteTaskMutation.mutateAsync(taskId);
+                  }
+                  
+                  for (const goalId of goalIds) {
+                    await deleteGoalMutation.mutateAsync(goalId);
+                  }
+                  
+                  for (const projectId of projectIds) {
+                    await deleteProjectMutation.mutateAsync(projectId);
+                  }
+                  
+                  toast({
+                    title: "보관 완료",
+                    description: `${selectedItems.size}개 항목이 보관함으로 이동되었습니다.`,
+                  });
+                  
+                  clearSelection();
+                  setTimeout(() => {
+                    setLocation('/archive');
+                  }, 1000);
+                } catch (error) {
+                  console.error('Failed to move items to archive:', error);
+                  toast({
+                    title: "보관 실패",
+                    description: "항목을 보관하는 중 오류가 발생했습니다.",
+                    variant: "destructive",
+                  });
+                }
               }}
+              disabled={deleteProjectMutation.isPending || deleteGoalMutation.isPending || deleteTaskMutation.isPending}
               data-testid="button-archive"
             >
-              보관하기
+              {(deleteProjectMutation.isPending || deleteGoalMutation.isPending || deleteTaskMutation.isPending) ? '보관 중...' : '보관하기'}
             </Button>
           </div>
         </div>
