@@ -113,10 +113,13 @@ export default function Archive() {
       {/* Table Header */}
       <div className="bg-muted/30 p-3 rounded-t-lg border">
         <div className="grid grid-cols-12 gap-4 text-sm font-medium text-muted-foreground">
-          <div className="col-span-5">이름</div>
-          <div className="col-span-2">마감일</div>
-          <div className="col-span-3">담당자</div>
-          <div className="col-span-2">상태</div>
+          <div className="col-span-4">이름</div>
+          <div className="col-span-1">마감일</div>
+          <div className="col-span-1">담당자</div>
+          <div className="col-span-2">라벨</div>
+          <div className="col-span-1">상태</div>
+          <div className="col-span-2">진행도</div>
+          <div className="col-span-1">중요도</div>
         </div>
       </div>
 
@@ -135,7 +138,7 @@ export default function Archive() {
                   {/* Project Row */}
                   <div className="p-3 hover:bg-muted/50 transition-colors">
                     <div className="grid grid-cols-12 gap-4 items-center">
-                      <div className="col-span-5 flex items-center gap-2">
+                      <div className="col-span-4 flex items-center gap-2">
                         <Button
                           variant="ghost"
                           size="sm"
@@ -160,10 +163,10 @@ export default function Archive() {
                           {project.code}
                         </Badge>
                       </div>
-                      <div className="col-span-2 text-sm">
+                      <div className="col-span-1 text-sm">
                         {formatDate(project.deadline)}
                       </div>
-                      <div className="col-span-3 flex items-center gap-2">
+                      <div className="col-span-1 flex items-center gap-2">
                         {project.owners && project.owners.length > 0 && (
                           <>
                             <Avatar className="h-6 w-6">
@@ -176,11 +179,42 @@ export default function Archive() {
                         )}
                       </div>
                       <div className="col-span-2">
+                        <div className="flex gap-1">
+                          {project.labels && project.labels.length > 0 ? (
+                            project.labels.map((label, index) => (
+                              <Badge key={index} variant="secondary" className="text-xs">
+                                {label}
+                              </Badge>
+                            ))
+                          ) : (
+                            <span className="text-muted-foreground text-xs">-</span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="col-span-1">
                         <Badge 
                           variant={project.status === '완료' ? 'default' : 'secondary'}
                           className="text-xs"
                         >
                           {project.status}
+                        </Badge>
+                      </div>
+                      <div className="col-span-2">
+                        <div className="flex items-center gap-2">
+                          <div className="w-full bg-muted rounded-full h-2">
+                            <div 
+                              className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                              style={{ width: `${project.progressPercentage || 0}%` }}
+                            />
+                          </div>
+                          <span className="text-xs text-muted-foreground min-w-[3rem]">
+                            {project.progressPercentage || 0}%
+                          </span>
+                        </div>
+                      </div>
+                      <div className="col-span-1">
+                        <Badge variant="outline" className="text-xs">
+                          중간
                         </Badge>
                       </div>
                     </div>
@@ -191,7 +225,7 @@ export default function Archive() {
                     <div key={goal.id}>
                       <div className="p-3 hover:bg-muted/50 transition-colors border-l-2 border-blue-200 ml-4">
                         <div className="grid grid-cols-12 gap-4 items-center">
-                          <div className="col-span-5 flex items-center gap-2">
+                          <div className="col-span-4 flex items-center gap-2 ml-8">
                             <Button
                               variant="ghost"
                               size="sm"
@@ -213,10 +247,10 @@ export default function Archive() {
                               {goal.title}
                             </button>
                           </div>
-                          <div className="col-span-2 text-sm">
+                          <div className="col-span-1 text-sm">
                             {formatDate(goal.deadline)}
                           </div>
-                          <div className="col-span-3 flex items-center gap-2">
+                          <div className="col-span-1 flex items-center gap-2">
                             {goal.assignees && goal.assignees.length > 0 && (
                               <>
                                 <Avatar className="h-6 w-6">
@@ -229,11 +263,42 @@ export default function Archive() {
                             )}
                           </div>
                           <div className="col-span-2">
+                            <div className="flex gap-1">
+                              {goal.labels && goal.labels.length > 0 ? (
+                                goal.labels.map((label, index) => (
+                                  <Badge key={index} variant="secondary" className="text-xs">
+                                    {label}
+                                  </Badge>
+                                ))
+                              ) : (
+                                <span className="text-muted-foreground text-xs">-</span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="col-span-1">
                             <Badge 
                               variant={goal.status === '완료' ? 'default' : 'secondary'}
                               className="text-xs"
                             >
                               {goal.status}
+                            </Badge>
+                          </div>
+                          <div className="col-span-2">
+                            <div className="flex items-center gap-2">
+                              <div className="w-full bg-muted rounded-full h-2">
+                                <div 
+                                  className="bg-green-600 h-2 rounded-full transition-all duration-300"
+                                  style={{ width: `${goal.progressPercentage || 0}%` }}
+                                />
+                              </div>
+                              <span className="text-xs text-muted-foreground min-w-[3rem]">
+                                {goal.progressPercentage || 0}%
+                              </span>
+                            </div>
+                          </div>
+                          <div className="col-span-1">
+                            <Badge variant="outline" className="text-xs">
+                              중간
                             </Badge>
                           </div>
                         </div>
@@ -243,7 +308,7 @@ export default function Archive() {
                       {expandedGoals.has(goal.id) && goal.tasks?.map((task) => (
                         <div key={task.id} className="p-3 hover:bg-muted/50 transition-colors border-l-2 border-orange-200 ml-8">
                           <div className="grid grid-cols-12 gap-4 items-center">
-                            <div className="col-span-5 flex items-center gap-2">
+                            <div className="col-span-4 flex items-center gap-2 ml-16">
                               <Circle className="w-4 h-4 text-orange-600" />
                               <button 
                                 className="font-medium hover:text-blue-600 cursor-pointer transition-colors text-left" 
@@ -253,10 +318,10 @@ export default function Archive() {
                                 {task.title}
                               </button>
                             </div>
-                            <div className="col-span-2 text-sm">
+                            <div className="col-span-1 text-sm">
                               {formatDate(task.deadline)}
                             </div>
-                            <div className="col-span-3 flex items-center gap-2">
+                            <div className="col-span-1 flex items-center gap-2">
                               {task.assignees && task.assignees.length > 0 && (
                                 <>
                                   <Avatar className="h-6 w-6">
@@ -269,11 +334,42 @@ export default function Archive() {
                               )}
                             </div>
                             <div className="col-span-2">
+                              <div className="flex gap-1">
+                                {task.labels && task.labels.length > 0 ? (
+                                  task.labels.map((label, index) => (
+                                    <Badge key={index} variant="secondary" className="text-xs">
+                                      {label}
+                                    </Badge>
+                                  ))
+                                ) : (
+                                  <span className="text-muted-foreground text-xs">-</span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="col-span-1">
                               <Badge 
                                 variant={task.status === '완료' ? 'default' : 'secondary'}
                                 className="text-xs"
                               >
                                 {task.status}
+                              </Badge>
+                            </div>
+                            <div className="col-span-2">
+                              <div className="flex items-center gap-2">
+                                <div className="w-full bg-muted rounded-full h-2">
+                                  <div 
+                                    className="bg-orange-600 h-2 rounded-full transition-all duration-300"
+                                    style={{ width: `${task.progress || 0}%` }}
+                                  />
+                                </div>
+                                <span className="text-xs text-muted-foreground min-w-[3rem]">
+                                  {task.progress || 0}%
+                                </span>
+                              </div>
+                            </div>
+                            <div className="col-span-1">
+                              <Badge variant="outline" className="text-xs">
+                                중간
                               </Badge>
                             </div>
                           </div>
