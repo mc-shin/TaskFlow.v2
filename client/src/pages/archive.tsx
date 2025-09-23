@@ -186,7 +186,7 @@ export default function Archive() {
               {archivedProjects.map((project) => (
                 <div key={project.id}>
                   {/* Project Row */}
-                  <div className="p-3 hover:bg-muted/50 transition-colors">
+                  <div className={`p-3 hover:bg-muted/50 transition-colors ${project.status === '완료' ? 'opacity-50' : ''}`}>
                     <div className="grid grid-cols-12 gap-4 items-center">
                       <div className="col-span-4 flex items-center gap-2">
                         <Button
@@ -213,20 +213,29 @@ export default function Archive() {
                           {project.code}
                         </Badge>
                       </div>
-                      <div className="col-span-1 text-sm">
-                        {formatDate(project.deadline)}
+                      <div className="col-span-1">
+                        <div className="cursor-default px-1 py-1 rounded text-sm" data-testid={`text-project-deadline-${project.id}`}>
+                          {formatDate(project.deadline)}
+                        </div>
                       </div>
-                      <div className="col-span-1 flex items-center gap-2">
-                        {project.owners && project.owners.length > 0 && (
-                          <>
-                            <Avatar className="h-6 w-6">
-                              <AvatarFallback className="text-xs bg-blue-600 text-white">
-                                {project.owners[0].initials}
-                              </AvatarFallback>
-                            </Avatar>
-                            <span className="text-sm">{project.owners[0].name}</span>
-                          </>
-                        )}
+                      <div className="col-span-1">
+                        <div className="flex items-center gap-2">
+                          {project.owners && project.owners.length > 0 ? (
+                            <>
+                              <Avatar className="h-6 w-6">
+                                <AvatarFallback className="text-xs bg-blue-600 text-white">
+                                  {project.owners[0].initials}
+                                </AvatarFallback>
+                              </Avatar>
+                              <span className="text-sm">{project.owners[0].name}</span>
+                              {project.owners.length > 1 && (
+                                <span className="text-xs text-muted-foreground">+{project.owners.length - 1}</span>
+                              )}
+                            </>
+                          ) : (
+                            <span className="text-muted-foreground text-xs">-</span>
+                          )}
+                        </div>
                       </div>
                       <div className="col-span-2">
                         <div className="flex gap-1">
@@ -245,12 +254,13 @@ export default function Archive() {
                         <Badge 
                           variant={project.status === '완료' ? 'default' : 'secondary'}
                           className="text-xs"
+                          data-testid={`status-${project.id}`}
                         >
                           {project.status}
                         </Badge>
                       </div>
                       <div className="col-span-2">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 px-1 py-1">
                           <div className="w-full bg-muted rounded-full h-2">
                             <div 
                               className="bg-blue-600 h-2 rounded-full transition-all duration-300"
@@ -263,170 +273,193 @@ export default function Archive() {
                         </div>
                       </div>
                       <div className="col-span-1">
-                        <Badge variant="outline" className="text-xs">
-                          중간
-                        </Badge>
+                        <span className="text-muted-foreground text-xs">-</span>
                       </div>
                     </div>
                   </div>
 
-                  {/* Expanded Goals */}
-                  {expandedProjects.has(project.id) && project.goals?.map((goal) => (
-                    <div key={goal.id}>
-                      <div className="p-3 hover:bg-muted/50 transition-colors border-l-2 border-blue-200 ml-4">
-                        <div className="grid grid-cols-12 gap-4 items-center">
-                          <div className="col-span-4 flex items-center gap-2 ml-8">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-6 w-6 p-0"
-                              onClick={() => toggleGoal(goal.id)}
-                            >
-                              {expandedGoals.has(goal.id) ? (
-                                <ChevronDown className="w-4 h-4" />
-                              ) : (
-                                <ChevronRight className="w-4 h-4" />
-                              )}
-                            </Button>
-                            <Target className="w-4 h-4 text-green-600" />
-                            <button 
-                              className="font-medium hover:text-blue-600 cursor-pointer transition-colors text-left" 
-                              onClick={() => setLocation(`/detail/goal/${goal.id}`)}
-                              data-testid={`text-goal-name-${goal.id}`}
-                            >
-                              {goal.title}
-                            </button>
-                          </div>
-                          <div className="col-span-1 text-sm">
-                            {formatDate(goal.deadline)}
-                          </div>
-                          <div className="col-span-1 flex items-center gap-2">
-                            {goal.assignees && goal.assignees.length > 0 && (
-                              <>
-                                <Avatar className="h-6 w-6">
-                                  <AvatarFallback className="text-xs bg-green-600 text-white">
-                                    {goal.assignees[0].initials}
-                                  </AvatarFallback>
-                                </Avatar>
-                                <span className="text-sm">{goal.assignees[0].name}</span>
-                              </>
-                            )}
-                          </div>
-                          <div className="col-span-2">
-                            <div className="flex gap-1">
-                              {goal.labels && goal.labels.length > 0 ? (
-                                goal.labels.map((label, index) => (
-                                  <Badge key={index} variant="secondary" className="text-xs">
-                                    {label}
-                                  </Badge>
-                                ))
-                              ) : (
-                                <span className="text-muted-foreground text-xs">-</span>
-                              )}
-                            </div>
-                          </div>
-                          <div className="col-span-1">
-                            <Badge 
-                              variant={goal.status === '완료' ? 'default' : 'secondary'}
-                              className="text-xs"
-                            >
-                              {goal.status}
-                            </Badge>
-                          </div>
-                          <div className="col-span-2">
-                            <div className="flex items-center gap-2">
-                              <div className="w-full bg-muted rounded-full h-2">
-                                <div 
-                                  className="bg-green-600 h-2 rounded-full transition-all duration-300"
-                                  style={{ width: `${goal.progressPercentage || 0}%` }}
-                                />
+                  {/* Goals */}
+                  {expandedProjects.has(project.id) && project.goals && (
+                    <div className="bg-muted/20">
+                      {project.goals.map((goal) => (
+                        <div key={goal.id}>
+                          {/* Goal Row */}
+                          <div className={`p-3 hover:bg-muted/50 transition-colors ${project.status === '완료' || goal.status === '완료' ? 'opacity-50' : ''}`}>
+                            <div className="grid grid-cols-12 gap-4 items-center">
+                              <div className="col-span-4 flex items-center gap-2 ml-8">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-6 w-6 p-0"
+                                  onClick={() => toggleGoal(goal.id)}
+                                >
+                                  {expandedGoals.has(goal.id) ? (
+                                    <ChevronDown className="w-4 h-4" />
+                                  ) : (
+                                    <ChevronRight className="w-4 h-4" />
+                                  )}
+                                </Button>
+                                <Target className="w-4 h-4 text-green-600" />
+                                <button 
+                                  className="font-medium hover:text-green-600 cursor-pointer transition-colors text-left" 
+                                  onClick={() => setLocation(`/detail/goal/${goal.id}`)}
+                                  data-testid={`text-goal-name-${goal.id}`}
+                                >
+                                  {goal.title}
+                                </button>
                               </div>
-                              <span className="text-xs text-muted-foreground min-w-[3rem]">
-                                {goal.progressPercentage || 0}%
-                              </span>
-                            </div>
-                          </div>
-                          <div className="col-span-1">
-                            <Badge variant="outline" className="text-xs">
-                              중간
-                            </Badge>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Expanded Tasks */}
-                      {expandedGoals.has(goal.id) && goal.tasks?.map((task) => (
-                        <div key={task.id} className="p-3 hover:bg-muted/50 transition-colors border-l-2 border-orange-200 ml-8">
-                          <div className="grid grid-cols-12 gap-4 items-center">
-                            <div className="col-span-4 flex items-center gap-2 ml-16">
-                              <Circle className="w-4 h-4 text-orange-600" />
-                              <button 
-                                className="font-medium hover:text-blue-600 cursor-pointer transition-colors text-left" 
-                                onClick={() => setLocation(`/detail/task/${task.id}`)}
-                                data-testid={`text-task-name-${task.id}`}
-                              >
-                                {task.title}
-                              </button>
-                            </div>
-                            <div className="col-span-1 text-sm">
-                              {formatDate(task.deadline)}
-                            </div>
-                            <div className="col-span-1 flex items-center gap-2">
-                              {task.assignees && task.assignees.length > 0 && (
-                                <>
-                                  <Avatar className="h-6 w-6">
-                                    <AvatarFallback className="text-xs bg-orange-600 text-white">
-                                      {task.assignees[0].initials}
-                                    </AvatarFallback>
-                                  </Avatar>
-                                  <span className="text-sm">{task.assignees[0].name}</span>
-                                </>
-                              )}
-                            </div>
-                            <div className="col-span-2">
-                              <div className="flex gap-1">
-                                {task.labels && task.labels.length > 0 ? (
-                                  task.labels.map((label, index) => (
-                                    <Badge key={index} variant="secondary" className="text-xs">
-                                      {label}
-                                    </Badge>
-                                  ))
-                                ) : (
-                                  <span className="text-muted-foreground text-xs">-</span>
-                                )}
-                              </div>
-                            </div>
-                            <div className="col-span-1">
-                              <Badge 
-                                variant={task.status === '완료' ? 'default' : 'secondary'}
-                                className="text-xs"
-                              >
-                                {task.status}
-                              </Badge>
-                            </div>
-                            <div className="col-span-2">
-                              <div className="flex items-center gap-2">
-                                <div className="w-full bg-muted rounded-full h-2">
-                                  <div 
-                                    className="bg-orange-600 h-2 rounded-full transition-all duration-300"
-                                    style={{ width: `${task.progress || 0}%` }}
-                                  />
+                              <div className="col-span-1">
+                                <div className="cursor-default px-1 py-1 rounded text-sm" data-testid={`text-goal-deadline-${goal.id}`}>
+                                  {formatDate(goal.deadline)}
                                 </div>
-                                <span className="text-xs text-muted-foreground min-w-[3rem]">
-                                  {task.progress || 0}%
-                                </span>
+                              </div>
+                              <div className="col-span-1">
+                                <div className="flex items-center gap-2">
+                                  {goal.assignees && goal.assignees.length > 0 ? (
+                                    <>
+                                      <Avatar className="h-6 w-6">
+                                        <AvatarFallback className="text-xs bg-green-600 text-white">
+                                          {goal.assignees[0].initials}
+                                        </AvatarFallback>
+                                      </Avatar>
+                                      <span className="text-sm">{goal.assignees[0].name}</span>
+                                      {goal.assignees.length > 1 && (
+                                        <span className="text-xs text-muted-foreground">+{goal.assignees.length - 1}</span>
+                                      )}
+                                    </>
+                                  ) : (
+                                    <span className="text-muted-foreground text-xs">-</span>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="col-span-2">
+                                <div className="flex gap-1">
+                                  {goal.labels && goal.labels.length > 0 ? (
+                                    goal.labels.map((label, index) => (
+                                      <Badge key={index} variant="secondary" className="text-xs">
+                                        {label}
+                                      </Badge>
+                                    ))
+                                  ) : (
+                                    <span className="text-muted-foreground text-xs">-</span>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="col-span-1">
+                                <Badge 
+                                  variant={goal.status === '완료' ? 'default' : 'secondary'}
+                                  className="text-xs"
+                                  data-testid={`status-${goal.id}`}
+                                >
+                                  {goal.status || '진행전'}
+                                </Badge>
+                              </div>
+                              <div className="col-span-2">
+                                <div className="flex items-center gap-2 px-1 py-1">
+                                  <div className="w-full bg-muted rounded-full h-2">
+                                    <div 
+                                      className="bg-green-600 h-2 rounded-full transition-all duration-300"
+                                      style={{ width: `${goal.progressPercentage || 0}%` }}
+                                    />
+                                  </div>
+                                  <span className="text-xs text-muted-foreground min-w-[3rem]">
+                                    {goal.progressPercentage || 0}%
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="col-span-1">
+                                <span className="text-muted-foreground text-xs">-</span>
                               </div>
                             </div>
-                            <div className="col-span-1">
-                              <Badge variant="outline" className="text-xs">
-                                중간
-                              </Badge>
-                            </div>
                           </div>
+
+                          {/* Tasks */}
+                          {expandedGoals.has(goal.id) && goal.tasks && (
+                            <div className="bg-muted/30">
+                              {goal.tasks.map((task) => (
+                                <div key={task.id} className={`p-3 hover:bg-muted/50 transition-colors ${project.status === '완료' || goal.status === '완료' || task.status === '완료' ? 'opacity-50' : ''}`}>
+                                  <div className="grid grid-cols-12 gap-4 items-center">
+                                    <div className="col-span-4 flex items-center gap-2 ml-16">
+                                      <Circle className="w-4 h-4 text-orange-600" />
+                                      <button 
+                                        className="font-medium hover:text-orange-600 cursor-pointer transition-colors text-left" 
+                                        onClick={() => setLocation(`/detail/task/${task.id}`)}
+                                        data-testid={`text-task-name-${task.id}`}
+                                      >
+                                        {task.title}
+                                      </button>
+                                    </div>
+                                    <div className="col-span-1">
+                                      <div className="cursor-default px-1 py-1 rounded text-sm" data-testid={`text-task-deadline-${task.id}`}>
+                                        {formatDate(task.deadline)}
+                                      </div>
+                                    </div>
+                                    <div className="col-span-1">
+                                      <div className="flex items-center gap-2">
+                                        {task.assignees && task.assignees.length > 0 ? (
+                                          <>
+                                            <Avatar className="h-6 w-6">
+                                              <AvatarFallback className="text-xs bg-orange-600 text-white">
+                                                {task.assignees[0].initials}
+                                              </AvatarFallback>
+                                            </Avatar>
+                                            <span className="text-sm">{task.assignees[0].name}</span>
+                                            {task.assignees.length > 1 && (
+                                              <span className="text-xs text-muted-foreground">+{task.assignees.length - 1}</span>
+                                            )}
+                                          </>
+                                        ) : (
+                                          <span className="text-muted-foreground text-xs">-</span>
+                                        )}
+                                      </div>
+                                    </div>
+                                    <div className="col-span-2">
+                                      <div className="flex gap-1">
+                                        {task.labels && task.labels.length > 0 ? (
+                                          task.labels.map((label, index) => (
+                                            <Badge key={index} variant="secondary" className="text-xs">
+                                              {label}
+                                            </Badge>
+                                          ))
+                                        ) : (
+                                          <span className="text-muted-foreground text-xs">-</span>
+                                        )}
+                                      </div>
+                                    </div>
+                                    <div className="col-span-1">
+                                      <Badge 
+                                        variant={task.status === '완료' ? 'default' : 'secondary'}
+                                        className="text-xs"
+                                        data-testid={`status-${task.id}`}
+                                      >
+                                        {task.status}
+                                      </Badge>
+                                    </div>
+                                    <div className="col-span-2">
+                                      <div className="flex items-center gap-2 px-1 py-1">
+                                        <div className="w-full bg-muted rounded-full h-2">
+                                          <div 
+                                            className="bg-orange-600 h-2 rounded-full transition-all duration-300"
+                                            style={{ width: `${task.progress || 0}%` }}
+                                          />
+                                        </div>
+                                        <span className="text-xs text-muted-foreground min-w-[3rem]">
+                                          {task.progress || 0}%
+                                        </span>
+                                      </div>
+                                    </div>
+                                    <div className="col-span-1">
+                                      <span className="text-muted-foreground text-xs">-</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
-                  ))}
+                  )}
                 </div>
               ))}
             </div>

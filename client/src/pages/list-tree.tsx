@@ -40,17 +40,14 @@ export default function ListTree() {
   const activeProjects = (projects as ProjectWithDetails[])?.filter(project => {
     return !archivedItems.includes(project.id); // Exclude archived projects
   }).map(project => {
-    // Filter out archived goals and tasks
+    // Filter out archived goals and tasks (without mutating original data)
     const activeGoals = project.goals?.filter(goal => {
       const isGoalArchived = archivedItems.includes(goal.id);
-      if (isGoalArchived) return false;
-      
-      // Filter out archived tasks from goals
-      if (goal.tasks) {
-        goal.tasks = goal.tasks.filter(task => !archivedItems.includes(task.id));
-      }
-      return true;
-    });
+      return !isGoalArchived;
+    }).map(goal => ({
+      ...goal,
+      tasks: goal.tasks?.filter(task => !archivedItems.includes(task.id)) || []
+    }));
     
     return {
       ...project,
@@ -1533,7 +1530,7 @@ export default function ListTree() {
                       {project.goals.map((goal) => (
                         <div key={goal.id}>
                           {/* Goal Row */}
-                          <div className={`p-3 hover:bg-muted/50 transition-colors ${project.status === '완료' ? 'opacity-50' : ''}`}>
+                          <div className={`p-3 hover:bg-muted/50 transition-colors ${project.status === '완료' || goal.status === '완료' ? 'opacity-50' : ''}`}>
                             <div className="grid grid-cols-12 gap-4 items-center">
                               <div className="col-span-4 flex items-center gap-2 ml-8">
                                 <Checkbox
@@ -1600,7 +1597,7 @@ export default function ListTree() {
                           {expandedGoals.has(goal.id) && goal.tasks && (
                             <div className="bg-muted/30">
                               {goal.tasks.map((task) => (
-                                <div key={task.id} className={`p-3 hover:bg-muted/50 transition-colors ${project.status === '완료' ? 'opacity-50' : ''}`}>
+                                <div key={task.id} className={`p-3 hover:bg-muted/50 transition-colors ${project.status === '완료' || goal.status === '완료' || task.status === '완료' ? 'opacity-50' : ''}`}>
                                   <div className="grid grid-cols-12 gap-4 items-center">
                                     <div className="col-span-4 flex items-center gap-2 ml-16">
                                       <Checkbox
@@ -1793,7 +1790,7 @@ export default function ListTree() {
             {/* Existing Members */}
             <div className="space-y-3">
               <h4 className="text-sm font-medium text-slate-300">하이더의 멤버</h4>
-              <div className="space-y-2 overflow-y-auto" style={{minHeight: '340px', maxHeight: '340px'}}>
+              <div className="space-y-2 overflow-y-auto relative" style={{minHeight: '340px', maxHeight: '340px'}}>
                 {(() => {
                   const allUsers = Array.isArray(users) ? users as SafeUser[] : [];
                   const filteredUsers = allUsers.filter(user => !deletedMemberIds.has(user.id));
@@ -1836,7 +1833,7 @@ export default function ListTree() {
                         );
                       })}
                       {filteredUsers.length === 0 && (
-                        <div className="h-full flex items-center justify-center text-slate-400 text-sm">
+                        <div className="absolute inset-0 flex items-center justify-center text-slate-400 text-sm">
                           멤버가 없습니다.
                         </div>
                       )}
