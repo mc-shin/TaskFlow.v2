@@ -1688,7 +1688,7 @@ export default function ListTree() {
                     setInviteEmail(e.target.value);
                     if (emailError) setEmailError('');
                   }}
-                  className={`flex-1 bg-slate-700 border-slate-600 text-white placeholder:text-slate-400 ${emailError ? 'border-red-500' : ''}`}
+                  className={`w-[300px] bg-slate-700 border-slate-600 text-white placeholder:text-slate-400 ${emailError ? 'border-red-500' : ''}`}
                   data-testid="input-invite-email"
                 />
                 <Select value={inviteRole} onValueChange={setInviteRole}>
@@ -1744,9 +1744,25 @@ export default function ListTree() {
                       </Avatar>
                       <span className="text-sm font-medium text-white">{user.name}</span>
                     </div>
-                    <Badge variant="outline" className="text-xs border-slate-600 text-slate-300">
-                      {index === 0 ? '관리자' : '팀원'}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="text-xs border-slate-600 text-slate-300">
+                        {index === 0 ? '관리자' : '팀원'}
+                      </Badge>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0 text-slate-400 hover:text-red-400 hover:bg-slate-600"
+                        onClick={() => {
+                          toast({
+                            title: "멤버 삭제",
+                            description: `${user.name}님을 워크스페이스에서 제거했습니다.`,
+                          });
+                        }}
+                        data-testid={`button-delete-member-${user.id}`}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 ))}
               </div>
