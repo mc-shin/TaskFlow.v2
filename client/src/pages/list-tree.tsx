@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ChevronDown, ChevronRight, FolderOpen, Target, Circle, Plus, Calendar, User, BarChart3, Check, X, Tag, Mail, UserPlus, Trash2, Archive } from "lucide-react";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import type { SafeTaskWithAssignees, ProjectWithDetails, GoalWithTasks, SafeUser } from "@shared/schema";
@@ -26,19 +26,15 @@ export default function ListTree() {
     queryKey: ["/api/projects"],
   });
 
-  // State for forcing re-evaluation of archived items
-  const [archiveVersion, setArchiveVersion] = useState(0);
-
   // Get archived items from localStorage and filter out archived projects
-  // Re-evaluate when archiveVersion changes to react to localStorage updates
-  const archivedItems = useMemo(() => {
+  const archivedItems = (() => {
     try {
       const stored = localStorage.getItem('archivedItems');
       return stored ? JSON.parse(stored) : [];
     } catch {
       return [];
     }
-  }, [archiveVersion]);
+  })();
 
   // Filter projects to exclude archived ones
   const activeProjects = (projects as ProjectWithDetails[])?.filter(project => {
@@ -53,13 +49,9 @@ export default function ListTree() {
       tasks: goal.tasks?.filter(task => !archivedItems.includes(task.id)) || []
     }));
     
-    // Filter out archived direct project tasks
-    const activeTasks = project.tasks?.filter(task => !archivedItems.includes(task.id)) || [];
-    
     return {
       ...project,
-      goals: activeGoals || [],
-      tasks: activeTasks
+      goals: activeGoals || []
     };
   }) || [];
 
@@ -337,12 +329,6 @@ export default function ListTree() {
                 childIds.push(task.id);
               });
             }
-          });
-        }
-        // Also include direct project tasks
-        if (project?.tasks) {
-          project.tasks.forEach(task => {
-            childIds.push(task.id);
           });
         }
       } else if (parentType === 'goal') {
@@ -1344,51 +1330,7 @@ export default function ListTree() {
           <Button 
             variant="default"
             className="bg-purple-600 hover:bg-purple-700 text-white"
-            onClick={() => {
-              // Store current list context for archive page
-              // Include items from the current active list view plus any currently archived items
-              // This ensures only items visible in the current list context are shown in archive
-              const currentArchivedItems = (() => {
-                try {
-                  const stored = localStorage.getItem('archivedItems');
-                  return stored ? JSON.parse(stored) : [];
-                } catch {
-                  return [];
-                }
-              })();
-              
-              const currentListContext = {
-                timestamp: Date.now(),
-                visibleProjectIds: [
-                  ...activeProjects?.map(p => p.id) || [],
-                  ...currentArchivedItems.filter((id: string) => 
-                    (projects as ProjectWithDetails[])?.some(p => p.id === id)
-                  )
-                ],
-                visibleGoalIds: [
-                  ...activeProjects?.flatMap(p => p.goals?.map(g => g.id) || []) || [],
-                  ...currentArchivedItems.filter((id: string) => 
-                    (projects as ProjectWithDetails[])?.some(p => 
-                      p.goals?.some(g => g.id === id)
-                    )
-                  )
-                ],
-                visibleTaskIds: [
-                  ...activeProjects?.flatMap(p => [
-                    ...(p.tasks?.map(t => t.id) || []),
-                    ...(p.goals?.flatMap(g => g.tasks?.map(t => t.id) || []) || [])
-                  ]) || [],
-                  ...currentArchivedItems.filter((id: string) => 
-                    (projects as ProjectWithDetails[])?.some(p => 
-                      (p.tasks?.some(t => t.id === id)) ||
-                      (p.goals?.some(g => g.tasks?.some(t => t.id === id)))
-                    )
-                  )
-                ]
-              };
-              sessionStorage.setItem('listContext', JSON.stringify(currentListContext));
-              setLocation('/archive');
-            }}
+            onClick={() => setLocation('/archive')}
             data-testid="button-archive-page"
           >
             <Archive className="w-4 h-4 mr-2" />
@@ -1737,37 +1679,22 @@ export default function ListTree() {
               size="sm"
               className="bg-blue-600 hover:bg-blue-700 text-sm"
               onClick={() => {
-                // Get existing archived items from localStorage with error handling
+                // Get existing archived items from localStorage
                 const existingArchived = localStorage.getItem('archivedItems');
-                let archivedItems: string[] = [];
-                try {
-                  archivedItems = existingArchived ? JSON.parse(existingArchived) : [];
-                } catch {
-                  archivedItems = [];
-                }
+                const archivedItems = existingArchived ? JSON.parse(existingArchived) : [];
                 
-                // Add selected items to archived list (only if not already archived)
-                const newItems = Array.from(selectedItems).filter(id => !archivedItems.includes(id));
+                // Add selected items to archived list
+                const newArchivedItems = [...archivedItems, ...Array.from(selectedItems)];
+                localStorage.setItem('archivedItems', JSON.stringify(newArchivedItems));
                 
-                if (newItems.length > 0) {
-                  // Remove any existing duplicates and add new items
-                  const normalizedItems = Array.from(new Set([...archivedItems, ...newItems]));
-                  localStorage.setItem('archivedItems', JSON.stringify(normalizedItems));
-                  
-                  // Force re-evaluation of archived items
-                  setArchiveVersion(prev => prev + 1);
-                  
-                  toast({
-                    title: "보관 완료",
-                    description: `${newItems.length}개 항목이 보관함으로 이동되었습니다.`,
-                  });
-                } else {
-                  toast({
-                    title: "보관 정보",
-                    description: "선택된 항목이 이미 보관함에 있습니다.",
-                  });
-                }
+                toast({
+                  title: "보관 완료",
+                  description: `${selectedItems.size}개 항목이 보관함으로 이동되었습니다.`,
+                });
                 clearSelection();
+                setTimeout(() => {
+                  setLocation('/archive');
+                }, 1000);
               }}
               data-testid="button-archive"
             >
