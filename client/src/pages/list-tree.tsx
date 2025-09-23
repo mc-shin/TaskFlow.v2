@@ -100,6 +100,9 @@ export default function ListTree() {
   // Inline editing state
   const [editingField, setEditingField] = useState<{ itemId: string; field: string; type: 'project' | 'goal' | 'task' } | null>(null);
   const [editingValue, setEditingValue] = useState<string>('');
+  
+  // Local state to track completed items
+  const [completedItems, setCompletedItems] = useState<Set<string>>(new Set());
 
   // Get users for assignee dropdown
   const { data: users } = useQuery({
@@ -961,9 +964,87 @@ export default function ListTree() {
   };
 
   const renderEditableStatus = (itemId: string, type: 'project' | 'goal' | 'task', status: string, progress?: number) => {
-    // Status is now read-only and derived from progress if progress is provided
-    const displayStatus = progress !== undefined ? getStatusFromProgress(progress) : status;
+    // Check if this item was marked as completed locally
+    const isLocallyCompleted = completedItems.has(itemId);
     
+    // For status display, prioritize local completion, then actual status if it's "완료", otherwise derive from progress
+    const displayStatus = isLocallyCompleted || status === '완료' ? '완료' : (progress !== undefined ? getStatusFromProgress(progress) : status);
+    
+    // For projects and goals, make status clickable to complete
+    if (type === 'project' || type === 'goal') {
+      const handleCompleteClick = async () => {
+        if (displayStatus === '완료' || isLocallyCompleted) {
+          return; // Already completed
+        }
+        
+        try {
+          // Immediately mark as completed locally
+          setCompletedItems(prev => new Set(Array.from(prev).concat(itemId)));
+          
+          if (type === 'project') {
+            await updateProjectMutation.mutateAsync({ 
+              id: itemId, 
+              updates: { 
+                status: '완료',
+                // For projects, we can't set progress directly since it's calculated from goals/tasks
+                // but setting status should be enough
+              } 
+            });
+            
+            // Force refresh the data to ensure UI updates
+            await queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+            
+            toast({
+              title: "프로젝트 완료",
+              description: "프로젝트가 완료 상태로 변경되었습니다.",
+            });
+          } else if (type === 'goal') {
+            await updateGoalMutation.mutateAsync({ 
+              id: itemId, 
+              updates: { 
+                status: '완료',
+                // For goals, we can't set progress directly since it's calculated from tasks
+                // but setting status should be enough
+              } 
+            });
+            
+            // Force refresh the data to ensure UI updates
+            await queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+            
+            toast({
+              title: "목표 완료",
+              description: "목표가 완료 상태로 변경되었습니다.",
+            });
+          }
+        } catch (error) {
+          console.error('Status update failed:', error);
+          // Remove from completed items if the update failed
+          setCompletedItems(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(itemId);
+            return newSet;
+          });
+          toast({
+            title: "상태 변경 실패",
+            description: "상태 변경 중 오류가 발생했습니다.",
+            variant: "destructive",
+          });
+        }
+      };
+
+      return (
+        <Badge 
+          variant={getStatusBadgeVariant(displayStatus)} 
+          className={`text-xs ${displayStatus !== '완료' ? 'cursor-pointer hover:opacity-80' : 'cursor-default'}`}
+          onClick={displayStatus !== '완료' ? handleCompleteClick : undefined}
+          data-testid={`status-${itemId}`}
+        >
+          {displayStatus === '완료' ? displayStatus : '완료'}
+        </Badge>
+      );
+    }
+    
+    // For tasks, keep original read-only behavior
     return (
       <Badge 
         variant={getStatusBadgeVariant(displayStatus)} 
