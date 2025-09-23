@@ -15,6 +15,7 @@ import { z } from "zod";
 
 const taskFormSchema = insertTaskSchema.extend({
   deadline: z.string().optional(),
+  progress: z.number().optional(),
   // For backward compatibility with single assignee field
   assigneeId: z.string().optional(),
 });
@@ -46,6 +47,7 @@ export function TaskModal({ isOpen, onClose, editingTask, goalId, goalTitle }: T
       priority: "중간",
       deadline: "",
       duration: 0,
+      progress: 0,
       assigneeIds: [],
       assigneeId: "none",
       goalId: goalId || "",
@@ -62,6 +64,7 @@ export function TaskModal({ isOpen, onClose, editingTask, goalId, goalTitle }: T
         priority: editingTask.priority || "중간",
         deadline: editingTask.deadline || "",
         duration: editingTask.duration || 0,
+        progress: editingTask.progress || 0,
         assigneeIds: editingTask.assigneeIds || [],
         assigneeId: (editingTask.assigneeIds && editingTask.assigneeIds.length > 0) ? editingTask.assigneeIds[0] : "none",
       });
@@ -73,6 +76,7 @@ export function TaskModal({ isOpen, onClose, editingTask, goalId, goalTitle }: T
         priority: "중간",
         deadline: "",
         duration: 0,
+        progress: 0,
         assigneeIds: [],
         assigneeId: "none",
       });
@@ -112,11 +116,17 @@ export function TaskModal({ isOpen, onClose, editingTask, goalId, goalTitle }: T
 
   const updateTaskMutation = useMutation({
     mutationFn: async (data: TaskFormData) => {
-      const response = await apiRequest("PUT", `/api/tasks/${editingTask?.id}`, data);
+      const taskData = {
+        ...data,
+        assigneeIds: data.assigneeId === "none" ? [] : [data.assigneeId],
+      };
+      const response = await apiRequest("PUT", `/api/tasks/${editingTask?.id}`, taskData);
       return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/goals"] });
       queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
       queryClient.invalidateQueries({ queryKey: ["/api/activities"] });
       toast({
@@ -214,23 +224,57 @@ export function TaskModal({ isOpen, onClose, editingTask, goalId, goalTitle }: T
               
               <FormField
                 control={form.control}
-                name="status"
+                name="progress"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>상태</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value || ""}>
+                    <FormLabel>진행도</FormLabel>
+                    <Select 
+                      value={field.value?.toString() || "0"}
+                      onValueChange={(value) => {
+                        const progressValue = parseInt(value);
+                        let finalStatus: string;
+                        
+                        if (progressValue === 0) {
+                          finalStatus = '진행전';
+                        } else if (progressValue === 100) {
+                          finalStatus = '완료';
+                        } else {
+                          finalStatus = '진행중';
+                        }
+                        
+                        field.onChange(progressValue);
+                        form.setValue('status', finalStatus);
+                      }}
+                    >
                       <FormControl>
-                        <SelectTrigger data-testid="select-task-status">
-                          <SelectValue placeholder="상태를 선택하세요" />
+                        <SelectTrigger data-testid="select-task-progress">
+                          <SelectValue />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="진행전">진행전</SelectItem>
-                        <SelectItem value="진행중">진행중</SelectItem>
-                        <SelectItem value="완료">완료</SelectItem>
+                        {Array.from({ length: 11 }, (_, i) => i * 10).map((option) => (
+                          <SelectItem key={option} value={option.toString()}>
+                            {option}%
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                     <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            
+            <div className="grid grid-cols-1 gap-4">
+              <FormField
+                control={form.control}
+                name="status"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>상태 (진행도에 따라 자동 설정)</FormLabel>
+                    <div className="mt-1 p-2 bg-muted rounded text-sm">
+                      {field.value || '진행전'}
+                    </div>
                   </FormItem>
                 )}
               />

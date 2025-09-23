@@ -497,27 +497,11 @@ export default function TaskDetail() {
 
                 <div>
                   <label className="text-sm font-medium text-muted-foreground">상태</label>
-                  {isEditing ? (
-                    <Select
-                      value={editedTask.status ?? task.status}
-                      onValueChange={(value) => setEditedTask(prev => ({ ...prev, status: value }))}
-                    >
-                      <SelectTrigger className="mt-1 h-10" data-testid="select-task-status">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="진행전">진행전</SelectItem>
-                        <SelectItem value="진행중">진행중</SelectItem>
-                        <SelectItem value="완료">완료</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <p className="mt-1" data-testid="text-task-status">
-                      <Badge variant={getStatusBadgeVariant(task.status)}>
-                        {task.status}
-                      </Badge>
-                    </p>
-                  )}
+                  <p className="mt-1" data-testid="text-task-status">
+                    <Badge variant={getStatusBadgeVariant(task.status)}>
+                      {task.status}
+                    </Badge>
+                  </p>
                 </div>
 
                 <div>
@@ -682,21 +666,69 @@ export default function TaskDetail() {
                 <CardTitle>진행도</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-2xl font-bold" data-testid="text-progress-percentage">
-                      {task.progress ?? 0}%
-                    </span>
+                {isEditing ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-lg font-medium">진행도 설정</span>
+                    </div>
+                    <Select 
+                      value={(editedTask.progress ?? task.progress ?? 0).toString()}
+                      onValueChange={(value) => {
+                        const progressValue = parseInt(value);
+                        let finalStatus: string;
+                        
+                        if (progressValue === 0) {
+                          finalStatus = '진행전';
+                        } else if (progressValue === 100) {
+                          finalStatus = '완료';
+                        } else {
+                          finalStatus = '진행중';
+                        }
+                        
+                        setEditedTask(prev => ({ 
+                          ...prev, 
+                          progress: progressValue, 
+                          status: finalStatus 
+                        }));
+                      }}
+                    >
+                      <SelectTrigger className="h-10" data-testid="select-task-progress">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Array.from({ length: 11 }, (_, i) => i * 10).map((option) => (
+                          <SelectItem key={option} value={option.toString()}>
+                            {option}%
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Progress 
+                      value={editedTask.progress ?? task.progress ?? 0} 
+                      className="h-3"
+                      data-testid="progress-bar-edit"
+                    />
+                    <div className="text-sm text-muted-foreground">
+                      진행도에 따라 상태가 자동으로 설정됩니다
+                    </div>
                   </div>
-                  <Progress 
-                    value={task.progress ?? 0} 
-                    className="h-3"
-                    data-testid="progress-bar"
-                  />
-                  <div className="text-sm text-muted-foreground">
-                    현재 작업 상태: {task.status}
+                ) : (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-2xl font-bold" data-testid="text-progress-percentage">
+                        {task.progress ?? 0}%
+                      </span>
+                    </div>
+                    <Progress 
+                      value={task.progress ?? 0} 
+                      className="h-3"
+                      data-testid="progress-bar"
+                    />
+                    <div className="text-sm text-muted-foreground">
+                      현재 작업 상태: {task.status}
+                    </div>
                   </div>
-                </div>
+                )}
               </CardContent>
             </Card>
 
