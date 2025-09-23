@@ -310,10 +310,19 @@ export default function Archive() {
     const archivedGoals = project.goals?.filter(goal => 
       archivedItems.includes(goal.id) || 
       (goal.tasks && goal.tasks.some(task => archivedItems.includes(task.id)))
-    ).map(goal => ({
-      ...goal,
-      tasks: goal.tasks?.filter(task => archivedItems.includes(task.id)) || []
-    })) || [];
+    ).map(goal => {
+      const isGoalArchived = archivedItems.includes(goal.id);
+      if (isGoalArchived) {
+        // If goal itself is archived, show all its tasks
+        return goal;
+      } else {
+        // If only some tasks are archived, show only archived tasks
+        return {
+          ...goal,
+          tasks: goal.tasks?.filter(task => archivedItems.includes(task.id)) || []
+        };
+      }
+    }) || [];
     
     // Include archived direct project tasks
     const archivedProjectTasks = project.tasks?.filter(task => archivedItems.includes(task.id)) || [];
@@ -539,89 +548,6 @@ export default function Archive() {
                     </div>
                   </div>
 
-                  {/* Direct Project Tasks */}
-                  {expandedProjects.has(project.id) && project.tasks && project.tasks.length > 0 && (
-                    <div className="bg-muted/20">
-                      {project.tasks.map((task) => (
-                        <div key={task.id} className={`p-3 hover:bg-muted/50 transition-colors ${project.status === '완료' || task.status === '완료' ? 'opacity-50' : ''}`}>
-                          <div className="grid grid-cols-12 gap-4 items-center">
-                            <div className="col-span-4 flex items-center gap-2 ml-8">
-                              <Checkbox
-                                checked={isItemChecked(task.id)}
-                                onCheckedChange={() => toggleItemSelection(task.id)}
-                                data-testid={`checkbox-task-${task.id}`}
-                              />
-                              <Circle className="w-4 h-4 text-orange-600" />
-                              <button 
-                                className="font-medium hover:text-orange-600 cursor-pointer transition-colors text-left" 
-                                onClick={() => setLocation(`/detail/task/${task.id}`)}
-                                data-testid={`text-task-name-${task.id}`}
-                              >
-                                {task.title}
-                              </button>
-                            </div>
-                            <div className="col-span-1">
-                              <div 
-                                className="cursor-default hover:bg-muted/20 px-1 py-1 rounded text-sm"
-                                data-testid={`text-task-deadline-${task.id}`}
-                              >
-                                <span className={getDDayColorClass(task.deadline)}>
-                                  {formatDeadline(task.deadline)}
-                                </span>
-                              </div>
-                            </div>
-                            <div className="col-span-1">
-                              <div 
-                                className="cursor-default hover:bg-muted/20 px-1 py-1 rounded w-28 min-w-[7rem] max-w-[7rem] h-8 flex items-center overflow-hidden"
-                                data-testid={`edit-assignee-${task.id}`}
-                              >
-                                {task.assignees && task.assignees.length > 0 ? (
-                                  <div className="flex items-center gap-1 truncate">
-                                    {task.assignees.slice(0, 4).map((assignee, index) => (
-                                      <Avatar key={assignee.id} className="w-6 h-6 flex-shrink-0" style={{ zIndex: task.assignees!.length - index }}>
-                                        <AvatarFallback className="text-xs bg-primary text-primary-foreground border border-white">
-                                          {assignee.name.charAt(0)}
-                                        </AvatarFallback>
-                                      </Avatar>
-                                    ))}
-                                    {task.assignees.length > 4 && (
-                                      <span className="text-xs text-muted-foreground ml-1">+{task.assignees.length - 4}</span>
-                                    )}
-                                  </div>
-                                ) : (
-                                  <span className="text-muted-foreground text-sm">담당자 없음</span>
-                                )}
-                              </div>
-                            </div>
-                            <div className="col-span-2">
-                              {renderLabels(task.labels || [])}
-                            </div>
-                            <div className="col-span-1">
-                              <Badge 
-                                variant={getStatusBadgeVariant(task.status)}
-                                className="text-xs cursor-default"
-                                data-testid={`status-${task.id}`}
-                              >
-                                {task.status}
-                              </Badge>
-                            </div>
-                            <div className="col-span-2">
-                              <div className="flex items-center gap-2 px-1 py-1">
-                                <Progress value={task.progress || 0} className="flex-1" />
-                                <span className="text-xs text-muted-foreground w-8">
-                                  {task.progress || 0}%
-                                </span>
-                              </div>
-                            </div>
-                            <div className="col-span-1">
-                              {renderImportance('task', task.priority)}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
                   {/* Goals */}
                   {expandedProjects.has(project.id) && project.goals && (
                     <div className="bg-muted/20">
@@ -798,6 +724,89 @@ export default function Archive() {
                               ))}
                             </div>
                           )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Direct Project Tasks (after goals) */}
+                  {expandedProjects.has(project.id) && project.tasks && project.tasks.length > 0 && (
+                    <div className="bg-muted/20">
+                      {project.tasks.map((task) => (
+                        <div key={task.id} className={`p-3 hover:bg-muted/50 transition-colors ${project.status === '완료' || task.status === '완료' ? 'opacity-50' : ''}`}>
+                          <div className="grid grid-cols-12 gap-4 items-center">
+                            <div className="col-span-4 flex items-center gap-2 ml-8">
+                              <Checkbox
+                                checked={isItemChecked(task.id)}
+                                onCheckedChange={() => toggleItemSelection(task.id)}
+                                data-testid={`checkbox-task-${task.id}`}
+                              />
+                              <Circle className="w-4 h-4 text-orange-600" />
+                              <button 
+                                className="font-medium hover:text-orange-600 cursor-pointer transition-colors text-left" 
+                                onClick={() => setLocation(`/detail/task/${task.id}`)}
+                                data-testid={`text-task-name-${task.id}`}
+                              >
+                                {task.title}
+                              </button>
+                            </div>
+                            <div className="col-span-1">
+                              <div 
+                                className="cursor-default hover:bg-muted/20 px-1 py-1 rounded text-sm"
+                                data-testid={`text-task-deadline-${task.id}`}
+                              >
+                                <span className={getDDayColorClass(task.deadline)}>
+                                  {formatDeadline(task.deadline)}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="col-span-1">
+                              <div 
+                                className="cursor-default hover:bg-muted/20 px-1 py-1 rounded w-28 min-w-[7rem] max-w-[7rem] h-8 flex items-center overflow-hidden"
+                                data-testid={`edit-assignee-${task.id}`}
+                              >
+                                {task.assignees && task.assignees.length > 0 ? (
+                                  <div className="flex items-center gap-1 truncate">
+                                    {task.assignees.slice(0, 4).map((assignee, index) => (
+                                      <Avatar key={assignee.id} className="w-6 h-6 flex-shrink-0" style={{ zIndex: task.assignees!.length - index }}>
+                                        <AvatarFallback className="text-xs bg-primary text-primary-foreground border border-white">
+                                          {assignee.name.charAt(0)}
+                                        </AvatarFallback>
+                                      </Avatar>
+                                    ))}
+                                    {task.assignees.length > 4 && (
+                                      <span className="text-xs text-muted-foreground ml-1">+{task.assignees.length - 4}</span>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <span className="text-muted-foreground text-sm">담당자 없음</span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="col-span-2">
+                              {renderLabels(task.labels || [])}
+                            </div>
+                            <div className="col-span-1">
+                              <Badge 
+                                variant={getStatusBadgeVariant(task.status)}
+                                className="text-xs cursor-default"
+                                data-testid={`status-${task.id}`}
+                              >
+                                {task.status}
+                              </Badge>
+                            </div>
+                            <div className="col-span-2">
+                              <div className="flex items-center gap-2 px-1 py-1">
+                                <Progress value={task.progress || 0} className="flex-1" />
+                                <span className="text-xs text-muted-foreground w-8">
+                                  {task.progress || 0}%
+                                </span>
+                              </div>
+                            </div>
+                            <div className="col-span-1">
+                              {renderImportance('task', task.priority)}
+                            </div>
+                          </div>
                         </div>
                       ))}
                     </div>
