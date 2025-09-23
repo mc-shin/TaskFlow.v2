@@ -1390,11 +1390,19 @@ export default function ListTree() {
                       </div>
                       <div className="col-span-2">
                         {(() => {
-                          // Calculate progress based on task.progress fields for consistency
-                          const goalTasks = project.goals?.flatMap(goal => goal.tasks || []) || [];
-                          const averageProgress = goalTasks.length > 0 
-                            ? Math.round(goalTasks.reduce((sum, task) => sum + (task.progress || 0), 0) / goalTasks.length)
-                            : 0;
+                          // Calculate progress as "프로젝트 하위 목표 진행도 총합 / 목표 수"
+                          const goals = project.goals || [];
+                          if (goals.length === 0) return renderEditableProgress(project.id, 'project', 0);
+                          
+                          const goalProgressSum = goals.reduce((sum, goal) => {
+                            const goalTasks = goal.tasks || [];
+                            const goalProgress = goalTasks.length > 0 
+                              ? goalTasks.reduce((taskSum, task) => taskSum + (task.progress || 0), 0) / goalTasks.length
+                              : 0;
+                            return sum + goalProgress;
+                          }, 0);
+                          
+                          const averageProgress = Math.round(goalProgressSum / goals.length);
                           return renderEditableProgress(project.id, 'project', averageProgress);
                         })()}
                       </div>

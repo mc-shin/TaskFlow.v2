@@ -69,9 +69,16 @@ export default function ProjectDetail() {
   const calculatedInProgressTasks = goalTasks.filter(task => task.status === '진행중');
   const calculatedPendingTasks = goalTasks.filter(task => task.status === '진행전');
   
-  // Calculate average progress based on task.progress field (0-100)
-  const averageProgress = goalTasks.length > 0 
-    ? Math.round(goalTasks.reduce((sum, task) => sum + (task.progress || 0), 0) / goalTasks.length)
+  // Calculate progress as "프로젝트 하위 목표 진행도 총합 / 목표 수"
+  const goals = project?.goals || [];
+  const averageProgress = goals.length > 0 
+    ? Math.round(goals.reduce((sum, goal) => {
+        const goalTasks = goal.tasks || [];
+        const goalProgress = goalTasks.length > 0 
+          ? goalTasks.reduce((taskSum, task) => taskSum + (task.progress || 0), 0) / goalTasks.length
+          : 0;
+        return sum + goalProgress;
+      }, 0) / goals.length)
     : 0;
 
   const updateProjectMutation = useMutation({
@@ -529,65 +536,6 @@ export default function ProjectDetail() {
                   )}
                 </div>
 
-                {/* Audit Trail Section */}
-                <div className="border-t pt-4 space-y-3">
-                  <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                    <Clock className="w-4 h-4" />
-                    변경 이력
-                  </h4>
-                  
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
-                        <User className="w-3 h-3" />
-                        생성자
-                      </label>
-                      <p className="mt-1 text-sm" data-testid="text-project-created-by">
-                        {(() => {
-                          if (!project.createdBy) return "알 수 없음";
-                          const user = (users as SafeUser[])?.find((u: SafeUser) => u.id === project.createdBy || u.username === project.createdBy);
-                          return user?.name || project.createdBy;
-                        })()}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1" data-testid="text-project-created-at">
-                        {project.createdAt ? (() => {
-                          const date = new Date(project.createdAt);
-                          const year = date.getFullYear();
-                          const month = String(date.getMonth() + 1).padStart(2, '0');
-                          const day = String(date.getDate()).padStart(2, '0');
-                          const hour = String(date.getHours()).padStart(2, '0');
-                          const minute = String(date.getMinutes()).padStart(2, '0');
-                          return `${year}년 ${month}월 ${day}일 ${hour}:${minute}`;
-                        })() : '알 수 없음'}
-                      </p>
-                    </div>
-                    
-                    <div>
-                      <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
-                        <User className="w-3 h-3" />
-                        최종 편집자
-                      </label>
-                      <p className="mt-1 text-sm" data-testid="text-project-updated-by">
-                        {(() => {
-                          if (!project.lastUpdatedBy) return "알 수 없음";
-                          const user = (users as SafeUser[])?.find((u: SafeUser) => u.id === project.lastUpdatedBy || u.username === project.lastUpdatedBy);
-                          return user?.name || project.lastUpdatedBy;
-                        })()}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1" data-testid="text-project-updated-at">
-                        {project.updatedAt ? (() => {
-                          const date = new Date(project.updatedAt);
-                          const year = date.getFullYear();
-                          const month = String(date.getMonth() + 1).padStart(2, '0');
-                          const day = String(date.getDate()).padStart(2, '0');
-                          const hour = String(date.getHours()).padStart(2, '0');
-                          const minute = String(date.getMinutes()).padStart(2, '0');
-                          return `${year}년 ${month}월 ${day}일 ${hour}:${minute}`;
-                        })() : '알 수 없음'}
-                      </p>
-                    </div>
-                  </div>
-                </div>
               </CardContent>
             </Card>
             
@@ -910,6 +858,67 @@ export default function ProjectDetail() {
                   <span className="font-medium text-gray-600" data-testid="text-pending-tasks">
                     {calculatedPendingTasks.length}개
                   </span>
+                </div>
+              </CardContent>
+            </Card>
+            
+            {/* Audit Trail */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Clock className="h-4 w-4" />
+                  변경 이력
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                    <User className="w-3 h-3" />
+                    생성자
+                  </label>
+                  <p className="mt-1 text-sm" data-testid="text-project-created-by">
+                    {(() => {
+                      if (!project.createdBy) return "알 수 없음";
+                      const user = (users as SafeUser[])?.find((u: SafeUser) => u.id === project.createdBy || u.username === project.createdBy);
+                      return user?.name || project.createdBy;
+                    })()}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1" data-testid="text-project-created-at">
+                    {project.createdAt ? (() => {
+                      const date = new Date(project.createdAt);
+                      const year = date.getFullYear();
+                      const month = String(date.getMonth() + 1).padStart(2, '0');
+                      const day = String(date.getDate()).padStart(2, '0');
+                      const hour = String(date.getHours()).padStart(2, '0');
+                      const minute = String(date.getMinutes()).padStart(2, '0');
+                      return `${year}년 ${month}월 ${day}일 ${hour}:${minute}`;
+                    })() : '알 수 없음'}
+                  </p>
+                </div>
+                
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                    <User className="w-3 h-3" />
+                    최종 편집자
+                  </label>
+                  <p className="mt-1 text-sm" data-testid="text-project-updated-by">
+                    {(() => {
+                      if (!project.lastUpdatedBy) return "알 수 없음";
+                      const user = (users as SafeUser[])?.find((u: SafeUser) => u.id === project.lastUpdatedBy || u.username === project.lastUpdatedBy);
+                      return user?.name || project.lastUpdatedBy;
+                    })()}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1" data-testid="text-project-updated-at">
+                    {project.updatedAt ? (() => {
+                      const date = new Date(project.updatedAt);
+                      const year = date.getFullYear();
+                      const month = String(date.getMonth() + 1).padStart(2, '0');
+                      const day = String(date.getDate()).padStart(2, '0');
+                      const hour = String(date.getHours()).padStart(2, '0');
+                      const minute = String(date.getMinutes()).padStart(2, '0');
+                      return `${year}년 ${month}월 ${day}일 ${hour}:${minute}`;
+                    })() : '알 수 없음'}
+                  </p>
                 </div>
               </CardContent>
             </Card>
