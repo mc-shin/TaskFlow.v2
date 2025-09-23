@@ -139,7 +139,7 @@ export default function Archive() {
   };
 
   // Importance display function (read-only for archive)
-  const renderImportance = (type: 'project' | 'goal' | 'task', importance?: string) => {
+  const renderImportance = (type: 'project' | 'goal' | 'task', importance?: string | null) => {
     // 프로젝트와 목표는 중요도 표시하지 않음
     if (type !== 'task') {
       return <span className="text-muted-foreground text-sm">-</span>;
@@ -432,6 +432,11 @@ export default function Archive() {
                           <div className={`p-3 hover:bg-muted/50 transition-colors ${project.status === '완료' || goal.status === '완료' ? 'opacity-50' : ''}`}>
                             <div className="grid grid-cols-12 gap-4 items-center">
                               <div className="col-span-4 flex items-center gap-2 ml-8">
+                                <Checkbox
+                                  checked={selectedItems.has(goal.id)}
+                                  onCheckedChange={() => toggleItemSelection(goal.id)}
+                                  data-testid={`checkbox-goal-${goal.id}`}
+                                />
                                 <Button
                                   variant="ghost"
                                   size="sm"
@@ -487,17 +492,7 @@ export default function Archive() {
                                 </div>
                               </div>
                               <div className="col-span-2">
-                                <div className="flex gap-1">
-                                  {goal.labels && goal.labels.length > 0 ? (
-                                    goal.labels.map((label, index) => (
-                                      <Badge key={index} variant="secondary" className="text-xs">
-                                        {label}
-                                      </Badge>
-                                    ))
-                                  ) : (
-                                    <span className="text-muted-foreground text-xs">-</span>
-                                  )}
-                                </div>
+                                {renderLabels(goal.labels || [])}
                               </div>
                               <div className="col-span-1">
                                 <Badge 
@@ -529,6 +524,11 @@ export default function Archive() {
                                 <div key={task.id} className={`p-3 hover:bg-muted/50 transition-colors ${project.status === '완료' || goal.status === '완료' || task.status === '완료' ? 'opacity-50' : ''}`}>
                                   <div className="grid grid-cols-12 gap-4 items-center">
                                     <div className="col-span-4 flex items-center gap-2 ml-16">
+                                      <Checkbox
+                                        checked={selectedItems.has(task.id)}
+                                        onCheckedChange={() => toggleItemSelection(task.id)}
+                                        data-testid={`checkbox-task-${task.id}`}
+                                      />
                                       <Circle className="w-4 h-4 text-orange-600" />
                                       <button 
                                         className="font-medium hover:text-orange-600 cursor-pointer transition-colors text-left" 
@@ -572,17 +572,7 @@ export default function Archive() {
                                       </div>
                                     </div>
                                     <div className="col-span-2">
-                                      <div className="flex gap-1">
-                                        {task.labels && task.labels.length > 0 ? (
-                                          task.labels.map((label, index) => (
-                                            <Badge key={index} variant="secondary" className="text-xs">
-                                              {label}
-                                            </Badge>
-                                          ))
-                                        ) : (
-                                          <span className="text-muted-foreground text-xs">-</span>
-                                        )}
-                                      </div>
+                                      {renderLabels(task.labels || [])}
                                     </div>
                                     <div className="col-span-1">
                                       <Badge 
@@ -602,7 +592,7 @@ export default function Archive() {
                                       </div>
                                     </div>
                                     <div className="col-span-1">
-                                      <span className="text-muted-foreground text-xs">-</span>
+                                      {renderImportance('task', task.priority)}
                                     </div>
                                   </div>
                                 </div>
