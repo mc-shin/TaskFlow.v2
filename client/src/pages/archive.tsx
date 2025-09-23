@@ -963,9 +963,9 @@ export default function Archive() {
 
       {/* Selection Toast */}
       {selectedItems.size > 0 && (
-        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 bg-card border border-border rounded-lg shadow-lg z-50 px-4 py-3">
+        <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-slate-800 text-white rounded-lg shadow-lg z-50 px-6 py-3">
           <div className="flex items-center gap-4">
-            <span className="text-sm font-medium text-foreground">
+            <span className="text-sm font-medium">
               {selectedItems.size}개 선택됨
             </span>
             <Button 
@@ -1019,7 +1019,7 @@ export default function Archive() {
                       {selectedItemType === 'project' ? '프로젝트명' : 
                        selectedItemType === 'goal' ? '목표명' : '작업명'}
                     </label>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm text-muted-foreground mt-1">
                       {selectedItem.name || selectedItem.title}
                     </p>
                   </div>
@@ -1028,7 +1028,7 @@ export default function Archive() {
                   {selectedItemType === 'project' && selectedItem.code && (
                     <div>
                       <label className="text-sm font-medium">프로젝트 코드</label>
-                      <p className="text-sm text-muted-foreground">{selectedItem.code}</p>
+                      <p className="text-sm text-muted-foreground mt-1">{selectedItem.code}</p>
                     </div>
                   )}
                   
@@ -1036,7 +1036,7 @@ export default function Archive() {
                   {selectedItem.description && (
                     <div>
                       <label className="text-sm font-medium">설명</label>
-                      <p className="text-sm text-muted-foreground whitespace-pre-wrap">{selectedItem.description}</p>
+                      <p className="text-sm text-muted-foreground whitespace-pre-wrap mt-1">{selectedItem.description}</p>
                     </div>
                   )}
                   
@@ -1044,7 +1044,7 @@ export default function Archive() {
                   {selectedItem.labels && selectedItem.labels.length > 0 && (
                     <div>
                       <label className="text-sm font-medium">라벨</label>
-                      <div className="flex items-center gap-2 flex-wrap mt-1">
+                      <div className="flex items-center gap-2 flex-wrap mt-2">
                         {selectedItem.labels.map((label: string, index: number) => (
                           <Badge 
                             key={index} 
@@ -1061,7 +1061,7 @@ export default function Archive() {
                   {/* 5) 상태 */}
                   <div>
                     <label className="text-sm font-medium">상태</label>
-                    <div className="mt-1">
+                    <div className="mt-2">
                       <Badge 
                         variant={getStatusBadgeVariant(selectedItemType === 'project' ? getStatusFromProgress(selectedItem.progressPercentage || 0) : selectedItem.status)}
                         className="text-xs"
@@ -1075,7 +1075,7 @@ export default function Archive() {
                   {selectedItem.deadline && (
                     <div>
                       <label className="text-sm font-medium">마감일</label>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-sm text-muted-foreground mt-1">
                         <span className={getDDayColorClass(selectedItem.deadline)}>
                           {formatDeadline(selectedItem.deadline)}
                         </span>
@@ -1088,9 +1088,9 @@ export default function Archive() {
                     ((selectedItemType === 'goal' || selectedItemType === 'task') && selectedItem.assignees)) && (
                     <div>
                       <label className="text-sm font-medium">
-                        {selectedItemType === 'project' ? '프로젝트 소유자' : '담당자'}
+                        담당자
                       </label>
-                      <div className="flex items-center gap-2 flex-wrap mt-1">
+                      <div className="flex items-center gap-2 flex-wrap mt-2">
                         {(selectedItemType === 'project' ? selectedItem.owners : selectedItem.assignees)?.map((person: any, index: number) => (
                           <div key={person.id || index} className="flex items-center gap-2">
                             <Avatar className="w-6 h-6">
@@ -1109,7 +1109,7 @@ export default function Archive() {
                   {selectedItemType === 'project' && (
                     <div>
                       <label className="text-sm font-medium">진행도</label>
-                      <div className="flex items-center gap-2 mt-1">
+                      <div className="flex items-center gap-2 mt-2">
                         <Progress value={selectedItem.progressPercentage || 0} className="flex-1" />
                         <span className="text-sm text-muted-foreground">{selectedItem.progressPercentage || 0}%</span>
                       </div>
@@ -1120,7 +1120,7 @@ export default function Archive() {
                   {selectedItemType === 'task' && selectedItem.importance && (
                     <div>
                       <label className="text-sm font-medium">중요도</label>
-                      <div className="mt-1">
+                      <div className="mt-2">
                         <Badge 
                           variant={getImportanceBadgeVariant(selectedItem.importance)}
                           className="text-xs"
