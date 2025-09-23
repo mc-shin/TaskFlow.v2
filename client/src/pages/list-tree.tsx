@@ -1299,7 +1299,8 @@ export default function ListTree() {
         </div>
         <div className="flex items-center space-x-4">
           <Button 
-            variant="outline"
+            variant="default"
+            className="bg-purple-600 hover:bg-purple-700 text-white"
             onClick={() => setLocation('/archive')}
             data-testid="button-archive-page"
           >
@@ -1500,7 +1501,7 @@ export default function ListTree() {
                       {project.goals.map((goal) => (
                         <div key={goal.id}>
                           {/* Goal Row */}
-                          <div className="p-3 hover:bg-muted/50 transition-colors">
+                          <div className={`p-3 hover:bg-muted/50 transition-colors ${project.status === '완료' ? 'opacity-50' : ''}`}>
                             <div className="grid grid-cols-12 gap-4 items-center">
                               <div className="col-span-4 flex items-center gap-2 ml-8">
                                 <Checkbox
@@ -1567,7 +1568,7 @@ export default function ListTree() {
                           {expandedGoals.has(goal.id) && goal.tasks && (
                             <div className="bg-muted/30">
                               {goal.tasks.map((task) => (
-                                <div key={task.id} className="p-3 hover:bg-muted/50 transition-colors">
+                                <div key={task.id} className={`p-3 hover:bg-muted/50 transition-colors ${project.status === '완료' ? 'opacity-50' : ''}`}>
                                   <div className="grid grid-cols-12 gap-4 items-center">
                                     <div className="col-span-4 flex items-center gap-2 ml-16">
                                       <Checkbox
