@@ -497,27 +497,11 @@ export default function TaskDetail() {
 
                 <div>
                   <label className="text-sm font-medium text-muted-foreground">상태</label>
-                  {isEditing ? (
-                    <Select
-                      value={editedTask.status ?? task.status}
-                      onValueChange={(value) => setEditedTask(prev => ({ ...prev, status: value }))}
-                    >
-                      <SelectTrigger className="mt-1 h-10" data-testid="select-task-status">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="진행전">진행전</SelectItem>
-                        <SelectItem value="진행중">진행중</SelectItem>
-                        <SelectItem value="완료">완료</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <p className="mt-1" data-testid="text-task-status">
-                      <Badge variant={getStatusBadgeVariant(task.status)}>
-                        {task.status}
-                      </Badge>
-                    </p>
-                  )}
+                  <p className="mt-1" data-testid="text-task-status">
+                    <Badge variant={getStatusBadgeVariant(task.status)}>
+                      {task.status}
+                    </Badge>
+                  </p>
                 </div>
 
                 <div>
@@ -683,19 +667,48 @@ export default function TaskDetail() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-2xl font-bold" data-testid="text-progress-percentage">
-                      {task.progress ?? 0}%
-                    </span>
-                  </div>
-                  <Progress 
-                    value={task.progress ?? 0} 
-                    className="h-3"
-                    data-testid="progress-bar"
-                  />
-                  <div className="text-sm text-muted-foreground">
-                    현재 작업 상태: {task.status}
-                  </div>
+                  {isEditing ? (
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">진행도 (%)</label>
+                      <Select 
+                        value={(editedTask.progress ?? task.progress ?? 0).toString()}
+                        onValueChange={(value) => {
+                          const progressValue = parseInt(value);
+                          setEditedTask(prev => ({ 
+                            ...prev, 
+                            progress: progressValue
+                          }));
+                        }}
+                      >
+                        <SelectTrigger className="mt-1 h-10" data-testid="select-task-progress">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Array.from({ length: 11 }, (_, i) => i * 10).map((progress) => (
+                            <SelectItem key={progress} value={progress.toString()}>
+                              {progress}%
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-center justify-between">
+                        <span className="text-2xl font-bold" data-testid="text-progress-percentage">
+                          {task.progress ?? 0}%
+                        </span>
+                      </div>
+                      <Progress 
+                        value={task.progress ?? 0} 
+                        className="h-3"
+                        data-testid="progress-bar"
+                      />
+                      <div className="text-sm text-muted-foreground">
+                        현재 작업 상태: {task.status}
+                      </div>
+                    </>
+                  )}
                 </div>
               </CardContent>
             </Card>
