@@ -36,17 +36,34 @@ export default function ListTree() {
     }
   })();
 
+  // Create a set of archived IDs for fast lookup
+  // Handle both old format (array of IDs) and new format (array of objects)
+  const archivedIds = new Set<string>();
+  archivedItems.forEach((item: any) => {
+    if (typeof item === 'string') {
+      // Old format: item is an ID
+      archivedIds.add(item);
+    } else if (item && typeof item === 'object') {
+      // New format: item is an object with data
+      if (item.id) {
+        archivedIds.add(item.id);
+      } else if (item.data && item.data.id) {
+        archivedIds.add(item.data.id);
+      }
+    }
+  });
+
   // Filter projects to exclude archived ones
   const activeProjects = (projects as ProjectWithDetails[])?.filter(project => {
-    return !archivedItems.includes(project.id); // Exclude archived projects
+    return !archivedIds.has(project.id); // Exclude archived projects
   }).map(project => {
     // Filter out archived goals and tasks (without mutating original data)
     const activeGoals = project.goals?.filter(goal => {
-      const isGoalArchived = archivedItems.includes(goal.id);
+      const isGoalArchived = archivedIds.has(goal.id);
       return !isGoalArchived;
     }).map(goal => ({
       ...goal,
-      tasks: goal.tasks?.filter(task => !archivedItems.includes(task.id)) || []
+      tasks: goal.tasks?.filter(task => !archivedIds.has(task.id)) || []
     }));
     
     return {

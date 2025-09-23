@@ -1,13 +1,17 @@
 import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { ChevronDown, ChevronRight, FolderOpen, Target, Circle, ArrowLeft } from "lucide-react";
+import { ChevronDown, ChevronRight, FolderOpen, Target, Circle, ArrowLeft, X, Eye, Undo2 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useState, useEffect, useMemo } from "react";
 import { useLocation } from "wouter";
+import { useToast } from "@/hooks/use-toast";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 import type { SafeTaskWithAssignees, ProjectWithDetails, GoalWithTasks, SafeUser } from "@shared/schema";
 import { parse } from "date-fns";
 
@@ -16,8 +20,38 @@ export default function Archive() {
     queryKey: ["/api/projects"],
   });
 
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  // Mutations for restoring items
+  const createProjectMutation = useMutation({
+    mutationFn: (projectData: any) => apiRequest("POST", "/api/projects", projectData),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+    },
+  });
+
+  const createGoalMutation = useMutation({
+    mutationFn: (goalData: any) => apiRequest("POST", "/api/goals", goalData),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+    },
+  });
+
+  const createTaskMutation = useMutation({
+    mutationFn: (taskData: any) => apiRequest("POST", "/api/tasks", taskData),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+    },
+  });
+
   // State for checkbox selections
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+  
+  // State for item detail modal
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<any>(null);
+  const [selectedItemType, setSelectedItemType] = useState<'project' | 'goal' | 'task'>('task');
 
   // Helper functions from list-tree page for consistent UI
   const formatDeadline = (deadline: string | null) => {
@@ -112,7 +146,7 @@ export default function Archive() {
     }
   };
 
-  // Checkbox selection functions (hierarchical selection like list page)
+  // Checkbox selection functions (new logic: parent selects children, but children don't select parent)
   const toggleItemSelection = (itemId: string) => {
     const newSelected = new Set(selectedItems);
     
@@ -131,16 +165,8 @@ export default function Archive() {
       }
     }
     
-    // For parent items (project/goal), check if they should be considered "selected" 
-    // either directly or because all their children are selected
-    let isCurrentlySelected = newSelected.has(itemId);
-    if (!isCurrentlySelected && (itemType === 'project' || itemType === 'goal')) {
-      const childIds = getChildItems(itemId, itemType);
-      // Consider parent selected if all children are selected
-      if (childIds.length > 0) {
-        isCurrentlySelected = childIds.every(childId => newSelected.has(childId));
-      }
-    }
+    // Check if currently selected (only direct selection, not automatic parent selection)
+    const isCurrentlySelected = newSelected.has(itemId);
     
     if (isCurrentlySelected) {
       // Deselecting: remove the item and all its children
@@ -151,13 +177,14 @@ export default function Archive() {
         childIds.forEach(childId => newSelected.delete(childId));
       }
     } else {
-      // Selecting: add the item and all its children
+      // Selecting: add the item and (if parent) all its children
       newSelected.add(itemId);
       
       if (itemType === 'project' || itemType === 'goal') {
         const childIds = getChildItems(itemId, itemType);
         childIds.forEach(childId => newSelected.add(childId));
       }
+      // Note: Children don't automatically select their parents
     }
     
     setSelectedItems(newSelected);
@@ -202,22 +229,8 @@ export default function Archive() {
   };
 
   const isItemChecked = (itemId: string): boolean => {
-    if (selectedItems.has(itemId)) {
-      return true;
-    }
-    
-    // For parent items, check if all children are selected
-    const isProject = (archivedProjects as ProjectWithDetails[])?.some(p => p.id === itemId);
-    const isGoal = !isProject && (archivedProjects as ProjectWithDetails[])?.some(p => 
-      p.goals?.some(g => g.id === itemId)
-    );
-    
-    if (isProject || isGoal) {
-      const childIds = getChildItems(itemId, isProject ? 'project' : 'goal');
-      return childIds.length > 0 && childIds.every(childId => selectedItems.has(childId));
-    }
-    
-    return false;
+    // Only check direct selection, no automatic parent selection
+    return selectedItems.has(itemId);
   };
 
 
@@ -417,6 +430,100 @@ export default function Archive() {
     }
   };
 
+  // Function to open item detail modal
+  const openItemDetail = (item: any, type: 'project' | 'goal' | 'task') => {
+    setSelectedItem(item);
+    setSelectedItemType(type);
+    setDetailModalOpen(true);
+  };
+
+  // Function to restore selected items to list
+  const restoreSelectedItems = async () => {
+    const selectedArray = Array.from(selectedItems);
+    
+    try {
+      // Get archived items that match selected IDs
+      const itemsToRestore = archivedItems.filter((item: any) => {
+        const itemId = item.id || (item.data && item.data.id);
+        return selectedArray.includes(itemId);
+      });
+
+      if (itemsToRestore.length === 0) {
+        toast({
+          title: "복원할 항목이 없습니다",
+          description: "선택된 항목을 찾을 수 없습니다.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Restore items to database
+      for (const item of itemsToRestore) {
+        const itemData = item.data || item;
+        
+        if (item.type === 'project') {
+          await createProjectMutation.mutateAsync({
+            name: itemData.name,
+            code: itemData.code,
+            description: itemData.description,
+            deadline: itemData.deadline,
+            labels: itemData.labels || [],
+            owners: itemData.owners || []
+          });
+        } else if (item.type === 'goal') {
+          await createGoalMutation.mutateAsync({
+            title: itemData.title,
+            description: itemData.description,
+            deadline: itemData.deadline,
+            projectId: item.projectId,
+            labels: itemData.labels || [],
+            assignees: itemData.assignees || []
+          });
+        } else if (item.type === 'task') {
+          await createTaskMutation.mutateAsync({
+            title: itemData.title,
+            description: itemData.description,
+            status: itemData.status,
+            deadline: itemData.deadline,
+            importance: itemData.importance,
+            goalId: item.goalId,
+            labels: itemData.labels || [],
+            assignees: itemData.assignees || []
+          });
+        }
+      }
+
+      // Remove restored items from localStorage
+      const remainingItems = archivedItems.filter((item: any) => {
+        const itemId = item.id || (item.data && item.data.id);
+        return !selectedArray.includes(itemId);
+      });
+      
+      localStorage.setItem('archivedItems', JSON.stringify(remainingItems));
+      setArchivedItems(remainingItems);
+
+      toast({
+        title: "복원 완료",
+        description: `${selectedItems.size}개 항목이 리스트로 복원되었습니다.`,
+      });
+
+      setSelectedItems(new Set());
+      
+      // Navigate to list page after restoration
+      setTimeout(() => {
+        setLocation('/list');
+      }, 1000);
+
+    } catch (error) {
+      console.error('Failed to restore items:', error);
+      toast({
+        title: "복원 실패",
+        description: "항목을 복원하는 중 오류가 발생했습니다.",
+        variant: "destructive",
+      });
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="container mx-auto p-6">
@@ -514,7 +621,7 @@ export default function Archive() {
                         <FolderOpen className="w-4 h-4 text-blue-600" />
                         <button 
                           className="font-medium hover:text-blue-600 cursor-pointer transition-colors text-left" 
-                          onClick={() => setLocation(`/detail/project/${project.id}`)}
+                          onClick={() => openItemDetail(project, 'project')}
                           data-testid={`text-project-name-${project.id}`}
                         >
                           {project.name}
@@ -597,7 +704,7 @@ export default function Archive() {
                               <Circle className="w-4 h-4 text-orange-600" />
                               <button 
                                 className="font-medium hover:text-orange-600 cursor-pointer transition-colors text-left" 
-                                onClick={() => setLocation(`/detail/task/${task.id}`)}
+                                onClick={() => openItemDetail(task, 'task')}
                                 data-testid={`text-task-name-${task.id}`}
                               >
                                 {task.title}
@@ -694,7 +801,7 @@ export default function Archive() {
                                 <Target className="w-4 h-4 text-green-600" />
                                 <button 
                                   className="font-medium hover:text-green-600 cursor-pointer transition-colors text-left" 
-                                  onClick={() => setLocation(`/detail/goal/${goal.id}`)}
+                                  onClick={() => openItemDetail(goal, 'goal')}
                                   data-testid={`text-goal-name-${goal.id}`}
                                 >
                                   {goal.title}
@@ -774,7 +881,7 @@ export default function Archive() {
                                       <Circle className="w-4 h-4 text-orange-600" />
                                       <button 
                                         className="font-medium hover:text-orange-600 cursor-pointer transition-colors text-left" 
-                                        onClick={() => setLocation(`/detail/task/${task.id}`)}
+                                        onClick={() => openItemDetail(task, 'task')}
                                         data-testid={`text-task-name-${task.id}`}
                                       >
                                         {task.title}
@@ -853,6 +960,185 @@ export default function Archive() {
       </Card>
 
       </main>
+
+      {/* Selection Action Bar */}
+      {selectedItems.size > 0 && (
+        <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border p-4 shadow-lg z-50">
+          <div className="flex items-center justify-between max-w-screen-xl mx-auto">
+            <div className="flex items-center gap-4">
+              <span className="text-sm font-medium">
+                {selectedItems.size}개 항목 선택됨
+              </span>
+              <Button 
+                variant="outline" 
+                onClick={() => setSelectedItems(new Set())}
+                data-testid="button-clear-selection"
+              >
+                선택 해제
+              </Button>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button 
+                variant="default"
+                className="bg-green-600 hover:bg-green-700 text-white"
+                onClick={restoreSelectedItems}
+                disabled={createProjectMutation.isPending || createGoalMutation.isPending || createTaskMutation.isPending}
+                data-testid="button-restore"
+              >
+                <Undo2 className="w-4 h-4 mr-2" />
+                {(createProjectMutation.isPending || createGoalMutation.isPending || createTaskMutation.isPending) ? '복원 중...' : '리스트로 복원'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Item Detail Modal */}
+      <Dialog open={detailModalOpen} onOpenChange={setDetailModalOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {selectedItemType === 'project' && <FolderOpen className="w-5 h-5 text-blue-600" />}
+              {selectedItemType === 'goal' && <Target className="w-5 h-5 text-green-600" />}
+              {selectedItemType === 'task' && <Circle className="w-5 h-5 text-orange-600" />}
+              {selectedItem?.name || selectedItem?.title || '항목 상세'}
+              <Badge variant="outline" className="ml-2">보관됨</Badge>
+            </DialogTitle>
+          </DialogHeader>
+          
+          {selectedItem && (
+            <div className="space-y-4">
+              {/* Basic Information */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm">기본 정보</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {selectedItemType === 'project' && (
+                    <>
+                      <div>
+                        <label className="text-sm font-medium">프로젝트명</label>
+                        <p className="text-sm text-muted-foreground">{selectedItem.name}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium">프로젝트 코드</label>
+                        <p className="text-sm text-muted-foreground">{selectedItem.code}</p>
+                      </div>
+                    </>
+                  )}
+                  
+                  {(selectedItemType === 'goal' || selectedItemType === 'task') && (
+                    <div>
+                      <label className="text-sm font-medium">{selectedItemType === 'goal' ? '목표명' : '작업명'}</label>
+                      <p className="text-sm text-muted-foreground">{selectedItem.title}</p>
+                    </div>
+                  )}
+                  
+                  {selectedItem.description && (
+                    <div>
+                      <label className="text-sm font-medium">설명</label>
+                      <p className="text-sm text-muted-foreground whitespace-pre-wrap">{selectedItem.description}</p>
+                    </div>
+                  )}
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium">상태</label>
+                      <Badge 
+                        variant={getStatusBadgeVariant(selectedItemType === 'project' ? getStatusFromProgress(selectedItem.progressPercentage || 0) : selectedItem.status)}
+                        className="text-xs"
+                      >
+                        {selectedItemType === 'project' ? getStatusFromProgress(selectedItem.progressPercentage || 0) : selectedItem.status}
+                      </Badge>
+                    </div>
+                    
+                    {selectedItem.deadline && (
+                      <div>
+                        <label className="text-sm font-medium">마감일</label>
+                        <p className="text-sm text-muted-foreground">
+                          <span className={getDDayColorClass(selectedItem.deadline)}>
+                            {formatDeadline(selectedItem.deadline)}
+                          </span>
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {selectedItemType === 'project' && (
+                    <div>
+                      <label className="text-sm font-medium">진행도</label>
+                      <div className="flex items-center gap-2">
+                        <Progress value={selectedItem.progressPercentage || 0} className="flex-1" />
+                        <span className="text-sm text-muted-foreground">{selectedItem.progressPercentage || 0}%</span>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {selectedItemType === 'task' && selectedItem.importance && (
+                    <div>
+                      <label className="text-sm font-medium">중요도</label>
+                      <Badge 
+                        variant={getImportanceBadgeVariant(selectedItem.importance)}
+                        className="text-xs"
+                      >
+                        {selectedItem.importance}
+                      </Badge>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+              
+              {/* Assignees/Owners */}
+              {((selectedItemType === 'project' && selectedItem.owners) || 
+                ((selectedItemType === 'goal' || selectedItemType === 'task') && selectedItem.assignees)) && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-sm">
+                      {selectedItemType === 'project' ? '프로젝트 소유자' : '담당자'}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {(selectedItemType === 'project' ? selectedItem.owners : selectedItem.assignees)?.map((person: any, index: number) => (
+                        <div key={person.id || index} className="flex items-center gap-2">
+                          <Avatar className="w-6 h-6">
+                            <AvatarFallback className="text-xs bg-primary text-primary-foreground">
+                              {person.name ? person.name.charAt(0) : '?'}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="text-sm">{person.name}</span>
+                        </div>
+                      )) || <span className="text-sm text-muted-foreground">담당자 없음</span>}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+              
+              {/* Labels */}
+              {selectedItem.labels && selectedItem.labels.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-sm">라벨</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {selectedItem.labels.map((label: string, index: number) => (
+                        <Badge 
+                          key={index} 
+                          variant="outline" 
+                          className={`text-xs ${index === 0 ? 'bg-blue-500 hover:bg-blue-600 text-white' : 'bg-green-500 hover:bg-green-600 text-white'}`}
+                        >
+                          {label}
+                        </Badge>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
