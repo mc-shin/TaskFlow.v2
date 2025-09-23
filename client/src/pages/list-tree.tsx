@@ -1735,45 +1735,55 @@ export default function ListTree() {
             <div className="space-y-3">
               <h4 className="text-sm font-medium text-slate-300">하이더의 멤버</h4>
               <div className="space-y-2 max-h-80 overflow-y-auto min-h-32">
-                {(users as SafeUser[])
-                  ?.filter(user => !deletedMemberIds.has(user.id))
-                  .map((user, index) => (
-                  <div key={user.id} className="flex items-center justify-between p-2 hover:bg-slate-700 rounded" data-testid={`member-row-${user.id}`}>
-                    <div className="flex items-center gap-3">
-                      <Avatar className="h-8 w-8">
-                        <AvatarFallback className="bg-blue-600 text-white text-sm">
-                          {user.initials}
-                        </AvatarFallback>
-                      </Avatar>
-                      <span className="text-sm font-medium text-white">{user.name}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline" className="text-xs border-slate-600 text-slate-300">
-                        {index === 0 ? '관리자' : '팀원'}
-                      </Badge>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 w-6 p-0 text-slate-400 hover:text-red-400 hover:bg-red-900/20"
-                        onClick={() => {
-                          setDeletedMemberIds(prev => new Set([...Array.from(prev), user.id]));
-                          toast({
-                            title: "멤버 삭제",
-                            description: `${user.name}님이 목록에서 제거되었습니다.`,
-                          });
-                        }}
-                        data-testid={`button-delete-member-${user.id}`}
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-                {(users as SafeUser[])?.filter(user => !deletedMemberIds.has(user.id)).length === 0 && (
-                  <div className="text-center text-slate-400 text-sm py-4">
-                    멤버가 없습니다.
-                  </div>
-                )}
+                {(() => {
+                  const allUsers = Array.isArray(users) ? users as SafeUser[] : [];
+                  const filteredUsers = allUsers.filter(user => !deletedMemberIds.has(user.id));
+                  
+                  return (
+                    <>
+                      {filteredUsers.map((user) => {
+                        const originalIndex = allUsers.findIndex(originalUser => originalUser.id === user.id);
+                        return (
+                          <div key={user.id} className="flex items-center justify-between p-2 hover:bg-slate-700 rounded" data-testid={`member-row-${user.id}`}>
+                            <div className="flex items-center gap-3">
+                              <Avatar className="h-8 w-8">
+                                <AvatarFallback className="bg-blue-600 text-white text-sm">
+                                  {user.initials}
+                                </AvatarFallback>
+                              </Avatar>
+                              <span className="text-sm font-medium text-white">{user.name}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline" className="text-xs border-slate-600 text-slate-300">
+                                {originalIndex === 0 ? '관리자' : '팀원'}
+                              </Badge>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 w-6 p-0 text-slate-400 hover:text-red-400 hover:bg-red-900/20"
+                                onClick={() => {
+                                  setDeletedMemberIds(prev => new Set([...Array.from(prev), user.id]));
+                                  toast({
+                                    title: "멤버 삭제",
+                                    description: `${user.name}님이 목록에서 제거되었습니다.`,
+                                  });
+                                }}
+                                data-testid={`button-delete-member-${user.id}`}
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                      {filteredUsers.length === 0 && (
+                        <div className="text-center text-slate-400 text-sm py-4">
+                          멤버가 없습니다.
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
             </div>
           </div>
