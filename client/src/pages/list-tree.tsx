@@ -1682,7 +1682,7 @@ export default function ListTree() {
 
       {/* Member Invite Modal */}
       <Dialog open={isInviteModalOpen} onOpenChange={setIsInviteModalOpen}>
-        <DialogContent className="max-w-lg bg-slate-800 text-white border-slate-700">
+        <DialogContent className="w-[591px] bg-slate-800 text-white border-slate-700">
           <DialogHeader>
             <DialogTitle className="text-white">초대</DialogTitle>
           </DialogHeader>
@@ -1744,7 +1744,7 @@ export default function ListTree() {
             {/* Existing Members */}
             <div className="space-y-3">
               <h4 className="text-sm font-medium text-slate-300">하이더의 멤버</h4>
-              <div className="space-y-2 max-h-80 overflow-y-auto">
+              <div className="space-y-2 h-80 overflow-y-auto">
                 {(users as SafeUser[])?.map((user, index) => (
                   <div key={user.id} className="flex items-center justify-between p-2 hover:bg-slate-700 rounded" data-testid={`member-row-${user.id}`}>
                     <div className="flex items-center gap-3">
