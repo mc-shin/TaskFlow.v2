@@ -10,7 +10,6 @@ export interface IStorage {
   getAllUsersWithStats(): Promise<SafeUserWithStats[]>;
   getAllSafeUsers(): Promise<SafeUser[]>;
   updateUserLastLogin(id: string): Promise<void>;
-  deleteUser(id: string): Promise<boolean>;
 
   // Project methods
   getAllProjects(): Promise<ProjectWithOwners[]>;
@@ -353,10 +352,6 @@ export class MemStorage implements IStorage {
       user.lastLoginAt = new Date();
       this.users.set(id, user);
     }
-  }
-
-  async deleteUser(id: string): Promise<boolean> {
-    return this.users.delete(id);
   }
 
   // Project methods
