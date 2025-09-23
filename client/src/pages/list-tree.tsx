@@ -1692,9 +1692,6 @@ export default function ListTree() {
                   description: `${selectedItems.size}개 항목이 보관함으로 이동되었습니다.`,
                 });
                 clearSelection();
-                setTimeout(() => {
-                  setLocation('/archive');
-                }, 1000);
               }}
               data-testid="button-archive"
             >
