@@ -302,7 +302,7 @@ export default function ProjectDetail() {
                     <Input
                       value={editedProject.name ?? project.name}
                       onChange={(e) => setEditedProject(prev => ({ ...prev, name: e.target.value }))}
-                      className="mt-1"
+                      className="mt-1 h-10"
                       data-testid="input-project-name"
                     />
                   ) : (
@@ -316,7 +316,7 @@ export default function ProjectDetail() {
                     <Input
                       value={editedProject.code ?? project.code}
                       onChange={(e) => setEditedProject(prev => ({ ...prev, code: e.target.value }))}
-                      className="mt-1"
+                      className="mt-1 h-10"
                       data-testid="input-project-code"
                     />
                   ) : (
@@ -348,7 +348,7 @@ export default function ProjectDetail() {
                       <Popover>
                         <PopoverTrigger asChild>
                           <div 
-                            className="cursor-pointer hover:bg-muted/20 rounded-md min-w-16 min-h-8 flex items-center px-2 py-1 gap-1 flex-wrap bg-background border border-input"
+                            className="cursor-pointer hover:bg-muted/20 rounded-md min-w-16 h-10 flex items-center px-2 py-1 gap-1 flex-wrap bg-background border border-input"
                             data-testid={`edit-labels-${project.id}`}
                           >
                             {(editedProject.labels ?? project.labels ?? []).length > 0 ? (
@@ -467,7 +467,7 @@ export default function ProjectDetail() {
                       value={editedProject.status ?? project.status ?? "진행전"}
                       onValueChange={(value) => setEditedProject(prev => ({ ...prev, status: value }))}
                     >
-                      <SelectTrigger className="mt-1" data-testid="select-project-status">
+                      <SelectTrigger className="mt-1 h-10" data-testid="select-project-status">
                         <SelectValue placeholder="상태를 선택하세요" />
                       </SelectTrigger>
                       <SelectContent>
@@ -499,7 +499,7 @@ export default function ProjectDetail() {
                       type="date"
                       value={editedProject.deadline ?? project.deadline ?? ''}
                       onChange={(e) => setEditedProject(prev => ({ ...prev, deadline: e.target.value }))}
-                      className="mt-1"
+                      className="mt-1 h-10"
                       data-testid="input-project-deadline"
                     />
                   ) : (

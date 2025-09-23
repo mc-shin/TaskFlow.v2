@@ -312,7 +312,7 @@ export default function GoalDetail() {
                     <Input
                       value={editedGoal.title ?? goal.title}
                       onChange={(e) => setEditedGoal(prev => ({ ...prev, title: e.target.value }))}
-                      className="mt-1"
+                      className="mt-1 h-10"
                       data-testid="input-goal-title"
                     />
                   ) : (
@@ -344,7 +344,7 @@ export default function GoalDetail() {
                       <Popover>
                         <PopoverTrigger asChild>
                           <div 
-                            className="cursor-pointer hover:bg-muted/20 rounded-md min-w-16 min-h-8 flex items-center px-2 py-1 gap-1 flex-wrap bg-background border border-input"
+                            className="cursor-pointer hover:bg-muted/20 rounded-md min-w-16 h-10 flex items-center px-2 py-1 gap-1 flex-wrap bg-background border border-input"
                             data-testid={`edit-labels-${goal.id}`}
                           >
                             {(editedGoal.labels ?? goal.labels ?? []).length > 0 ? (
@@ -472,7 +472,7 @@ export default function GoalDetail() {
                       type="date"
                       value={editedGoal.deadline ?? goal.deadline ?? ''}
                       onChange={(e) => setEditedGoal(prev => ({ ...prev, deadline: e.target.value }))}
-                      className="mt-1"
+                      className="mt-1 h-10"
                       data-testid="input-goal-deadline"
                     />
                   ) : (

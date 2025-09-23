@@ -326,7 +326,7 @@ export default function TaskDetail() {
                     <Input
                       value={editedTask.title ?? task.title}
                       onChange={(e) => setEditedTask(prev => ({ ...prev, title: e.target.value }))}
-                      className="mt-1"
+                      className="mt-1 h-10"
                       data-testid="input-task-title"
                     />
                   ) : (
@@ -359,7 +359,7 @@ export default function TaskDetail() {
                         <Popover>
                           <PopoverTrigger asChild>
                             <div 
-                              className="cursor-pointer hover:bg-muted/20 rounded-md min-w-16 min-h-8 flex items-center px-2 py-1 gap-1 flex-wrap bg-background border border-input"
+                              className="cursor-pointer hover:bg-muted/20 rounded-md min-w-16 h-10 flex items-center px-2 py-1 gap-1 flex-wrap bg-background border border-input"
                               data-testid={`edit-labels-${task.id}`}
                             >
                               {(editedTask.labels ?? task.labels ?? []).length > 0 ? (
@@ -478,7 +478,7 @@ export default function TaskDetail() {
                         value={editedTask.priority ?? task.priority ?? '중간'}
                         onValueChange={(value) => setEditedTask(prev => ({ ...prev, priority: value }))}
                       >
-                        <SelectTrigger className="mt-1" data-testid="select-task-priority">
+                        <SelectTrigger className="mt-1 h-10" data-testid="select-task-priority">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -502,7 +502,7 @@ export default function TaskDetail() {
                       value={editedTask.status ?? task.status}
                       onValueChange={(value) => setEditedTask(prev => ({ ...prev, status: value }))}
                     >
-                      <SelectTrigger className="mt-1" data-testid="select-task-status">
+                      <SelectTrigger className="mt-1 h-10" data-testid="select-task-status">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -527,7 +527,7 @@ export default function TaskDetail() {
                       type="date"
                       value={editedTask.deadline ?? task.deadline ?? ''}
                       onChange={(e) => setEditedTask(prev => ({ ...prev, deadline: e.target.value }))}
-                      className="mt-1"
+                      className="mt-1 h-10"
                       data-testid="input-task-deadline"
                     />
                   ) : (
