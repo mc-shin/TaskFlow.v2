@@ -1035,7 +1035,7 @@ export default function ListTree() {
       return (
         <Badge 
           variant={getStatusBadgeVariant(displayStatus)} 
-          className={`text-xs ${displayStatus !== '완료' ? 'cursor-pointer hover:opacity-80' : 'cursor-default'}`}
+          className={`text-xs rounded-none ${displayStatus !== '완료' ? 'cursor-pointer hover:opacity-80' : 'cursor-default'}`}
           onClick={displayStatus !== '완료' ? handleCompleteClick : undefined}
           data-testid={`status-${itemId}`}
         >
