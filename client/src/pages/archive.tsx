@@ -961,34 +961,32 @@ export default function Archive() {
 
       </main>
 
-      {/* Selection Action Bar */}
+      {/* Selection Toast */}
       {selectedItems.size > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border p-4 shadow-lg z-50">
-          <div className="flex items-center justify-between max-w-screen-xl mx-auto">
-            <div className="flex items-center gap-4">
-              <span className="text-sm font-medium">
-                {selectedItems.size}개 항목 선택됨
-              </span>
-              <Button 
-                variant="outline" 
-                onClick={() => setSelectedItems(new Set())}
-                data-testid="button-clear-selection"
-              >
-                선택 해제
-              </Button>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button 
-                variant="default"
-                className="bg-green-600 hover:bg-green-700 text-white"
-                onClick={restoreSelectedItems}
-                disabled={createProjectMutation.isPending || createGoalMutation.isPending || createTaskMutation.isPending}
-                data-testid="button-restore"
-              >
-                <Undo2 className="w-4 h-4 mr-2" />
-                {(createProjectMutation.isPending || createGoalMutation.isPending || createTaskMutation.isPending) ? '복원 중...' : '리스트로 복원'}
-              </Button>
-            </div>
+        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 bg-card border border-border rounded-lg shadow-lg z-50 px-4 py-3">
+          <div className="flex items-center gap-4">
+            <span className="text-sm font-medium text-foreground">
+              {selectedItems.size}개 선택됨
+            </span>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => setSelectedItems(new Set())}
+              data-testid="button-clear-selection"
+            >
+              선택 해제
+            </Button>
+            <Button 
+              variant="default"
+              size="sm"
+              className="bg-green-600 hover:bg-green-700 text-white"
+              onClick={restoreSelectedItems}
+              disabled={createProjectMutation.isPending || createGoalMutation.isPending || createTaskMutation.isPending}
+              data-testid="button-restore"
+            >
+              <Undo2 className="w-4 h-4 mr-2" />
+              리스트로 복원
+            </Button>
           </div>
         </div>
       )}
@@ -1008,32 +1006,33 @@ export default function Archive() {
           
           {selectedItem && (
             <div className="space-y-4">
-              {/* Basic Information */}
+              {/* Item Information in specified order */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-sm">기본 정보</CardTitle>
+                  <CardTitle className="text-sm">항목 정보</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-3">
-                  {selectedItemType === 'project' && (
-                    <>
-                      <div>
-                        <label className="text-sm font-medium">프로젝트명</label>
-                        <p className="text-sm text-muted-foreground">{selectedItem.name}</p>
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium">프로젝트 코드</label>
-                        <p className="text-sm text-muted-foreground">{selectedItem.code}</p>
-                      </div>
-                    </>
-                  )}
+                <CardContent className="space-y-4">
                   
-                  {(selectedItemType === 'goal' || selectedItemType === 'task') && (
+                  {/* 1) 프로젝트명/목표명/작업명 */}
+                  <div>
+                    <label className="text-sm font-medium">
+                      {selectedItemType === 'project' ? '프로젝트명' : 
+                       selectedItemType === 'goal' ? '목표명' : '작업명'}
+                    </label>
+                    <p className="text-sm text-muted-foreground">
+                      {selectedItem.name || selectedItem.title}
+                    </p>
+                  </div>
+                  
+                  {/* 2) 프로젝트 코드 (프로젝트인 경우만) */}
+                  {selectedItemType === 'project' && selectedItem.code && (
                     <div>
-                      <label className="text-sm font-medium">{selectedItemType === 'goal' ? '목표명' : '작업명'}</label>
-                      <p className="text-sm text-muted-foreground">{selectedItem.title}</p>
+                      <label className="text-sm font-medium">프로젝트 코드</label>
+                      <p className="text-sm text-muted-foreground">{selectedItem.code}</p>
                     </div>
                   )}
                   
+                  {/* 3) 설명 */}
                   {selectedItem.description && (
                     <div>
                       <label className="text-sm font-medium">설명</label>
@@ -1041,9 +1040,28 @@ export default function Archive() {
                     </div>
                   )}
                   
-                  <div className="grid grid-cols-2 gap-4">
+                  {/* 4) 라벨 */}
+                  {selectedItem.labels && selectedItem.labels.length > 0 && (
                     <div>
-                      <label className="text-sm font-medium">상태</label>
+                      <label className="text-sm font-medium">라벨</label>
+                      <div className="flex items-center gap-2 flex-wrap mt-1">
+                        {selectedItem.labels.map((label: string, index: number) => (
+                          <Badge 
+                            key={index} 
+                            variant="outline" 
+                            className={`text-xs ${index === 0 ? 'bg-blue-500 hover:bg-blue-600 text-white' : 'bg-green-500 hover:bg-green-600 text-white'}`}
+                          >
+                            {label}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* 5) 상태 */}
+                  <div>
+                    <label className="text-sm font-medium">상태</label>
+                    <div className="mt-1">
                       <Badge 
                         variant={getStatusBadgeVariant(selectedItemType === 'project' ? getStatusFromProgress(selectedItem.progressPercentage || 0) : selectedItem.status)}
                         className="text-xs"
@@ -1051,90 +1069,70 @@ export default function Archive() {
                         {selectedItemType === 'project' ? getStatusFromProgress(selectedItem.progressPercentage || 0) : selectedItem.status}
                       </Badge>
                     </div>
-                    
-                    {selectedItem.deadline && (
-                      <div>
-                        <label className="text-sm font-medium">마감일</label>
-                        <p className="text-sm text-muted-foreground">
-                          <span className={getDDayColorClass(selectedItem.deadline)}>
-                            {formatDeadline(selectedItem.deadline)}
-                          </span>
-                        </p>
-                      </div>
-                    )}
                   </div>
                   
+                  {/* 6) 마감일 */}
+                  {selectedItem.deadline && (
+                    <div>
+                      <label className="text-sm font-medium">마감일</label>
+                      <p className="text-sm text-muted-foreground">
+                        <span className={getDDayColorClass(selectedItem.deadline)}>
+                          {formatDeadline(selectedItem.deadline)}
+                        </span>
+                      </p>
+                    </div>
+                  )}
+                  
+                  {/* 7) 담당자/소유자 */}
+                  {((selectedItemType === 'project' && selectedItem.owners) || 
+                    ((selectedItemType === 'goal' || selectedItemType === 'task') && selectedItem.assignees)) && (
+                    <div>
+                      <label className="text-sm font-medium">
+                        {selectedItemType === 'project' ? '프로젝트 소유자' : '담당자'}
+                      </label>
+                      <div className="flex items-center gap-2 flex-wrap mt-1">
+                        {(selectedItemType === 'project' ? selectedItem.owners : selectedItem.assignees)?.map((person: any, index: number) => (
+                          <div key={person.id || index} className="flex items-center gap-2">
+                            <Avatar className="w-6 h-6">
+                              <AvatarFallback className="text-xs bg-primary text-primary-foreground">
+                                {person.name ? person.name.charAt(0) : '?'}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="text-sm">{person.name}</span>
+                          </div>
+                        )) || <span className="text-sm text-muted-foreground">담당자 없음</span>}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* 8) 진행도 (프로젝트인 경우) */}
                   {selectedItemType === 'project' && (
                     <div>
                       <label className="text-sm font-medium">진행도</label>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 mt-1">
                         <Progress value={selectedItem.progressPercentage || 0} className="flex-1" />
                         <span className="text-sm text-muted-foreground">{selectedItem.progressPercentage || 0}%</span>
                       </div>
                     </div>
                   )}
                   
+                  {/* 중요도 (작업인 경우 추가 표시) */}
                   {selectedItemType === 'task' && selectedItem.importance && (
                     <div>
                       <label className="text-sm font-medium">중요도</label>
-                      <Badge 
-                        variant={getImportanceBadgeVariant(selectedItem.importance)}
-                        className="text-xs"
-                      >
-                        {selectedItem.importance}
-                      </Badge>
+                      <div className="mt-1">
+                        <Badge 
+                          variant={getImportanceBadgeVariant(selectedItem.importance)}
+                          className="text-xs"
+                        >
+                          {selectedItem.importance}
+                        </Badge>
+                      </div>
                     </div>
                   )}
+                  
                 </CardContent>
               </Card>
-              
-              {/* Assignees/Owners */}
-              {((selectedItemType === 'project' && selectedItem.owners) || 
-                ((selectedItemType === 'goal' || selectedItemType === 'task') && selectedItem.assignees)) && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-sm">
-                      {selectedItemType === 'project' ? '프로젝트 소유자' : '담당자'}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {(selectedItemType === 'project' ? selectedItem.owners : selectedItem.assignees)?.map((person: any, index: number) => (
-                        <div key={person.id || index} className="flex items-center gap-2">
-                          <Avatar className="w-6 h-6">
-                            <AvatarFallback className="text-xs bg-primary text-primary-foreground">
-                              {person.name ? person.name.charAt(0) : '?'}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className="text-sm">{person.name}</span>
-                        </div>
-                      )) || <span className="text-sm text-muted-foreground">담당자 없음</span>}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-              
-              {/* Labels */}
-              {selectedItem.labels && selectedItem.labels.length > 0 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-sm">라벨</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {selectedItem.labels.map((label: string, index: number) => (
-                        <Badge 
-                          key={index} 
-                          variant="outline" 
-                          className={`text-xs ${index === 0 ? 'bg-blue-500 hover:bg-blue-600 text-white' : 'bg-green-500 hover:bg-green-600 text-white'}`}
-                        >
-                          {label}
-                        </Badge>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
             </div>
           )}
         </DialogContent>
