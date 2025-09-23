@@ -275,27 +275,71 @@ export default function Archive() {
     }
   })();
 
-  // Filter projects to show only archived ones and their archived children
+  // Get list context from sessionStorage to filter archived items
+  const listContext = (() => {
+    try {
+      const stored = sessionStorage.getItem('listContext');
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  })();
+
+  // Filter projects to show only archived ones that were in the original list
   const archivedProjects = (projects as ProjectWithDetails[])?.filter(project => {
     const isProjectArchived = archivedItems.includes(project.id);
     
+    // If no list context, show all archived items (fallback behavior)
+    if (!listContext) {
+      if (isProjectArchived) {
+        return true;
+      }
+      
+      const hasArchivedProjectTasks = project.tasks && project.tasks.some(task => archivedItems.includes(task.id));
+      if (hasArchivedProjectTasks) {
+        return true;
+      }
+      
+      if (project.goals) {
+        const hasArchivedChildren = project.goals.some(goal => 
+          archivedItems.includes(goal.id) || 
+          (goal.tasks && goal.tasks.some(task => archivedItems.includes(task.id)))
+        );
+        return hasArchivedChildren;
+      }
+      
+      return false;
+    }
+
+    // With list context, only show items that were in the original list AND are now archived
+    const wasInOriginalList = listContext.visibleProjectIds.includes(project.id);
+    
+    if (!wasInOriginalList) {
+      return false; // Don't show projects that weren't in the original list
+    }
+
+    // Show if project itself is archived or has archived children
     if (isProjectArchived) {
-      return true; // Show archived projects
+      return true;
     }
     
-    // Check if any direct project tasks are archived
-    const hasArchivedProjectTasks = project.tasks && project.tasks.some(task => archivedItems.includes(task.id));
+    const hasArchivedProjectTasks = project.tasks && project.tasks.some(task => 
+      archivedItems.includes(task.id) && listContext.visibleTaskIds.includes(task.id)
+    );
     if (hasArchivedProjectTasks) {
       return true;
     }
     
     if (project.goals) {
-      // Check if any goals or goal tasks are archived
       const hasArchivedChildren = project.goals.some(goal => 
-        archivedItems.includes(goal.id) || 
-        (goal.tasks && goal.tasks.some(task => archivedItems.includes(task.id)))
+        (archivedItems.includes(goal.id) && listContext.visibleGoalIds.includes(goal.id)) || 
+        (goal.tasks && goal.tasks.some(task => 
+          archivedItems.includes(task.id) && listContext.visibleTaskIds.includes(task.id)
+        ))
       );
-      return hasArchivedChildren;
+      if (hasArchivedChildren) {
+        return true;
+      }
     }
     
     return false;
@@ -306,26 +350,33 @@ export default function Archive() {
       return project; // Show full project if archived
     }
     
-    // Show only archived goals, tasks, and direct project tasks
-    const archivedGoals = project.goals?.filter(goal => 
-      archivedItems.includes(goal.id) || 
-      (goal.tasks && goal.tasks.some(task => archivedItems.includes(task.id)))
-    ).map(goal => {
+    // Show only archived goals and tasks that were in the original list
+    const archivedGoals = project.goals?.filter(goal => {
+      const wasGoalInOriginalList = !listContext || listContext.visibleGoalIds.includes(goal.id);
+      return wasGoalInOriginalList && (
+        archivedItems.includes(goal.id) || 
+        (goal.tasks && goal.tasks.some(task => 
+          archivedItems.includes(task.id) && (!listContext || listContext.visibleTaskIds.includes(task.id))
+        ))
+      );
+    }).map(goal => {
       const isGoalArchived = archivedItems.includes(goal.id);
       if (isGoalArchived) {
-        // If goal itself is archived, show all its tasks
         return goal;
       } else {
-        // If only some tasks are archived, show only archived tasks
         return {
           ...goal,
-          tasks: goal.tasks?.filter(task => archivedItems.includes(task.id)) || []
+          tasks: goal.tasks?.filter(task => 
+            archivedItems.includes(task.id) && (!listContext || listContext.visibleTaskIds.includes(task.id))
+          ) || []
         };
       }
     }) || [];
     
-    // Include archived direct project tasks
-    const archivedProjectTasks = project.tasks?.filter(task => archivedItems.includes(task.id)) || [];
+    // Include archived direct project tasks that were in the original list
+    const archivedProjectTasks = project.tasks?.filter(task => 
+      archivedItems.includes(task.id) && (!listContext || listContext.visibleTaskIds.includes(task.id))
+    ) || [];
     
     return {
       ...project,

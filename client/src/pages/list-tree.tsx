@@ -1344,7 +1344,51 @@ export default function ListTree() {
           <Button 
             variant="default"
             className="bg-purple-600 hover:bg-purple-700 text-white"
-            onClick={() => setLocation('/archive')}
+            onClick={() => {
+              // Store current list context for archive page
+              // Include items from the current active list view plus any currently archived items
+              // This ensures only items visible in the current list context are shown in archive
+              const currentArchivedItems = (() => {
+                try {
+                  const stored = localStorage.getItem('archivedItems');
+                  return stored ? JSON.parse(stored) : [];
+                } catch {
+                  return [];
+                }
+              })();
+              
+              const currentListContext = {
+                timestamp: Date.now(),
+                visibleProjectIds: [
+                  ...activeProjects?.map(p => p.id) || [],
+                  ...currentArchivedItems.filter((id: string) => 
+                    (projects as ProjectWithDetails[])?.some(p => p.id === id)
+                  )
+                ],
+                visibleGoalIds: [
+                  ...activeProjects?.flatMap(p => p.goals?.map(g => g.id) || []) || [],
+                  ...currentArchivedItems.filter((id: string) => 
+                    (projects as ProjectWithDetails[])?.some(p => 
+                      p.goals?.some(g => g.id === id)
+                    )
+                  )
+                ],
+                visibleTaskIds: [
+                  ...activeProjects?.flatMap(p => [
+                    ...(p.tasks?.map(t => t.id) || []),
+                    ...(p.goals?.flatMap(g => g.tasks?.map(t => t.id) || []) || [])
+                  ]) || [],
+                  ...currentArchivedItems.filter((id: string) => 
+                    (projects as ProjectWithDetails[])?.some(p => 
+                      (p.tasks?.some(t => t.id === id)) ||
+                      (p.goals?.some(g => g.tasks?.some(t => t.id === id)))
+                    )
+                  )
+                ]
+              };
+              sessionStorage.setItem('listContext', JSON.stringify(currentListContext));
+              setLocation('/archive');
+            }}
             data-testid="button-archive-page"
           >
             <Archive className="w-4 h-4 mr-2" />
