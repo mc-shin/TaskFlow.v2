@@ -26,24 +26,32 @@ export default function Archive() {
     // Use same parsing logic as KoreanDatePicker to avoid timezone issues
     const deadlineDate = parse(deadline, 'yyyy-MM-dd', new Date());
     
+    // Check if the parsed date is valid
     if (isNaN(deadlineDate.getTime())) {
       return '-';
     }
     
+    const month = deadlineDate.getMonth() + 1;
+    const day = deadlineDate.getDate();
+    
+    // Calculate D-day
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    deadlineDate.setHours(0, 0, 0, 0);
+    today.setHours(0, 0, 0, 0); // Set to midnight for accurate comparison
+    deadlineDate.setHours(0, 0, 0, 0); // Set to midnight for accurate comparison
     
     const diffTime = deadlineDate.getTime() - today.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     
-    if (diffDays === 0) return '오늘';
-    if (diffDays === 1) return '내일';
-    if (diffDays === -1) return '어제';
-    if (diffDays < 0) return `${Math.abs(diffDays)}일 전`;
-    if (diffDays <= 7) return `${diffDays}일 후`;
+    let dDayPart = '';
+    if (diffDays < 0) {
+      dDayPart = ` D+${Math.abs(diffDays)}`;
+    } else if (diffDays === 0) {
+      dDayPart = ' D-Day';
+    } else {
+      dDayPart = ` D-${diffDays}`;
+    }
     
-    return deadline;
+    return `${month}/${day}${dDayPart}`;
   };
 
   const getDDayColorClass = (deadline: string | null) => {
@@ -61,11 +69,13 @@ export default function Archive() {
     const diffTime = deadlineDate.getTime() - today.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     
-    if (diffDays < 0) return "text-red-600"; // 지나간 날
-    if (diffDays === 0) return "text-red-500"; // 오늘
-    if (diffDays <= 3) return "text-orange-500"; // 3일 이내
-    if (diffDays <= 7) return "text-yellow-600"; // 7일 이내
-    return "text-muted-foreground"; // 그 외
+    if (diffDays < 0) {
+      return "px-2 py-1 text-xs rounded font-medium bg-red-100 text-red-700";
+    } else if (diffDays === 0) {
+      return "px-2 py-1 text-xs rounded font-medium bg-orange-100 text-orange-700";
+    } else {
+      return "px-2 py-1 text-xs rounded font-medium bg-blue-100 text-blue-700";
+    }
   };
 
   const getStatusFromProgress = (progress: number): string => {
@@ -102,14 +112,84 @@ export default function Archive() {
     }
   };
 
-  // Checkbox selection functions
+  // Checkbox selection functions (hierarchical selection like list page)
   const toggleItemSelection = (itemId: string) => {
     const newSelected = new Set(selectedItems);
     
-    if (newSelected.has(itemId)) {
-      newSelected.delete(itemId);
+    // Helper function to find all child items of a project or goal
+    const getChildItems = (parentId: string, parentType: 'project' | 'goal'): string[] => {
+      const childIds: string[] = [];
+      
+      if (parentType === 'project') {
+        // Find all goals and tasks under this project
+        const project = (archivedProjects as ProjectWithDetails[])?.find(p => p.id === parentId);
+        if (project?.goals) {
+          project.goals.forEach(goal => {
+            childIds.push(goal.id);
+            if (goal.tasks) {
+              goal.tasks.forEach(task => {
+                childIds.push(task.id);
+              });
+            }
+          });
+        }
+      } else if (parentType === 'goal') {
+        // Find all tasks under this goal
+        (archivedProjects as ProjectWithDetails[])?.forEach(project => {
+          const goal = project.goals?.find(g => g.id === parentId);
+          if (goal?.tasks) {
+            goal.tasks.forEach(task => {
+              childIds.push(task.id);
+            });
+          }
+        });
+      }
+      
+      return childIds;
+    };
+    
+    // Determine the type of the selected item
+    let itemType: 'project' | 'goal' | 'task' = 'task';
+    const isProject = (archivedProjects as ProjectWithDetails[])?.some(p => p.id === itemId);
+    if (isProject) {
+      itemType = 'project';
     } else {
+      // Check if it's a goal
+      const isGoal = (archivedProjects as ProjectWithDetails[])?.some(p => 
+        p.goals?.some(g => g.id === itemId)
+      );
+      if (isGoal) {
+        itemType = 'goal';
+      }
+    }
+    
+    // For parent items (project/goal), check if they should be considered "selected" 
+    // either directly or because all their children are selected
+    let isCurrentlySelected = newSelected.has(itemId);
+    if (!isCurrentlySelected && (itemType === 'project' || itemType === 'goal')) {
+      const childIds = getChildItems(itemId, itemType);
+      // Consider parent selected if all children are selected
+      if (childIds.length > 0) {
+        isCurrentlySelected = childIds.every(childId => newSelected.has(childId));
+      }
+    }
+    
+    if (isCurrentlySelected) {
+      // Deselecting: remove the item and all its children
+      newSelected.delete(itemId);
+      
+      if (itemType === 'project' || itemType === 'goal') {
+        const childIds = getChildItems(itemId, itemType);
+        childIds.forEach(childId => newSelected.delete(childId));
+      }
+    } else {
+      // Selecting: add the item and all its children
       newSelected.add(itemId);
+      
+      if (itemType === 'project' || itemType === 'goal') {
+        const childIds = getChildItems(itemId, itemType);
+        childIds.forEach(childId => newSelected.add(childId));
+      }
     }
     
     setSelectedItems(newSelected);
