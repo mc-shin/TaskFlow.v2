@@ -418,7 +418,7 @@ export default function Archive() {
                         </div>
                       </div>
                       <div className="col-span-1">
-                        <span className="text-muted-foreground text-xs">-</span>
+                        {renderImportance('project')}
                       </div>
                     </div>
                   </div>
@@ -512,7 +512,7 @@ export default function Archive() {
                                 </div>
                               </div>
                               <div className="col-span-1">
-                                <span className="text-muted-foreground text-xs">-</span>
+                                {renderImportance('goal')}
                               </div>
                             </div>
                           </div>
