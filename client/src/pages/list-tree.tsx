@@ -1739,7 +1739,17 @@ export default function ListTree() {
                     // Find the project data
                     const project = (projects as ProjectWithDetails[])?.find(p => p.id === projectId);
                     if (project) {
-                      itemsToArchive.push({ ...project, type: 'project' });
+                      // Clean the project data to avoid task duplication
+                      // Only include direct project tasks (not those under goals)
+                      const directProjectTasks = project.tasks?.filter(task => 
+                        !task.goalId // Only tasks that are not under any goal
+                      ) || [];
+                      
+                      itemsToArchive.push({ 
+                        ...project, 
+                        type: 'project',
+                        tasks: directProjectTasks // Use cleaned task list
+                      });
                     }
                   });
                   
