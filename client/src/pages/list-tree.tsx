@@ -60,6 +60,17 @@ export default function ListTree() {
   });
 
   const queryClient = useQueryClient();
+
+  // User deletion mutation
+  const deleteUserMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const response = await apiRequest("DELETE", `/api/users/${userId}`);
+      return response;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+    },
+  });
   
   // Function to update progress for parent items (goals and projects) by modifying child tasks
   const updateProgressForParentItem = async (itemId: string, type: 'goal' | 'project', targetProgress: number): Promise<number> => {
@@ -1671,7 +1682,7 @@ export default function ListTree() {
 
       {/* Member Invite Modal */}
       <Dialog open={isInviteModalOpen} onOpenChange={setIsInviteModalOpen}>
-        <DialogContent className="max-w-2xl bg-slate-800 text-white border-slate-700">
+        <DialogContent className="max-w-lg bg-slate-800 text-white border-slate-700">
           <DialogHeader>
             <DialogTitle className="text-white">초대</DialogTitle>
           </DialogHeader>
@@ -1753,9 +1764,20 @@ export default function ListTree() {
                         size="sm"
                         className="h-6 w-6 p-0 text-slate-400 hover:text-red-400 hover:bg-slate-600"
                         onClick={() => {
-                          toast({
-                            title: "멤버 삭제",
-                            description: `${user.name}님을 워크스페이스에서 제거했습니다.`,
+                          deleteUserMutation.mutate(user.id, {
+                            onSuccess: () => {
+                              toast({
+                                title: "멤버 삭제",
+                                description: `${user.name}님을 워크스페이스에서 제거했습니다.`,
+                              });
+                            },
+                            onError: () => {
+                              toast({
+                                title: "삭제 실패",
+                                description: "멤버 삭제 중 오류가 발생했습니다.",
+                                variant: "destructive",
+                              });
+                            },
                           });
                         }}
                         data-testid={`button-delete-member-${user.id}`}
