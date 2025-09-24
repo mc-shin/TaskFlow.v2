@@ -1029,58 +1029,149 @@ export default function ListTree() {
       const autoCompleteAllowed = canAutoComplete(itemId, type);
       const isCompleteButtonEnabled = displayStatus !== '완료' && autoCompleteAllowed;
       const isAlreadyCompleted = displayStatus === '완료';
+      // Function to calculate what the status should be based on child progress
+      const getCalculatedStatus = (itemId: string, type: 'project' | 'goal'): string => {
+        if (!projects || !Array.isArray(projects)) return '진행전';
+        
+        if (type === 'project') {
+          const project = projects.find(p => p.id === itemId);
+          if (!project) return '진행전';
+          
+          if (project.goals && project.goals.length > 0) {
+            const allCompleted = project.goals.every((goal: any) => goal.progressPercentage === 100);
+            const anyStarted = project.goals.some((goal: any) => goal.progressPercentage > 0);
+            if (allCompleted) return '완료';
+            if (anyStarted) return '진행중';
+            return '진행전';
+          }
+          
+          if (project.tasks && project.tasks.length > 0) {
+            const allCompleted = project.tasks.every((task: any) => 
+              task.progress === 100 || task.status === '완료'
+            );
+            const anyStarted = project.tasks.some((task: any) => 
+              (task.progress !== null && task.progress > 0) || task.status === '진행중'
+            );
+            if (allCompleted) return '완료';
+            if (anyStarted) return '진행중';
+            return '진행전';
+          }
+          
+          return '진행전';
+        } else if (type === 'goal') {
+          for (const project of projects) {
+            if (project.goals) {
+              const goal = project.goals.find((g: any) => g.id === itemId);
+              if (goal) {
+                if (goal.tasks && goal.tasks.length > 0) {
+                  const allCompleted = goal.tasks.every((task: any) => 
+                    task.progress === 100 || task.status === '완료'
+                  );
+                  const anyStarted = goal.tasks.some((task: any) => 
+                    (task.progress !== null && task.progress > 0) || task.status === '진행중'
+                  );
+                  if (allCompleted) return '완료';
+                  if (anyStarted) return '진행중';
+                  return '진행전';
+                }
+                return '진행전';
+              }
+            }
+          }
+        }
+        
+        return '진행전';
+      };
+
       const handleCompleteClick = async () => {
-        if (displayStatus === '완료' || isLocallyCompleted || !autoCompleteAllowed) {
-          return; // Already completed or not allowed
+        if (!autoCompleteAllowed && displayStatus !== '완료') {
+          return; // Not allowed to complete
         }
         
         try {
-          // Immediately mark as completed locally
-          setCompletedItems(prev => new Set(Array.from(prev).concat(itemId)));
-          
-          if (type === 'project') {
-            await updateProjectMutation.mutateAsync({ 
-              id: itemId, 
-              updates: { 
-                status: '완료',
-                // For projects, we can't set progress directly since it's calculated from goals/tasks
-                // but setting status should be enough
-              } 
+          if (displayStatus === '완료' || isLocallyCompleted) {
+            // This is a cancel operation - revert to calculated status
+            setCompletedItems(prev => {
+              const newSet = new Set(prev);
+              newSet.delete(itemId);
+              return newSet;
             });
             
-            // Force refresh the data to ensure UI updates
-            await queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+            const calculatedStatus = getCalculatedStatus(itemId, type);
             
-            toast({
-              title: "프로젝트 완료",
-              description: "프로젝트가 완료 상태로 변경되었습니다.",
-            });
-          } else if (type === 'goal') {
-            await updateGoalMutation.mutateAsync({ 
-              id: itemId, 
-              updates: { 
-                status: '완료',
-                // For goals, we can't set progress directly since it's calculated from tasks
-                // but setting status should be enough
-              } 
-            });
+            if (type === 'project') {
+              await updateProjectMutation.mutateAsync({ 
+                id: itemId, 
+                updates: { 
+                  status: calculatedStatus
+                } 
+              });
+              
+              toast({
+                title: "프로젝트 완료 취소",
+                description: "프로젝트 완료가 취소되었습니다.",
+              });
+            } else if (type === 'goal') {
+              await updateGoalMutation.mutateAsync({ 
+                id: itemId, 
+                updates: { 
+                  status: calculatedStatus
+                } 
+              });
+              
+              toast({
+                title: "목표 완료 취소",
+                description: "목표 완료가 취소되었습니다.",
+              });
+            }
+          } else {
+            // This is a complete operation
+            setCompletedItems(prev => new Set(Array.from(prev).concat(itemId)));
             
-            // Force refresh the data to ensure UI updates
-            await queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
-            
-            toast({
-              title: "목표 완료",
-              description: "목표가 완료 상태로 변경되었습니다.",
-            });
+            if (type === 'project') {
+              await updateProjectMutation.mutateAsync({ 
+                id: itemId, 
+                updates: { 
+                  status: '완료'
+                } 
+              });
+              
+              toast({
+                title: "프로젝트 완료",
+                description: "프로젝트가 완료 상태로 변경되었습니다.",
+              });
+            } else if (type === 'goal') {
+              await updateGoalMutation.mutateAsync({ 
+                id: itemId, 
+                updates: { 
+                  status: '완료'
+                } 
+              });
+              
+              toast({
+                title: "목표 완료",
+                description: "목표가 완료 상태로 변경되었습니다.",
+              });
+            }
           }
+          
+          // Force refresh the data to ensure UI updates
+          await queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+          
         } catch (error) {
           console.error('Status update failed:', error);
-          // Remove from completed items if the update failed
-          setCompletedItems(prev => {
-            const newSet = new Set(prev);
-            newSet.delete(itemId);
-            return newSet;
-          });
+          
+          // Revert local state if the update failed
+          if (displayStatus === '완료' || isLocallyCompleted) {
+            setCompletedItems(prev => new Set(Array.from(prev).concat(itemId)));
+          } else {
+            setCompletedItems(prev => {
+              const newSet = new Set(prev);
+              newSet.delete(itemId);
+              return newSet;
+            });
+          }
+          
           toast({
             title: "상태 변경 실패",
             description: "상태 변경 중 오류가 발생했습니다.",
@@ -1115,7 +1206,7 @@ export default function ListTree() {
         const baseClasses = 'text-xs font-medium transition-all duration-200';
         
         if (isAlreadyCompleted) {
-          return `${baseClasses} cursor-default border-green-500 text-green-700 bg-green-50 dark:bg-green-950 dark:text-green-300 dark:border-green-600`;
+          return `${baseClasses} cursor-pointer hover:scale-105 hover:shadow-md bg-orange-600 hover:bg-orange-700 text-white border-orange-600 font-semibold`;
         } else if (isCompleteButtonEnabled) {
           return `${baseClasses} cursor-pointer hover:scale-105 hover:shadow-md bg-green-600 hover:bg-green-700 text-white border-green-600 font-semibold`;
         } else {
@@ -1131,11 +1222,11 @@ export default function ListTree() {
             borderRadius: '0px',
             opacity: isAlreadyCompleted || isCompleteButtonEnabled ? 1 : 0.6
           }}
-          onClick={isCompleteButtonEnabled ? handleCompleteClick : undefined}
+          onClick={isCompleteButtonEnabled || isAlreadyCompleted ? handleCompleteClick : undefined}
           title={getTooltipMessage()}
           data-testid={`status-${itemId}`}
         >
-          {displayStatus === '완료' ? displayStatus : '완료'}
+          {displayStatus === '완료' ? '취소' : '완료'}
         </Badge>
       );
     }
