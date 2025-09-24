@@ -1027,8 +1027,10 @@ export default function ListTree() {
     if (type === 'project' || type === 'goal') {
       // Check if auto completion is allowed (all child items are 100% complete)
       const autoCompleteAllowed = canAutoComplete(itemId, type);
-      const isCompleteButtonEnabled = displayStatus !== '완료' && autoCompleteAllowed;
-      const isAlreadyCompleted = displayStatus === '완료';
+      // Enable completion button if auto-completion is allowed OR if user already completed it locally
+      const isCompleteButtonEnabled = autoCompleteAllowed || isLocallyCompleted;
+      // Only consider locally completed (user clicked completion button) for button state
+      const isAlreadyCompleted = isLocallyCompleted;
       // Function to calculate what the status should be based on child progress
       const getCalculatedStatus = (itemId: string, type: 'project' | 'goal'): string => {
         if (!projects || !Array.isArray(projects)) return '진행전';
