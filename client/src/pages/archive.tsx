@@ -424,6 +424,7 @@ export default function Archive() {
           code: itemData.code,
           description: itemData.description,
           deadline: itemData.deadline,
+          status: itemData.status,
           labels: itemData.labels || [],
           owners: itemData.owners || []
         });
@@ -436,6 +437,7 @@ export default function Archive() {
               title: goal.title,
               description: goal.description,
               deadline: goal.deadline,
+              status: goal.status,
               projectId: createdProject.id,
               labels: goal.labels || [],
               assignees: goal.assignees || []
