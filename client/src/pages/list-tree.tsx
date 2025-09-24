@@ -972,9 +972,9 @@ export default function ListTree() {
       const project = projects.find(p => p.id === itemId);
       if (!project) return false;
       
-      // If project has goals, check if all goals are 100% complete
+      // If project has goals, check if all goals have been locally completed (completion button clicked)
       if (project.goals && project.goals.length > 0) {
-        return project.goals.every((goal: any) => goal.progressPercentage === 100);
+        return project.goals.every((goal: any) => completedItems.has(goal.id));
       }
       
       // If no goals, check if all direct project tasks are 100% complete
