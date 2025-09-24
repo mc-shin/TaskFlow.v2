@@ -1206,14 +1206,14 @@ export default function ListTree() {
         const baseClasses = 'text-xs font-medium transition-all duration-200';
         
         if (isAlreadyCompleted) {
-          // 완료 상태 - 음영처리 효과 (어두운 배경, 흰색 텍스트)
+          // 완료 상태 - 음영처리 효과 (어두운 배경, 흰색 텍스트, 그림자)
           return `${baseClasses} cursor-pointer hover:scale-105 hover:shadow-md bg-gray-800 hover:bg-gray-900 text-white border-gray-800 font-semibold shadow-lg`;
         } else if (isCompleteButtonEnabled) {
-          // 활성화 상태 - 밝은 초록색
-          return `${baseClasses} cursor-pointer hover:scale-105 hover:shadow-md bg-green-600 hover:bg-green-700 text-white border-green-600 font-semibold`;
+          // 활성화 상태 - 밝은 파란색으로 변경하여 더 명확한 구분
+          return `${baseClasses} cursor-pointer hover:scale-105 hover:shadow-md bg-blue-600 hover:bg-blue-700 text-white border-blue-600 font-semibold`;
         } else {
-          // 비활성화 상태 - 회색
-          return `${baseClasses} cursor-not-allowed bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-400 border-gray-300 dark:border-gray-600`;
+          // 비활성화 상태 - 더 연한 회색으로 명확한 구분
+          return `${baseClasses} cursor-not-allowed bg-gray-200 dark:bg-gray-800 text-gray-400 dark:text-gray-500 border-gray-200 dark:border-gray-700 opacity-50`;
         }
       };
 
@@ -1229,7 +1229,7 @@ export default function ListTree() {
           title={getTooltipMessage()}
           data-testid={`status-${itemId}`}
         >
-          {displayStatus === '완료' ? '취소' : '완료'}
+          {isAlreadyCompleted ? '취소' : '완료'}
         </Badge>
       );
     }
@@ -1539,7 +1539,7 @@ export default function ListTree() {
       case "진행중":
         return "default" as const;
       case "완료":
-        return "outline" as const;
+        return "success" as const; // 완료 상태에 전용 success variant 사용
       default:
         return "outline" as const;
     }
