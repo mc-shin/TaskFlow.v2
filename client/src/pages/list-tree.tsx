@@ -988,8 +988,8 @@ export default function ListTree() {
         });
       }
       
-      // If no goals and no tasks, allow completion
-      return true;
+      // If no goals and no tasks, disallow completion
+      return false;
     } else if (type === 'goal') {
       // Find the goal across all projects
       for (const project of projects) {
@@ -1006,8 +1006,8 @@ export default function ListTree() {
                 return task.status === '완료';
               });
             }
-            // If no tasks, allow completion
-            return true;
+            // If no tasks, disallow completion
+            return false;
           }
         }
       }
@@ -1206,10 +1206,13 @@ export default function ListTree() {
         const baseClasses = 'text-xs font-medium transition-all duration-200';
         
         if (isAlreadyCompleted) {
-          return `${baseClasses} cursor-pointer hover:scale-105 hover:shadow-md bg-orange-600 hover:bg-orange-700 text-white border-orange-600 font-semibold`;
+          // 완료 상태 - 음영처리 효과 (어두운 배경, 흰색 텍스트)
+          return `${baseClasses} cursor-pointer hover:scale-105 hover:shadow-md bg-gray-800 hover:bg-gray-900 text-white border-gray-800 font-semibold shadow-lg`;
         } else if (isCompleteButtonEnabled) {
+          // 활성화 상태 - 밝은 초록색
           return `${baseClasses} cursor-pointer hover:scale-105 hover:shadow-md bg-green-600 hover:bg-green-700 text-white border-green-600 font-semibold`;
         } else {
+          // 비활성화 상태 - 회색
           return `${baseClasses} cursor-not-allowed bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-400 border-gray-300 dark:border-gray-600`;
         }
       };
