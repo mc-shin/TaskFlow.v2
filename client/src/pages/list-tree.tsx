@@ -1764,7 +1764,7 @@ export default function ListTree() {
               {activeProjects.map((project) => (
                 <div key={project.id}>
                   {/* Project Row */}
-                  <div className={`p-3 hover:bg-muted/50 transition-colors ${project.status === '완료' || completedItems.has(project.id) ? 'opacity-50' : ''}`}>
+                  <div className={`p-3 hover:bg-muted/50 transition-colors ${completedItems.has(project.id) ? 'opacity-50' : ''}`}>
                     <div className="grid grid-cols-12 gap-4 items-center">
                       <div className="col-span-4 flex items-center gap-2">
                         <Checkbox
@@ -1851,7 +1851,7 @@ export default function ListTree() {
                       {project.goals.map((goal) => (
                         <div key={goal.id}>
                           {/* Goal Row */}
-                          <div className={`p-3 hover:bg-muted/50 transition-colors ${project.status === '완료' || goal.status === '완료' || completedItems.has(project.id) || completedItems.has(goal.id) ? 'opacity-50' : ''}`}>
+                          <div className={`p-3 hover:bg-muted/50 transition-colors ${completedItems.has(project.id) || completedItems.has(goal.id) ? 'opacity-50' : ''}`}>
                             <div className="grid grid-cols-12 gap-4 items-center">
                               <div className="col-span-4 flex items-center gap-2 ml-8">
                                 <Checkbox
@@ -1918,7 +1918,7 @@ export default function ListTree() {
                           {expandedGoals.has(goal.id) && goal.tasks && (
                             <div className="bg-muted/30">
                               {goal.tasks.map((task) => (
-                                <div key={task.id} className={`p-3 hover:bg-muted/50 transition-colors ${project.status === '완료' || goal.status === '완료' || task.status === '완료' || completedItems.has(project.id) || completedItems.has(goal.id) || completedItems.has(task.id) ? 'opacity-50' : ''}`}>
+                                <div key={task.id} className={`p-3 hover:bg-muted/50 transition-colors ${completedItems.has(project.id) || completedItems.has(goal.id) || completedItems.has(task.id) ? 'opacity-50' : ''}`}>
                                   <div className="grid grid-cols-12 gap-4 items-center">
                                     <div className="col-span-4 flex items-center gap-2 ml-16">
                                       <Checkbox
