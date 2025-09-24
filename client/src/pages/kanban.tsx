@@ -139,7 +139,11 @@ export default function Kanban() {
     return (
       <div className="p-6">
         <div className="animate-pulse space-y-4">
-          <div className="h-32 bg-muted rounded"></div>
+          <div className="grid grid-cols-4 gap-4 mb-6">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="h-20 bg-muted rounded"></div>
+            ))}
+          </div>
           <div className="space-y-4">
             {[...Array(3)].map((_, i) => (
               <Card key={i}>
@@ -156,9 +160,28 @@ export default function Kanban() {
 
   return (
     <>
-      {/* 상태 헤더 - 사용자 이미지에서 온 요소 */}
-      <header className="p-6 bg-card border-b border-border">
-        <div className="grid grid-cols-4 gap-4 mb-4">
+      <header className="h-16 bg-card border-b border-border flex items-center justify-between px-6">
+        <div>
+          <h1 className="text-xl font-semibold" data-testid="header-title">
+            프로젝트 칸반 보드
+          </h1>
+          <p className="text-sm text-muted-foreground" data-testid="header-subtitle">
+            프로젝트 → 목표 → 작업을 칸반 형태로 관리합니다
+          </p>
+        </div>
+        <Button 
+          className="bg-blue-600 hover:bg-blue-700" 
+          onClick={() => setIsProjectModalOpen(true)}
+          data-testid="button-add-project"
+        >
+          <Plus className="w-4 h-4 mr-2" />
+          새 프로젝트
+        </Button>
+      </header>
+      
+      <main className="flex-1 p-6 overflow-auto" data-testid="main-content">
+        {/* 상태 헤더 - 본문 상단에 배치 */}
+        <div className="grid grid-cols-4 gap-4 mb-6">
           {Object.entries(totalStats).map(([status, count]) => (
             <div
               key={status}
@@ -173,27 +196,7 @@ export default function Kanban() {
             </div>
           ))}
         </div>
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-semibold" data-testid="header-title">
-              프로젝트 칸반 보드
-            </h1>
-            <p className="text-sm text-muted-foreground" data-testid="header-subtitle">
-              프로젝트 → 목표 → 작업을 칸반 형태로 관리합니다
-            </p>
-          </div>
-          <Button 
-            className="bg-blue-600 hover:bg-blue-700" 
-            onClick={() => setIsProjectModalOpen(true)}
-            data-testid="button-add-project"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            새 프로젝트
-          </Button>
-        </div>
-      </header>
-      
-      <main className="flex-1 p-6 overflow-auto" data-testid="main-content">
+
         {error ? (
           <Card className="border-destructive">
             <CardContent className="p-6 text-center">
@@ -294,6 +297,8 @@ export default function Kanban() {
                           getStatusBadgeVariant={getStatusBadgeVariant}
                           getDDayColorClass={getDDayColorClass}
                           getUserById={getUserById}
+                          hoveredProject={hoveredProject}
+                          setGoalModalState={setGoalModalState}
                           setTaskModalState={setTaskModalState}
                         />
                       )}
@@ -340,6 +345,8 @@ interface ProjectGoalsKanbanContentProps {
   getStatusBadgeVariant: (status: string) => "default" | "secondary" | "destructive" | "outline";
   getDDayColorClass: (deadline: string | null) => string;
   getUserById: (userId: string) => SafeUser | undefined;
+  hoveredProject: string | null;
+  setGoalModalState: (state: { isOpen: boolean; projectId: string; projectTitle: string }) => void;
   setTaskModalState: (state: { isOpen: boolean; goalId: string; goalTitle: string }) => void;
 }
 
@@ -354,6 +361,8 @@ function ProjectGoalsKanbanContent({
   getStatusBadgeVariant,
   getDDayColorClass,
   getUserById,
+  hoveredProject,
+  setGoalModalState,
   setTaskModalState
 }: ProjectGoalsKanbanContentProps) {
   // 프로젝트 목표 가져오기
