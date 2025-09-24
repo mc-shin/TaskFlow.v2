@@ -963,6 +963,59 @@ export default function ListTree() {
     return 50; // '진행중'
   };
 
+  // Helper function to check if all child items are completed
+  const canAutoComplete = (itemId: string, type: 'project' | 'goal'): boolean => {
+    if (!projects || !Array.isArray(projects)) return false;
+    
+    if (type === 'project') {
+      // Find the project
+      const project = projects.find(p => p.id === itemId);
+      if (!project) return false;
+      
+      // If project has goals, check if all goals are 100% complete
+      if (project.goals && project.goals.length > 0) {
+        return project.goals.every((goal: any) => goal.progressPercentage === 100);
+      }
+      
+      // If no goals, check if all direct project tasks are 100% complete
+      if (project.tasks && project.tasks.length > 0) {
+        return project.tasks.every((task: any) => {
+          // Calculate task progress like in backend
+          if (task.progress !== null && task.progress !== undefined) {
+            return task.progress === 100;
+          }
+          return task.status === '완료';
+        });
+      }
+      
+      // If no goals and no tasks, allow completion
+      return true;
+    } else if (type === 'goal') {
+      // Find the goal across all projects
+      for (const project of projects) {
+        if (project.goals) {
+          const goal = project.goals.find((g: any) => g.id === itemId);
+          if (goal) {
+            // Check if all tasks in this goal are 100% complete
+            if (goal.tasks && goal.tasks.length > 0) {
+              return goal.tasks.every((task: any) => {
+                // Calculate task progress like in backend
+                if (task.progress !== null && task.progress !== undefined) {
+                  return task.progress === 100;
+                }
+                return task.status === '완료';
+              });
+            }
+            // If no tasks, allow completion
+            return true;
+          }
+        }
+      }
+    }
+    
+    return false;
+  };
+
   const renderEditableStatus = (itemId: string, type: 'project' | 'goal' | 'task', status: string, progress?: number) => {
     // Check if this item was marked as completed locally
     const isLocallyCompleted = completedItems.has(itemId);
@@ -972,9 +1025,13 @@ export default function ListTree() {
     
     // For projects and goals, make status clickable to complete
     if (type === 'project' || type === 'goal') {
+      // Check if auto completion is allowed (all child items are 100% complete)
+      const autoCompleteAllowed = canAutoComplete(itemId, type);
+      const isCompleteButtonEnabled = displayStatus !== '완료' && autoCompleteAllowed;
+      const isAlreadyCompleted = displayStatus === '완료';
       const handleCompleteClick = async () => {
-        if (displayStatus === '완료' || isLocallyCompleted) {
-          return; // Already completed
+        if (displayStatus === '완료' || isLocallyCompleted || !autoCompleteAllowed) {
+          return; // Already completed or not allowed
         }
         
         try {
@@ -1032,11 +1089,33 @@ export default function ListTree() {
         }
       };
 
+      // Get tooltip message for disabled state
+      const getTooltipMessage = () => {
+        if (isAlreadyCompleted) return '';
+        if (type === 'project') {
+          return !autoCompleteAllowed ? '모든 하위 목표가 100% 완료되어야 완료할 수 있습니다' : '';
+        } else if (type === 'goal') {
+          return !autoCompleteAllowed ? '모든 하위 작업이 100% 완료되어야 완료할 수 있습니다' : '';
+        }
+        return '';
+      };
+
       return (
         <Badge 
           variant={getStatusBadgeVariant(displayStatus)} 
-          className={`text-xs rounded-none ${displayStatus !== '완료' ? 'cursor-pointer hover:opacity-80' : 'cursor-default'}`}
-          onClick={displayStatus !== '완료' ? handleCompleteClick : undefined}
+          className={`text-xs ${
+            isAlreadyCompleted 
+              ? 'cursor-default' 
+              : isCompleteButtonEnabled 
+                ? 'cursor-pointer hover:opacity-80' 
+                : 'cursor-not-allowed'
+          }`}
+          style={{
+            borderRadius: '0px',
+            opacity: isAlreadyCompleted || isCompleteButtonEnabled ? 1 : 0.5
+          }}
+          onClick={isCompleteButtonEnabled ? handleCompleteClick : undefined}
+          title={getTooltipMessage()}
           data-testid={`status-${itemId}`}
         >
           {displayStatus === '완료' ? displayStatus : '완료'}
