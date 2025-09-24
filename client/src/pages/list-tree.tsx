@@ -632,8 +632,78 @@ export default function ListTree() {
 
       return { previousProjects, taskId: id, updates };
     },
-    onSuccess: (data, variables) => {
+    onSuccess: async (data, variables) => {
       // Backend now stores progress field, no manual cache update needed
+      
+      // Check if parent project/goal is completed and reset it when child task is modified
+      const { id: taskId, updates } = variables;
+      
+      // Find the parent project and goal for this task
+      const currentProjects = queryClient.getQueryData(["/api/projects"]) as ProjectWithDetails[];
+      
+      if (currentProjects) {
+        for (const project of currentProjects) {
+          for (const goal of project.goals || []) {
+            const task = goal.tasks?.find(t => t.id === taskId);
+            if (task) {
+              // Found the parent goal and project
+              let statusChanges: string[] = [];
+              
+              // Check if parent goal is completed and reset it
+              if (goal.status === '완료') {
+                try {
+                  await updateGoalMutation.mutateAsync({ 
+                    id: goal.id, 
+                    updates: { status: '진행중' } 
+                  });
+                  
+                  // Remove goal from local completed items set
+                  setCompletedItems(prev => {
+                    const newSet = new Set(prev);
+                    newSet.delete(goal.id);
+                    return newSet;
+                  });
+                  
+                  statusChanges.push("목표");
+                } catch (error) {
+                  console.error('Failed to reset goal completion status:', error);
+                }
+              }
+              
+              // Check if parent project is completed and reset it
+              if (project.status === '완료') {
+                try {
+                  await updateProjectMutation.mutateAsync({ 
+                    id: project.id, 
+                    updates: { status: '진행중' } 
+                  });
+                  
+                  // Remove project from local completed items set
+                  setCompletedItems(prev => {
+                    const newSet = new Set(prev);
+                    newSet.delete(project.id);
+                    return newSet;
+                  });
+                  
+                  statusChanges.push("프로젝트");
+                } catch (error) {
+                  console.error('Failed to reset project completion status:', error);
+                }
+              }
+              
+              // Show toast if any status was changed
+              if (statusChanges.length > 0) {
+                toast({
+                  title: "상태 변경",
+                  description: `하위 작업 수정으로 인해 ${statusChanges.join("과 ")} 완료 상태가 해제되었습니다.`,
+                });
+              }
+              
+              return; // Found the project, stop searching
+            }
+          }
+        }
+      }
     },
     onError: (err, newTask, context) => {
       // Revert the optimistic update on error
