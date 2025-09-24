@@ -13,6 +13,7 @@ import type { ProjectWithDetails, SafeTaskWithAssignees, GoalWithTasks, SafeUser
 export default function Kanban() {
   const [_, setLocation] = useLocation();
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
+  const [expandedGoals, setExpandedGoals] = useState<Set<string>>(new Set());
 
   const { data: projects, isLoading } = useQuery({
     queryKey: ["/api/projects"],
@@ -29,6 +30,18 @@ export default function Kanban() {
         newSet.delete(projectId);
       } else {
         newSet.add(projectId);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleGoal = (goalId: string) => {
+    setExpandedGoals(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(goalId)) {
+        newSet.delete(goalId);
+      } else {
+        newSet.add(goalId);
       }
       return newSet;
     });
@@ -102,63 +115,61 @@ export default function Kanban() {
     return usersMap.get(userId);
   };
 
-  // 이미지와 정확히 같은 구조: 3개 상태 컬럼 (진행 전, 진행 중, 완료)
+  // 각 목표별로 작업을 분류하여 트리 구조 생성
   const kanbanData = useMemo(() => {
-    if (!projects) return { 
-      projects: [] as ProjectWithDetails[],
-      tasksByStatus: { "진행 전": [], "진행 중": [], "완료": [] }
-    };
+    if (!projects) return { projects: [] as any[] };
 
-    const allTasks = [] as Array<SafeTaskWithAssignees & { projectId: string, goalId?: string | null, projectCode: string, goalTitle?: string }>;
-    
-    // 모든 작업을 수집하면서 프로젝트/목표 정보 포함
-    (projects as ProjectWithDetails[]).forEach(project => {
+    // 프로젝트별로 목표와 작업을 분류
+    const structuredProjects = (projects as ProjectWithDetails[]).map(project => {
+      
       // 프로젝트 직접 작업들
-      if (project.tasks) {
-        project.tasks.forEach(task => {
-          allTasks.push({
-            ...task,
-            projectId: project.id,
-            projectCode: project.code
-          });
-        });
-      }
+      const projectTasks = project.tasks || [];
+      const projectTasksByStatus = {
+        "진행 전": [] as SafeTaskWithAssignees[],
+        "진행 중": [] as SafeTaskWithAssignees[],
+        "완료": [] as SafeTaskWithAssignees[]
+      };
+
+      projectTasks.forEach(task => {
+        let taskStatus = task.status === "진행전" ? "진행 전" : 
+                        task.status === "진행중" ? "진행 중" : 
+                        task.status === "완료" ? "완료" : "진행 전";
+        projectTasksByStatus[taskStatus as keyof typeof projectTasksByStatus].push(task);
+      });
 
       // 목표별 작업들
-      project.goals?.forEach(goal => {
-        if (goal.tasks) {
-          goal.tasks.forEach(task => {
-            allTasks.push({
-              ...task,
-              projectId: project.id,
-              goalId: goal.id,
-              projectCode: project.code,
-              goalTitle: goal.title
-            });
-          });
-        }
-      });
-    });
+      const goalsWithTasks = project.goals?.map(goal => {
+        const goalTasks = goal.tasks || [];
+        const goalTasksByStatus = {
+          "진행 전": [] as SafeTaskWithAssignees[],
+          "진행 중": [] as SafeTaskWithAssignees[],
+          "완료": [] as SafeTaskWithAssignees[]
+        };
 
-    // 작업들을 3개 상태로만 분류 (지연은 제외)
-    const tasksByStatus = {
-      "진행 전": [] as Array<SafeTaskWithAssignees & { projectId: string, goalId?: string | null, projectCode: string, goalTitle?: string }>,
-      "진행 중": [] as Array<SafeTaskWithAssignees & { projectId: string, goalId?: string | null, projectCode: string, goalTitle?: string }>,
-      "완료": [] as Array<SafeTaskWithAssignees & { projectId: string, goalId?: string | null, projectCode: string, goalTitle?: string }>
-    };
+        goalTasks.forEach(task => {
+          let taskStatus = task.status === "진행전" ? "진행 전" : 
+                          task.status === "진행중" ? "진행 중" : 
+                          task.status === "완료" ? "완료" : "진행 전";
+          goalTasksByStatus[taskStatus as keyof typeof goalTasksByStatus].push(task);
+        });
 
-    allTasks.forEach(task => {
-      let taskStatus = task.status === "진행전" ? "진행 전" : 
-                      task.status === "진행중" ? "진행 중" : 
-                      task.status === "완료" ? "완료" : "진행 전";
+        return {
+          ...goal,
+          tasksByStatus: goalTasksByStatus,
+          totalTasks: goalTasks.length
+        };
+      }) || [];
 
-      // 지연된 작업도 원래 상태에 따라 분류 (별도 지연 컬럼 없음)
-      tasksByStatus[taskStatus as keyof typeof tasksByStatus].push(task);
+      return {
+        ...project,
+        tasksByStatus: projectTasksByStatus,
+        totalTasks: projectTasks.length,
+        goals: goalsWithTasks
+      };
     });
 
     return {
-      projects: projects as ProjectWithDetails[],
-      tasksByStatus
+      projects: structuredProjects
     };
   }, [projects]);
 
@@ -222,27 +233,10 @@ export default function Kanban() {
             ))}
           </div>
         ) : (
-          <div className="flex flex-col h-full space-y-6">
-            {/* 상태 헤더 - 3개 컬럼 */}
-            <div className="grid grid-cols-3 gap-4">
-              {["진행 전", "진행 중", "완료"].map((status) => {
-                const totalTasks = kanbanData.tasksByStatus[status as keyof typeof kanbanData.tasksByStatus].length;
-                
-                return (
-                  <div key={status} className={`p-4 rounded-lg ${getStatusHeaderColor(status)}`}>
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium">{status}</span>
-                      <span className="font-semibold">{totalTasks}</span>
-                      {status === "완료" && <ChevronDown className="w-4 h-4 ml-2" />}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* 프로젝트/목표 섹션 */}
-            <div className="space-y-2">
-              {kanbanData.projects?.map((project) => (
+          <div className="flex flex-col h-full space-y-4">
+            {/* 프로젝트별 트리 구조 */}
+            <div className="space-y-4">
+              {kanbanData.projects?.map((project: any) => (
                 <div key={project.id} className="space-y-2">
                   {/* 프로젝트 행 */}
                   <div 
@@ -265,79 +259,183 @@ export default function Kanban() {
                     </div>
                   </div>
                   
-                  {/* 목표 행들 (확장된 경우만) */}
-                  {expandedProjects.has(project.id) && project.goals?.map((goal) => (
-                    <div 
-                      key={goal.id} 
-                      className="flex items-center gap-2 p-3 w-full bg-white border border-gray-200 rounded-lg ml-6"
-                      data-testid={`goal-${goal.id}`}
-                    >
-                      <ChevronDown className="w-4 h-4 text-gray-500" />
-                      <div className="flex items-center gap-2">
-                        <div className="w-4 h-4 bg-orange-500 rounded flex items-center justify-center">
-                          <span className="text-white text-xs font-bold">M</span>
-                        </div>
-                        <span className="text-sm font-medium">
-                          {goal.title}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ))}
-            </div>
-
-            {/* 작업 컬럼들 - 3개 컬럼 */}
-            <div className="grid grid-cols-3 gap-4 flex-1">
-              {["진행 전", "진행 중", "완료"].map((status) => {
-                const tasks = kanbanData.tasksByStatus[status as keyof typeof kanbanData.tasksByStatus];
-                
-                return (
-                  <div key={status} className="flex flex-col">
-                    <div className={`flex-1 p-4 rounded-lg min-h-96 overflow-y-auto ${getStatusColor(status)}`}>
-                      <div className="space-y-3">
-                        {tasks.map((task, taskIndex) => (
-                          <Card 
-                            key={`${status}-task-${task.id}-${taskIndex}`}
-                            className="hover:shadow-sm transition-shadow duration-200 cursor-pointer bg-white border border-gray-200"
-                            data-testid={`card-task-${task.id}`}
-                          >
-                            <CardContent className="p-3">
-                              <h4 className="font-medium text-sm mb-3 text-gray-900 line-clamp-2">{task.title}</h4>
-                              
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                  <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center text-xs font-medium text-blue-600">
-                                    {task.progress || 0}
+                  {/* 프로젝트가 확장된 경우 */}
+                  {expandedProjects.has(project.id) && (
+                    <div className="ml-6 space-y-4">
+                      {/* 프로젝트 직접 작업이 있는 경우 */}
+                      {project.totalTasks > 0 && (
+                        <div className="space-y-2">
+                          {/* 프로젝트 작업 상태 헤더 */}
+                          <div className="grid grid-cols-3 gap-2">
+                            {["진행 전", "진행 중", "완료"].map((status) => {
+                              const count = project.tasksByStatus[status]?.length || 0;
+                              return (
+                                <div key={status} className={`p-2 rounded ${getStatusHeaderColor(status)}`}>
+                                  <div className="flex items-center justify-between text-sm">
+                                    <span>{status}</span>
+                                    <span>{count}</span>
                                   </div>
-                                  <Avatar className="w-6 h-6">
-                                    <AvatarFallback className="text-xs bg-blue-500 text-white font-medium">
-                                      M
-                                    </AvatarFallback>
-                                  </Avatar>
                                 </div>
-                                
-                                <div className="flex items-center gap-1 text-xs text-gray-500">
-                                  <span>☑</span>
-                                  <span>{task.projectCode}</span>
+                              );
+                            })}
+                          </div>
+                          
+                          {/* 프로젝트 작업 컬럼들 */}
+                          <div className="grid grid-cols-3 gap-2">
+                            {["진행 전", "진행 중", "완료"].map((status) => {
+                              const tasks = project.tasksByStatus[status] || [];
+                              
+                              return (
+                                <div key={status} className={`p-3 rounded-lg min-h-32 ${getStatusColor(status)}`}>
+                                  <div className="space-y-2">
+                                    {tasks.map((task: any) => (
+                                      <Card 
+                                        key={task.id}
+                                        className="hover:shadow-sm transition-shadow duration-200 cursor-pointer bg-white border border-gray-200"
+                                        data-testid={`card-task-${task.id}`}
+                                      >
+                                        <CardContent className="p-2">
+                                          <h4 className="font-medium text-xs mb-2 text-gray-900 line-clamp-1">{task.title}</h4>
+                                          
+                                          <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-1">
+                                              <div className="w-4 h-4 bg-blue-100 rounded-full flex items-center justify-center text-xs font-medium text-blue-600">
+                                                {task.progress || 0}
+                                              </div>
+                                              <Avatar className="w-4 h-4">
+                                                <AvatarFallback className="text-xs bg-blue-500 text-white font-medium">
+                                                  M
+                                                </AvatarFallback>
+                                              </Avatar>
+                                            </div>
+                                            
+                                            <div className="flex items-center gap-1 text-xs text-gray-500">
+                                              <span>☑</span>
+                                              <span>{project.code}</span>
+                                            </div>
+                                          </div>
+                                        </CardContent>
+                                      </Card>
+                                    ))}
+                                    
+                                    {tasks.length === 0 && (
+                                      <div className="text-center text-xs text-gray-400 py-4">
+                                        작업 없음
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* 목표들 */}
+                      {project.goals?.map((goal: any) => (
+                        <div key={goal.id} className="space-y-2">
+                          {/* 목표 행 */}
+                          <div 
+                            className="flex items-center gap-2 p-3 w-full bg-white border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
+                            onClick={() => toggleGoal(goal.id)}
+                            data-testid={`goal-${goal.id}`}
+                          >
+                            {expandedGoals.has(goal.id) ? (
+                              <ChevronDown className="w-4 h-4 text-gray-500" />
+                            ) : (
+                              <ChevronRight className="w-4 h-4 text-gray-500" />
+                            )}
+                            <div className="flex items-center gap-2">
+                              <div className="w-4 h-4 bg-orange-500 rounded flex items-center justify-center">
+                                <span className="text-white text-xs font-bold">M</span>
                               </div>
-                            </CardContent>
-                          </Card>
-                        ))}
-                        
-                        {tasks.length === 0 && (
-                          <div className="flex items-center justify-center h-32 text-gray-400">
-                            <div className="text-center">
-                              <div className="text-sm">작업 없음</div>
+                              <span className="text-sm font-medium">
+                                {goal.title}
+                              </span>
                             </div>
                           </div>
-                        )}
-                      </div>
+                          
+                          {/* 목표가 확장된 경우 작업 칸반 */}
+                          {expandedGoals.has(goal.id) && goal.totalTasks > 0 && (
+                            <div className="ml-6 space-y-2">
+                              {/* 목표 작업 상태 헤더 */}
+                              <div className="grid grid-cols-3 gap-2">
+                                {["진행 전", "진행 중", "완료"].map((status) => {
+                                  const count = goal.tasksByStatus[status]?.length || 0;
+                                  return (
+                                    <div key={status} className={`p-2 rounded ${getStatusHeaderColor(status)}`}>
+                                      <div className="flex items-center justify-between text-sm">
+                                        <span>{status}</span>
+                                        <span>{count}</span>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                              
+                              {/* 목표 작업 컬럼들 */}
+                              <div className="grid grid-cols-3 gap-2">
+                                {["진행 전", "진행 중", "완료"].map((status) => {
+                                  const tasks = goal.tasksByStatus[status] || [];
+                                  
+                                  return (
+                                    <div key={status} className={`p-3 rounded-lg min-h-32 ${getStatusColor(status)}`}>
+                                      <div className="space-y-2">
+                                        {tasks.map((task: any) => (
+                                          <Card 
+                                            key={task.id}
+                                            className="hover:shadow-sm transition-shadow duration-200 cursor-pointer bg-white border border-gray-200"
+                                            data-testid={`card-task-${task.id}`}
+                                          >
+                                            <CardContent className="p-2">
+                                              <h4 className="font-medium text-xs mb-2 text-gray-900 line-clamp-1">{task.title}</h4>
+                                              
+                                              <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-1">
+                                                  <div className="w-4 h-4 bg-blue-100 rounded-full flex items-center justify-center text-xs font-medium text-blue-600">
+                                                    {task.progress || 0}
+                                                  </div>
+                                                  <Avatar className="w-4 h-4">
+                                                    <AvatarFallback className="text-xs bg-blue-500 text-white font-medium">
+                                                      M
+                                                    </AvatarFallback>
+                                                  </Avatar>
+                                                </div>
+                                                
+                                                <div className="flex items-center gap-1 text-xs text-gray-500">
+                                                  <span>☑</span>
+                                                  <span>{project.code}</span>
+                                                </div>
+                                              </div>
+                                            </CardContent>
+                                          </Card>
+                                        ))}
+                                        
+                                        {tasks.length === 0 && (
+                                          <div className="text-center text-xs text-gray-400 py-4">
+                                            작업 없음
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* 목표에 작업이 없는 경우 */}
+                          {expandedGoals.has(goal.id) && goal.totalTasks === 0 && (
+                            <div className="ml-6 p-4 text-center text-gray-400 text-sm">
+                              이 목표에 작업이 없습니다.
+                            </div>
+                          )}
+                        </div>
+                      ))}
                     </div>
-                  </div>
-                );
-              })}
+                  )}
+                </div>
+              ))}
             </div>
 
             {(!kanbanData.projects || kanbanData.projects.length === 0) && (
