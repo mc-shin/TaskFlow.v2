@@ -1086,12 +1086,13 @@ export default function ListTree() {
       };
 
       const handleCompleteClick = async () => {
-        if (!autoCompleteAllowed && displayStatus !== '완료') {
+        // Allow click if auto-completion is allowed OR if already completed locally
+        if (!autoCompleteAllowed && !isLocallyCompleted) {
           return; // Not allowed to complete
         }
         
         try {
-          if (displayStatus === '완료' || isLocallyCompleted) {
+          if (isLocallyCompleted) {
             // This is a cancel operation - revert to calculated status
             setCompletedItems(prev => {
               const newSet = new Set(prev);
