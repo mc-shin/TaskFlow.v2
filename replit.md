@@ -89,11 +89,12 @@ The application is designed as a monorepo with shared schemas between client and
   - Provides intuitive bulk selection capabilities for project management workflows
 
 ### Kanban Layout Restructuring (September 24, 2025)
-- **Horizontal Project Rows**: Completely restructured the Kanban page from a 4-column vertical layout to horizontal project rows. Each project now occupies its own horizontal row containing project information on the left and four status columns (진행전, 진행중, 완료, 지연) to the right.
-- **Comprehensive Project Display**: Removed the filter that excluded projects with no tasks, ensuring every project displays its own row regardless of task count. Empty status columns show "작업 없음" placeholders for better visual feedback.
-- **React Key Optimization**: Fixed duplicate key warnings by implementing unique task keys using the format `project-${project.id}-${status}-task-${task.id}-${taskIndex}`, ensuring proper React reconciliation.
-- **Performance Improvements**: Added memoization for project data processing and implemented Map-based user lookups for O(1) access time when rendering assignee information.
-- **UI Consistency**: Updated archive button styling to match the list page design by removing the outline variant.
+- **4-Column Hierarchical Structure**: Completely restructured the Kanban page to match design requirements with a traditional 4-column status layout (진행전, 진행중, 완료, 지연). Each column now displays the full hierarchical Project > Goal > Task structure with proper visual nesting.
+- **Expandable Project Sections**: Implemented expand/collapse functionality for project sections within each status column. Projects can be individually expanded or collapsed using chevron toggles, allowing navigation of complex project hierarchies without overwhelming the view.
+- **Status Handling Improvements**: Enhanced task status normalization to properly recognize "지연" as a first-class status before applying deadline-based delay calculations, ensuring pre-labeled delayed tasks appear in the correct column.
+- **Header Button Consistency**: Fixed header button styling (보관함, 새 프로젝트) to match list page appearance by removing size="sm" property for visual consistency across pages.
+- **TypeScript Type Safety**: Resolved missing imports and type definitions, including proper `GoalWithTasks` type imports from shared schema to eliminate compilation errors.
+- **Performance Optimizations**: Maintained memoization for project data processing and Map-based user lookups for efficient rendering while supporting the new hierarchical structure.
 
 ### Meeting Management Enhancements (September 12, 2025)
 - **Optional End Time**: Meeting edit forms now treat end time as optional, with proper validation and null handling throughout the system. UI clearly indicates end time as "(선택사항)" (optional).
