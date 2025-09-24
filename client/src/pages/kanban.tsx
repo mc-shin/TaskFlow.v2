@@ -313,61 +313,43 @@ export default function Kanban() {
                           <div className="text-sm font-medium text-sidebar-foreground/70 px-2">
                             프로젝트 직접 작업
                           </div>
-                          {/* 프로젝트 직접 작업 4개 상태 컬럼 */}
-                          <div className="grid grid-cols-4 gap-3">
-                            {["진행전", "진행중", "완료", "이슈"].map((status) => {
-                              const tasks = project.tasksByStatus[status] || [];
-                              
-                              return (
-                                <div key={status} className="space-y-2">
-                                  {/* 상태 소제목 */}
-                                  <div className={`p-2 rounded text-center text-xs font-medium ${getStatusHeaderColor(status)}`}>
-                                    {status} ({tasks.length})
+                          {/* 프로젝트 직접 작업 리스트 */}
+                          <div className="space-y-2">
+                            {project.tasks?.map((task: any) => (
+                              <Card 
+                                key={task.id}
+                                className="hover:shadow-sm transition-shadow duration-200 cursor-pointer bg-white border border-sidebar-border"
+                                data-testid={`card-task-${task.id}`}
+                              >
+                                <CardContent className="p-3">
+                                  <div className="flex items-center justify-between mb-2">
+                                    <h4 className="font-medium text-sm text-gray-900 line-clamp-1">{task.title}</h4>
+                                    <Badge variant="secondary" className="text-xs">
+                                      {task.status === "실행대기" ? "진행전" : 
+                                       task.status === "이슈함" ? "이슈" : task.status}
+                                    </Badge>
                                   </div>
                                   
-                                  {/* 작업 카드들 */}
-                                  <div className={`p-3 rounded-lg min-h-24 ${getStatusColor(status)}`}>
-                                    <div className="space-y-2">
-                                      {tasks.map((task: any) => (
-                                        <Card 
-                                          key={task.id}
-                                          className="hover:shadow-sm transition-shadow duration-200 cursor-pointer bg-white border border-sidebar-border"
-                                          data-testid={`card-task-${task.id}`}
-                                        >
-                                          <CardContent className="p-2">
-                                            <h4 className="font-medium text-xs mb-1 text-gray-900 line-clamp-1">{task.title}</h4>
-                                            
-                                            <div className="flex items-center justify-between">
-                                              <div className="flex items-center gap-1">
-                                                <div className="w-4 h-4 bg-sidebar-primary/20 rounded-full flex items-center justify-center text-xs font-medium text-sidebar-primary">
-                                                  {task.progress || 0}
-                                                </div>
-                                                <Avatar className="w-4 h-4">
-                                                  <AvatarFallback className="text-xs bg-sidebar-primary text-sidebar-primary-foreground font-medium">
-                                                    T
-                                                  </AvatarFallback>
-                                                </Avatar>
-                                              </div>
-                                              
-                                              <div className="flex items-center gap-1 text-xs text-sidebar-foreground/70">
-                                                <span>☑</span>
-                                                <span>{project.code}</span>
-                                              </div>
-                                            </div>
-                                          </CardContent>
-                                        </Card>
-                                      ))}
-                                      
-                                      {tasks.length === 0 && (
-                                        <div className="text-center text-xs text-sidebar-foreground/50 py-2">
-                                          작업 없음
-                                        </div>
-                                      )}
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                      <div className="w-5 h-5 bg-sidebar-primary/20 rounded-full flex items-center justify-center text-xs font-medium text-sidebar-primary">
+                                        {task.progress || 0}
+                                      </div>
+                                      <Avatar className="w-5 h-5">
+                                        <AvatarFallback className="text-xs bg-sidebar-primary text-sidebar-primary-foreground font-medium">
+                                          T
+                                        </AvatarFallback>
+                                      </Avatar>
+                                    </div>
+                                    
+                                    <div className="flex items-center gap-1 text-xs text-sidebar-foreground/70">
+                                      <span>☑</span>
+                                      <span>{project.code}</span>
                                     </div>
                                   </div>
-                                </div>
-                              );
-                            })}
+                                </CardContent>
+                              </Card>
+                            ))}
                           </div>
                         </div>
                       )}
@@ -396,65 +378,50 @@ export default function Kanban() {
                             </div>
                           </div>
                           
-                          {/* 목표가 확장된 경우 작업 칸반 */}
+                          {/* 목표가 확장된 경우 작업 리스트 */}
                           {expandedGoals.has(goal.id) && (
-                            <div className="ml-6 space-y-3">
-                              {/* 목표별 4개 상태 컬럼 */}
-                              <div className="grid grid-cols-4 gap-3">
-                                {["진행전", "진행중", "완료", "이슈"].map((status) => {
-                                  const tasks = goal.tasksByStatus[status] || [];
-                                  
-                                  return (
-                                    <div key={status} className="space-y-2">
-                                      {/* 상태 소제목 */}
-                                      <div className={`p-2 rounded text-center text-xs font-medium ${getStatusHeaderColor(status)}`}>
-                                        {status} ({tasks.length})
+                            <div className="ml-6 space-y-2">
+                              {goal.tasks?.map((task: any) => (
+                                <Card 
+                                  key={task.id}
+                                  className="hover:shadow-sm transition-shadow duration-200 cursor-pointer bg-white border border-sidebar-border"
+                                  data-testid={`card-task-${task.id}`}
+                                >
+                                  <CardContent className="p-3">
+                                    <div className="flex items-center justify-between mb-2">
+                                      <h4 className="font-medium text-sm text-gray-900 line-clamp-1">{task.title}</h4>
+                                      <Badge variant="secondary" className="text-xs">
+                                        {task.status === "실행대기" ? "진행전" : 
+                                         task.status === "이슈함" ? "이슈" : task.status}
+                                      </Badge>
+                                    </div>
+                                    
+                                    <div className="flex items-center justify-between">
+                                      <div className="flex items-center gap-2">
+                                        <div className="w-5 h-5 bg-sidebar-primary/20 rounded-full flex items-center justify-center text-xs font-medium text-sidebar-primary">
+                                          {task.progress || 0}
+                                        </div>
+                                        <Avatar className="w-5 h-5">
+                                          <AvatarFallback className="text-xs bg-sidebar-primary text-sidebar-primary-foreground font-medium">
+                                            T
+                                          </AvatarFallback>
+                                        </Avatar>
                                       </div>
                                       
-                                      {/* 작업 카드들 */}
-                                      <div className={`p-3 rounded-lg min-h-24 ${getStatusColor(status)}`}>
-                                        <div className="space-y-2">
-                                          {tasks.map((task: any) => (
-                                            <Card 
-                                              key={task.id}
-                                              className="hover:shadow-sm transition-shadow duration-200 cursor-pointer bg-white border border-sidebar-border"
-                                              data-testid={`card-task-${task.id}`}
-                                            >
-                                              <CardContent className="p-2">
-                                                <h4 className="font-medium text-xs mb-1 text-gray-900 line-clamp-1">{task.title}</h4>
-                                                
-                                                <div className="flex items-center justify-between">
-                                                  <div className="flex items-center gap-1">
-                                                    <div className="w-4 h-4 bg-sidebar-primary/20 rounded-full flex items-center justify-center text-xs font-medium text-sidebar-primary">
-                                                      {task.progress || 0}
-                                                    </div>
-                                                    <Avatar className="w-4 h-4">
-                                                      <AvatarFallback className="text-xs bg-sidebar-primary text-sidebar-primary-foreground font-medium">
-                                                        T
-                                                      </AvatarFallback>
-                                                    </Avatar>
-                                                  </div>
-                                                  
-                                                  <div className="flex items-center gap-1 text-xs text-sidebar-foreground/70">
-                                                    <span>☑</span>
-                                                    <span>{project.code}</span>
-                                                  </div>
-                                                </div>
-                                              </CardContent>
-                                            </Card>
-                                          ))}
-                                          
-                                          {tasks.length === 0 && (
-                                            <div className="text-center text-xs text-sidebar-foreground/50 py-2">
-                                              작업 없음
-                                            </div>
-                                          )}
-                                        </div>
+                                      <div className="flex items-center gap-1 text-xs text-sidebar-foreground/70">
+                                        <span>☑</span>
+                                        <span>{project.code}</span>
                                       </div>
                                     </div>
-                                  );
-                                })}
-                              </div>
+                                  </CardContent>
+                                </Card>
+                              ))}
+                              
+                              {(!goal.tasks || goal.tasks.length === 0) && (
+                                <div className="text-center text-xs text-sidebar-foreground/50 py-4">
+                                  이 목표에 작업이 없습니다.
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>
