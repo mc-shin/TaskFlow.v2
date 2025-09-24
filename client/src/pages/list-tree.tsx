@@ -107,27 +107,26 @@ export default function ListTree() {
   // Sync database completion state with local state when projects data changes
   useEffect(() => {
     if (projects && Array.isArray(projects)) {
-      setCompletedItems(prev => {
-        const newSet = new Set(prev);
+      // Create a completely new Set based only on database state
+      const newCompletedItems = new Set<string>();
+      
+      // Add projects that are completed in database
+      (projects as ProjectWithDetails[]).forEach(project => {
+        if (project.status === '완료') {
+          newCompletedItems.add(project.id);
+        }
         
-        // Add projects that are completed in database
-        (projects as ProjectWithDetails[]).forEach(project => {
-          if (project.status === '완료') {
-            newSet.add(project.id);
-          }
-          
-          // Add goals that are completed in database
-          if (project.goals) {
-            project.goals.forEach(goal => {
-              if (goal.status === '완료') {
-                newSet.add(goal.id);
-              }
-            });
-          }
-        });
-        
-        return newSet;
+        // Add goals that are completed in database
+        if (project.goals) {
+          project.goals.forEach(goal => {
+            if (goal.status === '완료') {
+              newCompletedItems.add(goal.id);
+            }
+          });
+        }
       });
+      
+      setCompletedItems(newCompletedItems);
     }
   }, [projects]);
 
