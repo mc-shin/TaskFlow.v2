@@ -1209,8 +1209,8 @@ export default function ListTree() {
         const baseClasses = 'text-xs font-medium transition-all duration-200';
         
         if (isAlreadyCompleted) {
-          // 완료 상태 - 음영처리 효과 (어두운 배경, 흰색 텍스트, 그림자)
-          return `${baseClasses} cursor-pointer hover:scale-105 hover:shadow-md bg-gray-800 hover:bg-gray-900 text-white border-gray-800 font-semibold shadow-lg`;
+          // 완료 상태 - 취소 버튼 (주황색 배경, 흰색 텍스트, 그림자)
+          return `${baseClasses} cursor-pointer hover:scale-105 hover:shadow-md bg-orange-600 hover:bg-orange-700 text-white border-orange-600 font-semibold shadow-lg`;
         } else if (isCompleteButtonEnabled) {
           // 활성화 상태 - 밝은 파란색으로 변경하여 더 명확한 구분
           return `${baseClasses} cursor-pointer hover:scale-105 hover:shadow-md bg-blue-600 hover:bg-blue-700 text-white border-blue-600 font-semibold`;
