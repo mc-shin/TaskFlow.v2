@@ -88,13 +88,14 @@ The application is designed as a monorepo with shared schemas between client and
   - When all children are individually selected, the parent automatically becomes selected
   - Provides intuitive bulk selection capabilities for project management workflows
 
-### Kanban Layout Restructuring (September 24, 2025)
-- **4-Column Hierarchical Structure**: Completely restructured the Kanban page to match design requirements with a traditional 4-column status layout (진행전, 진행중, 완료, 지연). Each column now displays the full hierarchical Project > Goal > Task structure with proper visual nesting.
-- **Expandable Project Sections**: Implemented expand/collapse functionality for project sections within each status column. Projects can be individually expanded or collapsed using chevron toggles, allowing navigation of complex project hierarchies without overwhelming the view.
-- **Status Handling Improvements**: Enhanced task status normalization to properly recognize "지연" as a first-class status before applying deadline-based delay calculations, ensuring pre-labeled delayed tasks appear in the correct column.
-- **Header Button Consistency**: Fixed header button styling (보관함, 새 프로젝트) to match list page appearance by removing size="sm" property for visual consistency across pages.
-- **TypeScript Type Safety**: Resolved missing imports and type definitions, including proper `GoalWithTasks` type imports from shared schema to eliminate compilation errors.
-- **Performance Optimizations**: Maintained memoization for project data processing and Map-based user lookups for efficient rendering while supporting the new hierarchical structure.
+### Kanban Layout Complete Restructuring (September 24, 2025)
+- **Horizontal Project/Goal Layout**: Completely restructured the Kanban page to match provided design specification. Projects and goals now display as full-width horizontal rows spanning the entire page width, with tasks organized in separate status columns below.
+- **Status Header Grid**: Implemented 4-column status headers at the top (진행전, 진행중, 완료, 지연) displaying task counts for each status, providing clear overview of work distribution.
+- **Flat Task Organization**: Redesigned data structure to collect all tasks regardless of hierarchy and organize them purely by status in dedicated columns, with project/goal context preserved through metadata.
+- **Enhanced Task Context**: Task cards now display project codes and goal titles for clear identification of their origin while maintaining the new flat column structure.
+- **Expandable Project Navigation**: Maintained expand/collapse functionality for projects to show/hide their associated goals in the horizontal layout, enabling efficient navigation of project hierarchies.
+- **Responsive Layout Design**: Ensured full-width project and goal rows adapt properly to container width while task columns maintain consistent spacing and organization.
+- **Type Safety & Performance**: Resolved TypeScript compatibility issues with null/undefined handling and maintained efficient data processing with proper memoization for the new structure.
 
 ### Meeting Management Enhancements (September 12, 2025)
 - **Optional End Time**: Meeting edit forms now treat end time as optional, with proper validation and null handling throughout the system. UI clearly indicates end time as "(선택사항)" (optional).
