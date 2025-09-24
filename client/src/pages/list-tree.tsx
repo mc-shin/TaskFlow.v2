@@ -1093,10 +1093,37 @@ export default function ListTree() {
         
         try {
           if (isLocallyCompleted) {
-            // This is a cancel operation - revert to calculated status
+            // This is a cancel operation - revert to calculated status and remove child items
             setCompletedItems(prev => {
               const newSet = new Set(prev);
               newSet.delete(itemId);
+              
+              // Remove child items as well
+              if (type === 'project') {
+                // For project cancellation, remove all goals and tasks
+                const project = (projects as ProjectWithDetails[])?.find(p => p.id === itemId);
+                if (project?.goals) {
+                  project.goals.forEach(goal => {
+                    newSet.delete(goal.id);
+                    if (goal.tasks) {
+                      goal.tasks.forEach(task => newSet.delete(task.id));
+                    }
+                  });
+                }
+                if (project?.tasks) {
+                  project.tasks.forEach(task => newSet.delete(task.id));
+                }
+              } else if (type === 'goal') {
+                // For goal cancellation, remove only tasks under this goal
+                const project = (projects as ProjectWithDetails[])?.find(p => 
+                  p.goals?.some(g => g.id === itemId)
+                );
+                const goal = project?.goals?.find(g => g.id === itemId);
+                if (goal?.tasks) {
+                  goal.tasks.forEach(task => newSet.delete(task.id));
+                }
+              }
+              
               return newSet;
             });
             
