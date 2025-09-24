@@ -1100,19 +1100,36 @@ export default function ListTree() {
         return '';
       };
 
+      // Get variant and styling based on completion state
+      const getCompletionBadgeVariant = () => {
+        if (isAlreadyCompleted) {
+          return 'outline'; // Already completed - neutral outline style
+        } else if (isCompleteButtonEnabled) {
+          return 'default'; // Can be completed - primary blue style
+        } else {
+          return 'secondary'; // Cannot be completed - muted gray style
+        }
+      };
+
+      const getCompletionBadgeClassName = () => {
+        const baseClasses = 'text-xs font-medium transition-all duration-200';
+        
+        if (isAlreadyCompleted) {
+          return `${baseClasses} cursor-default border-green-500 text-green-700 bg-green-50 dark:bg-green-950 dark:text-green-300 dark:border-green-600`;
+        } else if (isCompleteButtonEnabled) {
+          return `${baseClasses} cursor-pointer hover:scale-105 hover:shadow-md bg-green-600 hover:bg-green-700 text-white border-green-600 font-semibold`;
+        } else {
+          return `${baseClasses} cursor-not-allowed bg-gray-300 dark:bg-gray-700 text-gray-500 dark:text-gray-400 border-gray-300 dark:border-gray-600`;
+        }
+      };
+
       return (
         <Badge 
-          variant={getStatusBadgeVariant(displayStatus)} 
-          className={`text-xs ${
-            isAlreadyCompleted 
-              ? 'cursor-default' 
-              : isCompleteButtonEnabled 
-                ? 'cursor-pointer hover:opacity-80' 
-                : 'cursor-not-allowed'
-          }`}
+          variant={getCompletionBadgeVariant()}
+          className={getCompletionBadgeClassName()}
           style={{
             borderRadius: '0px',
-            opacity: isAlreadyCompleted || isCompleteButtonEnabled ? 1 : 0.5
+            opacity: isAlreadyCompleted || isCompleteButtonEnabled ? 1 : 0.6
           }}
           onClick={isCompleteButtonEnabled ? handleCompleteClick : undefined}
           title={getTooltipMessage()}
