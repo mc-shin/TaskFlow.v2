@@ -182,19 +182,64 @@ export default function Kanban() {
       <main className="flex-1 p-6 overflow-auto" data-testid="main-content">
         {/* 상태 헤더 - 본문 상단에 배치 */}
         <div className="grid grid-cols-4 gap-4 mb-6">
-          {Object.entries(totalStats).map(([status, count]) => (
-            <div
-              key={status}
-              className="text-center p-4 rounded-lg"
-              style={{
-                backgroundColor: 'var(--sidebar)',
-                color: 'var(--sidebar-foreground)'
-              }}
-            >
-              <div className="text-2xl font-bold">{count}</div>
-              <div className="text-sm opacity-80">{status}</div>
-            </div>
-          ))}
+          {Object.entries(totalStats).map(([status, count]) => {
+            // 상태별 색상 정의 (totalStats의 키와 일치시킴)
+            const getStatusStyle = (status: string) => {
+              switch (status) {
+                case '실행대기':
+                case '진행전':
+                  return {
+                    backgroundColor: 'hsl(210, 100%, 95%)',
+                    borderColor: 'hsl(210, 100%, 85%)',
+                    textColor: 'hsl(210, 100%, 30%)'
+                  };
+                case '진행중':
+                  return {
+                    backgroundColor: 'hsl(45, 100%, 95%)',
+                    borderColor: 'hsl(45, 100%, 85%)',
+                    textColor: 'hsl(45, 100%, 30%)'
+                  };
+                case '완료':
+                  return {
+                    backgroundColor: 'hsl(120, 60%, 95%)',
+                    borderColor: 'hsl(120, 60%, 85%)',
+                    textColor: 'hsl(120, 60%, 30%)'
+                  };
+                case '이슈함':
+                case '이슈':
+                  return {
+                    backgroundColor: 'hsl(0, 100%, 95%)',
+                    borderColor: 'hsl(0, 100%, 85%)',
+                    textColor: 'hsl(0, 100%, 30%)'
+                  };
+                default:
+                  return {
+                    backgroundColor: 'var(--sidebar)',
+                    borderColor: 'var(--sidebar-border)',
+                    textColor: 'var(--sidebar-foreground)'
+                  };
+              }
+            };
+            
+            const statusStyle = getStatusStyle(status);
+            
+            return (
+              <div
+                key={status}
+                className="text-center p-4 rounded-lg border-2 transition-all duration-200 hover:shadow-sm"
+                style={{
+                  backgroundColor: statusStyle.backgroundColor,
+                  borderColor: statusStyle.borderColor,
+                  color: statusStyle.textColor
+                }}
+              >
+                <div className="text-2xl font-bold">{count}</div>
+                <div className="text-sm opacity-80">
+                  {status === '실행대기' ? '진행전' : status}
+                </div>
+              </div>
+            );
+          })}
         </div>
 
         {error ? (
@@ -295,8 +340,6 @@ export default function Kanban() {
                           formatDeadline={formatDeadline}
                           getStatusColor={getStatusColor}
                           getStatusBadgeVariant={getStatusBadgeVariant}
-                          getDDayColorClass={getDDayColorClass}
-                          getUserById={getUserById}
                           hoveredProject={hoveredProject}
                           setGoalModalState={setGoalModalState}
                           setTaskModalState={setTaskModalState}
@@ -333,7 +376,7 @@ export default function Kanban() {
   );
 }
 
-// 프로젝트 목표 칸반 컨텐츠 컴포넌트
+// 프로젝트 목표 칸반 컨텐츠 컴포넌트 (리스트 페이지와 동일한 인터페이스)
 interface ProjectGoalsKanbanContentProps {
   project: ProjectWithDetails;
   expandedGoals: Set<string>;
@@ -343,8 +386,6 @@ interface ProjectGoalsKanbanContentProps {
   formatDeadline: (deadline: string | null) => string | null;
   getStatusColor: (status: string) => string;
   getStatusBadgeVariant: (status: string) => "default" | "secondary" | "destructive" | "outline";
-  getDDayColorClass: (deadline: string | null) => string;
-  getUserById: (userId: string) => SafeUser | undefined;
   hoveredProject: string | null;
   setGoalModalState: (state: { isOpen: boolean; projectId: string; projectTitle: string }) => void;
   setTaskModalState: (state: { isOpen: boolean; goalId: string; goalTitle: string }) => void;
@@ -359,13 +400,11 @@ function ProjectGoalsKanbanContent({
   formatDeadline,
   getStatusColor,
   getStatusBadgeVariant,
-  getDDayColorClass,
-  getUserById,
   hoveredProject,
   setGoalModalState,
   setTaskModalState
 }: ProjectGoalsKanbanContentProps) {
-  // 프로젝트 목표 가져오기
+  // Fetch goals for this project (리스트 페이지와 동일)
   const { data: goals, isLoading: goalsLoading, error: goalsError } = useQuery({
     queryKey: ["/api/projects", project.id, "goals"],
     enabled: !!project.id,
@@ -476,14 +515,12 @@ function ProjectGoalsKanbanContent({
             
             <CollapsibleContent>
               <CardContent className="pt-0 pb-4">
-                {/* 칸반 형태로 4개 상태별 컬럼 표시 */}
+                {/* 칸반 형태로 4개 상태별 컬럼 표시 (리스트와 달리 작업을 칸반으로 표시) */}
                 <GoalTasksKanbanView 
                   goal={goal}
                   formatDeadline={formatDeadline}
                   getStatusColor={getStatusColor}
                   getStatusBadgeVariant={getStatusBadgeVariant}
-                  getDDayColorClass={getDDayColorClass}
-                  getUserById={getUserById}
                 />
               </CardContent>
             </CollapsibleContent>
@@ -506,17 +543,13 @@ interface GoalTasksKanbanViewProps {
   formatDeadline: (deadline: string | null) => string | null;
   getStatusColor: (status: string) => string;
   getStatusBadgeVariant: (status: string) => "default" | "secondary" | "destructive" | "outline";
-  getDDayColorClass: (deadline: string | null) => string;
-  getUserById: (userId: string) => SafeUser | undefined;
 }
 
 function GoalTasksKanbanView({ 
   goal, 
   formatDeadline, 
   getStatusColor, 
-  getStatusBadgeVariant, 
-  getDDayColorClass, 
-  getUserById 
+  getStatusBadgeVariant
 }: GoalTasksKanbanViewProps) {
   // 상태별 작업 그룹핑
   const tasksByStatus = useMemo(() => {
@@ -575,17 +608,17 @@ function GoalTasksKanbanView({
                       
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-1">
-                          {task.assigneeIds && task.assigneeIds.length > 0 && task.assigneeIds[0] && getUserById(task.assigneeIds[0]) && (
+                          {task.assigneeIds && task.assigneeIds.length > 0 && (
                             <Avatar className="w-4 h-4">
                               <AvatarFallback className="text-xs bg-primary text-primary-foreground">
-                                {getUserById(task.assigneeIds[0])?.initials}
+                                ?
                               </AvatarFallback>
                             </Avatar>
                           )}
                         </div>
                         
                         {task.deadline && (
-                          <div className={`text-xs ${getDDayColorClass(task.deadline)}`}>
+                          <div className="text-xs text-muted-foreground">
                             {formatDeadline(task.deadline)}
                           </div>
                         )}
