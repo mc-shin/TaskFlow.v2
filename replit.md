@@ -88,6 +88,13 @@ The application is designed as a monorepo with shared schemas between client and
   - When all children are individually selected, the parent automatically becomes selected
   - Provides intuitive bulk selection capabilities for project management workflows
 
+### Kanban Layout Restructuring (September 24, 2025)
+- **Horizontal Project Rows**: Completely restructured the Kanban page from a 4-column vertical layout to horizontal project rows. Each project now occupies its own horizontal row containing project information on the left and four status columns (진행전, 진행중, 완료, 지연) to the right.
+- **Comprehensive Project Display**: Removed the filter that excluded projects with no tasks, ensuring every project displays its own row regardless of task count. Empty status columns show "작업 없음" placeholders for better visual feedback.
+- **React Key Optimization**: Fixed duplicate key warnings by implementing unique task keys using the format `project-${project.id}-${status}-task-${task.id}-${taskIndex}`, ensuring proper React reconciliation.
+- **Performance Improvements**: Added memoization for project data processing and implemented Map-based user lookups for O(1) access time when rendering assignee information.
+- **UI Consistency**: Updated archive button styling to match the list page design by removing the outline variant.
+
 ### Meeting Management Enhancements (September 12, 2025)
 - **Optional End Time**: Meeting edit forms now treat end time as optional, with proper validation and null handling throughout the system. UI clearly indicates end time as "(선택사항)" (optional).
 - **File Attachments & Downloads**: Implemented complete attachment system for meetings with file upload, display, and download capabilities. Download functionality uses direct fetch calls to object storage streaming endpoints with proper error handling and user feedback.
