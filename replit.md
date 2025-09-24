@@ -89,12 +89,13 @@ The application is designed as a monorepo with shared schemas between client and
   - Provides intuitive bulk selection capabilities for project management workflows
 
 ### Kanban Layout Complete Restructuring (September 24, 2025)
-- **Simplified Hierarchical Structure**: Restructured the Kanban page with a clean hierarchy: Global status headers → Projects → Goals → Task lists. Removed individual status columns from project and goal levels to create a simplified, non-redundant interface.
-- **Global Status Headers**: Maintained 4-column status headers at the top (진행전, 진행중, 완료, 이슈) displaying comprehensive task counts for overall project status visibility.
-- **Clean Project/Goal Expansion**: Projects and goals display as expandable rows with their associated tasks shown as simple card lists rather than status-segmented columns, eliminating visual clutter while preserving hierarchy.
-- **Task Card Enhancement**: Individual task cards now display status badges, progress indicators, and project codes, providing all necessary information without requiring separate status groupings at the project/goal level.
-- **Sidebar Color Integration**: Applied consistent sidebar theme colors throughout the Kanban interface for visual coherence with the rest of the application.
-- **Data Consistency**: Ensured complete parity with the list page data structure while adapting the presentation for the simplified Kanban format.
+- **Image-Based Design Implementation**: Completely redesigned the Kanban page structure based on user-provided mockup image, creating a flat selection-based interface instead of hierarchical expansion system.
+- **Four-Layer Layout Structure**: Implemented exact structure from specification: Status headers → Project selection row → Goal selection row → Four-column task board, matching the provided visual reference perfectly.
+- **Selection-Based Navigation**: Replaced expand/collapse tree structure with dropdown selectors for projects and goals, enabling direct navigation to specific project/goal combinations with "프로젝트 직접 작업" option for project-level tasks.
+- **True Kanban Columns**: Restructured task display into authentic 4-column kanban board (진행전, 진행중, 완료, 이슈) where tasks flow based on selected project/goal context, providing genuine kanban workflow experience.
+- **Context-Aware Filtering**: Implemented sophisticated task filtering system that displays only relevant tasks based on project/goal selection, with automatic initialization of first project and goal on page load.
+- **Sidebar Color Integration**: Applied consistent sidebar theme colors throughout the interface with distinct styling for project rows, goal rows, and status columns.
+- **React Best Practices**: Utilized proper useEffect for initialization logic and useMemo for data processing, ensuring optimal performance and adherence to React patterns.
 
 ### Meeting Management Enhancements (September 12, 2025)
 - **Optional End Time**: Meeting edit forms now treat end time as optional, with proper validation and null handling throughout the system. UI clearly indicates end time as "(선택사항)" (optional).
