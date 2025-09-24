@@ -104,6 +104,33 @@ export default function ListTree() {
   // Local state to track completed items
   const [completedItems, setCompletedItems] = useState<Set<string>>(new Set());
 
+  // Sync database completion state with local state when projects data changes
+  useEffect(() => {
+    if (projects && Array.isArray(projects)) {
+      setCompletedItems(prev => {
+        const newSet = new Set(prev);
+        
+        // Add projects that are completed in database
+        (projects as ProjectWithDetails[]).forEach(project => {
+          if (project.status === '완료') {
+            newSet.add(project.id);
+          }
+          
+          // Add goals that are completed in database
+          if (project.goals) {
+            project.goals.forEach(goal => {
+              if (goal.status === '완료') {
+                newSet.add(goal.id);
+              }
+            });
+          }
+        });
+        
+        return newSet;
+      });
+    }
+  }, [projects]);
+
   // Get users for assignee dropdown
   const { data: users } = useQuery({
     queryKey: ["/api/users"],
