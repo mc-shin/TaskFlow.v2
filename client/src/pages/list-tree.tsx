@@ -1020,8 +1020,8 @@ export default function ListTree() {
     // Check if this item was marked as completed locally
     const isLocallyCompleted = completedItems.has(itemId);
     
-    // For status display, prioritize local completion, then actual status if it's "완료", otherwise derive from progress
-    const displayStatus = isLocallyCompleted || status === '완료' ? '완료' : (progress !== undefined ? getStatusFromProgress(progress) : status);
+    // For status display, prioritize local completion state over database status
+    const displayStatus = isLocallyCompleted ? '완료' : (progress !== undefined ? getStatusFromProgress(progress) : status);
     
     // For projects and goals, make status clickable to complete
     if (type === 'project' || type === 'goal') {
