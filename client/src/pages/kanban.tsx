@@ -225,21 +225,31 @@ export default function Kanban() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "진행전": return "border-blue-200 bg-blue-50";
-      case "진행중": return "border-yellow-200 bg-yellow-50";
-      case "완료": return "border-green-200 bg-green-50";
-      case "지연": return "border-red-200 bg-red-50";
-      default: return "border-gray-200 bg-gray-50";
+      case "진행전": return "bg-sidebar-accent/20 border-sidebar-border";
+      case "진행중": return "bg-sidebar-accent/20 border-sidebar-border";
+      case "완료": return "bg-sidebar-primary/20 border-sidebar-border";
+      case "지연": return "bg-destructive/20 border-border";
+      default: return "bg-sidebar/20 border-sidebar-border";
+    }
+  };
+
+  const getStatusHeaderColor = (status: string) => {
+    switch (status) {
+      case "진행전": return "bg-sidebar-accent border-sidebar-border text-sidebar-accent-foreground";
+      case "진행중": return "bg-sidebar-accent border-sidebar-border text-sidebar-accent-foreground";
+      case "완료": return "bg-sidebar-primary border-sidebar-border text-sidebar-primary-foreground";
+      case "지연": return "bg-destructive border-border text-destructive-foreground";
+      default: return "bg-sidebar border-sidebar-border text-sidebar-foreground";
     }
   };
 
   const getStatusBadgeColor = (status: string) => {
     switch (status) {
-      case "진행전": return "bg-blue-100 text-blue-800";
-      case "진행중": return "bg-yellow-100 text-yellow-800";
-      case "완료": return "bg-green-100 text-green-800";
-      case "지연": return "bg-red-100 text-red-800";
-      default: return "bg-gray-100 text-gray-800";
+      case "진행전": return "bg-sidebar-accent text-sidebar-accent-foreground";
+      case "진행중": return "bg-sidebar-accent text-sidebar-accent-foreground";
+      case "완료": return "bg-sidebar-primary text-sidebar-primary-foreground";
+      case "지연": return "bg-destructive text-destructive-foreground";
+      default: return "bg-sidebar-accent text-sidebar-accent-foreground";
     }
   };
 
@@ -295,7 +305,7 @@ export default function Kanban() {
               return (
                 <div key={status} className="flex flex-col h-full">
                   {/* 컬럼 헤더 */}
-                  <div className={`p-4 rounded-t-lg border-b-2 ${getStatusColor(status)}`}>
+                  <div className={`p-4 rounded-t-lg border-b-2 ${getStatusHeaderColor(status)}`}>
                     <div className="flex items-center justify-between">
                       <h2 className="font-semibold text-lg">{status}</h2>
                       <Badge variant="secondary" className={getStatusBadgeColor(status)}>
@@ -306,24 +316,25 @@ export default function Kanban() {
                   
                   {/* 컬럼 내용 */}
                   <div className={`flex-1 p-4 border-l border-r border-b rounded-b-lg min-h-96 overflow-y-auto ${getStatusColor(status)}`}>
-                    <div className="space-y-4">
+                    <div className="space-y-4 w-full">
                       {projectGroups.map((projectGroup) => (
                         <div key={`project-${projectGroup.project.id}`} className="space-y-3">
                           {/* 프로젝트 헤더 */}
                           <div 
-                            className="flex items-center gap-2 p-2 bg-white/70 rounded-lg border border-blue-200 cursor-pointer hover:bg-white/90 transition-colors"
+                            className="flex items-center gap-2 p-3 w-full min-w-0 bg-sidebar/10 rounded-lg border border-sidebar-border cursor-pointer hover:bg-sidebar/20 transition-colors backdrop-blur-sm"
                             onClick={() => toggleProject(projectGroup.project.id)}
+                            style={{ width: '100%', boxSizing: 'border-box' }}
                           >
                             {expandedProjects.has(projectGroup.project.id) ? (
-                              <ChevronDown className="w-4 h-4 text-blue-600" />
+                              <ChevronDown className="w-4 h-4 text-sidebar-primary" />
                             ) : (
-                              <ChevronRight className="w-4 h-4 text-blue-600" />
+                              <ChevronRight className="w-4 h-4 text-sidebar-primary" />
                             )}
-                            <FolderOpen className="w-4 h-4 text-blue-600" />
-                            <span className="text-sm font-semibold text-gray-800">
+                            <FolderOpen className="w-4 h-4 text-sidebar-primary" />
+                            <span className="text-sm font-semibold text-sidebar-foreground flex-1">
                               {projectGroup.project.code}
                             </span>
-                            <Badge variant="outline" className="text-xs">
+                            <Badge variant="outline" className="text-xs border-sidebar-border text-sidebar-foreground">
                               {projectGroup.directTasks.length + projectGroup.goals.reduce((sum, g) => sum + g.tasks.length, 0)}
                             </Badge>
                           </div>
@@ -334,11 +345,11 @@ export default function Kanban() {
                               {projectGroup.directTasks.map((task, taskIndex) => (
                                 <Card 
                                   key={`${status}-project-${projectGroup.project.id}-task-${task.id}-${taskIndex}`}
-                                  className="hover:shadow-md transition-shadow duration-200 cursor-pointer bg-white border"
+                                  className="hover:shadow-md transition-shadow duration-200 cursor-pointer bg-white border text-gray-900 dark:text-gray-100"
                                   data-testid={`card-task-${task.id}`}
                                 >
                                   <CardContent className="p-3">
-                                    <h4 className="font-medium text-sm mb-2 line-clamp-2">{task.title}</h4>
+                                    <h4 className="font-medium text-sm mb-2 line-clamp-2 text-gray-900 dark:text-gray-100">{task.title}</h4>
                                     
                                     {task.description && (
                                       <p className="text-xs text-muted-foreground mb-2 line-clamp-1">
@@ -346,7 +357,7 @@ export default function Kanban() {
                                       </p>
                                     )}
                                     
-                                    <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
+                                    <div className="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400 mb-2">
                                       <span className={getDDayColorClass(task.deadline)}>
                                         {formatDeadline(task.deadline)}
                                       </span>
@@ -366,7 +377,7 @@ export default function Kanban() {
                                           ) : null;
                                         })}
                                         {(task.assigneeIds?.length || 0) > 3 && (
-                                          <span className="text-xs text-muted-foreground">
+                                          <span className="text-xs text-gray-600 dark:text-gray-400">
                                             +{(task.assigneeIds?.length || 0) - 3}
                                           </span>
                                         )}
@@ -384,12 +395,12 @@ export default function Kanban() {
                           {expandedProjects.has(projectGroup.project.id) && projectGroup.goals.map((goalGroup) => (
                             <div key={`goal-${goalGroup.goal.id}`} className="space-y-2 pl-4">
                               {/* 목표 헤더 */}
-                              <div className="flex items-center gap-2 p-2 bg-white/50 rounded-lg border border-green-200">
-                                <div className="w-3 h-3 rounded-full bg-green-500" />
-                                <span className="text-sm font-medium text-gray-700">
+                              <div className="flex items-center gap-2 p-3 w-full min-w-0 bg-sidebar-accent/30 rounded-lg border border-sidebar-border backdrop-blur-sm" style={{ width: '100%', boxSizing: 'border-box' }}>
+                                <div className="w-3 h-3 rounded-full bg-sidebar-primary" />
+                                <span className="text-sm font-medium text-sidebar-foreground flex-1">
                                   {goalGroup.goal.title}
                                 </span>
-                                <Badge variant="outline" className="text-xs">
+                                <Badge variant="outline" className="text-xs border-sidebar-border text-sidebar-foreground">
                                   {goalGroup.tasks.length}
                                 </Badge>
                               </div>
@@ -399,11 +410,11 @@ export default function Kanban() {
                                 {goalGroup.tasks.map((task, taskIndex) => (
                                   <Card 
                                     key={`${status}-goal-${goalGroup.goal.id}-task-${task.id}-${taskIndex}`}
-                                    className="hover:shadow-md transition-shadow duration-200 cursor-pointer bg-white border"
+                                    className="hover:shadow-md transition-shadow duration-200 cursor-pointer bg-white border text-gray-900 dark:text-gray-100"
                                     data-testid={`card-task-${task.id}`}
                                   >
                                     <CardContent className="p-3">
-                                      <h4 className="font-medium text-sm mb-2 line-clamp-2">{task.title}</h4>
+                                      <h4 className="font-medium text-sm mb-2 line-clamp-2 text-gray-900 dark:text-gray-100">{task.title}</h4>
                                       
                                       {task.description && (
                                         <p className="text-xs text-muted-foreground mb-2 line-clamp-1">
@@ -411,7 +422,7 @@ export default function Kanban() {
                                         </p>
                                       )}
                                       
-                                      <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
+                                      <div className="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400 mb-2">
                                         <span className={getDDayColorClass(task.deadline)}>
                                           {formatDeadline(task.deadline)}
                                         </span>
@@ -431,7 +442,7 @@ export default function Kanban() {
                                             ) : null;
                                           })}
                                           {(task.assigneeIds?.length || 0) > 3 && (
-                                            <span className="text-xs text-muted-foreground">
+                                            <span className="text-xs text-gray-600 dark:text-gray-400">
                                               +{(task.assigneeIds?.length || 0) - 3}
                                             </span>
                                           )}
