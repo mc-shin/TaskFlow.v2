@@ -210,29 +210,29 @@ export default function Kanban() {
           ) : (
             <div className="space-y-6">
               {/* 상단 상태 헤더 */}
-              <div className="bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-lg transition-all duration-200">
+              <div className="bg-card border border-border rounded-lg shadow-sm hover:shadow-lg transition-all duration-200">
                 <div className="grid grid-cols-4 gap-0">
-                  <div className="text-center py-4 px-3 border-r border-gray-200">
-                    <div className="text-lg font-medium text-gray-700">진행전</div>
-                    <div className="text-2xl font-bold text-blue-600 mt-1">
+                  <div className="text-center py-4 px-3 border-r border-border">
+                    <div className="text-lg font-medium text-foreground">진행전</div>
+                    <div className="text-2xl font-bold text-primary mt-1">
                       {totalStats['진행전'] || 0}
                     </div>
                   </div>
-                  <div className="text-center py-4 px-3 border-r border-gray-200">
-                    <div className="text-lg font-medium text-gray-700">진행중</div>
-                    <div className="text-2xl font-bold text-orange-600 mt-1">
+                  <div className="text-center py-4 px-3 border-r border-border">
+                    <div className="text-lg font-medium text-foreground">진행중</div>
+                    <div className="text-2xl font-bold text-primary mt-1">
                       {totalStats['진행중'] || 0}
                     </div>
                   </div>
-                  <div className="text-center py-4 px-3 border-r border-gray-200">
-                    <div className="text-lg font-medium text-gray-700">완료</div>
-                    <div className="text-2xl font-bold text-green-600 mt-1">
+                  <div className="text-center py-4 px-3 border-r border-border">
+                    <div className="text-lg font-medium text-foreground">완료</div>
+                    <div className="text-2xl font-bold text-primary mt-1">
                       {totalStats['완료'] || 0}
                     </div>
                   </div>
                   <div className="text-center py-4 px-3">
-                    <div className="text-lg font-medium text-gray-700">이슈</div>
-                    <div className="text-2xl font-bold text-red-600 mt-1">
+                    <div className="text-lg font-medium text-foreground">이슈</div>
+                    <div className="text-2xl font-bold text-primary mt-1">
                       {totalStats['이슈'] || 0}
                     </div>
                   </div>
@@ -242,17 +242,17 @@ export default function Kanban() {
               {(projects as ProjectWithDetails[])?.map((project) => (
                 <div 
                   key={project.id} 
-                  className="relative bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-lg transition-all duration-200"
+                  className="relative bg-card border border-border rounded-lg shadow-sm hover:shadow-lg transition-all duration-200"
                   data-testid={`project-container-${project.id}`}
                 >
                   {/* 프로젝트 헤더 */}
-                  <div className="flex items-center justify-between p-4 border-b border-gray-200 cursor-pointer hover:bg-muted/50 transition-colors"
+                  <div className="flex items-center justify-between p-4 border-b border-border cursor-pointer hover:bg-muted/50 transition-colors"
                        onClick={() => toggleProject(project.id)}>
                     <div className="flex items-center space-x-3">
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="p-1 h-7 w-7 opacity-100 bg-gray-200 hover:bg-gray-300 border border-gray-300 hover:border-gray-400 shadow-sm"
+                        className="p-1 h-7 w-7 opacity-100 bg-muted hover:bg-muted/80 border border-border hover:border-border/80 shadow-sm"
                         onClick={(e) => {
                           e.stopPropagation();
                           toggleProject(project.id);
@@ -265,18 +265,18 @@ export default function Kanban() {
                           <ChevronRight className="h-4 w-4" />
                         )}
                       </Button>
-                      <FolderOpen className="w-5 h-5 text-blue-600" />
+                      <FolderOpen className="w-5 h-5 text-primary" />
                       <div>
-                        <h3 className="text-lg font-medium text-gray-900" data-testid={`text-project-title-${project.id}`}>
+                        <h3 className="text-lg font-medium text-foreground" data-testid={`text-project-title-${project.id}`}>
                           {project.name}
                         </h3>
                         {project.description && (
-                          <p className="text-sm text-gray-600 mt-1">{project.description}</p>
+                          <p className="text-sm text-muted-foreground mt-1">{project.description}</p>
                         )}
                       </div>
                     </div>
                     <div className="flex items-center space-x-3">
-                      <span className="text-sm text-gray-500">
+                      <span className="text-sm text-muted-foreground">
                         {project.completedTasks}/{project.totalTasks} 작업 완료
                       </span>
                       <Button 
@@ -395,15 +395,15 @@ function ProjectKanbanGoals({ projectId, setTaskModalState, setTaskEditModalStat
   return (
     <div className="p-4 space-y-3">
       {(goals as GoalWithTasks[])?.map((goal) => (
-        <div key={goal.id} className="bg-gray-50 border border-gray-200 rounded-lg hover:shadow-md transition-all duration-200">
+        <div key={goal.id} className="bg-card border border-border rounded-lg hover:shadow-md transition-all duration-200">
           {/* 목표 헤더 */}
-          <div className="flex items-center justify-between p-3 border-b border-gray-200 cursor-pointer hover:bg-muted/30 transition-colors"
+          <div className="flex items-center justify-between p-3 border-b border-border cursor-pointer hover:bg-muted/30 transition-colors"
                onClick={() => toggleGoal(goal.id)}>
             <div className="flex items-center space-x-3">
               <Button
                 variant="ghost"
                 size="sm"
-                className="p-1 h-6 w-6 opacity-100 bg-gray-200 hover:bg-gray-300 border border-gray-300 hover:border-gray-400 shadow-sm"
+                className="p-1 h-6 w-6 opacity-100 bg-muted hover:bg-muted/80 border border-border hover:border-border/80 shadow-sm"
                 onClick={(e) => {
                   e.stopPropagation();
                   toggleGoal(goal.id);
@@ -416,18 +416,18 @@ function ProjectKanbanGoals({ projectId, setTaskModalState, setTaskEditModalStat
                   <ChevronRight className="h-3 w-3" />
                 )}
               </Button>
-              <Target className="w-4 h-4 text-green-600" />
+              <Target className="w-4 h-4 text-primary" />
               <div>
-                <h4 className="font-medium text-gray-900" data-testid={`text-goal-title-${goal.id}`}>
+                <h4 className="font-medium text-foreground" data-testid={`text-goal-title-${goal.id}`}>
                   {goal.title}
                 </h4>
                 {goal.description && (
-                  <p className="text-sm text-gray-600">{goal.description}</p>
+                  <p className="text-sm text-muted-foreground">{goal.description}</p>
                 )}
               </div>
             </div>
             <div className="flex items-center space-x-3">
-              <span className="text-sm text-gray-500">
+              <span className="text-sm text-muted-foreground">
                 {goal.completedTasks}/{goal.totalTasks} 완료
               </span>
               <Button 
@@ -578,7 +578,7 @@ function GoalKanbanColumns({ goal, setTaskEditModalState, usersMap }: GoalKanban
       {Object.entries(tasksByStatus).map(([status, statusTasks]) => (
         <div
           key={status}
-          className="bg-white border border-gray-200 rounded-lg p-3 flex flex-col flex-1 min-h-[200px] transition-all duration-200 hover:shadow-md"
+          className="bg-card border border-border rounded-lg p-3 flex flex-col flex-1 min-h-[200px] transition-all duration-200 hover:shadow-md"
           onDrop={(e) => handleDrop(e, status)}
           onDragOver={handleDragOver}
         >
@@ -587,19 +587,19 @@ function GoalKanbanColumns({ goal, setTaskEditModalState, usersMap }: GoalKanban
             {statusTasks.map((task) => (
               <div 
                 key={task.id} 
-                className="bg-white border border-gray-200 rounded-lg p-3 hover:shadow-md transition-all duration-200 cursor-pointer hover:border-gray-300"
+                className="bg-card border border-border rounded-lg p-3 hover:shadow-md transition-all duration-200 cursor-pointer hover:border-border/80"
                 data-testid={`task-card-${task.id}`}
                 draggable
                 onDragStart={(e) => handleDragStart(e, task.id)}
                 onClick={() => setTaskEditModalState({ isOpen: true, editingTask: task })}
               >
                 <div className="space-y-2">
-                  <h6 className="font-medium text-sm text-gray-900 leading-tight">
+                  <h6 className="font-medium text-sm text-foreground leading-tight">
                     {task.title}
                   </h6>
                   
                   {task.description && (
-                    <p className="text-xs text-gray-600 line-clamp-2">
+                    <p className="text-xs text-muted-foreground line-clamp-2">
                       {task.description}
                     </p>
                   )}
@@ -620,15 +620,15 @@ function GoalKanbanColumns({ goal, setTaskEditModalState, usersMap }: GoalKanban
                     
                     {/* 마감날짜 */}
                     <div className="flex items-center justify-between text-xs">
-                      <span className="text-gray-600">마감:</span>
-                      <span className="text-gray-900">
+                      <span className="text-muted-foreground">마감:</span>
+                      <span className="text-foreground">
                         {task.deadline ? new Date(task.deadline).toLocaleDateString('ko-KR') : "미지정"}
                       </span>
                     </div>
                     
                     {/* D-DAY */}
                     <div className="flex items-center justify-between text-xs">
-                      <span className="text-gray-600">남은 시간:</span>
+                      <span className="text-muted-foreground">남은 시간:</span>
                       {task.deadline ? (
                         <span className={`font-medium ${
                           formatDeadline(task.deadline)?.startsWith('D+') ? 'text-red-600' : 
@@ -637,16 +637,16 @@ function GoalKanbanColumns({ goal, setTaskEditModalState, usersMap }: GoalKanban
                           {formatDeadline(task.deadline)}
                         </span>
                       ) : (
-                        <span className="text-gray-400">미지정</span>
+                        <span className="text-muted-foreground">미지정</span>
                       )}
                     </div>
                     
                     {/* 담당자 */}
                     <div className="flex items-center justify-between text-xs">
-                      <span className="text-gray-600">담당자:</span>
+                      <span className="text-muted-foreground">담당자:</span>
                       {task.assigneeIds && task.assigneeIds.length > 0 ? (
                         <div className="flex items-center overflow-hidden">
-                          <span className="text-gray-900 text-xs truncate">
+                          <span className="text-foreground text-xs truncate">
                             {task.assigneeIds
                               .map(assigneeId => usersMap.get(assigneeId)?.name)
                               .filter(Boolean)
@@ -654,7 +654,7 @@ function GoalKanbanColumns({ goal, setTaskEditModalState, usersMap }: GoalKanban
                           </span>
                         </div>
                       ) : (
-                        <span className="text-gray-400">미지정</span>
+                        <span className="text-muted-foreground">미지정</span>
                       )}
                     </div>
                   </div>
@@ -663,7 +663,7 @@ function GoalKanbanColumns({ goal, setTaskEditModalState, usersMap }: GoalKanban
             ))}
             
             {statusTasks.length === 0 && (
-              <div className="text-center py-8 text-gray-400">
+              <div className="text-center py-8 text-muted-foreground">
                 <p className="text-xs">작업 없음</p>
               </div>
             )}
