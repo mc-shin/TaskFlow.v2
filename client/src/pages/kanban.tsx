@@ -190,7 +190,7 @@ export default function Kanban() {
       
       <main className="flex-1 overflow-auto" data-testid="main-content">
         {/* 통합된 헤더와 프로젝트 영역 */}
-        <div className="px-6 pb-4">
+        <div className="px-6 pt-6 pb-4">
           {error ? (
             <Card className="border-destructive">
               <CardContent className="p-6 text-center">
@@ -208,7 +208,7 @@ export default function Kanban() {
               </CardContent>
             </Card>
           ) : (
-            <div className="space-y-8">
+            <div className="space-y-4">
               {/* 상단 상태 헤더 */}
               <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
                 <div className="grid grid-cols-4 gap-0">
