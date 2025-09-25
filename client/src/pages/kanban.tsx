@@ -646,24 +646,19 @@ function GoalKanbanColumns({ goal, setTaskEditModalState, usersMap }: GoalKanban
                     </div>
                     
                     {/* 담당자 */}
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-gray-600">담당자:</span>
+                    <div className="text-xs">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-gray-600">담당자:</span>
+                      </div>
                       {task.assigneeIds && task.assigneeIds.length > 0 ? (
-                        <div className="flex items-center space-x-1 flex-wrap">
+                        <div className="flex items-center flex-wrap gap-1">
                           {task.assigneeIds.map((assigneeId, index) => {
                             const assignee = usersMap.get(assigneeId);
                             return assignee ? (
-                              <div key={assigneeId} className="flex items-center space-x-1">
-                                <div className="w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
-                                  <span className="text-xs text-white font-medium">
-                                    {assignee.initials || assignee.name[0]?.toUpperCase() || '?'}
-                                  </span>
-                                </div>
-                                <span className="text-gray-900">{assignee.name}</span>
-                                {index < (task.assigneeIds?.length || 0) - 1 && (
-                                  <span className="text-gray-400">,</span>
-                                )}
-                              </div>
+                              <span key={assigneeId} className="text-gray-900 text-xs">
+                                {assignee.name}
+                                {index < (task.assigneeIds?.length || 0) - 1 ? ', ' : ''}
+                              </span>
                             ) : null;
                           })}
                           {task.assigneeIds.every(id => !usersMap.get(id)) && (
