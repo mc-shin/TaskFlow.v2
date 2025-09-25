@@ -79,7 +79,7 @@ export default function Kanban() {
     return usersMap.get(userId);
   };
 
-  // 전체 시스템 작업 통계 계산
+  // 전체 시스템 작업 통계 계산 (작업에 대한 것만 카운트)
   const totalStats = useMemo(() => {
     if (!tasks || (tasks as SafeTaskWithAssignees[]).length === 0) {
       return { "진행전": 0, "진행중": 0, "완료": 0, "이슈": 0 };
