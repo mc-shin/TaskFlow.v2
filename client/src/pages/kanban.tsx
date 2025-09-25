@@ -114,10 +114,10 @@ export default function Kanban() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "완료": return "bg-green-500";
-      case "실행대기": return "bg-blue-500";
-      case "이슈함": return "bg-red-500";
-      default: return "bg-yellow-500";
+      case "완료": return "bg-primary";
+      case "실행대기": return "bg-primary";
+      case "이슈함": return "bg-destructive";
+      default: return "bg-primary";
     }
   };
 
@@ -138,9 +138,9 @@ export default function Kanban() {
     const diffTime = deadlineDate.getTime() - today.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     
-    if (diffDays < 0) return "text-red-600 font-semibold";
-    if (diffDays === 0) return "text-red-500 font-semibold";
-    if (diffDays <= 3) return "text-orange-500 font-medium";
+    if (diffDays < 0) return "text-destructive font-semibold";
+    if (diffDays === 0) return "text-destructive font-semibold";
+    if (diffDays <= 3) return "text-primary font-medium";
     return "text-muted-foreground";
   };
 
@@ -179,7 +179,7 @@ export default function Kanban() {
           </p>
         </div>
         <Button 
-          className="bg-blue-600 hover:bg-blue-700" 
+          className="bg-primary hover:bg-primary/80" 
           onClick={() => setIsProjectModalOpen(true)}
           data-testid="button-add-project"
         >
@@ -366,7 +366,7 @@ function ProjectKanbanGoals({ projectId, setTaskModalState, setTaskEditModalStat
       <div className="p-4">
         <div className="animate-pulse space-y-4">
           {[...Array(2)].map((_, i) => (
-            <div key={i} className="bg-gray-100 h-32 rounded"></div>
+            <div key={i} className="bg-muted h-32 rounded"></div>
           ))}
         </div>
       </div>
@@ -376,7 +376,7 @@ function ProjectKanbanGoals({ projectId, setTaskModalState, setTaskEditModalStat
   if (goalsError) {
     return (
       <div className="p-4 text-center">
-        <div className="text-red-600">
+        <div className="text-destructive">
           <AlertTriangle className="w-6 h-6 mx-auto mb-2" />
           <p className="text-sm font-medium">목표를 불러오는 중 오류가 발생했습니다</p>
         </div>
@@ -459,7 +459,7 @@ function ProjectKanbanGoals({ projectId, setTaskModalState, setTaskEditModalStat
       ))}
       
       {(!goals || (Array.isArray(goals) && goals.length === 0)) && (
-        <div className="text-center py-8 text-gray-500">
+        <div className="text-center py-8 text-muted-foreground">
           <p className="text-sm">이 프로젝트에는 아직 목표가 없습니다</p>
         </div>
       )}
@@ -499,13 +499,13 @@ function GoalKanbanColumns({ goal, setTaskEditModalState, usersMap }: GoalKanban
   // 상태 배지 스타일 함수
   const getStatusBadgeStyle = (status: string) => {
     switch (status) {
-      case "완료": return "bg-green-100 text-green-700";
-      case "진행중": return "bg-orange-100 text-orange-700";
+      case "완료": return "bg-primary/10 text-primary";
+      case "진행중": return "bg-secondary text-secondary-foreground";
       case "진행전": 
-      case "실행대기": return "bg-blue-100 text-blue-700";
+      case "실행대기": return "bg-muted text-muted-foreground";
       case "이슈":
-      case "이슈함": return "bg-red-100 text-red-700";
-      default: return "bg-gray-100 text-gray-700";
+      case "이슈함": return "bg-destructive/10 text-destructive";
+      default: return "bg-muted text-muted-foreground";
     }
   };
 
@@ -605,7 +605,7 @@ function GoalKanbanColumns({ goal, setTaskEditModalState, usersMap }: GoalKanban
                   )}
                   
                   {/* 마감날짜, D-DAY, 담당자 구성 */}
-                  <div className="space-y-1 pt-2 border-t border-gray-100">
+                  <div className="space-y-1 pt-2 border-t border-border">
                     {/* 상태와 우선순위 배지 */}
                     <div className="flex items-center space-x-2 mb-2">
                       {task.status && (
@@ -613,7 +613,7 @@ function GoalKanbanColumns({ goal, setTaskEditModalState, usersMap }: GoalKanban
                           {task.status}
                         </span>
                       )}
-                      <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">
+                      <span className="text-xs bg-muted text-muted-foreground px-2 py-1 rounded">
                         {task.priority || "미지정"}
                       </span>
                     </div>
@@ -631,8 +631,8 @@ function GoalKanbanColumns({ goal, setTaskEditModalState, usersMap }: GoalKanban
                       <span className="text-muted-foreground">남은 시간:</span>
                       {task.deadline ? (
                         <span className={`font-medium ${
-                          formatDeadline(task.deadline)?.startsWith('D+') ? 'text-red-600' : 
-                          formatDeadline(task.deadline) === 'D-Day' ? 'text-orange-600' : 'text-blue-600'
+                          formatDeadline(task.deadline)?.startsWith('D+') ? 'text-destructive' : 
+                          formatDeadline(task.deadline) === 'D-Day' ? 'text-primary' : 'text-primary'
                         }`}>
                           {formatDeadline(task.deadline)}
                         </span>
