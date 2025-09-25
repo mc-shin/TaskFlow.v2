@@ -1,10 +1,10 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { CheckCircle, Clock, AlertTriangle, User, Plus, ChevronDown, ChevronRight, Target, FolderOpen } from "lucide-react";
 import type { SafeTaskWithAssignees, SafeUser, ProjectWithDetails, GoalWithTasks } from "@shared/schema";
 import { ProjectModal } from "@/components/project-modal";
@@ -240,83 +240,76 @@ export default function Kanban() {
               </div>
               
               {(projects as ProjectWithDetails[])?.map((project) => (
-                <Card 
+                <div 
                   key={project.id} 
-                  className="hover:shadow-lg transition-all duration-200"
-                  data-testid={`card-project-${project.id}`}
+                  className="relative bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-lg transition-all duration-200"
+                  data-testid={`project-container-${project.id}`}
                 >
-                  <Collapsible
-                    open={expandedProjects.has(project.id)}
-                    onOpenChange={() => toggleProject(project.id)}
-                  >
-                    <CollapsibleTrigger asChild>
-                      <CardHeader 
-                        className="cursor-pointer hover:bg-muted/50 transition-colors"
+                  {/* 프로젝트 헤더 */}
+                  <div className="flex items-center justify-between p-4 border-b border-gray-200 cursor-pointer hover:bg-muted/50 transition-colors"
+                       onClick={() => toggleProject(project.id)}>
+                    <div className="flex items-center space-x-3">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="p-1 h-7 w-7 opacity-100 bg-gray-200 hover:bg-gray-300 border border-gray-300 hover:border-gray-400 shadow-sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleProject(project.id);
+                        }}
+                        data-testid={`button-toggle-project-${project.id}`}
                       >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-3">
-                            {expandedProjects.has(project.id) ? (
-                              <ChevronDown className="w-4 h-4 text-muted-foreground" />
-                            ) : (
-                              <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                            )}
-                            <FolderOpen className="w-5 h-5 text-blue-600" />
-                            <div>
-                              <CardTitle className="text-lg" data-testid={`text-project-title-${project.id}`}>
-                                {project.name}
-                              </CardTitle>
-                              {project.description && (
-                                <p className="text-sm text-muted-foreground mt-1">{project.description}</p>
-                              )}
-                            </div>
-                          </div>
-                          <div className="flex items-center space-x-3">
-                            <div className="text-right">
-                              <div className="text-sm font-medium">
-                                {project.completedTasks}/{project.totalTasks} 작업 완료
-                              </div>
-                              <div className="text-xs text-muted-foreground">
-                                {project.progressPercentage || Math.round((project.completedTasks / project.totalTasks) * 100) || 0}% 진행률
-                              </div>
-                            </div>
-                            <Button 
-                              size="sm" 
-                              variant="outline"
-                              className="h-8 w-8 p-0"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setGoalModalState({
-                                  isOpen: true,
-                                  projectId: project.id,
-                                  projectTitle: project.name
-                                });
-                              }}
-                              data-testid={`button-add-goal-${project.id}`}
-                            >
-                              <Plus className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      </CardHeader>
-                    </CollapsibleTrigger>
-
-                    
-                    <CollapsibleContent>
-                      <CardContent className="pt-0 pb-6">
-                        {expandedProjects.has(project.id) && (
-                          <ProjectKanbanGoals 
-                            projectId={project.id}
-                            setTaskModalState={setTaskModalState}
-                            setTaskEditModalState={setTaskEditModalState}
-                            expandedGoals={expandedGoals}
-                            toggleGoal={toggleGoal}
-                            usersMap={usersMap}
-                          />
+                        {expandedProjects.has(project.id) ? (
+                          <ChevronDown className="h-4 w-4" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4" />
                         )}
-                      </CardContent>
-                    </CollapsibleContent>
-                  </Collapsible>
-                </Card>
+                      </Button>
+                      <FolderOpen className="w-5 h-5 text-blue-600" />
+                      <div>
+                        <h3 className="text-lg font-medium text-gray-900" data-testid={`text-project-title-${project.id}`}>
+                          {project.name}
+                        </h3>
+                        {project.description && (
+                          <p className="text-sm text-gray-600 mt-1">{project.description}</p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-3">
+                      <span className="text-sm text-gray-500">
+                        {project.completedTasks}/{project.totalTasks} 작업 완료
+                      </span>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setGoalModalState({
+                            isOpen: true,
+                            projectId: project.id,
+                            projectTitle: project.name
+                          });
+                        }}
+                        data-testid={`button-add-goal-${project.id}`}
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        새 목표
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* 목표 섹션 - 프로젝트가 확장된 경우에만 표시 */}
+                  {expandedProjects.has(project.id) && (
+                    <ProjectKanbanGoals 
+                      projectId={project.id}
+                      setTaskModalState={setTaskModalState}
+                      setTaskEditModalState={setTaskEditModalState}
+                      expandedGoals={expandedGoals}
+                      toggleGoal={toggleGoal}
+                      usersMap={usersMap}
+                    />
+                  )}
+                </div>
               ))}
             </div>
           )}
@@ -402,76 +395,67 @@ function ProjectKanbanGoals({ projectId, setTaskModalState, setTaskEditModalStat
   return (
     <div className="p-4 space-y-3">
       {(goals as GoalWithTasks[])?.map((goal) => (
-        <Card 
-          key={goal.id} 
-          className="border-l-4 border-l-green-500 hover:shadow-md transition-all duration-200"
-          data-testid={`card-goal-${goal.id}`}
-        >
-          <Collapsible
-            open={expandedGoals.has(goal.id)}
-            onOpenChange={() => toggleGoal(goal.id)}
-          >
-            <CollapsibleTrigger asChild>
-              <CardHeader className="cursor-pointer hover:bg-muted/30 transition-colors py-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    {expandedGoals.has(goal.id) ? (
-                      <ChevronDown className="w-4 h-4 text-muted-foreground" />
-                    ) : (
-                      <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                    )}
-                    <Target className="w-4 h-4 text-green-600" />
-                    <div>
-                      <CardTitle className="text-base" data-testid={`text-goal-title-${goal.id}`}>
-                        {goal.title}
-                      </CardTitle>
-                      {goal.description && (
-                        <p className="text-sm text-muted-foreground mt-1">
-                          {goal.description}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <div className="text-right">
-                      <div className="text-sm font-medium">
-                        {goal.completedTasks}/{goal.totalTasks} 작업 완료
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {goal.progressPercentage || Math.round((goal.completedTasks / goal.totalTasks) * 100) || 0}% 진행률
-                      </div>
-                    </div>
-                    <Button 
-                      size="sm" 
-                      variant="outline"
-                      className="h-8 w-8 p-0"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setTaskModalState({
-                          isOpen: true,
-                          goalId: goal.id,
-                          goalTitle: goal.title
-                        });
-                      }}
-                      data-testid={`button-add-task-${goal.id}`}
-                    >
-                      <Plus className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
-            </CollapsibleTrigger>
+        <div key={goal.id} className="bg-gray-50 border border-gray-200 rounded-lg hover:shadow-md transition-all duration-200">
+          {/* 목표 헤더 */}
+          <div className="flex items-center justify-between p-3 border-b border-gray-200 cursor-pointer hover:bg-muted/30 transition-colors"
+               onClick={() => toggleGoal(goal.id)}>
+            <div className="flex items-center space-x-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="p-1 h-6 w-6 opacity-100 bg-gray-200 hover:bg-gray-300 border border-gray-300 hover:border-gray-400 shadow-sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleGoal(goal.id);
+                }}
+                data-testid={`button-toggle-goal-${goal.id}`}
+              >
+                {expandedGoals.has(goal.id) ? (
+                  <ChevronDown className="h-3 w-3" />
+                ) : (
+                  <ChevronRight className="h-3 w-3" />
+                )}
+              </Button>
+              <Target className="w-4 h-4 text-green-600" />
+              <div>
+                <h4 className="font-medium text-gray-900" data-testid={`text-goal-title-${goal.id}`}>
+                  {goal.title}
+                </h4>
+                {goal.description && (
+                  <p className="text-sm text-gray-600">{goal.description}</p>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center space-x-3">
+              <span className="text-sm text-gray-500">
+                {goal.completedTasks}/{goal.totalTasks} 완료
+              </span>
+              <Button 
+                size="sm" 
+                variant="outline"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setTaskModalState({
+                    isOpen: true,
+                    goalId: goal.id,
+                    goalTitle: goal.title
+                  });
+                }}
+                data-testid={`button-add-task-${goal.id}`}
+              >
+                <Plus className="w-4 h-4 mr-1" />
+                작업
+              </Button>
+            </div>
+          </div>
 
-            
-            <CollapsibleContent>
-              <CardContent className="pt-0 pb-4">
-                <div className="space-y-3 ml-8">
-                  <GoalKanbanColumns goal={goal} setTaskEditModalState={setTaskEditModalState} usersMap={usersMap} />
-                </div>
-              </CardContent>
-            </CollapsibleContent>
-          </Collapsible>
-        </Card>
+          {/* 4개 상태별 칸반 컬럼 - 목표가 확장된 경우에만 표시 */}
+          {expandedGoals.has(goal.id) && (
+            <div className="p-2">
+              <GoalKanbanColumns goal={goal} setTaskEditModalState={setTaskEditModalState} usersMap={usersMap} />
+            </div>
+          )}
+        </div>
       ))}
       
       {(!goals || (Array.isArray(goals) && goals.length === 0)) && (
@@ -601,83 +585,81 @@ function GoalKanbanColumns({ goal, setTaskEditModalState, usersMap }: GoalKanban
           {/* 작업 카드들 */}
           <div className="space-y-3 flex-1">
             {statusTasks.map((task) => (
-              <Card 
+              <div 
                 key={task.id} 
-                className="border-l-4 border-l-orange-400 hover:shadow-sm transition-shadow duration-200 cursor-pointer"
-                data-testid={`card-task-${task.id}`}
+                className="bg-white border border-gray-200 rounded-lg p-3 hover:shadow-md transition-all duration-200 cursor-pointer hover:border-gray-300"
+                data-testid={`task-card-${task.id}`}
                 draggable
                 onDragStart={(e) => handleDragStart(e, task.id)}
                 onClick={() => setTaskEditModalState({ isOpen: true, editingTask: task })}
               >
-                <CardContent className="p-4">
-                    <div className="space-y-2">
-                      <h6 className="font-medium text-sm text-gray-900 leading-tight">
-                        {task.title}
-                      </h6>
-                      
-                      {task.description && (
-                        <p className="text-xs text-gray-600 line-clamp-2">
-                          {task.description}
-                        </p>
+                <div className="space-y-2">
+                  <h6 className="font-medium text-sm text-gray-900 leading-tight">
+                    {task.title}
+                  </h6>
+                  
+                  {task.description && (
+                    <p className="text-xs text-gray-600 line-clamp-2">
+                      {task.description}
+                    </p>
+                  )}
+                  
+                  {/* 마감날짜, D-DAY, 담당자 구성 */}
+                  <div className="space-y-1 pt-2 border-t border-gray-100">
+                    {/* 상태와 우선순위 배지 */}
+                    <div className="flex items-center space-x-2 mb-2">
+                      {task.status && (
+                        <span className={`text-xs px-2 py-1 rounded ${getStatusBadgeStyle(task.status)}`}>
+                          {task.status}
+                        </span>
                       )}
-                      
-                      {/* 마감날짜, D-DAY, 담당자 구성 */}
-                      <div className="space-y-1 pt-2 border-t border-gray-100">
-                        {/* 상태와 우선순위 배지 */}
-                        <div className="flex items-center space-x-2 mb-2">
-                          {task.status && (
-                            <span className={`text-xs px-2 py-1 rounded ${getStatusBadgeStyle(task.status)}`}>
-                              {task.status}
-                            </span>
-                          )}
-                          <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">
-                            {task.priority || "미지정"}
-                          </span>
-                        </div>
-                        
-                        {/* 마감날짜 */}
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="text-gray-600">마감:</span>
-                          <span className="text-gray-900">
-                            {task.deadline ? new Date(task.deadline).toLocaleDateString('ko-KR') : "미지정"}
-                          </span>
-                        </div>
-                        
-                        {/* D-DAY */}
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="text-gray-600">남은 시간:</span>
-                          {task.deadline ? (
-                            <span className={`font-medium ${
-                              formatDeadline(task.deadline)?.startsWith('D+') ? 'text-red-600' : 
-                              formatDeadline(task.deadline) === 'D-Day' ? 'text-orange-600' : 'text-blue-600'
-                            }`}>
-                              {formatDeadline(task.deadline)}
-                            </span>
-                          ) : (
-                            <span className="text-gray-400">미지정</span>
-                          )}
-                        </div>
-                        
-                        {/* 담당자 */}
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="text-gray-600">담당자:</span>
-                          {task.assigneeIds && task.assigneeIds.length > 0 ? (
-                            <div className="flex items-center overflow-hidden">
-                              <span className="text-gray-900 text-xs truncate">
-                                {task.assigneeIds
-                                  .map(assigneeId => usersMap.get(assigneeId)?.name)
-                                  .filter(Boolean)
-                                  .join(', ') || '사용자 미확인'}
-                              </span>
-                            </div>
-                          ) : (
-                            <span className="text-gray-400">미지정</span>
-                          )}
-                        </div>
-                      </div>
+                      <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">
+                        {task.priority || "미지정"}
+                      </span>
                     </div>
-                </CardContent>
-              </Card>
+                    
+                    {/* 마감날짜 */}
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-gray-600">마감:</span>
+                      <span className="text-gray-900">
+                        {task.deadline ? new Date(task.deadline).toLocaleDateString('ko-KR') : "미지정"}
+                      </span>
+                    </div>
+                    
+                    {/* D-DAY */}
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-gray-600">남은 시간:</span>
+                      {task.deadline ? (
+                        <span className={`font-medium ${
+                          formatDeadline(task.deadline)?.startsWith('D+') ? 'text-red-600' : 
+                          formatDeadline(task.deadline) === 'D-Day' ? 'text-orange-600' : 'text-blue-600'
+                        }`}>
+                          {formatDeadline(task.deadline)}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400">미지정</span>
+                      )}
+                    </div>
+                    
+                    {/* 담당자 */}
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-gray-600">담당자:</span>
+                      {task.assigneeIds && task.assigneeIds.length > 0 ? (
+                        <div className="flex items-center overflow-hidden">
+                          <span className="text-gray-900 text-xs truncate">
+                            {task.assigneeIds
+                              .map(assigneeId => usersMap.get(assigneeId)?.name)
+                              .filter(Boolean)
+                              .join(', ') || '사용자 미확인'}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-gray-400">미지정</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
             ))}
             
             {statusTasks.length === 0 && (

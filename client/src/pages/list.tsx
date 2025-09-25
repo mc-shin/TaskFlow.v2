@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { CheckCircle, Clock, AlertTriangle, User, Plus, ChevronDown, ChevronRight, Target, FolderOpen } from "lucide-react";
 import { useState } from "react";
-import type { SafeTaskWithAssignees, ProjectWithDetails, GoalWithTasks } from "@shared/schema";
+import type { SafeTaskWithAssignee, ProjectWithDetails, GoalWithTasks } from "@shared/schema";
 import { ProjectModal } from "@/components/project-modal";
 import { GoalModal } from "@/components/goal-modal";
 import { TaskModal } from "@/components/task-modal";
@@ -420,15 +420,15 @@ function ProjectGoalsContent({
                           {/* 오른쪽 정보 */}
                           <div className="flex items-center space-x-3">
                             {/* 담당자 */}
-                            {task.assignees && task.assignees.length > 0 && (
+                            {task.assignee && (
                               <div className="flex items-center space-x-2">
                                 <Avatar className="w-5 h-5">
                                   <AvatarFallback className="text-xs bg-primary text-primary-foreground">
-                                    {task.assignees[0].initials}
+                                    {task.assignee.initials}
                                   </AvatarFallback>
                                 </Avatar>
                                 <span className="text-xs text-muted-foreground">
-                                  {task.assignees[0].name}
+                                  {task.assignee.name}
                                 </span>
                               </div>
                             )}
