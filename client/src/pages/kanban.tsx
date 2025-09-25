@@ -96,24 +96,21 @@ export default function Kanban() {
     return goalIds;
   }, [projects, expandedProjects, expandedGoals]);
 
-  // 화면에 표시되는 작업들만 카운트 (확장된 목표의 작업들만)
+  // 전체 시스템 작업 통계 계산 (프로젝트/목표 확장 상태와 무관하게 모든 작업 카운트)
   const totalStats = useMemo(() => {
-    if (!tasks || (tasks as SafeTaskWithAssignees[]).length === 0 || expandedGoalIds.size === 0) {
+    if (!tasks || (tasks as SafeTaskWithAssignees[]).length === 0) {
       return { "진행전": 0, "진행중": 0, "완료": 0, "이슈": 0 };
     }
     
-    // 확장된 목표에 속한 작업들만 필터링
-    const visibleTasks = (tasks as SafeTaskWithAssignees[]).filter(task => 
-      task.goalId && expandedGoalIds.has(task.goalId)
-    );
+    const allTasks = tasks as SafeTaskWithAssignees[];
     
     return {
-      "진행전": visibleTasks.filter(task => task.status === "실행대기" || task.status === "진행전").length,
-      "진행중": visibleTasks.filter(task => task.status === "진행중").length,
-      "완료": visibleTasks.filter(task => task.status === "완료").length,
-      "이슈": visibleTasks.filter(task => task.status === "이슈함" || task.status === "이슈").length,
+      "진행전": allTasks.filter(task => task.status === "실행대기" || task.status === "진행전").length,
+      "진행중": allTasks.filter(task => task.status === "진행중").length,
+      "완료": allTasks.filter(task => task.status === "완료").length,
+      "이슈": allTasks.filter(task => task.status === "이슈함" || task.status === "이슈").length,
     };
-  }, [tasks, expandedGoalIds]);
+  }, [tasks]);
 
   const formatDeadline = (deadline: string | null) => {
     if (!deadline) return null;
