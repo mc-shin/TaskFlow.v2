@@ -326,6 +326,7 @@ export default function Kanban() {
                   {expandedProjects.has(project.id) && (
                     <ProjectKanbanGoals 
                       projectId={project.id}
+                      projectName={project.name}
                       setTaskModalState={setTaskModalState}
                       setTaskEditModalState={setTaskEditModalState}
                       expandedGoals={expandedGoals}
@@ -372,6 +373,7 @@ export default function Kanban() {
 // 프로젝트 칸반 목표 컴포넌트 (두 번째 이미지 구조)
 interface ProjectKanbanGoalsProps {
   projectId: string;
+  projectName: string;
   setTaskModalState: (state: { isOpen: boolean; goalId: string; goalTitle: string }) => void;
   setTaskEditModalState: (state: { isOpen: boolean; editingTask: SafeTaskWithAssignees | null }) => void;
   expandedGoals: Set<string>;
@@ -380,7 +382,7 @@ interface ProjectKanbanGoalsProps {
   setGoalModalState: (state: { isOpen: boolean; projectId: string; projectTitle: string }) => void;
 }
 
-function ProjectKanbanGoals({ projectId, setTaskModalState, setTaskEditModalState, expandedGoals, toggleGoal, usersMap, setGoalModalState }: ProjectKanbanGoalsProps) {
+function ProjectKanbanGoals({ projectId, projectName, setTaskModalState, setTaskEditModalState, expandedGoals, toggleGoal, usersMap, setGoalModalState }: ProjectKanbanGoalsProps) {
   // 프로젝트의 목표들 가져오기
   const { data: goals, isLoading: goalsLoading, error: goalsError } = useQuery({
     queryKey: ["/api/projects", projectId, "goals"],
@@ -451,7 +453,7 @@ function ProjectKanbanGoals({ projectId, setTaskModalState, setTaskEditModalStat
                       setGoalModalState({
                         isOpen: true,
                         projectId: projectId,
-                        projectTitle: goal.title
+                        projectTitle: projectName
                       });
                     }}>
                   {goal.title}
