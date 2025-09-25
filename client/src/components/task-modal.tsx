@@ -99,6 +99,10 @@ export function TaskModal({ isOpen, onClose, editingTask, goalId, goalTitle }: T
       queryClient.invalidateQueries({ queryKey: ["/api/goals"] });
       queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
       queryClient.invalidateQueries({ queryKey: ["/api/activities"] });
+      // 프로젝트별 목표 데이터도 무효화
+      queryClient.invalidateQueries({ 
+        predicate: (query) => query.queryKey[0] === "/api/projects" && query.queryKey[2] === "goals" 
+      });
       toast({
         title: "작업 생성 완료",
         description: "새 작업이 성공적으로 생성되었습니다.",
@@ -129,6 +133,10 @@ export function TaskModal({ isOpen, onClose, editingTask, goalId, goalTitle }: T
       queryClient.invalidateQueries({ queryKey: ["/api/goals"] });
       queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
       queryClient.invalidateQueries({ queryKey: ["/api/activities"] });
+      // 프로젝트별 목표 데이터도 무효화
+      queryClient.invalidateQueries({ 
+        predicate: (query) => query.queryKey[0] === "/api/projects" && query.queryKey[2] === "goals" 
+      });
       toast({
         title: "작업 수정 완료",
         description: "작업이 성공적으로 수정되었습니다.",
@@ -145,10 +153,24 @@ export function TaskModal({ isOpen, onClose, editingTask, goalId, goalTitle }: T
   });
 
   const onSubmit = (data: TaskFormData) => {
+    // progress에 따라 status 자동 설정
+    let autoStatus = data.status || "진행전";
+    if (data.progress !== undefined) {
+      if (data.progress === 0) {
+        autoStatus = "진행전";
+      } else if (data.progress > 0 && data.progress < 100) {
+        autoStatus = "진행중";
+      } else if (data.progress === 100) {
+        autoStatus = "완료";
+      }
+    }
+    
+    const updatedData = { ...data, status: autoStatus };
+    
     if (editingTask) {
-      updateTaskMutation.mutate(data);
+      updateTaskMutation.mutate(updatedData);
     } else {
-      createTaskMutation.mutate(data);
+      createTaskMutation.mutate(updatedData);
     }
   };
 

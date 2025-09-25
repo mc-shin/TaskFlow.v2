@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -10,6 +10,8 @@ import type { SafeTaskWithAssignees, SafeUser, ProjectWithDetails, GoalWithTasks
 import { ProjectModal } from "@/components/project-modal";
 import { GoalModal } from "@/components/goal-modal";
 import { TaskModal } from "@/components/task-modal";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Kanban() {
   const { data: projects, isLoading: projectsLoading, error } = useQuery({
@@ -187,40 +189,8 @@ export default function Kanban() {
       </header>
       
       <main className="flex-1 overflow-auto" data-testid="main-content">
-        {/* 첫 번째 이미지 참고: 큰 div 안에 가로로 4개 상태 헤더 */}
-        <div className="bg-gray-50 px-6 py-4">
-          <div className="bg-white border border-gray-200 rounded-lg mx-auto" style={{maxWidth: 'calc(100% - 3rem)'}}>
-            <div className="flex">
-              <div className="flex-1 text-center py-4 px-3 border-r border-gray-200">
-                <div className="text-lg font-medium text-gray-700">진행전</div>
-                <div className="text-2xl font-bold text-blue-600 mt-1">
-                  {totalStats['진행전'] || 0}
-                </div>
-              </div>
-              <div className="flex-1 text-center py-4 px-3 border-r border-gray-200">
-                <div className="text-lg font-medium text-gray-700">진행중</div>
-                <div className="text-2xl font-bold text-orange-600 mt-1">
-                  {totalStats['진행중'] || 0}
-                </div>
-              </div>
-              <div className="flex-1 text-center py-4 px-3 border-r border-gray-200">
-                <div className="text-lg font-medium text-gray-700">완료</div>
-                <div className="text-2xl font-bold text-green-600 mt-1">
-                  {totalStats['완료'] || 0}
-                </div>
-              </div>
-              <div className="flex-1 text-center py-4 px-3">
-                <div className="text-lg font-medium text-gray-700">이슈</div>
-                <div className="text-2xl font-bold text-red-600 mt-1">
-                  {totalStats['이슈'] || 0}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* 두 번째 이미지 참고: position relative 프로젝트 div → 목표 div → 4개 상태별 칸반 컬럼 → 작업 div */}
-        <div className="px-6 pb-6">
+        {/* 통합된 헤더와 프로젝트 영역 */}
+        <div className="px-6 py-4">
           {error ? (
             <Card className="border-destructive">
               <CardContent className="p-6 text-center">
@@ -239,6 +209,36 @@ export default function Kanban() {
             </Card>
           ) : (
             <div className="space-y-8">
+              {/* 상단 상태 헤더 */}
+              <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
+                <div className="grid grid-cols-4 gap-0">
+                  <div className="text-center py-4 px-3 border-r border-gray-200">
+                    <div className="text-lg font-medium text-gray-700">진행전</div>
+                    <div className="text-2xl font-bold text-blue-600 mt-1">
+                      {totalStats['진행전'] || 0}
+                    </div>
+                  </div>
+                  <div className="text-center py-4 px-3 border-r border-gray-200">
+                    <div className="text-lg font-medium text-gray-700">진행중</div>
+                    <div className="text-2xl font-bold text-orange-600 mt-1">
+                      {totalStats['진행중'] || 0}
+                    </div>
+                  </div>
+                  <div className="text-center py-4 px-3 border-r border-gray-200">
+                    <div className="text-lg font-medium text-gray-700">완료</div>
+                    <div className="text-2xl font-bold text-green-600 mt-1">
+                      {totalStats['완료'] || 0}
+                    </div>
+                  </div>
+                  <div className="text-center py-4 px-3">
+                    <div className="text-lg font-medium text-gray-700">이슈</div>
+                    <div className="text-2xl font-bold text-red-600 mt-1">
+                      {totalStats['이슈'] || 0}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
               {(projects as ProjectWithDetails[])?.map((project) => (
                 <div 
                   key={project.id} 
@@ -251,7 +251,7 @@ export default function Kanban() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="p-1 h-6 w-6"
+                        className="p-1 h-6 w-6 opacity-100 bg-gray-100 hover:bg-gray-200"
                         onClick={() => toggleProject(project.id)}
                         data-testid={`button-toggle-project-${project.id}`}
                       >
@@ -332,7 +332,7 @@ export default function Kanban() {
       <TaskModal
         isOpen={taskEditModalState.isOpen}
         onClose={() => setTaskEditModalState({ isOpen: false, editingTask: null })}
-        editingTask={taskEditModalState.editingTask}
+        editingTask={taskEditModalState.editingTask as any}
       />
     </>
   );
@@ -395,7 +395,7 @@ function ProjectKanbanGoals({ projectId, setTaskModalState, setTaskEditModalStat
               <Button
                 variant="ghost"
                 size="sm"
-                className="p-1 h-5 w-5"
+                className="p-1 h-5 w-5 opacity-100 bg-gray-100 hover:bg-gray-200"
                 onClick={() => toggleGoal(goal.id)}
                 data-testid={`button-toggle-goal-${goal.id}`}
               >
@@ -462,6 +462,22 @@ interface GoalKanbanColumnsProps {
 }
 
 function GoalKanbanColumns({ goal, setTaskEditModalState }: GoalKanbanColumnsProps) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  // 상태 배지 스타일 함수
+  const getStatusBadgeStyle = (status: string) => {
+    switch (status) {
+      case "완료": return "bg-green-100 text-green-700";
+      case "진행중": return "bg-orange-100 text-orange-700";
+      case "진행전": 
+      case "실행대기": return "bg-blue-100 text-blue-700";
+      case "이슈":
+      case "이슈함": return "bg-red-100 text-red-700";
+      default: return "bg-gray-100 text-gray-700";
+    }
+  };
+
   // 상태별 작업 그룹핑
   const tasksByStatus = useMemo(() => {
     const tasks = goal.tasks || [];
@@ -473,20 +489,77 @@ function GoalKanbanColumns({ goal, setTaskEditModalState }: GoalKanbanColumnsPro
     };
   }, [goal.tasks]);
 
+  // 작업 상태 변경 mutation
+  const updateTaskStatusMutation = useMutation({
+    mutationFn: async ({ taskId, newStatus }: { taskId: string; newStatus: string }) => {
+      const response = await fetch(`/api/tasks/${taskId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: newStatus }),
+        headers: { 'Content-Type': 'application/json' },
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/goals'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/stats'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/activities'] });
+      // 프로젝트별 목표 데이터도 무효화
+      queryClient.invalidateQueries({ 
+        predicate: (query) => query.queryKey[0] === "/api/projects" && query.queryKey[2] === "goals" 
+      });
+      toast({
+        title: "성공",
+        description: "작업 상태가 변경되었습니다.",
+      });
+    },
+    onError: () => {
+      toast({
+        variant: "destructive",
+        title: "오류",
+        description: "작업 상태 변경에 실패했습니다.",
+      });
+    },
+  });
+
+  // 드롭 핸들러
+  const handleDrop = (e: React.DragEvent, newStatus: string) => {
+    e.preventDefault();
+    const taskId = e.dataTransfer.getData('text/plain');
+    const task = goal.tasks?.find(t => t.id === taskId);
+    
+    if (task && task.status !== newStatus) {
+      updateTaskStatusMutation.mutate({ taskId, newStatus });
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleDragStart = (e: React.DragEvent, taskId: string) => {
+    e.dataTransfer.setData('text/plain', taskId);
+  };
+
   return (
     <div className="grid grid-cols-4 gap-2 min-h-[300px]">
       {Object.entries(tasksByStatus).map(([status, statusTasks]) => (
         <div
           key={status}
-          className="bg-white border border-gray-200 rounded-lg p-2 flex flex-col flex-1"
+          className="bg-white border border-gray-200 rounded-lg p-2 flex flex-col flex-1 min-h-[200px] transition-colors duration-200"
+          onDrop={(e) => handleDrop(e, status)}
+          onDragOver={handleDragOver}
         >
           {/* 작업 카드들 */}
           <div className="space-y-2 flex-1">
             {statusTasks.map((task) => (
               <div 
                 key={task.id} 
-                className="bg-white border border-gray-200 rounded-lg p-2 hover:shadow-sm transition-shadow cursor-pointer"
+                className="bg-white border border-gray-200 rounded-lg p-2 hover:shadow-sm transition-shadow cursor-move"
                 data-testid={`task-card-${task.id}`}
+                draggable
+                onDragStart={(e) => handleDragStart(e, task.id)}
                 onClick={() => setTaskEditModalState({ isOpen: true, editingTask: task })}
               >
                 <div className="space-y-2">
@@ -502,8 +575,13 @@ function GoalKanbanColumns({ goal, setTaskEditModalState }: GoalKanbanColumnsPro
                   
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2">
-                      {task.priority && (
-                        <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
+                      {task.status && (
+                        <span className={`text-xs px-2 py-1 rounded ${getStatusBadgeStyle(task.status)}`}>
+                          {task.status}
+                        </span>
+                      )}
+                      {task.priority && task.priority !== "중간" && (
+                        <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">
                           {task.priority}
                         </span>
                       )}
