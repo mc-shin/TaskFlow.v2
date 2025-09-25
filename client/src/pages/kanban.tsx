@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -14,6 +15,8 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Kanban() {
+  const [, setLocation] = useLocation();
+  
   const { data: projects, isLoading: projectsLoading, error } = useQuery({
     queryKey: ["/api/projects"],
   });
@@ -288,7 +291,7 @@ export default function Kanban() {
                             data-testid={`text-project-title-${project.id}`}
                             onClick={(e) => {
                               e.stopPropagation();
-                              setIsProjectModalOpen(true);
+                              setLocation(`/detail/project/${project.id}`);
                             }}>
                           {project.name}
                         </h3>
@@ -383,6 +386,7 @@ interface ProjectKanbanGoalsProps {
 }
 
 function ProjectKanbanGoals({ projectId, projectName, setTaskModalState, setTaskEditModalState, expandedGoals, toggleGoal, usersMap, setGoalModalState }: ProjectKanbanGoalsProps) {
+  const [, setLocation] = useLocation();
   // 프로젝트의 목표들 가져오기
   const { data: goals, isLoading: goalsLoading, error: goalsError } = useQuery({
     queryKey: ["/api/projects", projectId, "goals"],
@@ -450,11 +454,7 @@ function ProjectKanbanGoals({ projectId, projectName, setTaskModalState, setTask
                     data-testid={`text-goal-title-${goal.id}`}
                     onClick={(e) => {
                       e.stopPropagation();
-                      setGoalModalState({
-                        isOpen: true,
-                        projectId: projectId,
-                        projectTitle: projectName
-                      });
+                      setLocation(`/detail/goal/${goal.id}`);
                     }}>
                   {goal.title}
                 </h4>
@@ -512,6 +512,7 @@ interface GoalKanbanColumnsProps {
 function GoalKanbanColumns({ goal, setTaskEditModalState, usersMap }: GoalKanbanColumnsProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [, setLocation] = useLocation();
 
   // 마감날짜 포맷팅 함수
   const formatDeadline = (deadline: string | null) => {
@@ -636,7 +637,7 @@ function GoalKanbanColumns({ goal, setTaskEditModalState, usersMap }: GoalKanban
                 data-testid={`task-card-${task.id}`}
                 draggable
                 onDragStart={(e) => handleDragStart(e, task.id)}
-                onClick={() => setTaskEditModalState({ isOpen: true, editingTask: task })}
+                onClick={() => setLocation(`/detail/task/${task.id}`)}
               >
                 <div className="space-y-2">
                   <h6 className="font-medium text-sm text-foreground leading-tight">
