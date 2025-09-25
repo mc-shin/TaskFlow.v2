@@ -196,7 +196,7 @@ export default function Kanban() {
       
       <main className="flex-1 overflow-auto" data-testid="main-content">
         {/* 첫 번째 이미지 참고: 큰 div 안에 가로로 4개 상태 헤더 */}
-        <div className="bg-gray-50 border-b border-gray-200">
+        <div className="bg-gray-50 px-6">
           <div className="flex">
             <div className="flex-1 text-center py-4 px-6 border-r border-gray-200">
               <div className="text-lg font-medium text-gray-700">진행전</div>
@@ -226,7 +226,7 @@ export default function Kanban() {
         </div>
 
         {/* 두 번째 이미지 참고: position relative 프로젝트 div → 목표 div → 4개 상태별 칸반 컬럼 → 작업 div */}
-        <div className="p-6">
+        <div className="px-6 pt-6 pb-6">
           {error ? (
             <Card className="border-destructive">
               <CardContent className="p-6 text-center">
