@@ -190,7 +190,7 @@ export default function Kanban() {
       
       <main className="flex-1 overflow-auto" data-testid="main-content">
         {/* 통합된 헤더와 프로젝트 영역 */}
-        <div className="px-6 py-4">
+        <div className="px-6 pb-4">
           {error ? (
             <Card className="border-destructive">
               <CardContent className="p-6 text-center">
