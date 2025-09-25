@@ -246,7 +246,7 @@ export default function Kanban() {
                   data-testid={`project-container-${project.id}`}
                 >
                   {/* 프로젝트 헤더 */}
-                  <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-green-50 cursor-pointer hover:bg-green-100 transition-colors"
+                  <div className="flex items-center justify-between p-4 border-b border-gray-200 cursor-pointer hover:bg-muted/50 transition-colors"
                        onClick={() => toggleProject(project.id)}>
                     <div className="flex items-center space-x-3">
                       <Button
@@ -265,9 +265,7 @@ export default function Kanban() {
                           <ChevronRight className="h-4 w-4" />
                         )}
                       </Button>
-                      <div className="w-6 h-6 bg-green-500 rounded flex items-center justify-center">
-                        <span className="text-white text-sm">✓</span>
-                      </div>
+                      <FolderOpen className="w-5 h-5 text-blue-600" />
                       <div>
                         <h3 className="text-lg font-medium text-gray-900" data-testid={`text-project-title-${project.id}`}>
                           {project.name}
@@ -399,7 +397,7 @@ function ProjectKanbanGoals({ projectId, setTaskModalState, setTaskEditModalStat
       {(goals as GoalWithTasks[])?.map((goal) => (
         <div key={goal.id} className="bg-gray-50 border border-gray-200 rounded-lg hover:shadow-md transition-all duration-200">
           {/* 목표 헤더 */}
-          <div className="flex items-center justify-between p-3 border-b border-gray-200 bg-orange-50 cursor-pointer hover:bg-orange-100 transition-colors"
+          <div className="flex items-center justify-between p-3 border-b border-gray-200 cursor-pointer hover:bg-muted/30 transition-colors"
                onClick={() => toggleGoal(goal.id)}>
             <div className="flex items-center space-x-3">
               <Button
@@ -418,9 +416,7 @@ function ProjectKanbanGoals({ projectId, setTaskModalState, setTaskEditModalStat
                   <ChevronRight className="h-3 w-3" />
                 )}
               </Button>
-              <div className="w-5 h-5 bg-orange-500 rounded flex items-center justify-center">
-                <Target className="w-3 h-3 text-white" />
-              </div>
+              <Target className="w-4 h-4 text-green-600" />
               <div>
                 <h4 className="font-medium text-gray-900" data-testid={`text-goal-title-${goal.id}`}>
                   {goal.title}
@@ -646,24 +642,16 @@ function GoalKanbanColumns({ goal, setTaskEditModalState, usersMap }: GoalKanban
                     </div>
                     
                     {/* 담당자 */}
-                    <div className="text-xs">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-gray-600">담당자:</span>
-                      </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-gray-600">담당자:</span>
                       {task.assigneeIds && task.assigneeIds.length > 0 ? (
-                        <div className="flex items-center flex-wrap gap-1">
-                          {task.assigneeIds.map((assigneeId, index) => {
-                            const assignee = usersMap.get(assigneeId);
-                            return assignee ? (
-                              <span key={assigneeId} className="text-gray-900 text-xs">
-                                {assignee.name}
-                                {index < (task.assigneeIds?.length || 0) - 1 ? ', ' : ''}
-                              </span>
-                            ) : null;
-                          })}
-                          {task.assigneeIds.every(id => !usersMap.get(id)) && (
-                            <span className="text-gray-400">사용자 미확인</span>
-                          )}
+                        <div className="flex items-center overflow-hidden">
+                          <span className="text-gray-900 text-xs truncate">
+                            {task.assigneeIds
+                              .map(assigneeId => usersMap.get(assigneeId)?.name)
+                              .filter(Boolean)
+                              .join(', ') || '사용자 미확인'}
+                          </span>
                         </div>
                       ) : (
                         <span className="text-gray-400">미지정</span>
