@@ -18,7 +18,7 @@ export const projects = pgTable("projects", {
   code: text("code").notNull().unique(), // RIIDO-41, RIIDO-27 등
   description: text("description"),
   deadline: text("deadline"),
-  status: text("status").default("진행전"), // 진행전, 진행중, 완료
+  status: text("status").default("진행전"), // 진행전, 진행중, 완료, 이슈
   labels: text("labels").array().default(sql`'{}'`), // Labels (최대 2개)
   ownerIds: text("owner_ids").array().default(sql`'{}'`), // Multiple owners
   createdBy: varchar("created_by").references(() => users.id),
@@ -32,7 +32,7 @@ export const goals = pgTable("goals", {
   title: text("title").notNull(),
   description: text("description"),
   deadline: text("deadline"),
-  status: text("status").default("진행전"), // 진행전, 진행중, 완료
+  status: text("status").default("진행전"), // 진행전, 진행중, 완료, 이슈
   labels: text("labels").array().default(sql`'{}'`), // Labels (최대 2개)
   assigneeIds: text("assignee_ids").array().default(sql`'{}'`), // Multiple assignees
   projectId: varchar("project_id").references(() => projects.id).notNull(),
@@ -46,7 +46,7 @@ export const tasks = pgTable("tasks", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   title: text("title").notNull(),
   description: text("description"),
-  status: text("status").notNull().default("진행전"), // 진행전, 진행중, 완료
+  status: text("status").notNull().default("진행전"), // 진행전, 진행중, 완료, 이슈
   priority: text("priority").default("중간"), // 높음, 중간, 낮음
   labels: text("labels").array().default(sql`'{}'`), // Labels (최대 2개)
   deadline: text("deadline"),
