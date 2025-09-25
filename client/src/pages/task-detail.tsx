@@ -81,9 +81,10 @@ export default function TaskDetail() {
       if (variables.status === '이슈' && task?.status !== '이슈') {
         setTimeout(() => {
           toast({
-            title: "이슈사항 입력 안내",
-            description: "이슈 내용을 댓글로 작성해주세요.",
-            variant: "default",
+            title: "⚠️ 이슈사항 입력 안내",
+            description: "📝 이슈 내용을 댓글로 자세히 작성해주세요.",
+            variant: "destructive",
+            duration: 6000, // 6초 동안 표시
           });
         }, 1000);
       }
@@ -712,67 +713,67 @@ export default function TaskDetail() {
               </CardHeader>
               <CardContent>
                 {isEditing ? (
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-lg font-medium">진행도 설정</span>
-                    </div>
-                    {(() => {
-                      const isIssueStatus = (editedTask.status ?? task.status) === '이슈';
-                      return (
-                        <div className={isIssueStatus ? 'opacity-50 cursor-not-allowed' : ''}>
-                          <Select 
-                            value={(editedTask.progress ?? task.progress ?? 0).toString()}
-                            disabled={isIssueStatus}
-                            onValueChange={(value) => {
-                              if (isIssueStatus) return; // 이슈 상태에서는 변경 불가
-                              
-                              const progressValue = parseInt(value);
-                              const currentStatus = editedTask.status ?? task.status;
-                              
-                              // "이슈" 상태는 진행률 변경으로 덮어쓰지 않음
-                              if (currentStatus === '이슈') {
-                                setEditedTask(prev => ({ 
-                                  ...prev, 
-                                  progress: progressValue
-                                }));
-                              } else {
-                                let finalStatus: string;
+                  <div className="space-y-4">
+                    <div>
+                      <h4 className="text-sm font-medium mb-3">진행도 설정</h4>
+                      {(() => {
+                        const isIssueStatus = (editedTask.status ?? task.status) === '이슈';
+                        return (
+                          <div className={`space-y-3 ${isIssueStatus ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                            <Select 
+                              value={(editedTask.progress ?? task.progress ?? 0).toString()}
+                              disabled={isIssueStatus}
+                              onValueChange={(value) => {
+                                if (isIssueStatus) return; // 이슈 상태에서는 변경 불가
                                 
-                                if (progressValue === 0) {
-                                  finalStatus = '진행전';
-                                } else if (progressValue === 100) {
-                                  finalStatus = '완료';
+                                const progressValue = parseInt(value);
+                                const currentStatus = editedTask.status ?? task.status;
+                                
+                                // "이슈" 상태는 진행률 변경으로 덮어쓰지 않음
+                                if (currentStatus === '이슈') {
+                                  setEditedTask(prev => ({ 
+                                    ...prev, 
+                                    progress: progressValue
+                                  }));
                                 } else {
-                                  finalStatus = '진행중';
+                                  let finalStatus: string;
+                                  
+                                  if (progressValue === 0) {
+                                    finalStatus = '진행전';
+                                  } else if (progressValue === 100) {
+                                    finalStatus = '완료';
+                                  } else {
+                                    finalStatus = '진행중';
+                                  }
+                                  
+                                  setEditedTask(prev => ({ 
+                                    ...prev, 
+                                    progress: progressValue, 
+                                    status: finalStatus 
+                                  }));
                                 }
-                                
-                                setEditedTask(prev => ({ 
-                                  ...prev, 
-                                  progress: progressValue, 
-                                  status: finalStatus 
-                                }));
-                              }
-                            }}
-                          >
-                            <SelectTrigger className="h-10" data-testid="select-task-progress">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {Array.from({ length: 11 }, (_, i) => i * 10).map((option) => (
-                                <SelectItem key={option} value={option.toString()}>
-                                  {option}%
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <Progress 
-                            value={editedTask.progress ?? task.progress ?? 0} 
-                            className="h-3"
-                            data-testid="progress-bar-edit"
-                          />
-                        </div>
-                      );
-                    })()}
+                              }}
+                            >
+                              <SelectTrigger className="h-12 bg-background border-border text-foreground" data-testid="select-task-progress">
+                                <SelectValue placeholder="진행도 선택" />
+                              </SelectTrigger>
+                              <SelectContent className="bg-background border-border">
+                                {Array.from({ length: 11 }, (_, i) => i * 10).map((option) => (
+                                  <SelectItem key={option} value={option.toString()} className="text-foreground hover:bg-accent">
+                                    {option}%
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <Progress 
+                              value={editedTask.progress ?? task.progress ?? 0} 
+                              className="h-2 bg-secondary"
+                              data-testid="progress-bar-edit"
+                            />
+                          </div>
+                        );
+                      })()}
+                    </div>
                     <div className="text-sm text-muted-foreground">
                       {(editedTask.status ?? task.status) === '이슈' 
                         ? '이슈 상태에서는 진행도를 변경할 수 없습니다' 

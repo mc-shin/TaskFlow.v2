@@ -106,9 +106,10 @@ export default function ProjectDetail() {
       if (variables.status === '이슈' && project?.status !== '이슈') {
         setTimeout(() => {
           toast({
-            title: "이슈사항 입력 안내",
-            description: "이슈 내용을 댓글로 작성해주세요.",
-            variant: "default",
+            title: "⚠️ 이슈사항 입력 안내",
+            description: "📝 이슈 내용을 댓글로 자세히 작성해주세요.",
+            variant: "destructive",
+            duration: 6000, // 6초 동안 표시
           });
         }, 1000);
       }
