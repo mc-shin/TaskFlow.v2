@@ -246,8 +246,21 @@ export default function Kanban() {
                   data-testid={`project-container-${project.id}`}
                 >
                   {/* 프로젝트 헤더 */}
-                  <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-green-50">
+                  <div className="flex items-center justify-between p-2 border-b border-gray-200 bg-green-50">
                     <div className="flex items-center space-x-3">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="p-1 h-6 w-6"
+                        onClick={() => toggleProject(project.id)}
+                        data-testid={`button-toggle-project-${project.id}`}
+                      >
+                        {expandedProjects.has(project.id) ? (
+                          <ChevronDown className="h-4 w-4" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4" />
+                        )}
+                      </Button>
                       <div className="w-6 h-6 bg-green-500 rounded flex items-center justify-center">
                         <span className="text-white text-sm">✓</span>
                       </div>
@@ -280,12 +293,16 @@ export default function Kanban() {
                     </div>
                   </div>
 
-                  {/* 목표 섹션 */}
-                  <ProjectKanbanGoals 
-                    projectId={project.id}
-                    setTaskModalState={setTaskModalState}
-                    setTaskEditModalState={setTaskEditModalState}
-                  />
+                  {/* 목표 섹션 - 프로젝트가 확장된 경우에만 표시 */}
+                  {expandedProjects.has(project.id) && (
+                    <ProjectKanbanGoals 
+                      projectId={project.id}
+                      setTaskModalState={setTaskModalState}
+                      setTaskEditModalState={setTaskEditModalState}
+                      expandedGoals={expandedGoals}
+                      toggleGoal={toggleGoal}
+                    />
+                  )}
                 </div>
               ))}
             </div>
@@ -326,9 +343,11 @@ interface ProjectKanbanGoalsProps {
   projectId: string;
   setTaskModalState: (state: { isOpen: boolean; goalId: string; goalTitle: string }) => void;
   setTaskEditModalState: (state: { isOpen: boolean; taskId: string }) => void;
+  expandedGoals: Set<string>;
+  toggleGoal: (goalId: string) => void;
 }
 
-function ProjectKanbanGoals({ projectId, setTaskModalState, setTaskEditModalState }: ProjectKanbanGoalsProps) {
+function ProjectKanbanGoals({ projectId, setTaskModalState, setTaskEditModalState, expandedGoals, toggleGoal }: ProjectKanbanGoalsProps) {
   // 프로젝트의 목표들 가져오기
   const { data: goals, isLoading: goalsLoading, error: goalsError } = useQuery({
     queryKey: ["/api/projects", projectId, "goals"],
@@ -367,12 +386,25 @@ function ProjectKanbanGoals({ projectId, setTaskModalState, setTaskEditModalStat
   }
 
   return (
-    <div className="p-4 space-y-6">
+    <div className="p-2 space-y-2">
       {(goals as GoalWithTasks[])?.map((goal) => (
         <div key={goal.id} className="bg-gray-50 border border-gray-200 rounded-lg">
           {/* 목표 헤더 */}
-          <div className="flex items-center justify-between p-3 border-b border-gray-200 bg-orange-50">
+          <div className="flex items-center justify-between p-2 border-b border-gray-200 bg-orange-50">
             <div className="flex items-center space-x-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="p-1 h-5 w-5"
+                onClick={() => toggleGoal(goal.id)}
+                data-testid={`button-toggle-goal-${goal.id}`}
+              >
+                {expandedGoals.has(goal.id) ? (
+                  <ChevronDown className="h-3 w-3" />
+                ) : (
+                  <ChevronRight className="h-3 w-3" />
+                )}
+              </Button>
               <div className="w-5 h-5 bg-orange-500 rounded flex items-center justify-center">
                 <Target className="w-3 h-3 text-white" />
               </div>
@@ -405,10 +437,12 @@ function ProjectKanbanGoals({ projectId, setTaskModalState, setTaskEditModalStat
             </div>
           </div>
 
-          {/* 4개 상태별 칸반 컬럼 */}
-          <div className="p-4">
-            <GoalKanbanColumns goal={goal} setTaskEditModalState={setTaskEditModalState} />
-          </div>
+          {/* 4개 상태별 칸반 컬럼 - 목표가 확장된 경우에만 표시 */}
+          {expandedGoals.has(goal.id) && (
+            <div className="p-2">
+              <GoalKanbanColumns goal={goal} setTaskEditModalState={setTaskEditModalState} />
+            </div>
+          )}
         </div>
       ))}
       
@@ -440,18 +474,18 @@ function GoalKanbanColumns({ goal, setTaskEditModalState }: GoalKanbanColumnsPro
   }, [goal.tasks]);
 
   return (
-    <div className="grid grid-cols-4 gap-4 min-h-[300px]">
+    <div className="grid grid-cols-4 gap-2 min-h-[300px]">
       {Object.entries(tasksByStatus).map(([status, statusTasks]) => (
         <div
           key={status}
-          className="bg-white border border-gray-200 rounded-lg p-3 flex flex-col flex-1"
+          className="bg-white border border-gray-200 rounded-lg p-2 flex flex-col flex-1"
         >
           {/* 작업 카드들 */}
-          <div className="space-y-3 flex-1">
+          <div className="space-y-2 flex-1">
             {statusTasks.map((task) => (
               <div 
                 key={task.id} 
-                className="bg-white border border-gray-200 rounded-lg p-3 hover:shadow-sm transition-shadow cursor-pointer"
+                className="bg-white border border-gray-200 rounded-lg p-2 hover:shadow-sm transition-shadow cursor-pointer"
                 data-testid={`task-card-${task.id}`}
                 onClick={() => setTaskEditModalState({ isOpen: true, taskId: task.id })}
               >
