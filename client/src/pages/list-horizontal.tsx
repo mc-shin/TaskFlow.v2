@@ -389,6 +389,11 @@ export default function ListHorizontal() {
   };
 
   const handleStatusChange = (taskId: string, status: string) => {
+    // "이슈" 상태는 작업 상세 페이지에서만 수정 가능
+    if (status === "이슈") {
+      setLocation(`/detail/task/${taskId}?from=list`);
+      return;
+    }
     updateTaskMutation.mutate({ taskId, data: { status } });
   };
 
@@ -669,7 +674,8 @@ export default function ListHorizontal() {
     const statusOptions = [
       { value: "진행전", label: "진행전" },
       { value: "진행중", label: "진행중" },
-      { value: "완료", label: "완료" }
+      { value: "완료", label: "완료" },
+      { value: "이슈", label: "이슈" }
     ];
 
     return (

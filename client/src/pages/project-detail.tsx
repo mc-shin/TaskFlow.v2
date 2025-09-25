@@ -494,6 +494,7 @@ export default function ProjectDetail() {
                         <SelectItem value="진행전">진행전</SelectItem>
                         <SelectItem value="진행중">진행중</SelectItem>
                         <SelectItem value="완료">완료</SelectItem>
+                        <SelectItem value="이슈">이슈</SelectItem>
                       </SelectContent>
                     </Select>
                   ) : (

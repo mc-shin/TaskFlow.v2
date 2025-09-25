@@ -507,11 +507,28 @@ export default function TaskDetail() {
 
                 <div>
                   <label className="text-sm font-medium text-muted-foreground">상태</label>
-                  <p className="mt-1" data-testid="text-task-status">
-                    <Badge variant={getStatusBadgeVariant(task.status)}>
-                      {task.status}
-                    </Badge>
-                  </p>
+                  {isEditing ? (
+                    <Select
+                      value={editedTask.status ?? task.status ?? "진행전"}
+                      onValueChange={(value) => setEditedTask(prev => ({ ...prev, status: value }))}
+                    >
+                      <SelectTrigger className="mt-1 h-10" data-testid="select-task-status">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="진행전">진행전</SelectItem>
+                        <SelectItem value="진행중">진행중</SelectItem>
+                        <SelectItem value="완료">완료</SelectItem>
+                        <SelectItem value="이슈">이슈</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <p className="mt-1" data-testid="text-task-status">
+                      <Badge variant={getStatusBadgeVariant(task.status)}>
+                        {task.status}
+                      </Badge>
+                    </p>
+                  )}
                 </div>
 
                 <div>
@@ -692,21 +709,31 @@ export default function TaskDetail() {
                       value={(editedTask.progress ?? task.progress ?? 0).toString()}
                       onValueChange={(value) => {
                         const progressValue = parseInt(value);
-                        let finalStatus: string;
+                        const currentStatus = editedTask.status ?? task.status;
                         
-                        if (progressValue === 0) {
-                          finalStatus = '진행전';
-                        } else if (progressValue === 100) {
-                          finalStatus = '완료';
+                        // "이슈" 상태는 진행률 변경으로 덮어쓰지 않음
+                        if (currentStatus === '이슈') {
+                          setEditedTask(prev => ({ 
+                            ...prev, 
+                            progress: progressValue
+                          }));
                         } else {
-                          finalStatus = '진행중';
+                          let finalStatus: string;
+                          
+                          if (progressValue === 0) {
+                            finalStatus = '진행전';
+                          } else if (progressValue === 100) {
+                            finalStatus = '완료';
+                          } else {
+                            finalStatus = '진행중';
+                          }
+                          
+                          setEditedTask(prev => ({ 
+                            ...prev, 
+                            progress: progressValue, 
+                            status: finalStatus 
+                          }));
                         }
-                        
-                        setEditedTask(prev => ({ 
-                          ...prev, 
-                          progress: progressValue, 
-                          status: finalStatus 
-                        }));
                       }}
                     >
                       <SelectTrigger className="h-10" data-testid="select-task-progress">
@@ -726,7 +753,9 @@ export default function TaskDetail() {
                       data-testid="progress-bar-edit"
                     />
                     <div className="text-sm text-muted-foreground">
-                      진행도에 따라 상태가 자동으로 설정됩니다
+                      {(editedTask.status ?? task.status) === '이슈' 
+                        ? '이슈 상태는 진행도와 독립적으로 관리됩니다' 
+                        : '진행도에 따라 상태가 자동으로 설정됩니다'}
                     </div>
                   </div>
                 ) : (
