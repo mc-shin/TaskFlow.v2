@@ -301,6 +301,7 @@ export default function Kanban() {
                       setTaskEditModalState={setTaskEditModalState}
                       expandedGoals={expandedGoals}
                       toggleGoal={toggleGoal}
+                      usersMap={usersMap}
                     />
                   )}
                 </div>
@@ -345,9 +346,10 @@ interface ProjectKanbanGoalsProps {
   setTaskEditModalState: (state: { isOpen: boolean; editingTask: SafeTaskWithAssignees | null }) => void;
   expandedGoals: Set<string>;
   toggleGoal: (goalId: string) => void;
+  usersMap: Map<string, SafeUser>;
 }
 
-function ProjectKanbanGoals({ projectId, setTaskModalState, setTaskEditModalState, expandedGoals, toggleGoal }: ProjectKanbanGoalsProps) {
+function ProjectKanbanGoals({ projectId, setTaskModalState, setTaskEditModalState, expandedGoals, toggleGoal, usersMap }: ProjectKanbanGoalsProps) {
   // 프로젝트의 목표들 가져오기
   const { data: goals, isLoading: goalsLoading, error: goalsError } = useQuery({
     queryKey: ["/api/projects", projectId, "goals"],
@@ -440,7 +442,7 @@ function ProjectKanbanGoals({ projectId, setTaskModalState, setTaskEditModalStat
           {/* 4개 상태별 칸반 컬럼 - 목표가 확장된 경우에만 표시 */}
           {expandedGoals.has(goal.id) && (
             <div className="p-2">
-              <GoalKanbanColumns goal={goal} setTaskEditModalState={setTaskEditModalState} />
+              <GoalKanbanColumns goal={goal} setTaskEditModalState={setTaskEditModalState} usersMap={usersMap} />
             </div>
           )}
         </div>
@@ -459,11 +461,30 @@ function ProjectKanbanGoals({ projectId, setTaskModalState, setTaskEditModalStat
 interface GoalKanbanColumnsProps {
   goal: GoalWithTasks;
   setTaskEditModalState: (state: { isOpen: boolean; editingTask: SafeTaskWithAssignees | null }) => void;
+  usersMap: Map<string, SafeUser>;
 }
 
-function GoalKanbanColumns({ goal, setTaskEditModalState }: GoalKanbanColumnsProps) {
+function GoalKanbanColumns({ goal, setTaskEditModalState, usersMap }: GoalKanbanColumnsProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // 마감날짜 포맷팅 함수
+  const formatDeadline = (deadline: string | null) => {
+    if (!deadline) return null;
+    
+    const deadlineDate = new Date(deadline);
+    const today = new Date();
+    const diffTime = deadlineDate.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays < 0) {
+      return `D+${Math.abs(diffDays)}`;
+    } else if (diffDays === 0) {
+      return "D-Day";
+    } else {
+      return `D-${diffDays}`;
+    }
+  };
 
   // 상태 배지 스타일 함수
   const getStatusBadgeStyle = (status: string) => {
@@ -573,8 +594,10 @@ function GoalKanbanColumns({ goal, setTaskEditModalState }: GoalKanbanColumnsPro
                     </p>
                   )}
                   
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
+                  {/* 마감날짜, D-DAY, 담당자 구성 */}
+                  <div className="space-y-1 pt-2 border-t border-gray-100">
+                    {/* 상태와 우선순위 배지 */}
+                    <div className="flex items-center space-x-2 mb-2">
                       {task.status && (
                         <span className={`text-xs px-2 py-1 rounded ${getStatusBadgeStyle(task.status)}`}>
                           {task.status}
@@ -585,18 +608,55 @@ function GoalKanbanColumns({ goal, setTaskEditModalState }: GoalKanbanColumnsPro
                           {task.priority}
                         </span>
                       )}
-                      {task.assigneeIds && task.assigneeIds.length > 0 && (
-                        <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
-                          <span className="text-xs text-white">?</span>
-                        </div>
-                      )}
                     </div>
                     
+                    {/* 마감날짜 */}
                     {task.deadline && (
-                      <div className="text-xs text-gray-500">
-                        {new Date(task.deadline).toLocaleDateString('ko-KR')}
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-gray-600">마감:</span>
+                        <span className="text-gray-900">
+                          {new Date(task.deadline).toLocaleDateString('ko-KR')}
+                        </span>
                       </div>
                     )}
+                    
+                    {/* D-DAY */}
+                    {task.deadline && (
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-gray-600">남은 시간:</span>
+                        <span className={`font-medium ${
+                          formatDeadline(task.deadline)?.startsWith('D+') ? 'text-red-600' : 
+                          formatDeadline(task.deadline) === 'D-Day' ? 'text-orange-600' : 'text-blue-600'
+                        }`}>
+                          {formatDeadline(task.deadline)}
+                        </span>
+                      </div>
+                    )}
+                    
+                    {/* 담당자 */}
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-gray-600">담당자:</span>
+                      {task.assigneeIds && task.assigneeIds.length > 0 ? (
+                        (() => {
+                          const assigneeId = task.assigneeIds[0];
+                          const assignee = usersMap.get(assigneeId);
+                          return assignee ? (
+                            <div className="flex items-center space-x-1">
+                              <div className="w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
+                                <span className="text-xs text-white font-medium">
+                                  {assignee.initials || assignee.name[0]?.toUpperCase() || '?'}
+                                </span>
+                              </div>
+                              <span className="text-gray-900">{assignee.name}</span>
+                            </div>
+                          ) : (
+                            <span className="text-gray-400">사용자 미확인</span>
+                          );
+                        })()
+                      ) : (
+                        <span className="text-gray-400">미지정</span>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
