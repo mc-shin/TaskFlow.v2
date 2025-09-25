@@ -1669,6 +1669,8 @@ export default function ListTree() {
         return "default" as const;
       case "완료":
         return "success" as const; // 완료 상태에 전용 success variant 사용
+      case "이슈":
+        return "issue" as const;
       default:
         return "outline" as const;
     }

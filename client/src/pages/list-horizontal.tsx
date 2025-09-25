@@ -307,6 +307,8 @@ export default function ListHorizontal() {
         return "default" as const;
       case "완료":
         return "outline" as const;
+      case "이슈":
+        return "issue" as const;
       default:
         return "outline" as const;
     }

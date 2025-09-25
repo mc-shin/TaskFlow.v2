@@ -126,6 +126,8 @@ export default function Archive() {
         return "default" as const;
       case "완료":
         return "outline" as const;
+      case "이슈":
+        return "issue" as const;
       case "보류":
         return "destructive" as const;
       default:
