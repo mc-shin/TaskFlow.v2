@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Checkbox } from "@/components/ui/checkbox";
 import { insertTaskSchema, type TaskWithAssignees } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -16,8 +17,6 @@ import { z } from "zod";
 const taskFormSchema = insertTaskSchema.extend({
   deadline: z.string().optional(),
   progress: z.number().optional(),
-  // For backward compatibility with single assignee field
-  assigneeId: z.string().optional(),
 });
 
 type TaskFormData = z.infer<typeof taskFormSchema>;
@@ -49,7 +48,6 @@ export function TaskModal({ isOpen, onClose, editingTask, goalId, goalTitle }: T
       duration: 0,
       progress: 0,
       assigneeIds: [],
-      assigneeId: "none",
       goalId: goalId || "",
       projectId: "",
     },
@@ -66,7 +64,6 @@ export function TaskModal({ isOpen, onClose, editingTask, goalId, goalTitle }: T
         duration: editingTask.duration || 0,
         progress: editingTask.progress || 0,
         assigneeIds: editingTask.assigneeIds || [],
-        assigneeId: (editingTask.assigneeIds && editingTask.assigneeIds.length > 0) ? editingTask.assigneeIds[0] : "none",
       });
     } else {
       form.reset({
@@ -78,7 +75,6 @@ export function TaskModal({ isOpen, onClose, editingTask, goalId, goalTitle }: T
         duration: 0,
         progress: 0,
         assigneeIds: [],
-        assigneeId: "none",
       });
     }
   }, [editingTask, form]);
@@ -88,7 +84,7 @@ export function TaskModal({ isOpen, onClose, editingTask, goalId, goalTitle }: T
       const taskData = {
         ...data,
         goalId: goalId || data.goalId || null,
-        assigneeIds: data.assigneeId === "none" ? [] : [data.assigneeId],
+        assigneeIds: data.assigneeIds || [],
       };
       const response = await apiRequest("POST", "/api/tasks", taskData);
       return response.json();
@@ -122,7 +118,7 @@ export function TaskModal({ isOpen, onClose, editingTask, goalId, goalTitle }: T
     mutationFn: async (data: TaskFormData) => {
       const taskData = {
         ...data,
-        assigneeIds: data.assigneeId === "none" ? [] : [data.assigneeId],
+        assigneeIds: data.assigneeIds || [],
       };
       const response = await apiRequest("PUT", `/api/tasks/${editingTask?.id}`, taskData);
       return response.json();
@@ -302,27 +298,65 @@ export function TaskModal({ isOpen, onClose, editingTask, goalId, goalTitle }: T
               />
             </div>
             
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="priority"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>우선순위</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value || "중간"}>
+                      <FormControl>
+                        <SelectTrigger data-testid="select-task-priority">
+                          <SelectValue placeholder="우선순위를 선택하세요" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="높음">높음</SelectItem>
+                        <SelectItem value="중간">중간</SelectItem>
+                        <SelectItem value="낮음">낮음</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
             <FormField
               control={form.control}
-              name="assigneeId"
+              name="assigneeIds"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>담당자</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value || ""}>
-                    <FormControl>
-                      <SelectTrigger data-testid="select-task-assignee">
-                        <SelectValue placeholder="담당자를 선택하세요" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="none">담당자 없음</SelectItem>
-                      {Array.isArray(users) ? users.map((user: any) => (
-                        <SelectItem key={user.id} value={user.id}>
+                  <FormLabel>담당자 (다중 선택 가능)</FormLabel>
+                  <div className="space-y-2 max-h-32 overflow-y-auto border rounded-md p-3 bg-background">
+                    {Array.isArray(users) ? users.map((user: any) => (
+                      <div key={user.id} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`assignee-${user.id}`}
+                          checked={field.value?.includes(user.id) || false}
+                          onCheckedChange={(checked) => {
+                            const currentValue = field.value || [];
+                            if (checked) {
+                              field.onChange([...currentValue, user.id]);
+                            } else {
+                              field.onChange(currentValue.filter((id: string) => id !== user.id));
+                            }
+                          }}
+                          data-testid={`checkbox-assignee-${user.id}`}
+                        />
+                        <label 
+                          htmlFor={`assignee-${user.id}`}
+                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                        >
                           {user.name}
-                        </SelectItem>
-                      )) : null}
-                    </SelectContent>
-                  </Select>
+                        </label>
+                      </div>
+                    )) : null}
+                    {!Array.isArray(users) || users.length === 0 && (
+                      <p className="text-sm text-muted-foreground">담당자를 로드하는 중...</p>
+                    )}
+                  </div>
                   <FormMessage />
                 </FormItem>
               )}
