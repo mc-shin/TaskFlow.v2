@@ -556,7 +556,7 @@ function GoalKanbanColumns({ goal, setTaskEditModalState }: GoalKanbanColumnsPro
             {statusTasks.map((task) => (
               <div 
                 key={task.id} 
-                className="bg-white border border-gray-200 rounded-lg p-2 hover:shadow-sm transition-shadow cursor-move"
+                className="bg-white border border-gray-200 rounded-lg p-2 hover:shadow-sm transition-shadow cursor-pointer"
                 data-testid={`task-card-${task.id}`}
                 draggable
                 onDragStart={(e) => handleDragStart(e, task.id)}
