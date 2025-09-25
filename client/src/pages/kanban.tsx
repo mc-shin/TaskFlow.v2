@@ -499,13 +499,23 @@ function GoalKanbanColumns({ goal, setTaskEditModalState, usersMap }: GoalKanban
   // 상태 배지 스타일 함수
   const getStatusBadgeStyle = (status: string) => {
     switch (status) {
-      case "완료": return "bg-primary/10 text-primary";
-      case "진행중": return "bg-secondary text-secondary-foreground";
+      case "완료": return "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300";
+      case "진행중": return "bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300";
       case "진행전": 
-      case "실행대기": return "bg-muted text-muted-foreground";
+      case "실행대기": return "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300";
       case "이슈":
-      case "이슈함": return "bg-destructive/10 text-destructive";
-      default: return "bg-muted text-muted-foreground";
+      case "이슈함": return "bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-300";
+      default: return "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300";
+    }
+  };
+
+  // 우선순위 배지 스타일 함수
+  const getPriorityBadgeStyle = (priority: string) => {
+    switch (priority) {
+      case "높음": return "bg-orange-100 text-orange-700 dark:bg-orange-900/20 dark:text-orange-300";
+      case "중간": return "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-300";
+      case "낮음": return "bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-300";
+      default: return "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300";
     }
   };
 
@@ -613,7 +623,7 @@ function GoalKanbanColumns({ goal, setTaskEditModalState, usersMap }: GoalKanban
                           {task.status}
                         </span>
                       )}
-                      <span className="text-xs bg-muted text-muted-foreground px-2 py-1 rounded">
+                      <span className={`text-xs px-2 py-1 rounded ${getPriorityBadgeStyle(task.priority || "미지정")}`}>
                         {task.priority || "미지정"}
                       </span>
                     </div>
