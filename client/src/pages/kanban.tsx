@@ -39,6 +39,10 @@ export default function Kanban() {
     goalId: '', 
     goalTitle: '' 
   });
+  const [taskEditModalState, setTaskEditModalState] = useState<{ isOpen: boolean; taskId: string }>({ 
+    isOpen: false, 
+    taskId: '' 
+  });
 
   const isLoading = projectsLoading || usersLoading || tasksLoading;
 
@@ -179,179 +183,109 @@ export default function Kanban() {
         </Button>
       </header>
       
-      <main className="flex-1 p-6 overflow-auto" data-testid="main-content">
-        {/* 상태 헤더 - 본문 상단에 배치 */}
-        <div className="grid grid-cols-4 gap-4 mb-6">
-          {Object.entries(totalStats).map(([status, count]) => {
-            // 상태별 색상 정의 (totalStats의 키와 일치시킴)
-            const getStatusStyle = (status: string) => {
-              switch (status) {
-                case '실행대기':
-                case '진행전':
-                  return {
-                    backgroundColor: 'hsl(210, 100%, 95%)',
-                    borderColor: 'hsl(210, 100%, 85%)',
-                    textColor: 'hsl(210, 100%, 30%)'
-                  };
-                case '진행중':
-                  return {
-                    backgroundColor: 'hsl(45, 100%, 95%)',
-                    borderColor: 'hsl(45, 100%, 85%)',
-                    textColor: 'hsl(45, 100%, 30%)'
-                  };
-                case '완료':
-                  return {
-                    backgroundColor: 'hsl(120, 60%, 95%)',
-                    borderColor: 'hsl(120, 60%, 85%)',
-                    textColor: 'hsl(120, 60%, 30%)'
-                  };
-                case '이슈함':
-                case '이슈':
-                  return {
-                    backgroundColor: 'hsl(0, 100%, 95%)',
-                    borderColor: 'hsl(0, 100%, 85%)',
-                    textColor: 'hsl(0, 100%, 30%)'
-                  };
-                default:
-                  return {
-                    backgroundColor: 'var(--sidebar)',
-                    borderColor: 'var(--sidebar-border)',
-                    textColor: 'var(--sidebar-foreground)'
-                  };
-              }
-            };
-            
-            const statusStyle = getStatusStyle(status);
-            
-            return (
-              <div
-                key={status}
-                className="text-center p-4 rounded-lg border-2 transition-all duration-200 hover:shadow-sm"
-                style={{
-                  backgroundColor: statusStyle.backgroundColor,
-                  borderColor: statusStyle.borderColor,
-                  color: statusStyle.textColor
-                }}
-              >
-                <div className="text-2xl font-bold">{count}</div>
-                <div className="text-sm opacity-80">
-                  {status === '실행대기' ? '진행전' : status}
-                </div>
+      <main className="flex-1 overflow-auto" data-testid="main-content">
+        {/* 첫 번째 이미지 참고: 큰 div 안에 가로로 4개 상태 헤더 */}
+        <div className="bg-gray-50 border-b border-gray-200">
+          <div className="flex">
+            <div className="flex-1 text-center py-4 px-6 border-r border-gray-200">
+              <div className="text-lg font-medium text-gray-700">진행전</div>
+              <div className="text-2xl font-bold text-blue-600 mt-1">
+                {(totalStats['실행대기'] || 0) + (totalStats['진행전'] || 0)}
               </div>
-            );
-          })}
+            </div>
+            <div className="flex-1 text-center py-4 px-6 border-r border-gray-200">
+              <div className="text-lg font-medium text-gray-700">진행중</div>
+              <div className="text-2xl font-bold text-orange-600 mt-1">
+                {totalStats['진행중'] || 0}
+              </div>
+            </div>
+            <div className="flex-1 text-center py-4 px-6 border-r border-gray-200">
+              <div className="text-lg font-medium text-gray-700">완료</div>
+              <div className="text-2xl font-bold text-green-600 mt-1">
+                {totalStats['완료'] || 0}
+              </div>
+            </div>
+            <div className="flex-1 text-center py-4 px-6">
+              <div className="text-lg font-medium text-gray-700">이슈</div>
+              <div className="text-2xl font-bold text-red-600 mt-1">
+                {totalStats['이슈'] || 0}
+              </div>
+            </div>
+          </div>
         </div>
 
-        {error ? (
-          <Card className="border-destructive">
-            <CardContent className="p-6 text-center">
-              <div className="text-destructive mb-2">
-                <AlertTriangle className="w-8 h-8 mx-auto mb-2" />
-                <p className="font-medium">프로젝트를 불러오는 중 오류가 발생했습니다</p>
-              </div>
-              <Button 
-                variant="outline" 
-                onClick={() => window.location.reload()}
-                className="mt-2"
-              >
-                다시 시도
-              </Button>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="space-y-6">
-            {(projects as ProjectWithDetails[])?.map((project) => (
-              <Card 
-                key={project.id} 
-                className="hover:shadow-lg transition-all duration-200"
-                data-testid={`card-project-${project.id}`}
-              >
-                <Collapsible
-                  open={expandedProjects.has(project.id)}
-                  onOpenChange={() => toggleProject(project.id)}
+        {/* 두 번째 이미지 참고: position relative 프로젝트 div → 목표 div → 4개 상태별 칸반 컬럼 → 작업 div */}
+        <div className="p-6">
+          {error ? (
+            <Card className="border-destructive">
+              <CardContent className="p-6 text-center">
+                <div className="text-destructive mb-2">
+                  <AlertTriangle className="w-8 h-8 mx-auto mb-2" />
+                  <p className="font-medium">프로젝트를 불러오는 중 오류가 발생했습니다</p>
+                </div>
+                <Button 
+                  variant="outline" 
+                  onClick={() => window.location.reload()}
+                  className="mt-2"
                 >
-                  <CollapsibleTrigger asChild>
-                    <CardHeader 
-                      className="cursor-pointer hover:bg-muted/50 transition-colors"
-                      onMouseEnter={() => setHoveredProject(project.id)}
-                      onMouseLeave={() => setHoveredProject(null)}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-3">
-                          {expandedProjects.has(project.id) ? (
-                            <ChevronDown className="w-4 h-4 text-muted-foreground" />
-                          ) : (
-                            <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                          )}
-                          <FolderOpen className="w-5 h-5 text-blue-600" />
-                          <div>
-                            <CardTitle className="text-lg" data-testid={`text-project-title-${project.id}`}>
-                              {project.name}
-                            </CardTitle>
-                            {project.description && (
-                              <p className="text-sm text-muted-foreground mt-1">
-                                {project.description}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex items-center space-x-3">
-                          <div className="text-right">
-                            <div className="text-sm font-medium">
-                              {project.completedTasks}/{project.totalTasks} 작업 완료
-                            </div>
-                            <div className="text-xs text-muted-foreground">
-                              {project.progressPercentage}% 진행률
-                            </div>
-                          </div>
-                          {hoveredProject === project.id && (
-                            <Button 
-                              size="sm" 
-                              variant="outline"
-                              className="h-8 w-8 p-0"
-                              data-testid={`button-add-goal-${project.id}`}
-                              aria-label="add-goal"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setGoalModalState({
-                                  isOpen: true,
-                                  projectId: project.id,
-                                  projectTitle: project.name
-                                });
-                              }}
-                            >
-                              <Plus className="w-4 h-4" />
-                            </Button>
-                          )}
-                        </div>
+                  다시 시도
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-8">
+              {(projects as ProjectWithDetails[])?.map((project) => (
+                <div 
+                  key={project.id} 
+                  className="relative bg-white border border-gray-200 rounded-lg shadow-sm"
+                  data-testid={`project-container-${project.id}`}
+                >
+                  {/* 프로젝트 헤더 */}
+                  <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-green-50">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-6 h-6 bg-green-500 rounded flex items-center justify-center">
+                        <span className="text-white text-sm">✓</span>
                       </div>
-                    </CardHeader>
-                  </CollapsibleTrigger>
-                  
-                  <CollapsibleContent>
-                    <CardContent className="pt-0 pb-6">
-                      {expandedProjects.has(project.id) && (
-                        <ProjectGoalsKanbanContent 
-                          project={project} 
-                          expandedGoals={expandedGoals}
-                          toggleGoal={toggleGoal}
-                          hoveredGoal={hoveredGoal}
-                          setHoveredGoal={setHoveredGoal}
-                          formatDeadline={formatDeadline}
-                          getStatusColor={getStatusColor}
-                          getStatusBadgeVariant={getStatusBadgeVariant}
-                          hoveredProject={hoveredProject}
-                          setGoalModalState={setGoalModalState}
-                          setTaskModalState={setTaskModalState}
-                        />
-                      )}
-                    </CardContent>
-                  </CollapsibleContent>
-                </Collapsible>
-              </Card>
-            ))}
-          </div>
-        )}
+                      <div>
+                        <h3 className="text-lg font-medium text-gray-900" data-testid={`text-project-title-${project.id}`}>
+                          {project.name}
+                        </h3>
+                        {project.description && (
+                          <p className="text-sm text-gray-600 mt-1">{project.description}</p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-3">
+                      <span className="text-sm text-gray-500">
+                        {project.completedTasks}/{project.totalTasks} 작업 완료
+                      </span>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => setGoalModalState({
+                          isOpen: true,
+                          projectId: project.id,
+                          projectTitle: project.name
+                        })}
+                        data-testid={`button-add-goal-${project.id}`}
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        새 목표
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* 목표 섹션 */}
+                  <ProjectKanbanGoals 
+                    projectId={project.id}
+                    setTaskModalState={setTaskModalState}
+                    setTaskEditModalState={setTaskEditModalState}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </main>
       
       <ProjectModal
@@ -372,164 +306,109 @@ export default function Kanban() {
         goalId={taskModalState.goalId}
         goalTitle={taskModalState.goalTitle}
       />
+      
+      <TaskModal
+        isOpen={taskEditModalState.isOpen}
+        onClose={() => setTaskEditModalState({ isOpen: false, taskId: '' })}
+        taskId={taskEditModalState.taskId}
+      />
     </>
   );
 }
 
-// 프로젝트 목표 칸반 컨텐츠 컴포넌트 (리스트 페이지와 동일한 인터페이스)
-interface ProjectGoalsKanbanContentProps {
-  project: ProjectWithDetails;
-  expandedGoals: Set<string>;
-  toggleGoal: (goalId: string) => void;
-  hoveredGoal: string | null;
-  setHoveredGoal: (goalId: string | null) => void;
-  formatDeadline: (deadline: string | null) => string | null;
-  getStatusColor: (status: string) => string;
-  getStatusBadgeVariant: (status: string) => "default" | "secondary" | "destructive" | "outline";
-  hoveredProject: string | null;
-  setGoalModalState: (state: { isOpen: boolean; projectId: string; projectTitle: string }) => void;
+// 프로젝트 칸반 목표 컴포넌트 (두 번째 이미지 구조)
+interface ProjectKanbanGoalsProps {
+  projectId: string;
   setTaskModalState: (state: { isOpen: boolean; goalId: string; goalTitle: string }) => void;
+  setTaskEditModalState: (state: { isOpen: boolean; taskId: string }) => void;
 }
 
-function ProjectGoalsKanbanContent({ 
-  project, 
-  expandedGoals, 
-  toggleGoal, 
-  hoveredGoal, 
-  setHoveredGoal,
-  formatDeadline,
-  getStatusColor,
-  getStatusBadgeVariant,
-  hoveredProject,
-  setGoalModalState,
-  setTaskModalState
-}: ProjectGoalsKanbanContentProps) {
-  // Fetch goals for this project (리스트 페이지와 동일)
+function ProjectKanbanGoals({ projectId, setTaskModalState, setTaskEditModalState }: ProjectKanbanGoalsProps) {
+  // 프로젝트의 목표들 가져오기
   const { data: goals, isLoading: goalsLoading, error: goalsError } = useQuery({
-    queryKey: ["/api/projects", project.id, "goals"],
-    enabled: !!project.id,
+    queryKey: ["/api/projects", projectId, "goals"],
+    enabled: !!projectId,
   });
 
   if (goalsLoading) {
     return (
-      <div className="space-y-3 ml-8">
-        {[...Array(2)].map((_, i) => (
-          <div key={i} className="animate-pulse">
-            <div className="h-16 bg-muted rounded"></div>
-          </div>
-        ))}
+      <div className="p-4">
+        <div className="animate-pulse space-y-4">
+          {[...Array(2)].map((_, i) => (
+            <div key={i} className="bg-gray-100 h-32 rounded"></div>
+          ))}
+        </div>
       </div>
     );
   }
 
   if (goalsError) {
     return (
-      <div className="ml-8">
-        <Card className="border-destructive">
-          <CardContent className="p-4 text-center">
-            <div className="text-destructive">
-              <AlertTriangle className="w-6 h-6 mx-auto mb-2" />
-              <p className="text-sm font-medium">목표를 불러오는 중 오류가 발생했습니다</p>
-            </div>
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => window.location.reload()}
-              className="mt-2"
-            >
-              다시 시도
-            </Button>
-          </CardContent>
-        </Card>
+      <div className="p-4 text-center">
+        <div className="text-red-600">
+          <AlertTriangle className="w-6 h-6 mx-auto mb-2" />
+          <p className="text-sm font-medium">목표를 불러오는 중 오류가 발생했습니다</p>
+        </div>
+        <Button 
+          variant="outline" 
+          size="sm"
+          onClick={() => window.location.reload()}
+          className="mt-2"
+        >
+          다시 시도
+        </Button>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4 ml-8">
+    <div className="p-4 space-y-6">
       {(goals as GoalWithTasks[])?.map((goal) => (
-        <Card 
-          key={goal.id} 
-          className="border-l-4 border-l-green-500 hover:shadow-md transition-all duration-200"
-          data-testid={`card-goal-${goal.id}`}
-          onMouseEnter={() => setHoveredGoal(goal.id)}
-          onMouseLeave={() => setHoveredGoal(null)}
-        >
-          <Collapsible
-            open={expandedGoals.has(goal.id)}
-            onOpenChange={() => toggleGoal(goal.id)}
-          >
-            <CollapsibleTrigger asChild>
-              <CardHeader className="cursor-pointer hover:bg-muted/30 transition-colors py-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    {expandedGoals.has(goal.id) ? (
-                      <ChevronDown className="w-4 h-4 text-muted-foreground" />
-                    ) : (
-                      <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                    )}
-                    <Target className="w-4 h-4 text-green-600" />
-                    <div>
-                      <CardTitle className="text-base" data-testid={`text-goal-title-${goal.id}`}>
-                        {goal.title}
-                      </CardTitle>
-                      {goal.description && (
-                        <p className="text-sm text-muted-foreground mt-1">
-                          {goal.description}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <div className="text-right">
-                      <div className="text-sm font-medium">
-                        {goal.completedTasks}/{goal.totalTasks} 작업 완료
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {goal.progressPercentage}% 진행률
-                      </div>
-                    </div>
-                    {(expandedGoals.has(goal.id) || hoveredGoal === goal.id) && (
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        className="h-8 w-8 p-0"
-                        data-testid={`button-add-task-${goal.id}`}
-                        aria-label="add-task"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setTaskModalState({
-                            isOpen: true,
-                            goalId: goal.id,
-                            goalTitle: goal.title
-                          });
-                        }}
-                      >
-                        <Plus className="w-4 h-4" />
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </CardHeader>
-            </CollapsibleTrigger>
-            
-            <CollapsibleContent>
-              <CardContent className="pt-0 pb-4">
-                {/* 칸반 형태로 4개 상태별 컬럼 표시 (리스트와 달리 작업을 칸반으로 표시) */}
-                <GoalTasksKanbanView 
-                  goal={goal}
-                  formatDeadline={formatDeadline}
-                  getStatusColor={getStatusColor}
-                  getStatusBadgeVariant={getStatusBadgeVariant}
-                />
-              </CardContent>
-            </CollapsibleContent>
-          </Collapsible>
-        </Card>
+        <div key={goal.id} className="bg-gray-50 border border-gray-200 rounded-lg">
+          {/* 목표 헤더 */}
+          <div className="flex items-center justify-between p-3 border-b border-gray-200 bg-orange-50">
+            <div className="flex items-center space-x-3">
+              <div className="w-5 h-5 bg-orange-500 rounded flex items-center justify-center">
+                <Target className="w-3 h-3 text-white" />
+              </div>
+              <div>
+                <h4 className="font-medium text-gray-900" data-testid={`text-goal-title-${goal.id}`}>
+                  {goal.title}
+                </h4>
+                {goal.description && (
+                  <p className="text-sm text-gray-600">{goal.description}</p>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center space-x-3">
+              <span className="text-sm text-gray-500">
+                {goal.completedTasks}/{goal.totalTasks} 완료
+              </span>
+              <Button 
+                size="sm" 
+                variant="outline"
+                onClick={() => setTaskModalState({
+                  isOpen: true,
+                  goalId: goal.id,
+                  goalTitle: goal.title
+                })}
+                data-testid={`button-add-task-${goal.id}`}
+              >
+                <Plus className="w-4 h-4 mr-1" />
+                작업
+              </Button>
+            </div>
+          </div>
+
+          {/* 4개 상태별 칸반 컬럼 */}
+          <div className="p-4">
+            <GoalKanbanColumns goal={goal} setTaskEditModalState={setTaskEditModalState} />
+          </div>
+        </div>
       ))}
       
       {(!goals || (Array.isArray(goals) && goals.length === 0)) && (
-        <div className="text-center py-8 text-muted-foreground">
+        <div className="text-center py-8 text-gray-500">
           <p className="text-sm">이 프로젝트에는 아직 목표가 없습니다</p>
         </div>
       )}
@@ -537,20 +416,13 @@ function ProjectGoalsKanbanContent({
   );
 }
 
-// 목표 작업 칸반 뷰 컴포넌트
-interface GoalTasksKanbanViewProps {
+// 목표별 칸반 컬럼 컴포넌트
+interface GoalKanbanColumnsProps {
   goal: GoalWithTasks;
-  formatDeadline: (deadline: string | null) => string | null;
-  getStatusColor: (status: string) => string;
-  getStatusBadgeVariant: (status: string) => "default" | "secondary" | "destructive" | "outline";
+  setTaskEditModalState: (state: { isOpen: boolean; taskId: string }) => void;
 }
 
-function GoalTasksKanbanView({ 
-  goal, 
-  formatDeadline, 
-  getStatusColor, 
-  getStatusBadgeVariant
-}: GoalTasksKanbanViewProps) {
+function GoalKanbanColumns({ goal, setTaskEditModalState }: GoalKanbanColumnsProps) {
   // 상태별 작업 그룹핑
   const tasksByStatus = useMemo(() => {
     const tasks = goal.tasks || [];
@@ -562,81 +434,73 @@ function GoalTasksKanbanView({
     };
   }, [goal.tasks]);
 
-  // 작업이 없어도 칸반 컬럼은 표시해야 함
-
   return (
-    <div className="ml-8">
-      <div className="grid grid-cols-4 gap-4 min-h-[200px]">
-        {Object.entries(tasksByStatus).map(([status, statusTasks]) => (
-          <div
-            key={status}
-            className="border rounded-lg p-3 flex flex-col"
-            style={{
-              backgroundColor: 'var(--sidebar-accent)',
-              borderColor: 'var(--sidebar-border)'
-            }}
-          >
-            <div className="flex items-center justify-between mb-3">
-              <h4 className="font-medium text-sm" style={{ color: 'var(--sidebar-foreground)' }}>
-                {status}
-              </h4>
-              <span className="text-xs opacity-70" style={{ color: 'var(--sidebar-foreground)' }}>
-                {statusTasks.length}
-              </span>
-            </div>
-            
-            <div className="space-y-2 flex-1">
-              {statusTasks.map((task) => (
-                <Card key={task.id} className="p-2 hover:shadow-sm transition-shadow bg-card">
-                  <CardContent className="p-0">
-                    <div className="space-y-2">
-                      <h5 className="font-medium text-xs leading-tight">
-                        {task.title}
-                      </h5>
-                      
-                      {task.description && (
-                        <p className="text-xs text-muted-foreground line-clamp-2">
-                          {task.description}
-                        </p>
-                      )}
-                      
-                      {task.priority && (
-                        <Badge variant="secondary" className="text-xs">
-                          {task.priority}
-                        </Badge>
-                      )}
-                      
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-1">
-                          {task.assigneeIds && task.assigneeIds.length > 0 && (
-                            <Avatar className="w-4 h-4">
-                              <AvatarFallback className="text-xs bg-primary text-primary-foreground">
-                                ?
-                              </AvatarFallback>
-                            </Avatar>
-                          )}
-                        </div>
-                        
-                        {task.deadline && (
-                          <div className="text-xs text-muted-foreground">
-                            {formatDeadline(task.deadline)}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-              
-              {statusTasks.length === 0 && (
-                <div className="text-center py-4 text-muted-foreground">
-                  <p className="text-xs">작업 없음</p>
-                </div>
-              )}
-            </div>
+    <div className="grid grid-cols-4 gap-4 min-h-[300px]">
+      {Object.entries(tasksByStatus).map(([status, statusTasks]) => (
+        <div
+          key={status}
+          className="bg-white border border-gray-200 rounded-lg p-3 flex flex-col"
+        >
+          {/* 컬럼 헤더 */}
+          <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-100">
+            <h5 className="font-medium text-sm text-gray-700">{status}</h5>
+            <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+              {statusTasks.length}
+            </span>
           </div>
-        ))}
-      </div>
+          
+          {/* 작업 카드들 */}
+          <div className="space-y-3 flex-1">
+            {statusTasks.map((task) => (
+              <div 
+                key={task.id} 
+                className="bg-white border border-gray-200 rounded-lg p-3 hover:shadow-sm transition-shadow cursor-pointer"
+                data-testid={`task-card-${task.id}`}
+                onClick={() => setTaskEditModalState({ isOpen: true, taskId: task.id })}
+              >
+                <div className="space-y-2">
+                  <h6 className="font-medium text-sm text-gray-900 leading-tight">
+                    {task.title}
+                  </h6>
+                  
+                  {task.description && (
+                    <p className="text-xs text-gray-600 line-clamp-2">
+                      {task.description}
+                    </p>
+                  )}
+                  
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      {task.priority && (
+                        <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
+                          {task.priority}
+                        </span>
+                      )}
+                      {task.assigneeIds && task.assigneeIds.length > 0 && (
+                        <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
+                          <span className="text-xs text-white">?</span>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {task.deadline && (
+                      <div className="text-xs text-gray-500">
+                        {new Date(task.deadline).toLocaleDateString('ko-KR')}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+            
+            {statusTasks.length === 0 && (
+              <div className="text-center py-8 text-gray-400">
+                <p className="text-xs">작업 없음</p>
+              </div>
+            )}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
