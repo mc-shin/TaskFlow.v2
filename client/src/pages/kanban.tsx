@@ -226,7 +226,7 @@ export default function Kanban() {
         </div>
 
         {/* 두 번째 이미지 참고: position relative 프로젝트 div → 목표 div → 4개 상태별 칸반 컬럼 → 작업 div */}
-        <div className="px-6 pt-6 pb-6">
+        <div className="px-6 pb-6">
           {error ? (
             <Card className="border-destructive">
               <CardContent className="p-6 text-center">
@@ -450,16 +450,8 @@ function GoalKanbanColumns({ goal, setTaskEditModalState }: GoalKanbanColumnsPro
       {Object.entries(tasksByStatus).map(([status, statusTasks]) => (
         <div
           key={status}
-          className="bg-white border border-gray-200 rounded-lg p-3 flex flex-col"
+          className="bg-white border border-gray-200 rounded-lg p-3 flex flex-col flex-1"
         >
-          {/* 컬럼 헤더 */}
-          <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-100">
-            <h5 className="font-medium text-sm text-gray-700">{status}</h5>
-            <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
-              {statusTasks.length}
-            </span>
-          </div>
-          
           {/* 작업 카드들 */}
           <div className="space-y-3 flex-1">
             {statusTasks.map((task) => (
