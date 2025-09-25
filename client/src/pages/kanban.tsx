@@ -196,30 +196,32 @@ export default function Kanban() {
       
       <main className="flex-1 overflow-auto" data-testid="main-content">
         {/* 첫 번째 이미지 참고: 큰 div 안에 가로로 4개 상태 헤더 */}
-        <div className="bg-gray-50 px-6">
-          <div className="flex">
-            <div className="flex-1 text-center py-4 px-6 border-r border-gray-200">
-              <div className="text-lg font-medium text-gray-700">진행전</div>
-              <div className="text-2xl font-bold text-blue-600 mt-1">
-                {totalStats['진행전'] || 0}
+        <div className="bg-gray-50 px-6 py-4">
+          <div className="bg-white border border-gray-200 rounded-lg mx-auto" style={{maxWidth: 'calc(100% - 3rem)'}}>
+            <div className="flex">
+              <div className="flex-1 text-center py-4 px-3 border-r border-gray-200">
+                <div className="text-lg font-medium text-gray-700">진행전</div>
+                <div className="text-2xl font-bold text-blue-600 mt-1">
+                  {totalStats['진행전'] || 0}
+                </div>
               </div>
-            </div>
-            <div className="flex-1 text-center py-4 px-6 border-r border-gray-200">
-              <div className="text-lg font-medium text-gray-700">진행중</div>
-              <div className="text-2xl font-bold text-orange-600 mt-1">
-                {totalStats['진행중'] || 0}
+              <div className="flex-1 text-center py-4 px-3 border-r border-gray-200">
+                <div className="text-lg font-medium text-gray-700">진행중</div>
+                <div className="text-2xl font-bold text-orange-600 mt-1">
+                  {totalStats['진행중'] || 0}
+                </div>
               </div>
-            </div>
-            <div className="flex-1 text-center py-4 px-6 border-r border-gray-200">
-              <div className="text-lg font-medium text-gray-700">완료</div>
-              <div className="text-2xl font-bold text-green-600 mt-1">
-                {totalStats['완료'] || 0}
+              <div className="flex-1 text-center py-4 px-3 border-r border-gray-200">
+                <div className="text-lg font-medium text-gray-700">완료</div>
+                <div className="text-2xl font-bold text-green-600 mt-1">
+                  {totalStats['완료'] || 0}
+                </div>
               </div>
-            </div>
-            <div className="flex-1 text-center py-4 px-6">
-              <div className="text-lg font-medium text-gray-700">이슈</div>
-              <div className="text-2xl font-bold text-red-600 mt-1">
-                {totalStats['이슈'] || 0}
+              <div className="flex-1 text-center py-4 px-3">
+                <div className="text-lg font-medium text-gray-700">이슈</div>
+                <div className="text-2xl font-bold text-red-600 mt-1">
+                  {totalStats['이슈'] || 0}
+                </div>
               </div>
             </div>
           </div>
