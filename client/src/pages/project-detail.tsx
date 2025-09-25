@@ -503,6 +503,7 @@ export default function ProjectDetail() {
                         variant={
                           project.status === "완료" ? "default" : 
                           project.status === "진행중" ? "secondary" : 
+                          project.status === "이슈" ? "issue" :
                           "outline"
                         }
                         data-testid="badge-project-status"

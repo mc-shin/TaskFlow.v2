@@ -1117,7 +1117,10 @@ export default function ListTree() {
     const isLocallyCompleted = completedItems.has(itemId);
     
     // For status display, prioritize local completion state over database status
-    const displayStatus = isLocallyCompleted ? '완료' : (progress !== undefined ? getStatusFromProgress(progress) : status);
+    // "이슈" 상태는 progress와 독립적으로 표시
+    const displayStatus = isLocallyCompleted ? '완료' : 
+                         status === '이슈' ? '이슈' :
+                         (progress !== undefined ? getStatusFromProgress(progress) : status);
     
     // For projects and goals, make status clickable to complete
     if (type === 'project' || type === 'goal') {
