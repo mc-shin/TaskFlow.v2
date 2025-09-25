@@ -458,9 +458,6 @@ function ProjectKanbanGoals({ projectId, projectName, setTaskModalState, setTask
                     }}>
                   {goal.title}
                 </h4>
-                {goal.description && (
-                  <p className="text-sm text-muted-foreground">{goal.description}</p>
-                )}
               </div>
             </div>
             <div className="flex items-center space-x-3">
