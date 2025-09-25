@@ -603,35 +603,33 @@ function GoalKanbanColumns({ goal, setTaskEditModalState, usersMap }: GoalKanban
                           {task.status}
                         </span>
                       )}
-                      {task.priority && task.priority !== "중간" && (
-                        <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">
-                          {task.priority}
-                        </span>
-                      )}
+                      <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">
+                        {task.priority || "미지정"}
+                      </span>
                     </div>
                     
                     {/* 마감날짜 */}
-                    {task.deadline && (
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-gray-600">마감:</span>
-                        <span className="text-gray-900">
-                          {new Date(task.deadline).toLocaleDateString('ko-KR')}
-                        </span>
-                      </div>
-                    )}
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-gray-600">마감:</span>
+                      <span className="text-gray-900">
+                        {task.deadline ? new Date(task.deadline).toLocaleDateString('ko-KR') : "미지정"}
+                      </span>
+                    </div>
                     
                     {/* D-DAY */}
-                    {task.deadline && (
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-gray-600">남은 시간:</span>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-gray-600">남은 시간:</span>
+                      {task.deadline ? (
                         <span className={`font-medium ${
                           formatDeadline(task.deadline)?.startsWith('D+') ? 'text-red-600' : 
                           formatDeadline(task.deadline) === 'D-Day' ? 'text-orange-600' : 'text-blue-600'
                         }`}>
                           {formatDeadline(task.deadline)}
                         </span>
-                      </div>
-                    )}
+                      ) : (
+                        <span className="text-gray-400">미지정</span>
+                      )}
+                    </div>
                     
                     {/* 담당자 */}
                     <div className="flex items-center justify-between text-xs">
