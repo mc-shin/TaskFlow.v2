@@ -39,9 +39,9 @@ export default function Kanban() {
     goalId: '', 
     goalTitle: '' 
   });
-  const [taskEditModalState, setTaskEditModalState] = useState<{ isOpen: boolean; taskId: string }>({ 
+  const [taskEditModalState, setTaskEditModalState] = useState<{ isOpen: boolean; editingTask: SafeTaskWithAssignees | null }>({ 
     isOpen: false, 
-    taskId: '' 
+    editingTask: null 
   });
 
   const isLoading = projectsLoading || usersLoading || tasksLoading;
@@ -331,8 +331,8 @@ export default function Kanban() {
       
       <TaskModal
         isOpen={taskEditModalState.isOpen}
-        onClose={() => setTaskEditModalState({ isOpen: false, taskId: '' })}
-        taskId={taskEditModalState.taskId}
+        onClose={() => setTaskEditModalState({ isOpen: false, editingTask: null })}
+        editingTask={taskEditModalState.editingTask}
       />
     </>
   );
@@ -342,7 +342,7 @@ export default function Kanban() {
 interface ProjectKanbanGoalsProps {
   projectId: string;
   setTaskModalState: (state: { isOpen: boolean; goalId: string; goalTitle: string }) => void;
-  setTaskEditModalState: (state: { isOpen: boolean; taskId: string }) => void;
+  setTaskEditModalState: (state: { isOpen: boolean; editingTask: SafeTaskWithAssignees | null }) => void;
   expandedGoals: Set<string>;
   toggleGoal: (goalId: string) => void;
 }
@@ -458,7 +458,7 @@ function ProjectKanbanGoals({ projectId, setTaskModalState, setTaskEditModalStat
 // 목표별 칸반 컬럼 컴포넌트
 interface GoalKanbanColumnsProps {
   goal: GoalWithTasks;
-  setTaskEditModalState: (state: { isOpen: boolean; taskId: string }) => void;
+  setTaskEditModalState: (state: { isOpen: boolean; editingTask: SafeTaskWithAssignees | null }) => void;
 }
 
 function GoalKanbanColumns({ goal, setTaskEditModalState }: GoalKanbanColumnsProps) {
@@ -487,7 +487,7 @@ function GoalKanbanColumns({ goal, setTaskEditModalState }: GoalKanbanColumnsPro
                 key={task.id} 
                 className="bg-white border border-gray-200 rounded-lg p-2 hover:shadow-sm transition-shadow cursor-pointer"
                 data-testid={`task-card-${task.id}`}
-                onClick={() => setTaskEditModalState({ isOpen: true, taskId: task.id })}
+                onClick={() => setTaskEditModalState({ isOpen: true, editingTask: task })}
               >
                 <div className="space-y-2">
                   <h6 className="font-medium text-sm text-gray-900 leading-tight">
