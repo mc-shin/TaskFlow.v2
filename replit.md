@@ -101,3 +101,10 @@ The application is designed as a monorepo with shared schemas between client and
 - **Optional End Time**: Meeting edit forms now treat end time as optional, with proper validation and null handling throughout the system. UI clearly indicates end time as "(선택사항)" (optional).
 - **File Attachments & Downloads**: Implemented complete attachment system for meetings with file upload, display, and download capabilities. Download functionality uses direct fetch calls to object storage streaming endpoints with proper error handling and user feedback.
 - **Form Validation**: Enhanced meeting creation and edit forms with better validation, proper drag-and-drop file uploads, and improved user experience.
+
+### Issue Status Implementation and Bug Fixes (September 25, 2025)
+- **Issue Status Addition**: Added "이슈" (Issue) status to the system schema with comprehensive support across all entity types (projects, goals, tasks). The issue status takes precedence over progress-based status calculations and displays with distinctive orange badge styling.
+- **Critical List View Bug Fix**: Resolved a major display inconsistency where "이슈" status was not properly shown in list views. The root cause was in list-tree.tsx where renderEditableStatus calls were passing empty strings instead of actual status values for projects and goals.
+- **Status Editing Restrictions**: Implemented controlled editing behavior where "이슈" status can only be modified in detail pages. List page interactions for tasks redirect to detail pages when attempting to change status to "이슈".
+- **Consistent Badge Styling**: Added orange "issue" variant to Badge component ensuring visual consistency across all views when displaying "이슈" status.
+- **Data Synchronization**: Ensured proper status synchronization between detail pages and list views through TanStack Query cache invalidation, maintaining data consistency across navigation contexts.
