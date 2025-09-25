@@ -190,7 +190,7 @@ export default function Kanban() {
       
       <main className="flex-1 overflow-auto" data-testid="main-content">
         {/* 통합된 헤더와 프로젝트 영역 */}
-        <div className="px-6 pt-6 pb-4">
+        <div className="p-6">
           {error ? (
             <Card className="border-destructive">
               <CardContent className="p-6 text-center">
@@ -208,9 +208,9 @@ export default function Kanban() {
               </CardContent>
             </Card>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-6">
               {/* 상단 상태 헤더 */}
-              <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
+              <div className="bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-lg transition-all duration-200">
                 <div className="grid grid-cols-4 gap-0">
                   <div className="text-center py-4 px-3 border-r border-gray-200">
                     <div className="text-lg font-medium text-gray-700">진행전</div>
@@ -242,17 +242,21 @@ export default function Kanban() {
               {(projects as ProjectWithDetails[])?.map((project) => (
                 <div 
                   key={project.id} 
-                  className="relative bg-white border border-gray-200 rounded-lg shadow-sm"
+                  className="relative bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-lg transition-all duration-200"
                   data-testid={`project-container-${project.id}`}
                 >
                   {/* 프로젝트 헤더 */}
-                  <div className="flex items-center justify-between p-2 border-b border-gray-200 bg-green-50">
+                  <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-green-50 cursor-pointer hover:bg-green-100 transition-colors"
+                       onClick={() => toggleProject(project.id)}>
                     <div className="flex items-center space-x-3">
                       <Button
                         variant="ghost"
                         size="sm"
                         className="p-1 h-7 w-7 opacity-100 bg-gray-200 hover:bg-gray-300 border border-gray-300 hover:border-gray-400 shadow-sm"
-                        onClick={() => toggleProject(project.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleProject(project.id);
+                        }}
                         data-testid={`button-toggle-project-${project.id}`}
                       >
                         {expandedProjects.has(project.id) ? (
@@ -280,11 +284,14 @@ export default function Kanban() {
                       <Button 
                         size="sm" 
                         variant="outline"
-                        onClick={() => setGoalModalState({
-                          isOpen: true,
-                          projectId: project.id,
-                          projectTitle: project.name
-                        })}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setGoalModalState({
+                            isOpen: true,
+                            projectId: project.id,
+                            projectTitle: project.name
+                          });
+                        }}
                         data-testid={`button-add-goal-${project.id}`}
                       >
                         <Plus className="w-4 h-4 mr-2" />
@@ -388,17 +395,21 @@ function ProjectKanbanGoals({ projectId, setTaskModalState, setTaskEditModalStat
   }
 
   return (
-    <div className="p-2 space-y-2">
+    <div className="p-4 space-y-3">
       {(goals as GoalWithTasks[])?.map((goal) => (
-        <div key={goal.id} className="bg-gray-50 border border-gray-200 rounded-lg">
+        <div key={goal.id} className="bg-gray-50 border border-gray-200 rounded-lg hover:shadow-md transition-all duration-200">
           {/* 목표 헤더 */}
-          <div className="flex items-center justify-between p-2 border-b border-gray-200 bg-orange-50">
+          <div className="flex items-center justify-between p-3 border-b border-gray-200 bg-orange-50 cursor-pointer hover:bg-orange-100 transition-colors"
+               onClick={() => toggleGoal(goal.id)}>
             <div className="flex items-center space-x-3">
               <Button
                 variant="ghost"
                 size="sm"
                 className="p-1 h-6 w-6 opacity-100 bg-gray-200 hover:bg-gray-300 border border-gray-300 hover:border-gray-400 shadow-sm"
-                onClick={() => toggleGoal(goal.id)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleGoal(goal.id);
+                }}
                 data-testid={`button-toggle-goal-${goal.id}`}
               >
                 {expandedGoals.has(goal.id) ? (
@@ -426,11 +437,14 @@ function ProjectKanbanGoals({ projectId, setTaskModalState, setTaskEditModalStat
               <Button 
                 size="sm" 
                 variant="outline"
-                onClick={() => setTaskModalState({
-                  isOpen: true,
-                  goalId: goal.id,
-                  goalTitle: goal.title
-                })}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setTaskModalState({
+                    isOpen: true,
+                    goalId: goal.id,
+                    goalTitle: goal.title
+                  });
+                }}
                 data-testid={`button-add-task-${goal.id}`}
               >
                 <Plus className="w-4 h-4 mr-1" />
@@ -564,20 +578,20 @@ function GoalKanbanColumns({ goal, setTaskEditModalState, usersMap }: GoalKanban
   };
 
   return (
-    <div className="grid grid-cols-4 gap-2 min-h-[300px]">
+    <div className="grid grid-cols-4 gap-4 min-h-[300px]">
       {Object.entries(tasksByStatus).map(([status, statusTasks]) => (
         <div
           key={status}
-          className="bg-white border border-gray-200 rounded-lg p-2 flex flex-col flex-1 min-h-[200px] transition-colors duration-200"
+          className="bg-white border border-gray-200 rounded-lg p-3 flex flex-col flex-1 min-h-[200px] transition-all duration-200 hover:shadow-md"
           onDrop={(e) => handleDrop(e, status)}
           onDragOver={handleDragOver}
         >
           {/* 작업 카드들 */}
-          <div className="space-y-2 flex-1">
+          <div className="space-y-3 flex-1">
             {statusTasks.map((task) => (
               <div 
                 key={task.id} 
-                className="bg-white border border-gray-200 rounded-lg p-2 hover:shadow-sm transition-shadow cursor-pointer"
+                className="bg-white border border-gray-200 rounded-lg p-3 hover:shadow-md transition-all duration-200 cursor-pointer hover:border-gray-300"
                 data-testid={`task-card-${task.id}`}
                 draggable
                 onDragStart={(e) => handleDragStart(e, task.id)}
@@ -635,22 +649,27 @@ function GoalKanbanColumns({ goal, setTaskEditModalState, usersMap }: GoalKanban
                     <div className="flex items-center justify-between text-xs">
                       <span className="text-gray-600">담당자:</span>
                       {task.assigneeIds && task.assigneeIds.length > 0 ? (
-                        (() => {
-                          const assigneeId = task.assigneeIds[0];
-                          const assignee = usersMap.get(assigneeId);
-                          return assignee ? (
-                            <div className="flex items-center space-x-1">
-                              <div className="w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
-                                <span className="text-xs text-white font-medium">
-                                  {assignee.initials || assignee.name[0]?.toUpperCase() || '?'}
-                                </span>
+                        <div className="flex items-center space-x-1 flex-wrap">
+                          {task.assigneeIds.map((assigneeId, index) => {
+                            const assignee = usersMap.get(assigneeId);
+                            return assignee ? (
+                              <div key={assigneeId} className="flex items-center space-x-1">
+                                <div className="w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
+                                  <span className="text-xs text-white font-medium">
+                                    {assignee.initials || assignee.name[0]?.toUpperCase() || '?'}
+                                  </span>
+                                </div>
+                                <span className="text-gray-900">{assignee.name}</span>
+                                {index < (task.assigneeIds?.length || 0) - 1 && (
+                                  <span className="text-gray-400">,</span>
+                                )}
                               </div>
-                              <span className="text-gray-900">{assignee.name}</span>
-                            </div>
-                          ) : (
+                            ) : null;
+                          })}
+                          {task.assigneeIds.every(id => !usersMap.get(id)) && (
                             <span className="text-gray-400">사용자 미확인</span>
-                          );
-                        })()
+                          )}
+                        </div>
                       ) : (
                         <span className="text-gray-400">미지정</span>
                       )}
