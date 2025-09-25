@@ -79,21 +79,41 @@ export default function Kanban() {
     return usersMap.get(userId);
   };
 
-  // 전체 시스템 작업 통계 계산 (작업에 대한 것만 카운트)
+  // 확장된 목표들의 ID 수집
+  const expandedGoalIds = useMemo(() => {
+    const goalIds = new Set<string>();
+    
+    (projects as ProjectWithDetails[])?.forEach(project => {
+      if (expandedProjects.has(project.id) && project.goals) {
+        project.goals.forEach(goal => {
+          if (expandedGoals.has(goal.id)) {
+            goalIds.add(goal.id);
+          }
+        });
+      }
+    });
+    
+    return goalIds;
+  }, [projects, expandedProjects, expandedGoals]);
+
+  // 화면에 표시되는 작업들만 카운트 (확장된 목표의 작업들만)
   const totalStats = useMemo(() => {
-    if (!tasks || (tasks as SafeTaskWithAssignees[]).length === 0) {
+    if (!tasks || (tasks as SafeTaskWithAssignees[]).length === 0 || expandedGoalIds.size === 0) {
       return { "진행전": 0, "진행중": 0, "완료": 0, "이슈": 0 };
     }
     
-    const allTasks = tasks as SafeTaskWithAssignees[];
+    // 확장된 목표에 속한 작업들만 필터링
+    const visibleTasks = (tasks as SafeTaskWithAssignees[]).filter(task => 
+      task.goalId && expandedGoalIds.has(task.goalId)
+    );
     
     return {
-      "진행전": allTasks.filter(task => task.status === "실행대기" || task.status === "진행전").length,
-      "진행중": allTasks.filter(task => task.status === "진행중").length,
-      "완료": allTasks.filter(task => task.status === "완료").length,
-      "이슈": allTasks.filter(task => task.status === "이슈함" || task.status === "이슈").length,
+      "진행전": visibleTasks.filter(task => task.status === "실행대기" || task.status === "진행전").length,
+      "진행중": visibleTasks.filter(task => task.status === "진행중").length,
+      "완료": visibleTasks.filter(task => task.status === "완료").length,
+      "이슈": visibleTasks.filter(task => task.status === "이슈함" || task.status === "이슈").length,
     };
-  }, [tasks]);
+  }, [tasks, expandedGoalIds]);
 
   const formatDeadline = (deadline: string | null) => {
     if (!deadline) return null;
@@ -277,7 +297,12 @@ export default function Kanban() {
                     </div>
                     <div className="flex items-center space-x-3">
                       <span className="text-sm text-muted-foreground">
-                        {project.completedTasks}/{project.totalTasks} 작업 완료
+                        {((tasks as SafeTaskWithAssignees[])?.filter(task => 
+                          task.goalId && project.goals?.some(goal => goal.id === task.goalId) && task.status === "완료"
+                        ).length || 0)}/
+                        {((tasks as SafeTaskWithAssignees[])?.filter(task => 
+                          task.goalId && project.goals?.some(goal => goal.id === task.goalId)
+                        ).length || 0)} 작업 완료
                       </span>
                       <Button 
                         size="sm" 
@@ -428,7 +453,8 @@ function ProjectKanbanGoals({ projectId, setTaskModalState, setTaskEditModalStat
             </div>
             <div className="flex items-center space-x-3">
               <span className="text-sm text-muted-foreground">
-                {goal.completedTasks}/{goal.totalTasks} 완료
+                {(goal.tasks?.filter(task => task.status === "완료").length || 0)}/
+                {(goal.tasks?.length || 0)} 작업 완료
               </span>
               <Button 
                 size="sm" 
