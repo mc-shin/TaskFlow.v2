@@ -287,9 +287,6 @@ export default function Kanban() {
                         <h3 className="text-lg font-medium text-foreground" data-testid={`text-project-title-${project.id}`}>
                           {project.name}
                         </h3>
-                        {project.description && (
-                          <p className="text-sm text-muted-foreground mt-1">{project.description}</p>
-                        )}
                       </div>
                     </div>
                     <div className="flex items-center space-x-3">
