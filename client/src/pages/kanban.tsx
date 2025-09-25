@@ -77,29 +77,21 @@ export default function Kanban() {
     return usersMap.get(userId);
   };
 
-  // 현재 표시된 프로젝트와 목표의 작업 통계 계산
+  // 전체 시스템 작업 통계 계산
   const totalStats = useMemo(() => {
-    if (!projects || (projects as ProjectWithDetails[]).length === 0) {
+    if (!tasks || (tasks as SafeTaskWithAssignees[]).length === 0) {
       return { "진행전": 0, "진행중": 0, "완료": 0, "이슈": 0 };
     }
     
-    // 현재 표시된 모든 프로젝트의 목표들의 작업들 수집
-    const visibleTasks: SafeTaskWithAssignees[] = [];
-    (projects as ProjectWithDetails[]).forEach(project => {
-      project.goals?.forEach(goal => {
-        if (goal.tasks) {
-          visibleTasks.push(...goal.tasks);
-        }
-      });
-    });
+    const allTasks = tasks as SafeTaskWithAssignees[];
     
     return {
-      "진행전": visibleTasks.filter(task => task.status === "실행대기" || task.status === "진행전").length,
-      "진행중": visibleTasks.filter(task => task.status === "진행중").length,
-      "완료": visibleTasks.filter(task => task.status === "완료").length,
-      "이슈": visibleTasks.filter(task => task.status === "이슈함" || task.status === "이슈").length,
+      "진행전": allTasks.filter(task => task.status === "실행대기" || task.status === "진행전").length,
+      "진행중": allTasks.filter(task => task.status === "진행중").length,
+      "완료": allTasks.filter(task => task.status === "완료").length,
+      "이슈": allTasks.filter(task => task.status === "이슈함" || task.status === "이슈").length,
     };
-  }, [projects]);
+  }, [tasks]);
 
   const formatDeadline = (deadline: string | null) => {
     if (!deadline) return null;
