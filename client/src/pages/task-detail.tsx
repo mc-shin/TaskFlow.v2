@@ -22,6 +22,13 @@ import { Comments } from "@/components/comments";
 export default function TaskDetail() {
   const [, params] = useRoute("/detail/task/:id");
   const [, setLocation] = useLocation();
+  
+  // Helper function to get back URL based on where user came from
+  const getBackUrl = () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const from = urlParams.get('from');
+    return from === 'kanban' ? '/kanban' : '/list';
+  };
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
@@ -188,7 +195,7 @@ export default function TaskDetail() {
           <h1 className="text-2xl font-bold text-muted-foreground">작업을 찾을 수 없습니다</h1>
           <Button 
             className="mt-4"
-            onClick={() => setLocation("/list")}
+            onClick={() => setLocation(getBackUrl())}
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
             목록으로 돌아가기
@@ -205,7 +212,7 @@ export default function TaskDetail() {
         <div className="flex items-center gap-4">
           <Button
             variant="ghost"
-            onClick={() => setLocation("/list")}
+            onClick={() => setLocation(getBackUrl())}
             data-testid="button-back"
           >
             <ArrowLeft className="h-4 w-4 mr-2" />

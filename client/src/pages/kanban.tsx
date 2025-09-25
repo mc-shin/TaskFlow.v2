@@ -291,7 +291,7 @@ export default function Kanban() {
                             data-testid={`text-project-title-${project.id}`}
                             onClick={(e) => {
                               e.stopPropagation();
-                              setLocation(`/detail/project/${project.id}`);
+                              setLocation(`/detail/project/${project.id}?from=kanban`);
                             }}>
                           {project.name}
                         </h3>
@@ -454,7 +454,7 @@ function ProjectKanbanGoals({ projectId, projectName, setTaskModalState, setTask
                     data-testid={`text-goal-title-${goal.id}`}
                     onClick={(e) => {
                       e.stopPropagation();
-                      setLocation(`/detail/goal/${goal.id}`);
+                      setLocation(`/detail/goal/${goal.id}?from=kanban`);
                     }}>
                   {goal.title}
                 </h4>
@@ -637,7 +637,7 @@ function GoalKanbanColumns({ goal, setTaskEditModalState, usersMap }: GoalKanban
                 data-testid={`task-card-${task.id}`}
                 draggable
                 onDragStart={(e) => handleDragStart(e, task.id)}
-                onClick={() => setLocation(`/detail/task/${task.id}`)}
+                onClick={() => setLocation(`/detail/task/${task.id}?from=kanban`)}
               >
                 <div className="space-y-2">
                   <h6 className="font-medium text-sm text-foreground leading-tight">

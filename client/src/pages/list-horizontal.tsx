@@ -373,11 +373,11 @@ export default function ListHorizontal() {
   const handleDetailView = (item: FlattenedItem) => {
     // Navigate to appropriate detail page based on item type
     if (item.type === 'project') {
-      setLocation(`/detail/project/${item.id}`);
+      setLocation(`/detail/project/${item.id}?from=list`);
     } else if (item.type === 'goal') {
-      setLocation(`/detail/goal/${item.id}`);
+      setLocation(`/detail/goal/${item.id}?from=list`);
     } else if (item.type === 'task') {
-      setLocation(`/detail/task/${item.id}`);
+      setLocation(`/detail/task/${item.id}?from=list`);
     }
   };
 
