@@ -620,7 +620,7 @@ function GoalKanbanColumns({ goal, setTaskEditModalState, usersMap }: GoalKanban
                     
                     {/* 마감날짜 */}
                     <div className="flex items-center justify-between text-xs">
-                      <span className="text-muted-foreground">마감:</span>
+                      <span className="text-muted-foreground">마감일:</span>
                       <span className="text-foreground">
                         {task.deadline ? new Date(task.deadline).toLocaleDateString('ko-KR') : "미지정"}
                       </span>
@@ -628,7 +628,7 @@ function GoalKanbanColumns({ goal, setTaskEditModalState, usersMap }: GoalKanban
                     
                     {/* D-DAY */}
                     <div className="flex items-center justify-between text-xs">
-                      <span className="text-muted-foreground">남은 시간:</span>
+                      <span className="text-muted-foreground">D-Day:</span>
                       {task.deadline ? (
                         <span className={`font-medium ${
                           formatDeadline(task.deadline)?.startsWith('D+') ? 'text-destructive' : 
