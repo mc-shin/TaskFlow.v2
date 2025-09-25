@@ -251,7 +251,7 @@ export default function Kanban() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="p-1 h-6 w-6 opacity-100 bg-gray-100 hover:bg-gray-200"
+                        className="p-1 h-7 w-7 opacity-100 bg-gray-200 hover:bg-gray-300 border border-gray-300 hover:border-gray-400 shadow-sm"
                         onClick={() => toggleProject(project.id)}
                         data-testid={`button-toggle-project-${project.id}`}
                       >
@@ -395,7 +395,7 @@ function ProjectKanbanGoals({ projectId, setTaskModalState, setTaskEditModalStat
               <Button
                 variant="ghost"
                 size="sm"
-                className="p-1 h-5 w-5 opacity-100 bg-gray-100 hover:bg-gray-200"
+                className="p-1 h-6 w-6 opacity-100 bg-gray-200 hover:bg-gray-300 border border-gray-300 hover:border-gray-400 shadow-sm"
                 onClick={() => toggleGoal(goal.id)}
                 data-testid={`button-toggle-goal-${goal.id}`}
               >
