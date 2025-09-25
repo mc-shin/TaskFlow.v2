@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { CheckCircle, Clock, AlertTriangle, User, Plus, Eye, Target, FolderOpen, Trash2, Check, X, Tag } from "lucide-react";
 import { parse } from "date-fns";
+import { mapPriorityToLabel, getPriorityBadgeVariant } from "@/lib/priority-utils";
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
@@ -169,7 +170,7 @@ export default function ListHorizontal() {
         labels: project.labels || [],
         status: `${project.completedTasks}/${project.totalTasks}`,
         score: project.progressPercentage || 0,
-        importance: '중간',
+        importance: '',  // Projects don't have priority
         project,
         goal: null,
         task: null
@@ -188,7 +189,7 @@ export default function ListHorizontal() {
             labels: goal.labels || [],
             status: `${goal.completedTasks || 0}/${goal.totalTasks || 0}`,
             score: goal.progressPercentage || 0,
-            importance: '중간',
+            importance: '',  // Goals don't have priority
             project,
             goal,
             task: null
@@ -207,7 +208,7 @@ export default function ListHorizontal() {
                 labels: task.labels || [],
                 status: task.status,
                 score: task.duration || 0,
-                importance: task.priority || '중간',
+                importance: task.priority || '4',  // Default to 미정
                 project,
                 goal,
                 task
@@ -328,16 +329,7 @@ export default function ListHorizontal() {
   };
   
   const getImportanceBadgeVariant = (importance: string) => {
-    switch (importance) {
-      case "높음":
-        return "destructive" as const;
-      case "중간":
-        return "default" as const;
-      case "낮음":
-        return "secondary" as const;
-      default:
-        return "outline" as const;
-    }
+    return getPriorityBadgeVariant(importance);
   };
 
   const getDDayColorClass = (deadline: string | null) => {
@@ -802,7 +794,7 @@ export default function ListHorizontal() {
               <TableHead>라벨</TableHead>
               <TableHead>현황</TableHead>
               <TableHead>스코어</TableHead>
-              <TableHead>중요도</TableHead>
+              <TableHead>우선순위</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -868,9 +860,13 @@ export default function ListHorizontal() {
                     <span className="font-mono text-sm">{item.score}</span>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={getImportanceBadgeVariant(item.importance)} data-testid={`badge-importance-${item.id}`}>
-                      {item.importance}
-                    </Badge>
+                    {item.type === 'task' ? (
+                      <Badge variant={getImportanceBadgeVariant(item.importance)} data-testid={`badge-importance-${item.id}`}>
+                        {mapPriorityToLabel(item.importance)}
+                      </Badge>
+                    ) : (
+                      <span className="text-muted-foreground text-sm">-</span>
+                    )}
                   </TableCell>
                 </TableRow>
               ))

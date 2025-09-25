@@ -20,6 +20,7 @@ import { TaskModal } from "@/components/task-modal";
 import { apiRequest } from "@/lib/queryClient";
 import { KoreanDatePicker } from "@/components/korean-date-picker";
 import { parse } from "date-fns";
+import { mapPriorityToLabel, getPriorityBadgeVariant } from "@/lib/priority-utils";
 
 export default function ListTree() {
   const { data: projects, isLoading, error } = useQuery({
@@ -1603,7 +1604,7 @@ export default function ListTree() {
   const renderEditableImportance = (itemId: string, type: 'project' | 'goal' | 'task', importance: string) => {
     const isEditing = editingField?.itemId === itemId && editingField?.field === 'importance';
     
-    // 프로젝트와 목표는 중요도 표시하지 않음
+    // 프로젝트와 목표는 우선순위 표시하지 않음
     if (type !== 'task') {
       return <span className="text-muted-foreground text-sm">-</span>;
     }
@@ -1619,9 +1620,10 @@ export default function ListTree() {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="높음">높음</SelectItem>
-            <SelectItem value="중간">중간</SelectItem>
-            <SelectItem value="낮음">낮음</SelectItem>
+            <SelectItem value="1">높음</SelectItem>
+            <SelectItem value="3">중요</SelectItem>
+            <SelectItem value="2">낮음</SelectItem>
+            <SelectItem value="4">미정</SelectItem>
           </SelectContent>
         </Select>
       );
@@ -1633,7 +1635,7 @@ export default function ListTree() {
         className="text-xs cursor-pointer hover:opacity-80"
         onClick={() => startEditing(itemId, 'importance', type, importance)}
       >
-        {importance}
+        {mapPriorityToLabel(importance)}
       </Badge>
     );
   };
@@ -1688,16 +1690,7 @@ export default function ListTree() {
   };
   
   const getImportanceBadgeVariant = (importance: string) => {
-    switch (importance) {
-      case "높음":
-        return "destructive" as const;
-      case "중간":
-        return "default" as const;
-      case "낮음":
-        return "secondary" as const;
-      default:
-        return "outline" as const;
-    }
+    return getPriorityBadgeVariant(importance);
   };
 
   const getDDayColorClass = (deadline: string | null) => {
@@ -1856,7 +1849,7 @@ export default function ListTree() {
           <div className="col-span-2">라벨</div>
           <div className="col-span-1">상태</div>
           <div className="col-span-2">진행도</div>
-          <div className="col-span-1">중요도</div>
+          <div className="col-span-1">우선순위</div>
         </div>
       </div>
 
@@ -2060,7 +2053,7 @@ export default function ListTree() {
                                       {renderEditableProgress(task.id, 'task', task.progress ?? getProgressFromStatus(task.status), task.status)}
                                     </div>
                                     <div className="col-span-1">
-                                      {renderEditableImportance(task.id, 'task', task.priority || '중간')}
+                                      {renderEditableImportance(task.id, 'task', task.priority || '4')}
                                     </div>
                                   </div>
                                 </div>

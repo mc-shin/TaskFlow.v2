@@ -1,68 +1,94 @@
 import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Clock, ArrowUp, ArrowDown, Minus } from "lucide-react";
-import type { SafeTaskWithAssignee } from "@shared/schema";
+import { format, parse, differenceInDays } from "date-fns";
+import type { ProjectWithDetails } from "@shared/schema";
 
 export default function Priority() {
-  const { data: tasks, isLoading } = useQuery({
-    queryKey: ["/api/tasks"],
+  const { data: projects, isLoading } = useQuery({
+    queryKey: ["/api/projects"],
   });
 
-  const formatDeadline = (deadline: string | null) => {
+  // D-day 계산 함수
+  const formatDDay = (deadline: string | null) => {
     if (!deadline) return null;
     
-    const deadlineDate = new Date(deadline);
-    const today = new Date();
-    const diffTime = deadlineDate.getTime() - today.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
-    if (diffDays < 0) {
-      return `D+${Math.abs(diffDays)}`;
-    } else if (diffDays === 0) {
-      return "D-Day";
-    } else {
-      return `D-${diffDays}`;
+    try {
+      const deadlineDate = parse(deadline, 'yyyy-MM-dd', new Date());
+      const today = new Date();
+      const diffDays = differenceInDays(deadlineDate, today);
+      
+      if (diffDays < 0) {
+        return `D+${Math.abs(diffDays)}`;
+      } else if (diffDays === 0) {
+        return "D-day";
+      } else {
+        return `D-${diffDays}`;
+      }
+    } catch {
+      return null;
     }
   };
 
-  const sortTasksByPriority = (tasks: SafeTaskWithAssignee[]) => {
-    const priorityOrder = { "높음": 3, "보통": 2, "낮음": 1 };
+  // 우선순위별로 작업을 그룹화
+  const groupTasksByPriority = () => {
+    if (!projects) return { "1": [], "2": [], "3": [], "4": [] };
     
-    return [...tasks].sort((a, b) => {
-      const aPriority = priorityOrder[a.priority as keyof typeof priorityOrder] || 0;
-      const bPriority = priorityOrder[b.priority as keyof typeof priorityOrder] || 0;
-      return bPriority - aPriority;
+    const tasksByPriority: { [key: string]: any[] } = { "1": [], "2": [], "3": [], "4": [] };
+    
+    (projects as ProjectWithDetails[]).forEach(project => {
+      project.goals?.forEach(goal => {
+        goal.tasks?.forEach(task => {
+          const priority = task.priority || "4"; // 기본값은 4 (미정)
+          if (tasksByPriority[priority]) {
+            tasksByPriority[priority].push(task);
+          }
+        });
+      });
     });
+    
+    return tasksByPriority;
   };
 
-  const getPriorityIcon = (priority: string | null) => {
-    switch (priority) {
-      case "높음": return <ArrowUp className="w-4 h-4 text-red-500" />;
-      case "낮음": return <ArrowDown className="w-4 h-4 text-green-500" />;
-      default: return <Minus className="w-4 h-4 text-yellow-500" />;
+  const tasksByPriority = groupTasksByPriority();
+
+  // 우선순위 섹션 설정
+  const prioritySections = [
+    {
+      priority: "3",
+      title: "3. 긴급하지 않지만 중요한 일",
+      bgColor: "bg-green-600",
+      textColor: "text-white"
+    },
+    {
+      priority: "1", 
+      title: "1. 긴급하고 중요한 일",
+      bgColor: "bg-red-600",
+      textColor: "text-white"
+    },
+    {
+      priority: "4",
+      title: "4. 긴급하지도 중요하지도 않은 일", 
+      bgColor: "bg-slate-600",
+      textColor: "text-white"
+    },
+    {
+      priority: "2",
+      title: "2. 긴급하지만 중요하지 않은 일",
+      bgColor: "bg-amber-700",
+      textColor: "text-white"
     }
-  };
+  ];
 
-  const getPriorityColor = (priority: string | null) => {
-    switch (priority) {
-      case "높음": return "border-l-4 border-l-red-500";
-      case "낮음": return "border-l-4 border-l-green-500";
-      default: return "border-l-4 border-l-yellow-500";
-    }
-  };
-
-  const getStatusColor = (status: string) => {
+  const getStatusBadgeVariant = (status: string) => {
     switch (status) {
-      case "완료": return "bg-green-500";
-      case "실행대기": return "bg-blue-500";
-      case "이슈함": return "bg-red-500";
-      default: return "bg-yellow-500";
+      case "완료": return "secondary";
+      case "진행중": return "default";
+      case "진행전": return "outline";
+      case "이슈": return "destructive";
+      default: return "outline";
     }
   };
-
-  const sortedTasks = tasks ? sortTasksByPriority(tasks as SafeTaskWithAssignee[]) : [];
 
   return (
     <>
@@ -79,93 +105,86 @@ export default function Priority() {
       
       <main className="flex-1 p-6 overflow-auto" data-testid="main-content">
         {isLoading ? (
-          <div className="space-y-4">
-            {[...Array(5)].map((_, i) => (
-              <Card key={i} className="animate-pulse">
+          <div className="grid grid-cols-2 gap-6 h-full">
+            {[...Array(4)].map((_, i) => (
+              <Card key={i} className="animate-pulse h-96">
                 <CardContent className="p-6">
-                  <div className="h-20 bg-muted rounded"></div>
+                  <div className="h-8 bg-muted rounded mb-4"></div>
+                  <div className="space-y-3">
+                    {[...Array(3)].map((_, j) => (
+                      <div key={j} className="h-6 bg-muted rounded"></div>
+                    ))}
+                  </div>
                 </CardContent>
               </Card>
             ))}
           </div>
         ) : (
-          <div className="space-y-4">
-            {sortedTasks.map((task) => (
-              <Card 
-                key={task.id} 
-                className={`hover:shadow-lg transition-shadow duration-200 ${getPriorityColor(task.priority)}`}
-                data-testid={`card-task-${task.id}`}
-              >
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4 flex-1">
-                      {/* 우선순위 아이콘 */}
-                      <div className="flex items-center space-x-2">
-                        {getPriorityIcon(task.priority)}
-                        <Badge 
-                          variant={task.priority === "높음" ? "destructive" : task.priority === "낮음" ? "default" : "secondary"}
-                          data-testid={`badge-priority-${task.id}`}
-                        >
-                          {task.priority || "보통"}
-                        </Badge>
-                      </div>
-                      
-                      {/* 상태 표시 */}
-                      <div className={`w-3 h-3 rounded-full ${getStatusColor(task.status)}`}></div>
-                      
-                      {/* 작업 정보 */}
-                      <div className="flex-1">
-                        <h3 className="font-medium" data-testid={`text-task-title-${task.id}`}>
-                          {task.title}
-                        </h3>
-                        {task.description && (
-                          <p className="text-sm text-muted-foreground mt-1">
-                            {task.description}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                    
-                    {/* 오른쪽 정보 */}
-                    <div className="flex items-center space-x-4">
-                      {/* 담당자 */}
-                      {task.assignee && (
-                        <div className="flex items-center space-x-2">
-                          <Avatar className="w-6 h-6">
-                            <AvatarFallback className="text-xs bg-primary text-primary-foreground">
-                              {task.assignee.initials}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className="text-sm text-muted-foreground">
-                            {task.assignee.name}
-                          </span>
-                        </div>
-                      )}
-                      
-                      {/* 마감일 */}
-                      {task.deadline && (
-                        <div className="flex items-center space-x-1">
-                          <Clock className="w-4 h-4 text-muted-foreground" />
-                          <span className="text-sm text-muted-foreground">
-                            {formatDeadline(task.deadline)}
-                          </span>
-                        </div>
-                      )}
-                      
-                      {/* 상태 뱃지 */}
-                      <Badge 
-                        variant={task.status === "완료" ? "default" : task.status === "이슈함" ? "destructive" : "secondary"}
-                        data-testid={`badge-status-${task.id}`}
+          <div className="grid grid-cols-2 gap-6 h-full">
+            {prioritySections.map((section) => (
+              <Card key={section.priority} className="flex flex-col h-96">
+                <CardHeader className={`${section.bgColor} ${section.textColor} rounded-t-lg`}>
+                  <h2 className="text-lg font-semibold">{section.title}</h2>
+                </CardHeader>
+                <CardContent className="flex-1 p-4 overflow-auto bg-slate-800">
+                  <div className="space-y-2">
+                    {tasksByPriority[section.priority]?.map((task) => (
+                      <div 
+                        key={task.id} 
+                        className="flex items-center justify-between bg-slate-700 p-2 rounded text-white text-sm"
+                        data-testid={`task-${task.id}`}
                       >
-                        {task.status}
-                      </Badge>
-                    </div>
+                        <div className="flex items-center gap-2 flex-1">
+                          {/* D-day */}
+                          <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
+                            formatDDay(task.deadline)?.includes('D+') ? 'bg-red-500' : 
+                            formatDDay(task.deadline) === 'D-day' ? 'bg-red-600' :
+                            'bg-blue-500'
+                          }`}>
+                            {formatDDay(task.deadline) || 'D-∞'}
+                          </span>
+                          
+                          {/* 작업 이름 */}
+                          <span className="font-medium truncate flex-1">
+                            {task.title}
+                          </span>
+                          
+                          {/* 진행도 (숫자만) */}
+                          <span className="text-xs text-slate-300 min-w-[2rem] text-center">
+                            {task.progress || 0}
+                          </span>
+                          
+                          {/* 상태 */}
+                          <Badge 
+                            variant={getStatusBadgeVariant(task.status)}
+                            className="text-xs px-1.5 py-0.5"
+                          >
+                            {task.status}
+                          </Badge>
+                        </div>
+                      </div>
+                    )) || (
+                      <div className="text-slate-400 text-sm text-center py-8">
+                        해당 우선순위의 작업이 없습니다
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
             ))}
           </div>
         )}
+        
+        {/* 하단 타임라인 */}
+        <div className="mt-6 bg-slate-800 rounded-lg p-4">
+          <div className="flex justify-between items-center text-white">
+            <span className="text-sm">D-30</span>
+            <div className="flex-1 mx-4 h-px bg-slate-600"></div>
+            <span className="text-sm">D-7</span>
+            <div className="flex-1 mx-4 h-px bg-slate-600"></div>
+            <span className="text-sm text-red-400 font-medium">D-day</span>
+          </div>
+        </div>
       </main>
     </>
   );

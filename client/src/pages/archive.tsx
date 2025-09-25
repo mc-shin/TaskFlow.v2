@@ -14,6 +14,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import type { SafeTaskWithAssignees, ProjectWithDetails, GoalWithTasks, SafeUser } from "@shared/schema";
 import { parse } from "date-fns";
+import { mapPriorityToLabel, getPriorityBadgeVariant } from "@/lib/priority-utils";
 
 export default function Archive() {
   const { data: projects, isLoading, error } = useQuery({
@@ -136,16 +137,7 @@ export default function Archive() {
   };
 
   const getImportanceBadgeVariant = (importance: string) => {
-    switch (importance) {
-      case "높음":
-        return "destructive" as const;
-      case "중간":
-        return "default" as const;
-      case "낮음":
-        return "secondary" as const;
-      default:
-        return "secondary" as const;
-    }
+    return getPriorityBadgeVariant(importance);
   };
 
   // Checkbox selection functions (new logic: parent selects children, but children don't select parent)
@@ -261,7 +253,7 @@ export default function Archive() {
 
   // Importance display function (read-only for archive)
   const renderImportance = (type: 'project' | 'goal' | 'task', importance?: string | null) => {
-    // 프로젝트와 목표는 중요도 표시하지 않음
+    // 프로젝트와 목표는 우선순위 표시하지 않음
     if (type !== 'task') {
       return <span className="text-muted-foreground text-sm">-</span>;
     }
@@ -275,7 +267,7 @@ export default function Archive() {
         variant={getImportanceBadgeVariant(importance)} 
         className="text-xs cursor-default"
       >
-        {importance}
+        {mapPriorityToLabel(importance)}
       </Badge>
     );
   };
@@ -570,7 +562,7 @@ export default function Archive() {
           <div className="col-span-2">라벨</div>
           <div className="col-span-1">상태</div>
           <div className="col-span-2">진행도</div>
-          <div className="col-span-1">중요도</div>
+          <div className="col-span-1">우선순위</div>
         </div>
       </div>
 
@@ -1105,16 +1097,16 @@ export default function Archive() {
                     </div>
                   )}
                   
-                  {/* 중요도 (작업인 경우 추가 표시) */}
+                  {/* 우선순위 (작업인 경우 추가 표시) */}
                   {selectedItemType === 'task' && selectedItem.importance && (
                     <div>
-                      <label className="text-sm font-medium">중요도</label>
+                      <label className="text-sm font-medium">우선순위</label>
                       <div className="mt-2">
                         <Badge 
                           variant={getImportanceBadgeVariant(selectedItem.importance)}
                           className="text-xs"
                         >
-                          {selectedItem.importance}
+                          {mapPriorityToLabel(selectedItem.importance)}
                         </Badge>
                       </div>
                     </div>
