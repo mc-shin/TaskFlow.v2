@@ -70,6 +70,7 @@ export default function TaskDetail() {
     },
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       setIsEditing(false);
       setEditedTask({});
       toast({
@@ -104,6 +105,7 @@ export default function TaskDetail() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       toast({
         title: "작업 삭제 완료",
         description: "작업이 성공적으로 삭제되었습니다.",
