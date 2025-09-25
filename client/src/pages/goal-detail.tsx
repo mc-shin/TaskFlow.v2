@@ -466,11 +466,36 @@ export default function GoalDetail() {
 
                 <div>
                   <label className="text-sm font-medium text-muted-foreground">상태</label>
-                  <p className="mt-1" data-testid="text-goal-status">
-                    <Badge variant={goal.status === '완료' ? 'default' : 'secondary'}>
-                      {goal.status}
-                    </Badge>
-                  </p>
+                  {isEditing ? (
+                    <Select
+                      value={editedGoal.status ?? goal.status ?? "진행전"}
+                      onValueChange={(value) => setEditedGoal(prev => ({ ...prev, status: value }))}
+                    >
+                      <SelectTrigger className="mt-1 h-10" data-testid="select-goal-status">
+                        <SelectValue placeholder="상태를 선택하세요" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="진행전">진행전</SelectItem>
+                        <SelectItem value="진행중">진행중</SelectItem>
+                        <SelectItem value="완료">완료</SelectItem>
+                        <SelectItem value="이슈">이슈</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <div className="mt-1">
+                      <Badge 
+                        variant={
+                          goal.status === "완료" ? "default" : 
+                          goal.status === "진행중" ? "secondary" : 
+                          goal.status === "이슈" ? "issue" :
+                          "outline"
+                        }
+                        data-testid="badge-goal-status"
+                      >
+                        {goal.status ?? "진행전"}
+                      </Badge>
+                    </div>
+                  )}
                 </div>
 
                 <div>

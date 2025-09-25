@@ -1121,9 +1121,10 @@ export default function ListTree() {
     const displayStatus = isLocallyCompleted ? '완료' : 
                          status === '이슈' ? '이슈' :
                          (progress !== undefined ? getStatusFromProgress(progress) : status);
+                         
     
-    // For projects and goals, make status clickable to complete
-    if (type === 'project' || type === 'goal') {
+    // For projects and goals, make status clickable to complete (except for "이슈" status)
+    if ((type === 'project' || type === 'goal') && displayStatus !== '이슈') {
       // Check if auto completion is allowed (all child items are 100% complete)
       const autoCompleteAllowed = canAutoComplete(itemId, type);
       // Check if the item is actually completed (either in database or locally)
@@ -1920,7 +1921,7 @@ export default function ListTree() {
                         {renderEditableLabel(project.id, 'project', project.labels || [])}
                       </div>
                       <div className="col-span-1">
-                        {renderEditableStatus(project.id, 'project', '', project.progressPercentage || 0)}
+                        {renderEditableStatus(project.id, 'project', project.status, project.progressPercentage || 0)}
                       </div>
                       <div className="col-span-2">
                         {(() => {
@@ -2004,7 +2005,7 @@ export default function ListTree() {
                                 {renderEditableLabel(goal.id, 'goal', goal.labels || [])}
                               </div>
                               <div className="col-span-1">
-                                {renderEditableStatus(goal.id, 'goal', '', goal.progressPercentage || 0)}
+                                {renderEditableStatus(goal.id, 'goal', goal.status, goal.progressPercentage || 0)}
                               </div>
                               <div className="col-span-2">
                                 {renderEditableProgress(goal.id, 'goal', goal.progressPercentage || 0)}
