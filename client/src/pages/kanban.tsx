@@ -136,7 +136,8 @@ export default function Kanban() {
     switch (status) {
       case "완료": return "bg-primary";
       case "실행대기": return "bg-primary";
-      case "이슈함": return "bg-destructive";
+      case "이슈": return "bg-destructive";
+      case "이슈함": return "bg-destructive"; // backward compatibility
       default: return "bg-primary";
     }
   };
@@ -145,7 +146,8 @@ export default function Kanban() {
     switch (status) {
       case "완료": return "default";
       case "실행대기": return "secondary";
-      case "이슈함": return "destructive";
+      case "이슈": return "issue";
+      case "이슈함": return "destructive"; // backward compatibility
       default: return "outline";
     }
   };

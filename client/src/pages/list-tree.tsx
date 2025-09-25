@@ -1392,6 +1392,8 @@ export default function ListTree() {
       );
     }
 
+    // 상태가 "이슈"일 때는 진행도 편집 비활성화
+    const isIssueStatus = status === '이슈';
     const isEditing = editingField?.itemId === itemId && editingField?.field === 'progress';
     
     // Progress options for dropdown (10% increments)
@@ -1433,7 +1435,7 @@ export default function ListTree() {
       cancelEditing();
     };
     
-    if (isEditing) {
+    if (isEditing && !isIssueStatus) {
       return (
         <Select value={progress.toString()} onValueChange={handleProgressSelect}>
           <SelectTrigger className="h-6 text-xs w-16" data-testid={`edit-progress-${itemId}`}>
@@ -1452,8 +1454,13 @@ export default function ListTree() {
     
     return (
       <div 
-        className="flex items-center gap-2 cursor-pointer hover:bg-muted/20 px-1 py-1 rounded"
-        onClick={() => startEditing(itemId, 'progress', type, progress.toString())}
+        className={`flex items-center gap-2 px-1 py-1 rounded ${
+          isIssueStatus 
+            ? 'cursor-not-allowed opacity-50' 
+            : 'cursor-pointer hover:bg-muted/20'
+        }`}
+        onClick={isIssueStatus ? undefined : () => startEditing(itemId, 'progress', type, progress.toString())}
+        title={isIssueStatus ? '이슈 상태에서는 진행도를 변경할 수 없습니다' : undefined}
       >
         <Progress value={progress} className="flex-1" />
         <span className="text-xs text-muted-foreground w-8">
@@ -1921,7 +1928,7 @@ export default function ListTree() {
                         {renderEditableLabel(project.id, 'project', project.labels || [])}
                       </div>
                       <div className="col-span-1">
-                        {renderEditableStatus(project.id, 'project', project.status, project.progressPercentage || 0)}
+                        {renderEditableStatus(project.id, 'project', project.status || '', project.progressPercentage || 0)}
                       </div>
                       <div className="col-span-2">
                         {(() => {
@@ -2005,7 +2012,7 @@ export default function ListTree() {
                                 {renderEditableLabel(goal.id, 'goal', goal.labels || [])}
                               </div>
                               <div className="col-span-1">
-                                {renderEditableStatus(goal.id, 'goal', goal.status, goal.progressPercentage || 0)}
+                                {renderEditableStatus(goal.id, 'goal', goal.status || '', goal.progressPercentage || 0)}
                               </div>
                               <div className="col-span-2">
                                 {renderEditableProgress(goal.id, 'goal', goal.progressPercentage || 0)}

@@ -93,7 +93,7 @@ export default function ProjectDetail() {
     mutationFn: async (updates: Partial<ProjectWithDetails>) => {
       return await apiRequest("PUT", `/api/projects/${projectId}`, updates);
     },
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
       setIsEditing(false);
       setEditedProject({});
@@ -101,6 +101,17 @@ export default function ProjectDetail() {
         title: "프로젝트 수정 완료",
         description: "프로젝트가 성공적으로 수정되었습니다.",
       });
+      
+      // "이슈" 상태로 변경된 경우 추가 안내 토스트
+      if (variables.status === '이슈' && project?.status !== '이슈') {
+        setTimeout(() => {
+          toast({
+            title: "이슈사항 입력 안내",
+            description: "이슈 내용을 댓글로 작성해주세요.",
+            variant: "default",
+          });
+        }, 1000);
+      }
     },
     onError: () => {
       toast({
