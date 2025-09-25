@@ -284,7 +284,12 @@ export default function Kanban() {
                       </Button>
                       <FolderOpen className="w-5 h-5 text-primary" />
                       <div>
-                        <h3 className="text-lg font-medium text-foreground" data-testid={`text-project-title-${project.id}`}>
+                        <h3 className="text-lg font-medium text-foreground cursor-pointer hover:text-primary transition-colors" 
+                            data-testid={`text-project-title-${project.id}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setIsProjectModalOpen(true);
+                            }}>
                           {project.name}
                         </h3>
                       </div>
@@ -326,6 +331,7 @@ export default function Kanban() {
                       expandedGoals={expandedGoals}
                       toggleGoal={toggleGoal}
                       usersMap={usersMap}
+                      setGoalModalState={setGoalModalState}
                     />
                   )}
                 </div>
@@ -371,9 +377,10 @@ interface ProjectKanbanGoalsProps {
   expandedGoals: Set<string>;
   toggleGoal: (goalId: string) => void;
   usersMap: Map<string, SafeUser>;
+  setGoalModalState: (state: { isOpen: boolean; projectId: string; projectTitle: string }) => void;
 }
 
-function ProjectKanbanGoals({ projectId, setTaskModalState, setTaskEditModalState, expandedGoals, toggleGoal, usersMap }: ProjectKanbanGoalsProps) {
+function ProjectKanbanGoals({ projectId, setTaskModalState, setTaskEditModalState, expandedGoals, toggleGoal, usersMap, setGoalModalState }: ProjectKanbanGoalsProps) {
   // 프로젝트의 목표들 가져오기
   const { data: goals, isLoading: goalsLoading, error: goalsError } = useQuery({
     queryKey: ["/api/projects", projectId, "goals"],
@@ -437,7 +444,16 @@ function ProjectKanbanGoals({ projectId, setTaskModalState, setTaskEditModalStat
               </Button>
               <Target className="w-4 h-4 text-primary" />
               <div>
-                <h4 className="font-medium text-foreground" data-testid={`text-goal-title-${goal.id}`}>
+                <h4 className="font-medium text-foreground cursor-pointer hover:text-primary transition-colors" 
+                    data-testid={`text-goal-title-${goal.id}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setGoalModalState({
+                        isOpen: true,
+                        projectId: projectId,
+                        projectTitle: goal.title
+                      });
+                    }}>
                   {goal.title}
                 </h4>
                 {goal.description && (
