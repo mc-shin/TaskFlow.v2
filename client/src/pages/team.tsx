@@ -25,7 +25,7 @@ export default function Team() {
             팀
           </h1>
           <p className="text-sm text-muted-foreground" data-testid="header-subtitle">
-            오늘도 그동안 힘을 세부시 옳 좀미다 니다난가.
+            팀원들의 진행 상황과 작업 현황을 한눈에 확인할 수 있습니다
           </p>
         </div>
       </header>

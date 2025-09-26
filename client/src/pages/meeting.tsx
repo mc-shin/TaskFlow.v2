@@ -208,10 +208,13 @@ export default function Meeting() {
       <div className="flex-1 flex flex-col">
         {/* Header */}
         <header className="h-16 bg-card border-b border-border flex items-center justify-between px-6">
-          <div className="flex items-center space-x-4">
+          <div>
             <h1 className="text-xl font-semibold" data-testid="header-title">
-              미팅 일정
+              미팅
             </h1>
+            <p className="text-sm text-muted-foreground" data-testid="header-subtitle">
+              팀 미팅과 일정을 관리하고 참여자를 확인할 수 있습니다
+            </p>
           </div>
           
           <div className="flex items-center space-x-4">
