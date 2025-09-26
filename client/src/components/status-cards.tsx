@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 
 export function StatusCards() {
-  const { data: stats, isLoading } = useQuery({
+  const { data: stats, isLoading } = useQuery<{[key: string]: number}>({
     queryKey: ["/api/stats"],
     refetchInterval: 10000,
   });

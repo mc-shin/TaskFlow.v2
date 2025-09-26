@@ -7,10 +7,10 @@ import { Plus, MoreHorizontal, Edit, Trash2 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
-import type { TaskWithAssignee } from "@shared/schema";
+import type { TaskWithAssignees } from "@shared/schema";
 
 interface TaskTableProps {
-  onEditTask: (task: TaskWithAssignee) => void;
+  onEditTask: (task: TaskWithAssignees) => void;
 }
 
 export function TaskTable({ onEditTask }: TaskTableProps) {
@@ -61,7 +61,7 @@ export function TaskTable({ onEditTask }: TaskTableProps) {
       case "진행중":
         return "default" as const;
       case "완료":
-        return "outline" as const;
+        return "success" as const; // 리스트 페이지와 동일한 success variant 사용
       case "이슈":
         return "issue" as const;
       default:
@@ -134,7 +134,7 @@ export function TaskTable({ onEditTask }: TaskTableProps) {
               </tr>
             </thead>
             <tbody>
-              {(tasks as TaskWithAssignee[] || []).map((task: TaskWithAssignee) => (
+              {(tasks as TaskWithAssignees[] || []).map((task: TaskWithAssignees) => (
                 <tr 
                   key={task.id}
                   className="task-row border-b border-border hover:bg-accent/50 transition-colors"
@@ -155,15 +155,15 @@ export function TaskTable({ onEditTask }: TaskTableProps) {
                     {getStatusBadge(task.status)}
                   </td>
                   <td className="p-4">
-                    {task.assignee && (
+                    {task.assignees && task.assignees.length > 0 && (
                       <div className="flex items-center space-x-2">
                         <Avatar className="w-6 h-6">
                           <AvatarFallback className="text-xs bg-primary text-primary-foreground">
-                            {task.assignee.initials}
+                            {task.assignees[0].initials}
                           </AvatarFallback>
                         </Avatar>
                         <span className="text-sm" data-testid={`text-assignee-${task.id}`}>
-                          {task.assignee.name || ''}
+                          {task.assignees[0].name || ''}
                         </span>
                       </div>
                     )}
@@ -192,7 +192,7 @@ export function TaskTable({ onEditTask }: TaskTableProps) {
                 </tr>
               ))}
               
-              {(!(tasks as TaskWithAssignee[]) || (tasks as TaskWithAssignee[]).length === 0) && (
+              {(!(tasks as TaskWithAssignees[]) || (tasks as TaskWithAssignees[]).length === 0) && (
                 <tr>
                   <td colSpan={5} className="p-8 text-center text-muted-foreground" data-testid="text-empty-tasks">
                     작업이 없습니다. 새 작업을 생성해보세요.

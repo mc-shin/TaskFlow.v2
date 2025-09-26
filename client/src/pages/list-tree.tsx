@@ -328,6 +328,7 @@ export default function ListTree() {
     
     // Invalidate queries once after all updates are complete
     queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
     
     // Return the actual achieved progress
     return finalProgress;
@@ -562,6 +563,7 @@ export default function ListTree() {
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
     }
   });
 
@@ -597,6 +599,7 @@ export default function ListTree() {
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
     }
   });
 
@@ -715,6 +718,7 @@ export default function ListTree() {
     onSettled: () => {
       // Always refetch after error or success to ensure data consistency
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       // Force refetch to ensure fresh data
       queryClient.refetchQueries({ queryKey: ["/api/projects"] });
     }
@@ -727,6 +731,7 @@ export default function ListTree() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
     }
   });
 
@@ -736,6 +741,7 @@ export default function ListTree() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
     }
   });
 
@@ -745,6 +751,7 @@ export default function ListTree() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
     }
   });
 
@@ -1291,6 +1298,7 @@ export default function ListTree() {
           
           // Force refresh the data to ensure UI updates
           await queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+          await queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
           
         } catch (error) {
           console.error('Status update failed:', error);
