@@ -143,17 +143,17 @@ export default function Admin() {
             {/* 프로젝트 탭 */}
             <TabsContent value="projects" data-testid="content-projects">
               {projectsLoading ? (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {[...Array(2)].map((_, i) => (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {[...Array(4)].map((_, i) => (
                     <Card key={i} className="animate-pulse">
-                      <CardContent className="p-6">
-                        <div className="h-64 bg-muted rounded"></div>
+                      <CardContent className="p-4">
+                        <div className="h-48 bg-muted rounded"></div>
                       </CardContent>
                     </Card>
                   ))}
                 </div>
               ) : (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                   {activeProjects?.map((project: any) => {
                     // 프로젝트의 모든 작업들 수집
                     const projectTasks = project.goals?.flatMap((goal: any) => goal.tasks || []) || [];
@@ -233,7 +233,8 @@ export default function Admin() {
                                   case '진행전': return 'bg-gray-500'; // secondary
                                   case '진행중': return 'bg-blue-500'; // default/primary
                                   case '완료': return 'bg-green-500'; // success
-                                  case '이슈': return 'bg-orange-500'; // issue
+                                  case '이슈':
+                                  case '이슈함': return 'bg-orange-500'; // issue (legacy support)
                                   default: return 'bg-gray-500';
                                 }
                               };
