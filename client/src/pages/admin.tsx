@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { AlertTriangle, Calendar, Clock, User, Users } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import type { ProjectWithOwner, SafeUserWithStats } from "@shared/schema";
+import type { ProjectWithOwners, SafeUserWithStats } from "@shared/schema";
 
 export default function Admin() {
   const [activeTab, setActiveTab] = useState("projects");
@@ -84,7 +84,7 @@ export default function Admin() {
   });
 
   // 아카이브되지 않은 프로젝트들만 필터링
-  const activeProjects = (projects as ProjectWithOwner[])?.filter(project => {
+  const activeProjects = (projects as ProjectWithOwners[])?.filter(project => {
     return !archivedIds.has(project.id);
   }) || [];
 
@@ -310,7 +310,7 @@ export default function Admin() {
                         </CardTitle>
                         
                         <div className="text-center text-sm text-muted-foreground">
-                          마지막 접속: {formatLastLogin(user.lastLoginAt)}
+                          마지막 접속: {formatLastLogin(user.lastLoginAt ? user.lastLoginAt.toISOString() : null)}
                         </div>
                       </CardHeader>
                       
@@ -331,14 +331,19 @@ export default function Admin() {
                             </span>
                           </div>
                           
-                          {user.overdueTaskCount && user.overdueTaskCount > 0 && (
-                            <div className="flex justify-between text-sm">
-                              <span className="text-muted-foreground">기한 초과 작업</span>
-                              <span className="font-medium text-red-500">
-                                {user.overdueTaskCount}
-                              </span>
-                            </div>
-                          )}
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">진행중 작업</span>
+                            <span className="font-medium text-blue-500">
+                              {(user.taskCount || 0) - (user.completedTaskCount || 0) - (user.overdueTaskCount || 0) || 0}
+                            </span>
+                          </div>
+                          
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">기한 초과 작업</span>
+                            <span className="font-medium text-red-500">
+                              {user.overdueTaskCount || 0}
+                            </span>
+                          </div>
                           
                           {/* 진행률 바 */}
                           <div className="space-y-1">
