@@ -22,6 +22,11 @@ export default function Admin() {
     refetchInterval: 10000,
   });
 
+  const { data: tasks, isLoading: tasksLoading } = useQuery({
+    queryKey: ["/api/tasks"],
+    refetchInterval: 10000,
+  });
+
   const formatDeadline = (deadline: string) => {
     const deadlineDate = new Date(deadline);
     const today = new Date();
@@ -83,6 +88,32 @@ export default function Admin() {
     return !archivedIds.has(project.id);
   }) || [];
 
+  // 아카이브되지 않은 작업들만 필터링
+  const activeTasks = (tasks as any[])?.filter(task => {
+    return !archivedIds.has(task.id);
+  }) || [];
+
+  // 상태별 색상 함수
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "진행전": return "bg-secondary";
+      case "진행중": return "bg-primary";
+      case "완료": return "bg-green-600";
+      case "이슈": return "bg-destructive";
+      default: return "bg-muted";
+    }
+  };
+
+  const getStatusBadgeVariant = (status: string) => {
+    switch (status) {
+      case "진행전": return "secondary" as const;
+      case "진행중": return "default" as const;
+      case "완료": return "outline" as const;
+      case "이슈": return "destructive" as const;
+      default: return "outline" as const;
+    }
+  };
+
   return (
     <>
         {/* Header */}
@@ -102,16 +133,16 @@ export default function Admin() {
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid w-fit grid-cols-2 mb-6">
               <TabsTrigger value="projects" data-testid="tab-projects">
-                프로젝트
+                작업
               </TabsTrigger>
               <TabsTrigger value="members" data-testid="tab-members">
                 멤버
               </TabsTrigger>
             </TabsList>
             
-            {/* 프로젝트 탭 */}
+            {/* 작업 탭 */}
             <TabsContent value="projects" data-testid="content-projects">
-              {projectsLoading ? (
+              {tasksLoading ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {[...Array(3)].map((_, i) => (
                     <Card key={i} className="animate-pulse">
@@ -123,38 +154,38 @@ export default function Admin() {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {activeProjects?.map((project: ProjectWithOwner) => (
+                  {activeTasks?.map((task: any) => (
                     <Card 
-                      key={project.id} 
+                      key={task.id} 
                       className="relative hover:shadow-lg transition-shadow duration-200"
-                      data-testid={`card-project-${project.id}`}
+                      data-testid={`card-task-${task.id}`}
                     >
-                      {/* 경고 표시 */}
-                      {project.hasOverdueTasks && project.overdueTaskCount && project.overdueTaskCount > 0 && (
+                      {/* 상태 색상 인디케이터 */}
+                      <div className={`absolute left-0 top-0 bottom-0 w-1 ${getStatusColor(task.status)} rounded-l-lg`}></div>
+                      
+                      {/* 기한 초과 경고 */}
+                      {task.deadline && formatDeadline(task.deadline)?.includes('D+') && (
                         <div className="absolute top-3 right-3">
-                          <Badge variant="destructive" className="gap-1" data-testid={`badge-warning-${project.id}`}>
-                            기한 초과 {project.overdueTaskCount}
+                          <Badge variant="destructive" className="gap-1" data-testid={`badge-warning-${task.id}`}>
+                            기한 초과
                           </Badge>
                         </div>
                       )}
                       
                       <CardHeader className="pb-3">
                         <div className="flex items-center justify-between mb-2">
+                          <Badge 
+                            variant={getStatusBadgeVariant(task.status)}
+                            className="text-xs"
+                          >
+                            {task.status}
+                          </Badge>
                           <span className="text-sm text-muted-foreground font-medium">
-                            {project.deadline && formatDeadline(project.deadline)}
+                            {task.deadline ? formatDeadline(task.deadline) : '기한 없음'}
                           </span>
-                          {project.owner && (
-                            <div className="flex items-center gap-1">
-                              <Avatar className="w-5 h-5">
-                                <AvatarFallback className="text-xs bg-primary text-primary-foreground">
-                                  {project.owner.initials}
-                                </AvatarFallback>
-                              </Avatar>
-                            </div>
-                          )}
                         </div>
                         
-                        {/* 진행률 원형 차트 */}
+                        {/* 진행률 */}
                         <div className="flex items-center justify-center mb-4">
                           <div className="relative w-20 h-20">
                             <svg className="w-20 h-20 transform -rotate-90" viewBox="0 0 100 100">
@@ -174,48 +205,58 @@ export default function Admin() {
                                 strokeWidth="8"
                                 fill="transparent"
                                 strokeDasharray={`${2 * Math.PI * 40}`}
-                                strokeDashoffset={`${2 * Math.PI * 40 * (1 - (project.progressPercentage || 0) / 100)}`}
+                                strokeDashoffset={`${2 * Math.PI * 40 * (1 - (task.progress || 0) / 100)}`}
                                 strokeLinecap="round"
                               />
                             </svg>
                             <div className="absolute inset-0 flex items-center justify-center">
                               <div className="text-center">
                                 <div className="text-xs text-muted-foreground">진행률</div>
-                                <div className="text-lg font-bold" data-testid={`text-progress-${project.id}`}>
-                                  {project.progressPercentage || 0}%
+                                <div className="text-lg font-bold" data-testid={`text-progress-${task.id}`}>
+                                  {task.progress || 0}%
                                 </div>
                               </div>
                             </div>
                           </div>
                         </div>
                         
-                        <CardTitle className="text-sm font-medium text-center" data-testid={`text-project-title-${project.id}`}>
-                          <div className="text-primary font-bold">{project.code}</div>
-                          <div className="text-foreground">{project.name}</div>
+                        <CardTitle className="text-sm font-medium text-center" data-testid={`text-task-title-${task.id}`}>
+                          <div className="text-foreground truncate">{task.title}</div>
+                          {task.description && (
+                            <div className="text-xs text-muted-foreground mt-1 truncate">{task.description}</div>
+                          )}
                         </CardTitle>
                       </CardHeader>
                       
                       <CardContent className="pt-0">
-                        <div className="text-center mb-4">
-                          <span className="text-sm text-muted-foreground">
-                            총 작업 개수: <span className="font-medium">{project.totalTasks || 0}</span>
-                          </span>
+                        {/* 우선순위 및 라벨 */}
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            {task.priority && (
+                              <Badge variant="outline" className="text-xs">
+                                우선순위: {task.priority}
+                              </Badge>
+                            )}
+                          </div>
                         </div>
                         
-                        {/* 작업 목록 */}
-                        <div className="space-y-2 max-h-32 overflow-y-auto">
-                          {project.tasks?.slice(0, 6).map((task, index) => (
-                            <div key={task.id} className="flex items-center text-xs">
-                              <div className={`w-2 h-2 rounded-full mr-2 ${
-                                task.status === "완료" ? "bg-green-500" :
-                                task.status === "실행대기" ? "bg-blue-500" :
-                                task.status === "이슈함" ? "bg-red-500" : "bg-yellow-500"
-                              }`}></div>
-                              <span className="text-muted-foreground truncate" data-testid={`text-task-${task.id}`}>
-                                {task.title}
-                              </span>
-                            </div>
-                          ))}
+                        {/* 라벨 */}
+                        {task.labels && task.labels.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mb-3">
+                            {task.labels.slice(0, 2).map((label: string, index: number) => (
+                              <Badge key={index} variant="secondary" className="text-xs">
+                                {label}
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+                        
+                        {/* 담당자 정보 */}
+                        <div className="text-center">
+                          <span className="text-xs text-muted-foreground">
+                            담당자: {task.assigneeIds && task.assigneeIds.length > 0 ? 
+                              `${task.assigneeIds.length}명` : '미배정'}
+                          </span>
                         </div>
                       </CardContent>
                     </Card>
