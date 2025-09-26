@@ -56,25 +56,25 @@ export default function Priority() {
   const prioritySections = [
     {
       priority: "3",
-      title: "3. 긴급하지 않지만 중요한 일",
+      title: "2. 중요",
       bgColor: "bg-green-600",
       textColor: "text-white"
     },
     {
       priority: "1", 
-      title: "1. 긴급하고 중요한 일",
+      title: "1. 높음",
       bgColor: "bg-red-600",
       textColor: "text-white"
     },
     {
       priority: "4",
-      title: "4. 긴급하지도 중요하지도 않은 일", 
+      title: "4. 미정", 
       bgColor: "bg-slate-600",
       textColor: "text-white"
     },
     {
       priority: "2",
-      title: "2. 긴급하지만 중요하지 않은 일",
+      title: "3. 낮음",
       bgColor: "bg-amber-700",
       textColor: "text-white"
     }
@@ -107,7 +107,7 @@ export default function Priority() {
         {isLoading ? (
           <div className="grid grid-cols-2 gap-6 h-full">
             {[...Array(4)].map((_, i) => (
-              <Card key={i} className="animate-pulse h-96">
+              <Card key={i} className="animate-pulse" style={{ width: '581px', height: '323px' }}>
                 <CardContent className="p-6">
                   <div className="h-8 bg-muted rounded mb-4"></div>
                   <div className="space-y-3">
@@ -122,7 +122,7 @@ export default function Priority() {
         ) : (
           <div className="grid grid-cols-2 gap-6 h-full">
             {prioritySections.map((section) => (
-              <Card key={section.priority} className="flex flex-col h-96">
+              <Card key={section.priority} className="flex flex-col" style={{ width: '581px', height: '323px' }}>
                 <CardHeader className={`${section.bgColor} ${section.textColor} rounded-t-lg`}>
                   <h2 className="text-lg font-semibold">{section.title}</h2>
                 </CardHeader>
@@ -174,17 +174,6 @@ export default function Priority() {
             ))}
           </div>
         )}
-        
-        {/* 하단 타임라인 */}
-        <div className="mt-6 bg-slate-800 rounded-lg p-4">
-          <div className="flex justify-between items-center text-white">
-            <span className="text-sm">D-30</span>
-            <div className="flex-1 mx-4 h-px bg-slate-600"></div>
-            <span className="text-sm">D-7</span>
-            <div className="flex-1 mx-4 h-px bg-slate-600"></div>
-            <span className="text-sm text-red-400 font-medium">D-day</span>
-          </div>
-        </div>
       </main>
     </>
   );
