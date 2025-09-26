@@ -301,6 +301,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // email로 사용자 조회 (초대 시스템용)
+  app.get("/api/users/by-email/:email", async (req, res) => {
+    try {
+      const user = await storage.getUserByEmail(req.params.email);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      // 비밀번호는 제외하고 반환
+      const { password, ...safeUser } = user;
+      res.json(safeUser);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch user by email" });
+    }
+  });
+
   // Activity routes
   app.get("/api/activities", async (req, res) => {
     try {
