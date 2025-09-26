@@ -7,6 +7,7 @@ import type { ActivityWithDetails } from "@shared/schema";
 export function ActivityFeed() {
   const { data: activities, isLoading } = useQuery({
     queryKey: ["/api/activities"],
+    refetchInterval: 10000,
   });
 
   const getActivityIcon = (description: string) => {

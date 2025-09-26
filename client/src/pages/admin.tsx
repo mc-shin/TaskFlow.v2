@@ -14,10 +14,12 @@ export default function Admin() {
 
   const { data: projects, isLoading: projectsLoading } = useQuery({
     queryKey: ["/api/projects"],
+    refetchInterval: 10000,
   });
 
   const { data: usersWithStats, isLoading: usersLoading } = useQuery({
     queryKey: ["/api/users/with-stats"],
+    refetchInterval: 10000,
   });
 
   const formatDeadline = (deadline: string) => {

@@ -24,6 +24,7 @@ export function TaskTable({ onEditTask }: TaskTableProps) {
 
   const { data: tasks, isLoading } = useQuery({
     queryKey: ["/api/tasks"],
+    refetchInterval: 10000,
   });
 
   const deleteTaskMutation = useMutation({

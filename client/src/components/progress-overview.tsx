@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 export function ProgressOverview() {
   const { data: stats, isLoading } = useQuery({
     queryKey: ["/api/stats"],
+    refetchInterval: 10000,
   });
 
   if (isLoading || !stats) {

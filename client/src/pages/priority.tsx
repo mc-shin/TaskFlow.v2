@@ -7,7 +7,7 @@ import type { ProjectWithDetails } from "@shared/schema";
 export default function Priority() {
   const { data: projects, isLoading } = useQuery({
     queryKey: ["/api/projects"],
-    refetchInterval: 3000, // 실시간 업데이트를 위해 3초마다 자동 갱신
+    refetchInterval: 10000, // 실시간 업데이트를 위해 10초마다 자동 갱신
   });
 
   // D-day 계산 함수
