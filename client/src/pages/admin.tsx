@@ -133,134 +133,128 @@ export default function Admin() {
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid w-fit grid-cols-2 mb-6">
               <TabsTrigger value="projects" data-testid="tab-projects">
-                작업
+                프로젝트
               </TabsTrigger>
               <TabsTrigger value="members" data-testid="tab-members">
                 멤버
               </TabsTrigger>
             </TabsList>
             
-            {/* 작업 탭 */}
+            {/* 프로젝트 탭 */}
             <TabsContent value="projects" data-testid="content-projects">
-              {tasksLoading ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {[...Array(3)].map((_, i) => (
+              {projectsLoading ? (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {[...Array(2)].map((_, i) => (
                     <Card key={i} className="animate-pulse">
                       <CardContent className="p-6">
-                        <div className="h-48 bg-muted rounded"></div>
+                        <div className="h-64 bg-muted rounded"></div>
                       </CardContent>
                     </Card>
                   ))}
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {activeTasks?.map((task: any) => (
-                    <Card 
-                      key={task.id} 
-                      className="relative hover:shadow-lg transition-shadow duration-200"
-                      data-testid={`card-task-${task.id}`}
-                    >
-                      {/* 상태 색상 인디케이터 */}
-                      <div className={`absolute left-0 top-0 bottom-0 w-1 ${getStatusColor(task.status)} rounded-l-lg`}></div>
-                      
-                      {/* 기한 초과 경고 */}
-                      {task.deadline && formatDeadline(task.deadline)?.includes('D+') && (
-                        <div className="absolute top-3 right-3">
-                          <Badge variant="destructive" className="gap-1" data-testid={`badge-warning-${task.id}`}>
-                            기한 초과
-                          </Badge>
-                        </div>
-                      )}
-                      
-                      <CardHeader className="pb-3">
-                        <div className="flex items-center justify-between mb-2">
-                          <Badge 
-                            variant={getStatusBadgeVariant(task.status)}
-                            className="text-xs"
-                          >
-                            {task.status}
-                          </Badge>
-                          <span className="text-sm text-muted-foreground font-medium">
-                            {task.deadline ? formatDeadline(task.deadline) : '기한 없음'}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {activeProjects?.map((project: any) => {
+                    // 프로젝트의 모든 작업들 수집
+                    const projectTasks = project.goals?.flatMap((goal: any) => goal.tasks || []) || [];
+                    
+                    // 프로젝트 전체 진행률 계산
+                    const totalTasks = projectTasks.length;
+                    const completedTasks = projectTasks.filter((task: any) => task.status === '완료').length;
+                    const projectProgress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+                    
+                    return (
+                      <Card 
+                        key={project.id}
+                        className="relative bg-slate-800 text-white border-slate-700"
+                        data-testid={`card-project-${project.id}`}
+                      >
+                        {/* D-day */}
+                        <div className="absolute top-4 left-4">
+                          <span className="text-sm font-medium text-slate-300">
+                            {project.deadline ? formatDeadline(project.deadline) : 'D-∞'}
                           </span>
                         </div>
                         
-                        {/* 진행률 */}
-                        <div className="flex items-center justify-center mb-4">
-                          <div className="relative w-20 h-20">
-                            <svg className="w-20 h-20 transform -rotate-90" viewBox="0 0 100 100">
-                              <circle
-                                cx="50"
-                                cy="50"
-                                r="40"
-                                stroke="hsl(217, 32%, 17%)"
-                                strokeWidth="8"
-                                fill="transparent"
-                              />
-                              <circle
-                                cx="50"
-                                cy="50"
-                                r="40"
-                                stroke="hsl(217, 91%, 60%)"
-                                strokeWidth="8"
-                                fill="transparent"
-                                strokeDasharray={`${2 * Math.PI * 40}`}
-                                strokeDashoffset={`${2 * Math.PI * 40 * (1 - (task.progress || 0) / 100)}`}
-                                strokeLinecap="round"
-                              />
-                            </svg>
-                            <div className="absolute inset-0 flex items-center justify-center">
-                              <div className="text-center">
-                                <div className="text-xs text-muted-foreground">진행률</div>
-                                <div className="text-lg font-bold" data-testid={`text-progress-${task.id}`}>
-                                  {task.progress || 0}%
+                        <CardContent className="p-6 pt-12">
+                          {/* 원형 진행률 */}
+                          <div className="flex items-center justify-center mb-6">
+                            <div className="relative w-24 h-24">
+                              <svg className="w-24 h-24 transform -rotate-90" viewBox="0 0 100 100">
+                                <circle
+                                  cx="50"
+                                  cy="50"
+                                  r="40"
+                                  stroke="hsl(215, 28%, 17%)"
+                                  strokeWidth="6"
+                                  fill="transparent"
+                                />
+                                <circle
+                                  cx="50"
+                                  cy="50"
+                                  r="40"
+                                  stroke="hsl(217, 91%, 60%)"
+                                  strokeWidth="6"
+                                  fill="transparent"
+                                  strokeDasharray={`${2 * Math.PI * 40}`}
+                                  strokeDashoffset={`${2 * Math.PI * 40 * (1 - projectProgress / 100)}`}
+                                  strokeLinecap="round"
+                                />
+                              </svg>
+                              <div className="absolute inset-0 flex items-center justify-center">
+                                <div className="text-center">
+                                  <div className="text-xs text-slate-400">진행률</div>
+                                  <div className="text-lg font-bold" data-testid={`text-progress-${project.id}`}>
+                                    {projectProgress}%
+                                  </div>
                                 </div>
                               </div>
                             </div>
                           </div>
-                        </div>
-                        
-                        <CardTitle className="text-sm font-medium text-center" data-testid={`text-task-title-${task.id}`}>
-                          <div className="text-foreground truncate">{task.title}</div>
-                          {task.description && (
-                            <div className="text-xs text-muted-foreground mt-1 truncate">{task.description}</div>
-                          )}
-                        </CardTitle>
-                      </CardHeader>
-                      
-                      <CardContent className="pt-0">
-                        {/* 우선순위 및 라벨 */}
-                        <div className="flex items-center justify-between mb-3">
-                          <div className="flex items-center gap-2">
-                            {task.priority && (
-                              <Badge variant="outline" className="text-xs">
-                                우선순위: {task.priority}
-                              </Badge>
+                          
+                          {/* 프로젝트 정보 */}
+                          <div className="text-center mb-6">
+                            <div className="text-blue-400 text-sm font-medium mb-1">
+                              {project.name}
+                            </div>
+                            <div className="text-white text-lg font-semibold mb-2">
+                              {project.description || '프로젝트 설명 없음'}
+                            </div>
+                            <div className="text-slate-300 text-sm">
+                              총 작업 개수: {totalTasks}
+                            </div>
+                          </div>
+                          
+                          {/* 작업 리스트 */}
+                          <div className="space-y-2">
+                            {projectTasks.slice(0, 5).map((task: any) => {
+                              const getTaskStatusColor = (status: string) => {
+                                switch (status) {
+                                  case '완료': return 'bg-green-500';
+                                  case '진행중': return 'bg-yellow-500';
+                                  case '진행전': return 'bg-slate-500';
+                                  case '이슈': return 'bg-red-500';
+                                  default: return 'bg-slate-500';
+                                }
+                              };
+                              
+                              return (
+                                <div key={task.id} className="flex items-center gap-2 text-sm">
+                                  <div className={`w-2 h-2 rounded-full ${getTaskStatusColor(task.status)}`}></div>
+                                  <span className="truncate text-slate-200">{task.title}</span>
+                                </div>
+                              );
+                            })}
+                            {projectTasks.length > 5 && (
+                              <div className="text-xs text-slate-400 text-center mt-2">
+                                +{projectTasks.length - 5}개 더
+                              </div>
                             )}
                           </div>
-                        </div>
-                        
-                        {/* 라벨 */}
-                        {task.labels && task.labels.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mb-3">
-                            {task.labels.slice(0, 2).map((label: string, index: number) => (
-                              <Badge key={index} variant="secondary" className="text-xs">
-                                {label}
-                              </Badge>
-                            ))}
-                          </div>
-                        )}
-                        
-                        {/* 담당자 정보 */}
-                        <div className="text-center">
-                          <span className="text-xs text-muted-foreground">
-                            담당자: {task.assigneeIds && task.assigneeIds.length > 0 ? 
-                              `${task.assigneeIds.length}명` : '미배정'}
-                          </span>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
                 </div>
               )}
             </TabsContent>
