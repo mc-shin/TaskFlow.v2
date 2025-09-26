@@ -25,6 +25,9 @@ import { mapPriorityToLabel, getPriorityBadgeVariant } from "@/lib/priority-util
 export default function ListTree() {
   const { data: projects, isLoading, error } = useQuery({
     queryKey: ["/api/projects"],
+    refetchInterval: 10000, // 실시간 업데이트를 위해 10초마다 자동 갱신
+    staleTime: 0, // 즉시 stale 상태로 만들어 항상 새로운 데이터 요청
+    refetchOnWindowFocus: true, // 창 포커스 시에도 갱신
   });
 
   // Get archived items from localStorage and filter out archived projects
@@ -134,6 +137,9 @@ export default function ListTree() {
   // Get users for assignee dropdown
   const { data: users } = useQuery({
     queryKey: ["/api/users"],
+    refetchInterval: 10000, // 실시간 업데이트를 위해 10초마다 자동 갱신
+    staleTime: 0, // 즉시 stale 상태로 만들어 항상 새로운 데이터 요청
+    refetchOnWindowFocus: true, // 창 포커스 시에도 갱신
   });
 
   const queryClient = useQueryClient();
@@ -1848,38 +1854,9 @@ export default function ListTree() {
                   <h3 className="text-lg font-semibold">프로젝트 참여자</h3>
                   <div className="flex items-center gap-2">
                     {(() => {
-                      // Get all unique assignees from all projects
-                      const allAssignees = new Set<string>();
-                      (projects as ProjectWithDetails[])?.forEach(project => {
-                        // Add project owners
-                        if (project.ownerIds) {
-                          project.ownerIds.forEach(id => allAssignees.add(id));
-                        }
-                        // Add goal assignees
-                        project.goals?.forEach(goal => {
-                          if (goal.assigneeIds) {
-                            goal.assigneeIds.forEach(id => allAssignees.add(id));
-                          }
-                        });
-                        // Add task assignees
-                        project.tasks?.forEach(task => {
-                          if (task.assigneeIds) {
-                            task.assigneeIds.forEach(id => allAssignees.add(id));
-                          }
-                        });
-                        // Add task assignees from goal tasks
-                        project.goals?.forEach(goal => {
-                          goal.tasks?.forEach(task => {
-                            if (task.assigneeIds) {
-                              task.assigneeIds.forEach(id => allAssignees.add(id));
-                            }
-                          });
-                        });
-                      });
-                      
-                      const uniqueMembers = Array.from(allAssignees)
-                        .map(id => (users as SafeUser[])?.find(user => user.id === id))
-                        .filter(Boolean) as SafeUser[];
+                      // Show all system users in project participants for real-time updates
+                      // This ensures new users appear immediately when they join the system
+                      const uniqueMembers = (users as SafeUser[]) || [];
                       
                       return uniqueMembers.map(member => (
                         <div key={member.id} className="flex items-center gap-2" data-testid={`member-${member.id}`}>
