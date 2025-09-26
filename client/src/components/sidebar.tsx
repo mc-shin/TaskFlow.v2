@@ -21,12 +21,14 @@ export function Sidebar() {
     <div className="w-64 bg-card border-r border-border flex flex-col" data-testid="sidebar">
       {/* Logo/Header */}
       <div className="p-4 border-b border-border">
-        <div className="flex items-center space-x-2">
-          <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-            <CheckSquare className="h-4 w-4 text-primary-foreground" />
+        <Link href="/">
+          <div className="flex items-center space-x-2 cursor-pointer hover:opacity-80 transition-opacity" data-testid="link-home-logo">
+            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+              <CheckSquare className="h-4 w-4 text-primary-foreground" />
+            </div>
+            <span className="font-semibold text-lg" data-testid="text-logo">하이더</span>
           </div>
-          <span className="font-semibold text-lg" data-testid="text-logo">하이더</span>
-        </div>
+        </Link>
       </div>
       
       {/* Navigation */}
