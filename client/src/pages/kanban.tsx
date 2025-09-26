@@ -543,7 +543,7 @@ function GoalKanbanColumns({ goal, setTaskEditModalState, usersMap }: GoalKanban
       case "진행전":
       case "실행대기": return "secondary";
       case "진행중": return "default";
-      case "완료": return "outline"; // 리스트 페이지 기준
+      case "완료": return "success"; // 리스트 페이지와 동일한 success variant 사용
       case "이슈":
       case "이슈함": return "issue";
       default: return "outline";
