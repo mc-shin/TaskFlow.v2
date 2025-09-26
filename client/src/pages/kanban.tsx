@@ -13,6 +13,7 @@ import { GoalModal } from "@/components/goal-modal";
 import { TaskModal } from "@/components/task-modal";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { mapPriorityToLabel, getPriorityBadgeVariant } from "@/lib/priority-utils";
 
 export default function Kanban() {
   const [, setLocation] = useLocation();
@@ -661,9 +662,12 @@ function GoalKanbanColumns({ goal, setTaskEditModalState, usersMap }: GoalKanban
                           {task.status}
                         </span>
                       )}
-                      <span className={`text-xs px-2 py-1 rounded ${getPriorityBadgeStyle(task.priority || "미지정")}`}>
-                        {task.priority || "미지정"}
-                      </span>
+                      <Badge 
+                        variant={getPriorityBadgeVariant(task.priority)}
+                        className="text-xs px-1.5 py-0.5"
+                      >
+                        {mapPriorityToLabel(task.priority)}
+                      </Badge>
                     </div>
                     
                     {/* 마감날짜 */}

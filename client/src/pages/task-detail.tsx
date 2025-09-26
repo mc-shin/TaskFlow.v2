@@ -18,6 +18,7 @@ import { ObjectUploader } from "@/components/ObjectUploader";
 import { apiRequest } from "@/lib/queryClient";
 import type { ProjectWithDetails, GoalWithTasks, SafeTaskWithAssignees, SafeUser } from "@shared/schema";
 import { Comments } from "@/components/comments";
+import { mapPriorityToLabel, getPriorityBadgeVariant } from "@/lib/priority-utils";
 
 export default function TaskDetail() {
   const [, params] = useRoute("/detail/task/:id");
@@ -180,10 +181,12 @@ export default function TaskDetail() {
   };
 
   const getPriorityColor = (priority: string | null) => {
-    switch (priority) {
+    const label = mapPriorityToLabel(priority);
+    switch (label) {
       case "높음": return "text-red-600";
-      case "중간": return "text-yellow-600";
+      case "중요": return "text-blue-600";
       case "낮음": return "text-green-600";
+      case "미정": return "text-muted-foreground";
       default: return "text-muted-foreground";
     }
   };
@@ -499,21 +502,22 @@ export default function TaskDetail() {
                     <label className="text-sm font-medium text-muted-foreground">우선순위</label>
                     {isEditing ? (
                       <Select
-                        value={editedTask.priority ?? task.priority ?? '중간'}
+                        value={editedTask.priority ?? task.priority ?? '4'}
                         onValueChange={(value) => setEditedTask(prev => ({ ...prev, priority: value }))}
                       >
                         <SelectTrigger className="mt-1 h-10" data-testid="select-task-priority">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="높음">높음</SelectItem>
-                          <SelectItem value="중간">중간</SelectItem>
-                          <SelectItem value="낮음">낮음</SelectItem>
+                          <SelectItem value="1">높음</SelectItem>
+                          <SelectItem value="3">중요</SelectItem>
+                          <SelectItem value="2">낮음</SelectItem>
+                          <SelectItem value="4">미정</SelectItem>
                         </SelectContent>
                       </Select>
                     ) : (
                       <p className={`mt-1 font-medium ${getPriorityColor(task.priority)}`} data-testid="text-task-priority">
-                        {task.priority || '중간'}
+                        {mapPriorityToLabel(task.priority)}
                       </p>
                     )}
                   </div>
