@@ -537,16 +537,16 @@ function GoalKanbanColumns({ goal, setTaskEditModalState, usersMap }: GoalKanban
     }
   };
 
-  // 상태 배지 스타일 함수 (리스트 페이지 기준으로 통일)
-  const getStatusBadgeStyle = (status: string) => {
+  // 상태 배지 variant 함수 (리스트 페이지 기준으로 통일)
+  const getStatusBadgeVariant = (status: string) => {
     switch (status) {
       case "진행전":
-      case "실행대기": return "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300"; // secondary
-      case "진행중": return "bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300"; // default/primary
-      case "완료": return "bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-300"; // success
+      case "실행대기": return "secondary";
+      case "진행중": return "default";
+      case "완료": return "outline"; // 리스트 페이지 기준
       case "이슈":
-      case "이슈함": return "bg-orange-100 text-orange-700 dark:bg-orange-900/20 dark:text-orange-300"; // issue
-      default: return "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300";
+      case "이슈함": return "issue";
+      default: return "outline";
     }
   };
 
@@ -660,9 +660,12 @@ function GoalKanbanColumns({ goal, setTaskEditModalState, usersMap }: GoalKanban
                     {/* 상태와 우선순위 배지 */}
                     <div className="flex items-center space-x-2 mb-2">
                       {task.status && (
-                        <span className={`text-xs px-2 py-1 rounded ${getStatusBadgeStyle(task.status)}`}>
+                        <Badge 
+                          variant={getStatusBadgeVariant(task.status)}
+                          className="text-xs px-1.5 py-0.5"
+                        >
                           {task.status}
-                        </span>
+                        </Badge>
                       )}
                       <Badge 
                         variant={getPriorityBadgeVariant(task.priority)}

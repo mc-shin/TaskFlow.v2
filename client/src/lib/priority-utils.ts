@@ -40,14 +40,14 @@ export function mapPriorityToLabel(priority: string | null | undefined): string 
  * @param priority - Priority value ("1", "2", "3", "4" or legacy)
  * @returns Badge variant
  */
-export function getPriorityBadgeVariant(priority: string | null | undefined): "destructive" | "default" | "secondary" | "outline" {
+export function getPriorityBadgeVariant(priority: string | null | undefined): "destructive" | "default" | "lightGray" | "darkGray" | "outline" {
   const label = mapPriorityToLabel(priority);
   
   switch (label) {
     case "높음": return "destructive";  // Red for high priority
     case "중요": return "default";      // Blue for important
-    case "낮음": return "secondary";    // Gray for low priority  
-    case "미정": return "outline";      // Light for undefined
+    case "낮음": return "lightGray";    // Light gray for low priority  
+    case "미정": return "darkGray";     // Dark gray for undefined
     default: return "outline";
   }
 }

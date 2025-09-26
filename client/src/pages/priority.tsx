@@ -140,7 +140,7 @@ export default function Priority() {
     switch (status) {
       case "진행전": return "secondary";
       case "진행중": return "default";
-      case "완료": return "success"; // 완료 상태에 전용 success variant 사용
+      case "완료": return "outline"; // 리스트 페이지 기준으로 통일
       case "이슈": return "issue";
       default: return "outline";
     }
