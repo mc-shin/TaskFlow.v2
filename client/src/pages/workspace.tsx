@@ -38,6 +38,7 @@ export function WorkspacePage() {
   const [userName, setUserName] = useState("사용자");
   const [invitations, setInvitations] = useState<any[]>([]);
   const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
+  const [isAdminUser, setIsAdminUser] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -66,6 +67,18 @@ export function WorkspacePage() {
           currentUser = users.find((u: any) => u.username === 'hyejung');
         } else if (email.includes('chamin') || email === '3@qubicom.co.kr') {
           currentUser = users.find((u: any) => u.username === 'chamin');
+        } else if (email.includes('admin') || email === 'admin@qubicom.co.kr') {
+          currentUser = users.find((u: any) => u.username === 'admin');
+          setIsAdminUser(true);
+        } else {
+          // 별칭 이메일로 로그인한 경우도 확인 (1@, 2@, 3@ 등)
+          if (email === '1@qubicom.co.kr') {
+            currentUser = users.find((u: any) => u.username === 'hyejin');
+          } else if (email === '2@qubicom.co.kr') {
+            currentUser = users.find((u: any) => u.username === 'hyejung');
+          } else if (email === '3@qubicom.co.kr') {
+            currentUser = users.find((u: any) => u.username === 'chamin');
+          }
         }
         // 신규가입자의 경우 currentUser는 undefined로 남겨둠
         
@@ -74,7 +87,28 @@ export function WorkspacePage() {
         if (currentUser) {
           // 기존 사용자의 경우 개별 받은 초대 목록 확인
           const currentEmail = currentUser.email;
-          const receivedInvitations = JSON.parse(localStorage.getItem(`receivedInvitations_${currentEmail}`) || '[]');
+          let receivedInvitations = JSON.parse(localStorage.getItem(`receivedInvitations_${currentEmail}`) || '[]');
+          
+          // 별칭 이메일로 온 초대도 확인 (예: 1@qubicom.co.kr -> hyejin@qubicom.co.kr)
+          let aliasEmail = '';
+          if (currentUser.username === 'hyejin') {
+            aliasEmail = '1@qubicom.co.kr';
+          } else if (currentUser.username === 'hyejung') {
+            aliasEmail = '2@qubicom.co.kr';
+          } else if (currentUser.username === 'chamin') {
+            aliasEmail = '3@qubicom.co.kr';
+          }
+          
+          if (aliasEmail) {
+            const aliasInvitations = JSON.parse(localStorage.getItem(`receivedInvitations_${aliasEmail}`) || '[]');
+            // 별칭으로 온 초대를 정규 이메일로 마이그레이션
+            if (aliasInvitations.length > 0) {
+              receivedInvitations = [...receivedInvitations, ...aliasInvitations];
+              localStorage.setItem(`receivedInvitations_${currentEmail}`, JSON.stringify(receivedInvitations));
+              localStorage.removeItem(`receivedInvitations_${aliasEmail}`);
+            }
+          }
+          
           pendingInvitations = receivedInvitations.filter((inv: any) => inv.status === 'pending');
         } else {
           // 신규가입자의 경우 전역 초대 목록에서 자신의 이메일로 된 초대 확인
@@ -172,14 +206,46 @@ export function WorkspacePage() {
         currentUser = users.find((u: any) => u.username === 'hyejung');
       } else if (email.includes('chamin') || email === '3@qubicom.co.kr') {
         currentUser = users.find((u: any) => u.username === 'chamin');
+      } else if (email.includes('admin') || email === 'admin@qubicom.co.kr') {
+        currentUser = users.find((u: any) => u.username === 'admin');
+      } else {
+        // 별칭 이메일로 로그인한 경우도 확인 (1@, 2@, 3@ 등)
+        if (email === '1@qubicom.co.kr') {
+          currentUser = users.find((u: any) => u.username === 'hyejin');
+        } else if (email === '2@qubicom.co.kr') {
+          currentUser = users.find((u: any) => u.username === 'hyejung');
+        } else if (email === '3@qubicom.co.kr') {
+          currentUser = users.find((u: any) => u.username === 'chamin');
+        }
       }
       // 신규가입자의 경우 currentUser는 undefined로 남겨둠
       
       // 기존 사용자는 해당 이메일, 신규가입자는 로그인한 이메일 사용
       const currentEmail = currentUser ? currentUser.email : userEmail;
 
-      // 받은 초대 목록 업데이트
-      const receivedInvitations = JSON.parse(localStorage.getItem(`receivedInvitations_${currentEmail}`) || '[]');
+      // 받은 초대 목록 업데이트 (별칭 이메일도 확인)
+      let receivedInvitations = JSON.parse(localStorage.getItem(`receivedInvitations_${currentEmail}`) || '[]');
+      
+      // 별칭 이메일 확인 (응답 처리 시에도 동일한 로직 적용)
+      if (currentUser) {
+        let aliasEmail = '';
+        if (currentUser.username === 'hyejin') {
+          aliasEmail = '1@qubicom.co.kr';
+        } else if (currentUser.username === 'hyejung') {
+          aliasEmail = '2@qubicom.co.kr';
+        } else if (currentUser.username === 'chamin') {
+          aliasEmail = '3@qubicom.co.kr';
+        }
+        
+        if (aliasEmail) {
+          const aliasInvitations = JSON.parse(localStorage.getItem(`receivedInvitations_${aliasEmail}`) || '[]');
+          if (aliasInvitations.length > 0) {
+            receivedInvitations = [...receivedInvitations, ...aliasInvitations];
+            localStorage.setItem(`receivedInvitations_${currentEmail}`, JSON.stringify(receivedInvitations));
+            localStorage.removeItem(`receivedInvitations_${aliasEmail}`);
+          }
+        }
+      }
       const updatedInvitations = receivedInvitations.map((inv: any) => 
         inv.id === invitationId ? { ...inv, status: action === 'accept' ? 'accepted' : 'declined' } : inv
       );
@@ -236,7 +302,7 @@ export function WorkspacePage() {
 
         {/* Workspace Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-          {mockWorkspaces.map((workspace) => (
+          {!isAdminUser && mockWorkspaces.map((workspace) => (
             <Card 
               key={workspace.id} 
               className="cursor-pointer hover:shadow-md transition-shadow"
