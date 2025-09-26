@@ -63,8 +63,8 @@ export function getPriorityColorClass(priority: string | null | undefined): stri
   switch (label) {
     case "높음": return "text-red-600 dark:text-red-400";
     case "중요": return "text-blue-600 dark:text-blue-400";
-    case "낮음": return "text-green-600 dark:text-green-400";
-    case "미정": return "text-gray-600 dark:text-gray-400";
+    case "낮음": return "text-gray-400 dark:text-gray-500";  // 밝은 회색
+    case "미정": return "text-gray-700 dark:text-gray-300";  // 어두운 회색
     default: return "text-gray-600 dark:text-gray-400";
   }
 }
