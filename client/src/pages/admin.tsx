@@ -197,7 +197,7 @@ export default function Admin() {
                                   strokeWidth="6"
                                   fill="transparent"
                                   strokeDasharray={`${2 * Math.PI * 40}`}
-                                  strokeDashoffset={`${2 * Math.PI * 40 * (1 - projectProgress / 100)}`}
+                                  strokeDashoffset={`${2 * Math.PI * 40 * (1 - Math.max(projectProgress, 3) / 100)}`}
                                   strokeLinecap="round"
                                 />
                               </svg>
