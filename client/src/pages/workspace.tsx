@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -28,20 +28,21 @@ const mockWorkspaces = [
     projectCount: 12,
     lastAccess: "2025-09-26",
   },
-  {
-    id: "2", 
-    name: "개인 작업",
-    description: "개인 업무 및 학습 관리",
-    memberCount: 1,
-    projectCount: 5,
-    lastAccess: "2025-09-25",
-  },
 ];
 
 export function WorkspacePage() {
   const [, setLocation] = useLocation();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [userName, setUserName] = useState("사용자");
+
+  useEffect(() => {
+    // localStorage에서 사용자 이름 가져오기
+    const storedUserName = localStorage.getItem("userName");
+    if (storedUserName) {
+      setUserName(storedUserName);
+    }
+  }, []);
 
   const form = useForm<WorkspaceForm>({
     resolver: zodResolver(workspaceSchema),
@@ -57,8 +58,10 @@ export function WorkspacePage() {
       // TODO: 실제 워크스페이스 생성 API 연동
       console.log("Create workspace:", data);
       
+      // 워크스페이스 생성 후 app의 기본 형태로 이동
       setIsCreateDialogOpen(false);
       form.reset();
+      setLocation("/workspace/app/team");
     } catch (error) {
       console.error("Create workspace error:", error);
     } finally {
@@ -94,7 +97,7 @@ export function WorkspacePage() {
               <h1 className="text-xl font-semibold">워크스페이스 관리</h1>
             </div>
             <div className="flex items-center space-x-2">
-              <span className="text-sm text-muted-foreground">사용자님</span>
+              <span className="text-sm text-muted-foreground">{userName}님</span>
               <Button variant="ghost" size="sm" onClick={handleLogout} data-testid="button-logout">
                 <LogOut className="h-4 w-4 mr-2" />
                 로그아웃
@@ -244,22 +247,6 @@ export function WorkspacePage() {
           </Dialog>
         </div>
 
-        {/* Quick Actions */}
-        <div className="bg-muted/50 rounded-lg p-6">
-          <h3 className="font-medium mb-4">빠른 작업</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Link href="/workspace/app/team">
-              <Button variant="outline" className="w-full justify-start" data-testid="button-main-workspace">
-                <CheckSquare className="h-4 w-4 mr-2" />
-                메인 워크스페이스로 이동
-              </Button>
-            </Link>
-            <Button variant="outline" className="w-full justify-start" disabled data-testid="button-recent-projects">
-              <Calendar className="h-4 w-4 mr-2" />
-              최근 프로젝트 보기 (준비중)
-            </Button>
-          </div>
-        </div>
       </main>
     </div>
   );

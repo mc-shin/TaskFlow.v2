@@ -43,6 +43,9 @@ export function SignupPage() {
       // TODO: 실제 회원가입 API 연동
       console.log("Signup attempt:", data);
       
+      // 사용자 이름을 localStorage에 저장
+      localStorage.setItem("userName", data.name);
+      
       // 임시로 로그인 페이지로 이동
       setLocation("/login");
     } catch (error) {
