@@ -72,6 +72,7 @@ export default function TaskDetail() {
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
       setIsEditing(false);
       setEditedTask({});
       toast({
@@ -534,9 +535,9 @@ export default function TaskDetail() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="진행전">진행전</SelectItem>
-                        <SelectItem value="진행중">진행중</SelectItem>
-                        <SelectItem value="완료">완료</SelectItem>
+                        <SelectItem value="진행전" disabled>진행전</SelectItem>
+                        <SelectItem value="진행중" disabled>진행중</SelectItem>
+                        <SelectItem value="완료" disabled>완료</SelectItem>
                         <SelectItem value="이슈">이슈</SelectItem>
                       </SelectContent>
                     </Select>
