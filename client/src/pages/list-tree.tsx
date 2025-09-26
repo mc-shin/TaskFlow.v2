@@ -93,9 +93,9 @@ export default function ListTree() {
     goalTitle: '' 
   });
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
-  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteUsername, setInviteUsername] = useState('');
   const [inviteRole, setInviteRole] = useState('팀원');
-  const [emailError, setEmailError] = useState('');
+  const [usernameError, setUsernameError] = useState('');
   const [deletedMemberIds, setDeletedMemberIds] = useState<Set<string>>(new Set());
 
   // Inline editing state
@@ -2234,19 +2234,19 @@ export default function ListTree() {
           </DialogHeader>
           
           <div className="space-y-6">
-            {/* Email Input */}
+            {/* Username Input */}
             <div className="space-y-2">
               <div className="flex gap-2">
                 <Input
-                  type="email"
-                  placeholder="kmeod@rido.io"
-                  value={inviteEmail}
+                  type="text"
+                  placeholder="hyejin, chamin 등"
+                  value={inviteUsername}
                   onChange={(e) => {
-                    setInviteEmail(e.target.value);
-                    if (emailError) setEmailError('');
+                    setInviteUsername(e.target.value);
+                    if (usernameError) setUsernameError('');
                   }}
-                  className={`flex-1 bg-slate-700 border-slate-600 text-white placeholder:text-slate-400 ${emailError ? 'border-red-500' : ''}`}
-                  data-testid="input-invite-email"
+                  className={`flex-1 bg-slate-700 border-slate-600 text-white placeholder:text-slate-400 ${usernameError ? 'border-red-500' : ''}`}
+                  data-testid="input-invite-username"
                 />
                 <Select value={inviteRole} onValueChange={setInviteRole}>
                   <SelectTrigger className="w-32 bg-slate-700 border-slate-600 text-white" data-testid="select-invite-role">
@@ -2260,19 +2260,18 @@ export default function ListTree() {
                 <Button 
                   className="bg-blue-600 hover:bg-blue-700 text-white px-6"
                   onClick={async () => {
-                    // Email validation
-                    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-                    if (!emailRegex.test(inviteEmail)) {
-                      setEmailError('올바른 이메일을 입력해 주세요.');
+                    // Username validation
+                    if (!inviteUsername.trim()) {
+                      setUsernameError('사용자명을 입력해 주세요.');
                       return;
                     }
                     
                     try {
                       // 사용자 존재 여부 확인
-                      const response = await fetch(`/api/users/by-email/${encodeURIComponent(inviteEmail)}`);
+                      const response = await fetch(`/api/users/by-username/${encodeURIComponent(inviteUsername)}`);
                       
                       if (response.status === 404) {
-                        setEmailError('존재하지 않는 이메일입니다.');
+                        setUsernameError('존재하지 않는 사용자명입니다.');
                         return;
                       }
                       
@@ -2282,12 +2281,31 @@ export default function ListTree() {
                       
                       const user = await response.json();
                       
+                      // 현재 로그인된 사용자의 username 가져오기
+                      const usersResponse = await fetch('/api/users');
+                      const allUsers = await usersResponse.json();
+                      
+                      // localStorage의 userEmail을 기반으로 실제 사용자 매핑
+                      const userEmail = localStorage.getItem('userEmail') || '';
+                      const email = userEmail.toLowerCase();
+                      let currentUser;
+                      if (email.includes('hyejin') || email === '1@qubicom.co.kr') {
+                        currentUser = allUsers.find((u: any) => u.username === 'hyejin');
+                      } else if (email.includes('hyejung') || email === '2@qubicom.co.kr') {
+                        currentUser = allUsers.find((u: any) => u.username === 'hyejung');
+                      } else if (email.includes('chamin') || email === '3@qubicom.co.kr') {
+                        currentUser = allUsers.find((u: any) => u.username === 'chamin');
+                      } else {
+                        // 기본적으로 첫 번째 사용자 사용
+                        currentUser = allUsers[0];
+                      }
+                      
                       // 초대 정보를 localStorage에 저장 (실제 구현에서는 서버 API 사용)
                       const invitations = JSON.parse(localStorage.getItem('invitations') || '[]');
                       const newInvitation = {
                         id: Date.now().toString(),
-                        inviterEmail: localStorage.getItem('userEmail') || 'unknown',
-                        inviteeEmail: inviteEmail,
+                        inviterUsername: currentUser.username,
+                        inviteeUsername: inviteUsername,
                         inviteeName: user.name,
                         role: inviteRole,
                         status: 'pending',
@@ -2298,32 +2316,32 @@ export default function ListTree() {
                       localStorage.setItem('invitations', JSON.stringify(invitations));
                       
                       // 상대방에게 알림을 보내기 위해 받은 초대 목록에도 추가
-                      const receivedInvitations = JSON.parse(localStorage.getItem(`receivedInvitations_${inviteEmail}`) || '[]');
+                      const receivedInvitations = JSON.parse(localStorage.getItem(`receivedInvitations_${inviteUsername}`) || '[]');
                       receivedInvitations.push(newInvitation);
-                      localStorage.setItem(`receivedInvitations_${inviteEmail}`, JSON.stringify(receivedInvitations));
+                      localStorage.setItem(`receivedInvitations_${inviteUsername}`, JSON.stringify(receivedInvitations));
                       
                       toast({
                         title: "초대 완료",
-                        description: `${user.name}님(${inviteEmail})에게 ${inviteRole} 권한으로 초대를 보냈습니다.`,
+                        description: `${user.name}님(${inviteUsername})에게 ${inviteRole} 권한으로 초대를 보냈습니다.`,
                       });
                       
-                      setInviteEmail('');
+                      setInviteUsername('');
                       setInviteRole('팀원');
-                      setEmailError('');
+                      setUsernameError('');
                       
                     } catch (error) {
                       console.error('초대 실패:', error);
-                      setEmailError('초대 발송 중 오류가 발생했습니다.');
+                      setUsernameError('초대 발송 중 오류가 발생했습니다.');
                     }
                   }}
-                  disabled={!inviteEmail.trim()}
+                  disabled={!inviteUsername.trim()}
                   data-testid="button-send-invite"
                 >
                   초대하기
                 </Button>
               </div>
-              {emailError && (
-                <p className="text-red-400 text-sm mt-1" data-testid="text-email-error">{emailError}</p>
+              {usernameError && (
+                <p className="text-red-400 text-sm mt-1" data-testid="text-username-error">{usernameError}</p>
               )}
             </div>
 

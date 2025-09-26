@@ -286,10 +286,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // 이메일로 사용자 조회
-  app.get("/api/users/by-email/:email", async (req, res) => {
+  // username으로 사용자 조회 (초대 시스템용)
+  app.get("/api/users/by-username/:username", async (req, res) => {
     try {
-      const user = await storage.getUserByUsername(req.params.email);
+      const user = await storage.getUserByUsername(req.params.username);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
@@ -297,7 +297,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { password, ...safeUser } = user;
       res.json(safeUser);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch user by email" });
+      res.status(500).json({ message: "Failed to fetch user by username" });
     }
   });
 

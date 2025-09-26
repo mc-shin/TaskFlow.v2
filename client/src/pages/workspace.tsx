@@ -47,18 +47,47 @@ export function WorkspacePage() {
       setUserName(storedUserName);
     }
 
-    // 로그인한 사용자에게 온 초대 확인
-    const userEmail = localStorage.getItem("userEmail");
-    if (userEmail) {
-      const receivedInvitations = JSON.parse(localStorage.getItem(`receivedInvitations_${userEmail}`) || '[]');
-      const pendingInvitations = receivedInvitations.filter((inv: any) => inv.status === 'pending');
-      setInvitations(pendingInvitations);
-      
-      // 초대가 있다면 다이얼로그 자동 열기
-      if (pendingInvitations.length > 0) {
-        setIsInviteDialogOpen(true);
+    // 현재 로그인된 사용자의 이메일을 가져와서 실제 username 찾기
+    const checkInvitations = async () => {
+      const userEmail = localStorage.getItem("userEmail");
+      if (!userEmail) return;
+
+      try {
+        // 현재 로그인된 사용자의 실제 정보 가져오기
+        const response = await fetch('/api/users');
+        const users = await response.json();
+        
+        // userEmail을 기반으로 실제 사용자 매핑 (간단한 매핑 로직)
+        let currentUser;
+        const email = userEmail.toLowerCase();
+        if (email.includes('hyejin') || email === '1@qubicom.co.kr') {
+          currentUser = users.find((u: any) => u.username === 'hyejin');
+        } else if (email.includes('hyejung') || email === '2@qubicom.co.kr') {
+          currentUser = users.find((u: any) => u.username === 'hyejung');
+        } else if (email.includes('chamin') || email === '3@qubicom.co.kr') {
+          currentUser = users.find((u: any) => u.username === 'chamin');
+        } else {
+          // 기본적으로 첫 번째 사용자 사용
+          currentUser = users[0];
+        }
+        
+        if (currentUser) {
+          const currentUsername = currentUser.username;
+          const receivedInvitations = JSON.parse(localStorage.getItem(`receivedInvitations_${currentUsername}`) || '[]');
+          const pendingInvitations = receivedInvitations.filter((inv: any) => inv.status === 'pending');
+          setInvitations(pendingInvitations);
+          
+          // 초대가 있다면 다이얼로그 자동 열기
+          if (pendingInvitations.length > 0) {
+            setIsInviteDialogOpen(true);
+          }
+        }
+      } catch (error) {
+        console.error('초대 확인 중 오류:', error);
       }
-    }
+    };
+
+    checkInvitations();
   }, []);
 
   const form = useForm<WorkspaceForm>({
@@ -106,28 +135,54 @@ export function WorkspacePage() {
     setLocation("/");
   };
 
-  const handleInviteResponse = (invitationId: string, action: 'accept' | 'decline') => {
+  const handleInviteResponse = async (invitationId: string, action: 'accept' | 'decline') => {
     const userEmail = localStorage.getItem("userEmail");
     if (!userEmail) return;
 
-    // 받은 초대 목록 업데이트
-    const receivedInvitations = JSON.parse(localStorage.getItem(`receivedInvitations_${userEmail}`) || '[]');
-    const updatedInvitations = receivedInvitations.map((inv: any) => 
-      inv.id === invitationId ? { ...inv, status: action === 'accept' ? 'accepted' : 'declined' } : inv
-    );
-    localStorage.setItem(`receivedInvitations_${userEmail}`, JSON.stringify(updatedInvitations));
+    try {
+      // 현재 로그인된 사용자의 실제 username 가져오기
+      const response = await fetch('/api/users');
+      const users = await response.json();
+      
+      // userEmail을 기반으로 실제 사용자 매핑
+      let currentUser;
+      const email = userEmail.toLowerCase();
+      if (email.includes('hyejin') || email === '1@qubicom.co.kr') {
+        currentUser = users.find((u: any) => u.username === 'hyejin');
+      } else if (email.includes('hyejung') || email === '2@qubicom.co.kr') {
+        currentUser = users.find((u: any) => u.username === 'hyejung');
+      } else if (email.includes('chamin') || email === '3@qubicom.co.kr') {
+        currentUser = users.find((u: any) => u.username === 'chamin');
+      } else {
+        // 기본적으로 첫 번째 사용자 사용
+        currentUser = users[0];
+      }
+      
+      if (!currentUser) return;
+      
+      const currentUsername = currentUser.username;
 
-    // 로컬 상태 업데이트
-    setInvitations(prev => prev.filter(inv => inv.id !== invitationId));
+      // 받은 초대 목록 업데이트
+      const receivedInvitations = JSON.parse(localStorage.getItem(`receivedInvitations_${currentUsername}`) || '[]');
+      const updatedInvitations = receivedInvitations.map((inv: any) => 
+        inv.id === invitationId ? { ...inv, status: action === 'accept' ? 'accepted' : 'declined' } : inv
+      );
+      localStorage.setItem(`receivedInvitations_${currentUsername}`, JSON.stringify(updatedInvitations));
 
-    toast({
-      title: action === 'accept' ? "초대 수락" : "초대 거절",
-      description: action === 'accept' ? "워크스페이스에 참여했습니다." : "초대를 거절했습니다.",
-    });
+      // 로컬 상태 업데이트
+      setInvitations(prev => prev.filter(inv => inv.id !== invitationId));
 
-    // 모든 초대를 처리했다면 다이얼로그 닫기
-    if (invitations.length <= 1) {
-      setIsInviteDialogOpen(false);
+      toast({
+        title: action === 'accept' ? "초대 수락" : "초대 거절",
+        description: action === 'accept' ? "워크스페이스에 참여했습니다." : "초대를 거절했습니다.",
+      });
+
+      // 모든 초대를 처리했다면 다이얼로그 닫기
+      if (invitations.length <= 1) {
+        setIsInviteDialogOpen(false);
+      }
+    } catch (error) {
+      console.error('초대 응답 처리 중 오류:', error);
     }
   };
 
@@ -314,7 +369,7 @@ export function WorkspacePage() {
               <Card key={invitation.id} className="p-4">
                 <div className="space-y-3">
                   <div>
-                    <p className="font-medium">{invitation.inviterEmail}님의 초대</p>
+                    <p className="font-medium">{invitation.inviterUsername}님의 초대</p>
                     <p className="text-sm text-muted-foreground">
                       {invitation.role} 권한으로 워크스페이스에 초대했습니다.
                     </p>
