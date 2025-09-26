@@ -35,6 +35,10 @@ export function LoginPage() {
       // TODO: 실제 로그인 API 연동
       console.log("Login attempt:", data);
       
+      // 로그인 상태를 localStorage에 저장
+      localStorage.setItem("isLoggedIn", "true");
+      localStorage.setItem("userEmail", data.email);
+      
       // 임시로 워크스페이스 관리 페이지로 이동
       setLocation("/workspace");
     } catch (error) {

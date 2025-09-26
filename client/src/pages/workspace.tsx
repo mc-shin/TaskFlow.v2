@@ -9,7 +9,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { CheckSquare, Plus, Settings, Users, Calendar, LogOut } from "lucide-react";
+import { CheckSquare, Plus, Settings, Users, Calendar, LogOut, Mail, Check, X } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 const workspaceSchema = z.object({
   name: z.string().min(1, "워크스페이스 이름을 입력해주세요"),
@@ -35,12 +36,28 @@ export function WorkspacePage() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [userName, setUserName] = useState("사용자");
+  const [invitations, setInvitations] = useState<any[]>([]);
+  const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     // localStorage에서 사용자 이름 가져오기
     const storedUserName = localStorage.getItem("userName");
     if (storedUserName) {
       setUserName(storedUserName);
+    }
+
+    // 로그인한 사용자에게 온 초대 확인
+    const userEmail = localStorage.getItem("userEmail");
+    if (userEmail) {
+      const receivedInvitations = JSON.parse(localStorage.getItem(`receivedInvitations_${userEmail}`) || '[]');
+      const pendingInvitations = receivedInvitations.filter((inv: any) => inv.status === 'pending');
+      setInvitations(pendingInvitations);
+      
+      // 초대가 있다면 다이얼로그 자동 열기
+      if (pendingInvitations.length > 0) {
+        setIsInviteDialogOpen(true);
+      }
     }
   }, []);
 
@@ -80,8 +97,38 @@ export function WorkspacePage() {
   };
 
   const handleLogout = () => {
-    // TODO: 실제 로그아웃 처리
+    // 로그아웃 시 localStorage 클리어
+    localStorage.removeItem("isLoggedIn");
+    localStorage.removeItem("userEmail");
+    localStorage.removeItem("userName");
+    
+    // 랜딩 페이지로 이동
     setLocation("/");
+  };
+
+  const handleInviteResponse = (invitationId: string, action: 'accept' | 'decline') => {
+    const userEmail = localStorage.getItem("userEmail");
+    if (!userEmail) return;
+
+    // 받은 초대 목록 업데이트
+    const receivedInvitations = JSON.parse(localStorage.getItem(`receivedInvitations_${userEmail}`) || '[]');
+    const updatedInvitations = receivedInvitations.map((inv: any) => 
+      inv.id === invitationId ? { ...inv, status: action === 'accept' ? 'accepted' : 'declined' } : inv
+    );
+    localStorage.setItem(`receivedInvitations_${userEmail}`, JSON.stringify(updatedInvitations));
+
+    // 로컬 상태 업데이트
+    setInvitations(prev => prev.filter(inv => inv.id !== invitationId));
+
+    toast({
+      title: action === 'accept' ? "초대 수락" : "초대 거절",
+      description: action === 'accept' ? "워크스페이스에 참여했습니다." : "초대를 거절했습니다.",
+    });
+
+    // 모든 초대를 처리했다면 다이얼로그 닫기
+    if (invitations.length <= 1) {
+      setIsInviteDialogOpen(false);
+    }
   };
 
   return (
@@ -248,6 +295,64 @@ export function WorkspacePage() {
         </div>
 
       </main>
+
+      {/* 초대 알림 다이얼로그 */}
+      <Dialog open={isInviteDialogOpen} onOpenChange={setIsInviteDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Mail className="h-5 w-5" />
+              워크스페이스 초대
+            </DialogTitle>
+            <DialogDescription>
+              새로운 워크스페이스 초대가 도착했습니다.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            {invitations.map((invitation) => (
+              <Card key={invitation.id} className="p-4">
+                <div className="space-y-3">
+                  <div>
+                    <p className="font-medium">{invitation.inviterEmail}님의 초대</p>
+                    <p className="text-sm text-muted-foreground">
+                      {invitation.role} 권한으로 워크스페이스에 초대했습니다.
+                    </p>
+                  </div>
+                  
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      onClick={() => handleInviteResponse(invitation.id, 'accept')}
+                      className="flex-1"
+                      data-testid={`button-accept-invite-${invitation.id}`}
+                    >
+                      <Check className="h-4 w-4 mr-2" />
+                      수락
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleInviteResponse(invitation.id, 'decline')}
+                      className="flex-1"
+                      data-testid={`button-decline-invite-${invitation.id}`}
+                    >
+                      <X className="h-4 w-4 mr-2" />
+                      거절
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+          
+          {invitations.length === 0 && (
+            <div className="text-center py-4">
+              <p className="text-muted-foreground">처리할 초대가 없습니다.</p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

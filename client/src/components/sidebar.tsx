@@ -5,7 +5,7 @@ import { Link, useLocation } from "wouter";
 
 export function Sidebar() {
   const [expandedSections, setExpandedSections] = useState<string[]>(['dashboard', 'work-management', 'meeting']);
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
 
   const toggleSection = (section: string) => {
     setExpandedSections(prev => 
@@ -21,14 +21,24 @@ export function Sidebar() {
     <div className="w-64 bg-card border-r border-border flex flex-col" data-testid="sidebar">
       {/* Logo/Header */}
       <div className="p-4 border-b border-border">
-        <Link href="/">
-          <div className="flex items-center space-x-2 cursor-pointer hover:opacity-80 transition-opacity" data-testid="link-home-logo">
-            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-              <CheckSquare className="h-4 w-4 text-primary-foreground" />
-            </div>
-            <span className="font-semibold text-lg" data-testid="text-logo">하이더</span>
+        <div 
+          className="flex items-center space-x-2 cursor-pointer hover:opacity-80 transition-opacity" 
+          data-testid="link-home-logo"
+          onClick={() => {
+            // 로그인 상태 확인 후 적절한 페이지로 이동
+            const isLoggedIn = localStorage.getItem("isLoggedIn") === "true";
+            if (isLoggedIn) {
+              setLocation("/workspace");
+            } else {
+              setLocation("/");
+            }
+          }}
+        >
+          <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+            <CheckSquare className="h-4 w-4 text-primary-foreground" />
           </div>
-        </Link>
+          <span className="font-semibold text-lg" data-testid="text-logo">하이더</span>
+        </div>
       </div>
       
       {/* Navigation */}

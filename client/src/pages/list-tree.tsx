@@ -2259,7 +2259,7 @@ export default function ListTree() {
                 </Select>
                 <Button 
                   className="bg-blue-600 hover:bg-blue-700 text-white px-6"
-                  onClick={() => {
+                  onClick={async () => {
                     // Email validation
                     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
                     if (!emailRegex.test(inviteEmail)) {
@@ -2267,14 +2267,54 @@ export default function ListTree() {
                       return;
                     }
                     
-                    // Handle invite logic here
-                    toast({
-                      title: "초대 완료",
-                      description: `${inviteEmail}로 ${inviteRole} 권한으로 초대를 보냈습니다.`,
-                    });
-                    setInviteEmail('');
-                    setInviteRole('팀원');
-                    setEmailError('');
+                    try {
+                      // 사용자 존재 여부 확인
+                      const response = await fetch(`/api/users/by-email/${encodeURIComponent(inviteEmail)}`);
+                      
+                      if (response.status === 404) {
+                        setEmailError('존재하지 않는 이메일입니다.');
+                        return;
+                      }
+                      
+                      if (!response.ok) {
+                        throw new Error('사용자 조회 실패');
+                      }
+                      
+                      const user = await response.json();
+                      
+                      // 초대 정보를 localStorage에 저장 (실제 구현에서는 서버 API 사용)
+                      const invitations = JSON.parse(localStorage.getItem('invitations') || '[]');
+                      const newInvitation = {
+                        id: Date.now().toString(),
+                        inviterEmail: localStorage.getItem('userEmail') || 'unknown',
+                        inviteeEmail: inviteEmail,
+                        inviteeName: user.name,
+                        role: inviteRole,
+                        status: 'pending',
+                        createdAt: new Date().toISOString()
+                      };
+                      
+                      invitations.push(newInvitation);
+                      localStorage.setItem('invitations', JSON.stringify(invitations));
+                      
+                      // 상대방에게 알림을 보내기 위해 받은 초대 목록에도 추가
+                      const receivedInvitations = JSON.parse(localStorage.getItem(`receivedInvitations_${inviteEmail}`) || '[]');
+                      receivedInvitations.push(newInvitation);
+                      localStorage.setItem(`receivedInvitations_${inviteEmail}`, JSON.stringify(receivedInvitations));
+                      
+                      toast({
+                        title: "초대 완료",
+                        description: `${user.name}님(${inviteEmail})에게 ${inviteRole} 권한으로 초대를 보냈습니다.`,
+                      });
+                      
+                      setInviteEmail('');
+                      setInviteRole('팀원');
+                      setEmailError('');
+                      
+                    } catch (error) {
+                      console.error('초대 실패:', error);
+                      setEmailError('초대 발송 중 오류가 발생했습니다.');
+                    }
                   }}
                   disabled={!inviteEmail.trim()}
                   data-testid="button-send-invite"
