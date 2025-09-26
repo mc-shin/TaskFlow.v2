@@ -31,9 +31,51 @@ export default function Priority() {
     }
   };
 
+  // 아카이브된 항목 필터링 (리스트 페이지와 동일한 로직)
+  const archivedItems = (() => {
+    try {
+      const stored = localStorage.getItem('archivedItems');
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  })();
+
+  // 아카이브된 ID들을 빠른 조회를 위해 Set으로 변환
+  const archivedIds = new Set<string>();
+  archivedItems.forEach((item: any) => {
+    if (typeof item === 'string') {
+      archivedIds.add(item);
+    } else if (item && typeof item === 'object') {
+      if (item.id) {
+        archivedIds.add(item.id);
+      } else if (item.data && item.data.id) {
+        archivedIds.add(item.data.id);
+      }
+    }
+  });
+
+  // 아카이브되지 않은 프로젝트들만 필터링
+  const activeProjects = (projects as ProjectWithDetails[])?.filter(project => {
+    return !archivedIds.has(project.id);
+  }).map(project => {
+    const activeGoals = project.goals?.filter(goal => {
+      const isGoalArchived = archivedIds.has(goal.id);
+      return !isGoalArchived;
+    }).map(goal => ({
+      ...goal,
+      tasks: goal.tasks?.filter(task => !archivedIds.has(task.id)) || []
+    }));
+    
+    return {
+      ...project,
+      goals: activeGoals || []
+    };
+  }) || [];
+
   // 우선순위별로 작업을 그룹화
   const groupTasksByPriority = () => {
-    if (!projects) return { "1": [], "2": [], "3": [], "4": [] };
+    if (!activeProjects) return { "1": [], "2": [], "3": [], "4": [] };
     
     const tasksByPriority: { [key: string]: any[] } = { "1": [], "2": [], "3": [], "4": [] };
     
@@ -48,7 +90,7 @@ export default function Priority() {
       }
     };
     
-    (projects as ProjectWithDetails[]).forEach(project => {
+    activeProjects.forEach(project => {
       project.goals?.forEach(goal => {
         goal.tasks?.forEach(task => {
           const rawPriority = task.priority || "4";

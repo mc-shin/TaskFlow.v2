@@ -54,6 +54,35 @@ export default function Admin() {
     return `${diffInDays}일 전`;
   };
 
+  // 아카이브된 항목 필터링 (리스트 페이지와 동일한 로직)
+  const archivedItems = (() => {
+    try {
+      const stored = localStorage.getItem('archivedItems');
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  })();
+
+  // 아카이브된 ID들을 빠른 조회를 위해 Set으로 변환
+  const archivedIds = new Set<string>();
+  archivedItems.forEach((item: any) => {
+    if (typeof item === 'string') {
+      archivedIds.add(item);
+    } else if (item && typeof item === 'object') {
+      if (item.id) {
+        archivedIds.add(item.id);
+      } else if (item.data && item.data.id) {
+        archivedIds.add(item.data.id);
+      }
+    }
+  });
+
+  // 아카이브되지 않은 프로젝트들만 필터링
+  const activeProjects = (projects as ProjectWithOwner[])?.filter(project => {
+    return !archivedIds.has(project.id);
+  }) || [];
+
   return (
     <>
         {/* Header */}
@@ -94,7 +123,7 @@ export default function Admin() {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {(projects as ProjectWithOwner[])?.map((project: ProjectWithOwner) => (
+                  {activeProjects?.map((project: ProjectWithOwner) => (
                     <Card 
                       key={project.id} 
                       className="relative hover:shadow-lg transition-shadow duration-200"
