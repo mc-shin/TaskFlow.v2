@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import { format, parse, differenceInDays } from "date-fns";
 import type { ProjectWithDetails } from "@shared/schema";
 
@@ -187,37 +188,41 @@ export default function Priority() {
                     {tasksByPriority[section.priority]?.map((task) => (
                       <div 
                         key={task.id} 
-                        className="flex items-center justify-between bg-slate-700 p-2 rounded text-white text-sm"
+                        className="flex items-center gap-3 bg-slate-700 p-3 rounded text-white text-sm"
                         data-testid={`task-${task.id}`}
                       >
-                        <div className="flex items-center gap-2 flex-1">
-                          {/* D-day */}
-                          <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
-                            formatDDay(task.deadline)?.includes('D+') ? 'bg-red-500' : 
-                            formatDDay(task.deadline) === 'D-day' ? 'bg-red-600' :
-                            'bg-blue-500'
-                          }`}>
-                            {formatDDay(task.deadline) || '미정'}
+                        {/* D-day */}
+                        <Badge 
+                          variant={
+                            formatDDay(task.deadline)?.includes('D+') ? 'destructive' : 
+                            formatDDay(task.deadline) === 'D-day' ? 'destructive' :
+                            'default'
+                          }
+                          className="text-xs min-w-[3rem] justify-center"
+                        >
+                          {formatDDay(task.deadline) || '미정'}
+                        </Badge>
+                        
+                        {/* 작업 이름 */}
+                        <span className="font-medium truncate flex-1">
+                          {task.title}
+                        </span>
+                        
+                        {/* 진행도 */}
+                        <div className="flex items-center gap-2 min-w-[80px]">
+                          <Progress value={task.progress || 0} className="flex-1 h-2" />
+                          <span className="text-xs text-slate-300 min-w-[2rem] text-right">
+                            {task.progress || 0}%
                           </span>
-                          
-                          {/* 작업 이름 */}
-                          <span className="font-medium truncate flex-1">
-                            {task.title}
-                          </span>
-                          
-                          {/* 진행도 (숫자만) */}
-                          <span className="text-xs text-slate-300 min-w-[2rem] text-center">
-                            {task.progress || 0}
-                          </span>
-                          
-                          {/* 상태 */}
-                          <Badge 
-                            variant={getStatusBadgeVariant(task.status)}
-                            className="text-xs px-1.5 py-0.5"
-                          >
-                            {task.status}
-                          </Badge>
                         </div>
+                        
+                        {/* 상태 */}
+                        <Badge 
+                          variant={getStatusBadgeVariant(task.status)}
+                          className="text-xs min-w-[3rem] justify-center"
+                        >
+                          {task.status}
+                        </Badge>
                       </div>
                     )) || (
                       <div className="text-slate-400 text-sm text-center py-8">
