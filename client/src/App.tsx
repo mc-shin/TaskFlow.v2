@@ -27,7 +27,7 @@ function Router() {
       <Sidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Switch>
-          <Route path="/" component={Dashboard} />
+          <Route path="/" component={Team} />
           <Route path="/admin" component={Admin} />
           <Route path="/team" component={Team} />
           <Route path="/my-tasks" component={MyTasks} />
