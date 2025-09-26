@@ -2239,7 +2239,7 @@ export default function ListTree() {
               <div className="flex gap-2">
                 <Input
                   type="email"
-                  placeholder="hyejin@qubicom.co.kr, chamin@qubicom.co.kr 등"
+                  placeholder="example@company.com"
                   value={inviteUsername}
                   onChange={(e) => {
                     setInviteUsername(e.target.value);
@@ -2265,23 +2265,27 @@ export default function ListTree() {
                       setUsernameError('이메일을 입력해 주세요.');
                       return;
                     }
+
+                    // Email format validation
+                    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                    if (!emailRegex.test(inviteUsername)) {
+                      setUsernameError('올바른 이메일 형식을 입력해 주세요.');
+                      return;
+                    }
                     
                     try {
-                      // 사용자 존재 여부 확인
-                      const response = await fetch(`/api/users/by-email/${encodeURIComponent(inviteUsername)}`);
-                      
-                      if (response.status === 404) {
-                        setUsernameError('존재하지 않는 이메일입니다.');
-                        return;
+                      // 기존 사용자인지 확인 (선택 사항)
+                      let existingUser = null;
+                      try {
+                        const response = await fetch(`/api/users/by-email/${encodeURIComponent(inviteUsername)}`);
+                        if (response.ok) {
+                          existingUser = await response.json();
+                        }
+                      } catch (error) {
+                        // 사용자가 존재하지 않아도 괜찮음
                       }
                       
-                      if (!response.ok) {
-                        throw new Error('사용자 조회 실패');
-                      }
-                      
-                      const user = await response.json();
-                      
-                      // 현재 로그인된 사용자의 username 가져오기
+                      // 현재 로그인된 사용자의 정보 가져오기
                       const usersResponse = await fetch('/api/users');
                       const allUsers = await usersResponse.json();
                       
@@ -2300,14 +2304,14 @@ export default function ListTree() {
                         currentUser = allUsers[0];
                       }
                       
-                      // 초대 정보를 localStorage에 저장 (실제 구현에서는 서버 API 사용)
+                      // 초대 정보를 localStorage에 저장
                       const invitations = JSON.parse(localStorage.getItem('invitations') || '[]');
                       const newInvitation = {
                         id: Date.now().toString(),
                         inviterEmail: currentUser.email,
                         inviterName: currentUser.name,
                         inviteeEmail: inviteUsername,
-                        inviteeName: user.name,
+                        inviteeName: existingUser ? existingUser.name : inviteUsername, // 신규 사용자는 이메일 표시
                         role: inviteRole,
                         status: 'pending',
                         createdAt: new Date().toISOString()
@@ -2316,14 +2320,24 @@ export default function ListTree() {
                       invitations.push(newInvitation);
                       localStorage.setItem('invitations', JSON.stringify(invitations));
                       
-                      // 상대방에게 알림을 보내기 위해 받은 초대 목록에도 추가
-                      const receivedInvitations = JSON.parse(localStorage.getItem(`receivedInvitations_${inviteUsername}`) || '[]');
-                      receivedInvitations.push(newInvitation);
-                      localStorage.setItem(`receivedInvitations_${inviteUsername}`, JSON.stringify(receivedInvitations));
+                      // 전역 초대 목록에 저장 (신규가입자도 확인할 수 있도록)
+                      const globalInvitations = JSON.parse(localStorage.getItem('pendingInvitations') || '[]');
+                      globalInvitations.push(newInvitation);
+                      localStorage.setItem('pendingInvitations', JSON.stringify(globalInvitations));
+                      
+                      // 기존 사용자의 경우 개별 받은 초대 목록에도 추가
+                      if (existingUser) {
+                        const receivedInvitations = JSON.parse(localStorage.getItem(`receivedInvitations_${inviteUsername}`) || '[]');
+                        receivedInvitations.push(newInvitation);
+                        localStorage.setItem(`receivedInvitations_${inviteUsername}`, JSON.stringify(receivedInvitations));
+                      }
+                      
+                      const inviteeName = existingUser ? existingUser.name : inviteUsername;
+                      const userStatus = existingUser ? "기존 사용자" : "신규 가입 예정자";
                       
                       toast({
                         title: "초대 완료",
-                        description: `${user.name}님(${inviteUsername})에게 ${inviteRole} 권한으로 초대를 보냈습니다.`,
+                        description: `${inviteeName}(${userStatus})에게 ${inviteRole} 권한으로 초대를 보냈습니다.`,
                       });
                       
                       setInviteUsername('');

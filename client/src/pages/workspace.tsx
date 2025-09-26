@@ -66,21 +66,40 @@ export function WorkspacePage() {
           currentUser = users.find((u: any) => u.username === 'hyejung');
         } else if (email.includes('chamin') || email === '3@qubicom.co.kr') {
           currentUser = users.find((u: any) => u.username === 'chamin');
-        } else {
-          // 기본적으로 첫 번째 사용자 사용
-          currentUser = users[0];
         }
+        // 신규가입자의 경우 currentUser는 undefined로 남겨둠
+        
+        let pendingInvitations: any[] = [];
         
         if (currentUser) {
+          // 기존 사용자의 경우 개별 받은 초대 목록 확인
           const currentEmail = currentUser.email;
           const receivedInvitations = JSON.parse(localStorage.getItem(`receivedInvitations_${currentEmail}`) || '[]');
-          const pendingInvitations = receivedInvitations.filter((inv: any) => inv.status === 'pending');
-          setInvitations(pendingInvitations);
+          pendingInvitations = receivedInvitations.filter((inv: any) => inv.status === 'pending');
+        } else {
+          // 신규가입자의 경우 전역 초대 목록에서 자신의 이메일로 된 초대 확인
+          const globalInvitations = JSON.parse(localStorage.getItem('pendingInvitations') || '[]');
+          pendingInvitations = globalInvitations.filter((inv: any) => 
+            inv.inviteeEmail === userEmail && inv.status === 'pending'
+          );
           
-          // 초대가 있다면 다이얼로그 자동 열기
+          // 신규가입자의 초대를 개별 받은 초대 목록으로 이동
           if (pendingInvitations.length > 0) {
-            setIsInviteDialogOpen(true);
+            localStorage.setItem(`receivedInvitations_${userEmail}`, JSON.stringify(pendingInvitations));
+            
+            // 전역 목록에서 해당 초대들 제거
+            const remainingGlobalInvitations = globalInvitations.filter((inv: any) => 
+              !(inv.inviteeEmail === userEmail && inv.status === 'pending')
+            );
+            localStorage.setItem('pendingInvitations', JSON.stringify(remainingGlobalInvitations));
           }
+        }
+        
+        setInvitations(pendingInvitations);
+        
+        // 초대가 있다면 다이얼로그 자동 열기
+        if (pendingInvitations.length > 0) {
+          setIsInviteDialogOpen(true);
         }
       } catch (error) {
         console.error('초대 확인 중 오류:', error);
@@ -153,14 +172,11 @@ export function WorkspacePage() {
         currentUser = users.find((u: any) => u.username === 'hyejung');
       } else if (email.includes('chamin') || email === '3@qubicom.co.kr') {
         currentUser = users.find((u: any) => u.username === 'chamin');
-      } else {
-        // 기본적으로 첫 번째 사용자 사용
-        currentUser = users[0];
       }
+      // 신규가입자의 경우 currentUser는 undefined로 남겨둠
       
-      if (!currentUser) return;
-      
-      const currentEmail = currentUser.email;
+      // 기존 사용자는 해당 이메일, 신규가입자는 로그인한 이메일 사용
+      const currentEmail = currentUser ? currentUser.email : userEmail;
 
       // 받은 초대 목록 업데이트
       const receivedInvitations = JSON.parse(localStorage.getItem(`receivedInvitations_${currentEmail}`) || '[]');
