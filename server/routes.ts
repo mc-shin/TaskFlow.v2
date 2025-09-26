@@ -316,10 +316,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const stats = {
         total: allTasks.length,
         completed: allTasks.filter(t => t.status === "완료").length,
-        실행대기: allTasks.filter(t => t.status === "실행대기").length,
-        이슈함: allTasks.filter(t => t.status === "이슈함").length,
-        사업팀: allTasks.filter(t => t.status === "사업팀").length,
-        인력팀: allTasks.filter(t => t.status === "인력팀").length,
+        진행전: allTasks.filter(t => t.status === "진행전").length,
+        진행중: allTasks.filter(t => t.status === "진행중").length,
+        완료: allTasks.filter(t => t.status === "완료").length,
+        이슈: allTasks.filter(t => t.status === "이슈").length,
       };
       res.json(stats);
     } catch (error) {

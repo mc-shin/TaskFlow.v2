@@ -22,10 +22,10 @@ export function StatusCards() {
   }
 
   const statusConfig = [
-    { key: "실행대기", label: "실행함", color: "green", bgColor: "bg-green-500" },
-    { key: "이슈함", label: "이슈함", color: "blue", bgColor: "bg-blue-500" },
-    { key: "사업팀", label: "사업팀", color: "yellow", bgColor: "bg-yellow-500" },
-    { key: "인력팀", label: "인력팀", color: "purple", bgColor: "bg-purple-500" },
+    { key: "진행전", label: "진행전", color: "gray", bgColor: "bg-gray-500" },
+    { key: "진행중", label: "진행중", color: "blue", bgColor: "bg-blue-500" },
+    { key: "완료", label: "완료", color: "green", bgColor: "bg-green-500" },
+    { key: "이슈", label: "이슈", color: "red", bgColor: "bg-red-500" },
   ];
 
   return (
