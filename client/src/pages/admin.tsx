@@ -230,11 +230,11 @@ export default function Admin() {
                             {projectTasks.slice(0, 5).map((task: any) => {
                               const getTaskStatusColor = (status: string) => {
                                 switch (status) {
-                                  case '완료': return 'bg-green-500';
-                                  case '진행중': return 'bg-yellow-500';
-                                  case '진행전': return 'bg-slate-500';
-                                  case '이슈': return 'bg-red-500';
-                                  default: return 'bg-slate-500';
+                                  case '진행전': return 'bg-gray-500'; // secondary
+                                  case '진행중': return 'bg-blue-500'; // default/primary
+                                  case '완료': return 'bg-green-500'; // success
+                                  case '이슈': return 'bg-orange-500'; // issue
+                                  default: return 'bg-gray-500';
                                 }
                               };
                               
