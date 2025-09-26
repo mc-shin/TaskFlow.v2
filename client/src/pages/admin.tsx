@@ -185,21 +185,23 @@ export default function Admin() {
                                   cx="50"
                                   cy="50"
                                   r="40"
-                                  stroke="hsl(215, 28%, 17%)"
+                                  stroke={projectProgress === 0 ? "hsl(210, 40%, 25%)" : "hsl(215, 28%, 17%)"}
                                   strokeWidth="6"
                                   fill="transparent"
                                 />
-                                <circle
-                                  cx="50"
-                                  cy="50"
-                                  r="40"
-                                  stroke="hsl(217, 91%, 60%)"
-                                  strokeWidth="6"
-                                  fill="transparent"
-                                  strokeDasharray={`${2 * Math.PI * 40}`}
-                                  strokeDashoffset={`${2 * Math.PI * 40 * (1 - Math.max(projectProgress, 3) / 100)}`}
-                                  strokeLinecap="round"
-                                />
+                                {projectProgress > 0 && (
+                                  <circle
+                                    cx="50"
+                                    cy="50"
+                                    r="40"
+                                    stroke="hsl(217, 91%, 60%)"
+                                    strokeWidth="6"
+                                    fill="transparent"
+                                    strokeDasharray={`${2 * Math.PI * 40}`}
+                                    strokeDashoffset={`${2 * Math.PI * 40 * (1 - projectProgress / 100)}`}
+                                    strokeLinecap="round"
+                                  />
+                                )}
                               </svg>
                               <div className="absolute inset-0 flex items-center justify-center">
                                 <div className="text-center">
