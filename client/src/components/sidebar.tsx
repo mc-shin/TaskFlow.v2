@@ -125,16 +125,6 @@ export function Sidebar() {
                   <span>우선순위</span>
                 </Button>
               </Link>
-              <Link href="/backlog">
-                <Button 
-                  variant={location === "/backlog" ? "default" : "ghost"} 
-                  className="w-full justify-start space-x-3 text-muted-foreground hover:text-accent-foreground h-8"
-                  data-testid="link-backlog"
-                >
-                  <Archive className="h-4 w-4" />
-                  <span>백로그</span>
-                </Button>
-              </Link>
             </div>
           )}
         </div>
