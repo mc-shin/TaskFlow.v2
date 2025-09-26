@@ -2299,8 +2299,6 @@ export default function ListTree() {
                         currentUser = allUsers.find((u: any) => u.username === 'hyejung');
                       } else if (email.includes('chamin') || email === '3@qubicom.co.kr') {
                         currentUser = allUsers.find((u: any) => u.username === 'chamin');
-                      } else if (email.includes('admin') || email === 'admin@qubicom.co.kr') {
-                        currentUser = allUsers.find((u: any) => u.username === 'admin');
                       } else {
                         // 기본적으로 첫 번째 사용자 사용
                         currentUser = allUsers[0];

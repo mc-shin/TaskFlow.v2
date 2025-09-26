@@ -149,7 +149,6 @@ export class MemStorage implements IStorage {
       { username: "hyejin", email: "hyejin@qubicom.co.kr", password: "password", name: "전혜진", initials: "전", lastLoginAt: null },
       { username: "hyejung", email: "hyejung@qubicom.co.kr", password: "password", name: "전혜중", initials: "전", lastLoginAt: null },
       { username: "chamin", email: "chamin@qubicom.co.kr", password: "password", name: "차민", initials: "차", lastLoginAt: null },
-      { username: "admin", email: "admin@qubicom.co.kr", password: "password", name: "테스트", initials: "테", lastLoginAt: null },
     ];
 
     for (const user of defaultUsers) {
