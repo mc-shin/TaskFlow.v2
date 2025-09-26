@@ -11,7 +11,7 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={Landing} />
-      <Route path="/app/*" nest>
+      <Route path="/app/*">
         <AppShell />
       </Route>
       <Route component={NotFound} />

@@ -815,7 +815,7 @@ export default function ListTree() {
           
           // Navigate to graph view after successful progress update
           setTimeout(() => {
-            setLocation('/');
+            setLocation('/app/team');
           }, 1500);
           
         } catch (error) {
@@ -841,7 +841,7 @@ export default function ListTree() {
         onSuccess: () => {
           if (editingField.field === 'progress') {
             setTimeout(() => {
-              setLocation('/');
+              setLocation('/app/team');
             }, 1500);
           }
         }
@@ -851,7 +851,7 @@ export default function ListTree() {
         onSuccess: () => {
           if (editingField.field === 'progress') {
             setTimeout(() => {
-              setLocation('/');
+              setLocation('/app/team');
             }, 1500);
           }
         }
@@ -861,7 +861,7 @@ export default function ListTree() {
         onSuccess: () => {
           if (editingField.field === 'progress') {
             setTimeout(() => {
-              setLocation('/');
+              setLocation('/app/team');
             }, 1500);
           }
         }
@@ -1897,7 +1897,7 @@ export default function ListTree() {
                         <FolderOpen className="w-4 h-4 text-blue-600" />
                         <button 
                           className="font-medium hover:text-blue-600 cursor-pointer transition-colors text-left" 
-                          onClick={() => setLocation(`/detail/project/${project.id}?from=list`)}
+                          onClick={() => setLocation(`/app/detail/project/${project.id}?from=list`)}
                           data-testid={`text-project-name-${project.id}`}
                         >
                           {project.name}
@@ -1984,7 +1984,7 @@ export default function ListTree() {
                                 <Target className="w-4 h-4 text-green-600" />
                                 <button 
                                   className="font-medium hover:text-green-600 cursor-pointer transition-colors text-left" 
-                                  onClick={() => setLocation(`/detail/goal/${goal.id}?from=list`)}
+                                  onClick={() => setLocation(`/app/detail/goal/${goal.id}?from=list`)}
                                   data-testid={`text-goal-name-${goal.id}`}
                                 >
                                   {goal.title}
@@ -2039,7 +2039,7 @@ export default function ListTree() {
                                       <Circle className="w-4 h-4 text-orange-600" />
                                       <button 
                                         className="font-medium hover:text-orange-600 cursor-pointer transition-colors text-left" 
-                                        onClick={() => setLocation(`/detail/task/${task.id}?from=list`)}
+                                        onClick={() => setLocation(`/app/detail/task/${task.id}?from=list`)}
                                         data-testid={`text-task-name-${task.id}`}
                                       >
                                         {task.title}

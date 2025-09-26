@@ -108,7 +108,7 @@ export default function NewMeeting() {
       // 미팅 목록 새로고침
       queryClient.invalidateQueries({ queryKey: ['/api/meetings'] });
       // 미팅 페이지로 이동
-      setLocation('/meeting');
+      setLocation('/app/meeting');
     },
     onError: (error) => {
       console.error('미팅 생성 오류:', error);
@@ -187,7 +187,7 @@ export default function NewMeeting() {
             <Button 
               variant="ghost" 
               size="sm"
-              onClick={() => setLocation('/meeting')}
+              onClick={() => setLocation('/app/meeting')}
               data-testid="button-back"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
@@ -493,7 +493,7 @@ export default function NewMeeting() {
                   <Button 
                     type="button" 
                     variant="outline" 
-                    onClick={() => setLocation('/meeting')}
+                    onClick={() => setLocation('/app/meeting')}
                     data-testid="button-cancel"
                   >
                     취소

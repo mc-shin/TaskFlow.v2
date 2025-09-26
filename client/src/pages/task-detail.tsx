@@ -21,7 +21,7 @@ import { Comments } from "@/components/comments";
 import { mapPriorityToLabel, getPriorityBadgeVariant } from "@/lib/priority-utils";
 
 export default function TaskDetail() {
-  const [, params] = useRoute("/detail/task/:id");
+  const [, params] = useRoute("/app/detail/task/:id");
   const [, setLocation] = useLocation();
   
   // Helper function to get back URL based on where user came from

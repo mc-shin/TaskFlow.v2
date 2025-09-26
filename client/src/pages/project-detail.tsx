@@ -21,7 +21,7 @@ import { GoalModal } from "@/components/goal-modal";
 import { Comments } from "@/components/comments";
 
 export default function ProjectDetail() {
-  const [, params] = useRoute("/detail/project/:id");
+  const [, params] = useRoute("/app/detail/project/:id");
   const [, setLocation] = useLocation();
   
   // Helper function to get back URL based on where user came from

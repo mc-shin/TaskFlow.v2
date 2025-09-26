@@ -367,11 +367,11 @@ export default function ListHorizontal() {
   const handleDetailView = (item: FlattenedItem) => {
     // Navigate to appropriate detail page based on item type
     if (item.type === 'project') {
-      setLocation(`/detail/project/${item.id}?from=list`);
+      setLocation(`/app/detail/project/${item.id}?from=list`);
     } else if (item.type === 'goal') {
-      setLocation(`/detail/goal/${item.id}?from=list`);
+      setLocation(`/app/detail/goal/${item.id}?from=list`);
     } else if (item.type === 'task') {
-      setLocation(`/detail/task/${item.id}?from=list`);
+      setLocation(`/app/detail/task/${item.id}?from=list`);
     }
   };
 
@@ -383,7 +383,7 @@ export default function ListHorizontal() {
   const handleStatusChange = (taskId: string, status: string) => {
     // "이슈" 상태는 작업 상세 페이지에서만 수정 가능
     if (status === "이슈") {
-      setLocation(`/detail/task/${taskId}?from=list`);
+      setLocation(`/app/detail/task/${taskId}?from=list`);
       return;
     }
     updateTaskMutation.mutate({ taskId, data: { status } });

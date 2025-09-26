@@ -21,7 +21,7 @@ import { TaskModal } from "@/components/task-modal";
 import { Comments } from "@/components/comments";
 
 export default function GoalDetail() {
-  const [, params] = useRoute("/detail/goal/:id");
+  const [, params] = useRoute("/app/detail/goal/:id");
   const [, setLocation] = useLocation();
   
   // Helper function to get back URL based on where user came from
