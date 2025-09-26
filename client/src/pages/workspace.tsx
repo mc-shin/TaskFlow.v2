@@ -285,8 +285,8 @@ export function WorkspacePage() {
                         username: userEmail.split('@')[0], // 이메일의 앞부분을 username으로 사용
                         email: userEmail,
                         password: generateRandomPassword(), // 강력한 임의 비밀번호
-                        name: userEmail.split('@')[0], // 이메일의 앞부분을 이름으로 사용
-                        initials: userEmail.charAt(0).toUpperCase(), // 첫 글자를 이니셜로 사용
+                        name: localStorage.getItem("userName") || userEmail.split('@')[0], // 가입시 입력한 이름 우선 사용
+                        initials: (localStorage.getItem("userName") || userEmail).charAt(0).toUpperCase(), // 이름의 첫 글자를 이니셜로 사용
                       })
                     });
                     

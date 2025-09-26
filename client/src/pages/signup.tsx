@@ -65,7 +65,7 @@ export function SignupPage() {
             </div>
           </div>
           <div>
-            <CardTitle className="text-2xl">하이더 회원가입</CardTitle>
+            <CardTitle className="text-2xl">프로젝트 관리 시스템</CardTitle>
             <CardDescription>
               새 계정을 생성해주세요
             </CardDescription>

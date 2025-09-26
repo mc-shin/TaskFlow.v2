@@ -58,7 +58,7 @@ export function LoginPage() {
             </div>
           </div>
           <div>
-            <CardTitle className="text-2xl">하이더에 로그인</CardTitle>
+            <CardTitle className="text-2xl">프로젝트 관리 시스템</CardTitle>
             <CardDescription>
               계정 정보를 입력해주세요
             </CardDescription>
