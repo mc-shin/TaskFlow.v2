@@ -16,7 +16,7 @@ export default function Landing() {
             </div>
             <h1 className="text-xl font-bold">TaskFlow</h1>
           </div>
-          <Link href="/app/team">
+          <Link href="/login">
             <Button className="bg-primary hover:bg-primary/90" data-testid="button-enter-app">
               앱 시작하기
             </Button>
@@ -39,13 +39,13 @@ export default function Landing() {
             직관적인 인터페이스와 강력한 기능으로 생산성을 극대화하세요.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="/app/team">
+            <Link href="/login">
               <Button size="lg" className="bg-primary hover:bg-primary/90" data-testid="button-start-now">
                 <Zap className="w-4 h-4 mr-2" />
                 지금 시작하기
               </Button>
             </Link>
-            <Link href="/app/kanban">
+            <Link href="/login">
               <Button size="lg" variant="outline" data-testid="button-view-kanban">
                 <Kanban className="w-4 h-4 mr-2" />
                 칸반 보드 보기
@@ -161,13 +161,13 @@ export default function Landing() {
             TaskFlow와 함께 더 효율적인 프로젝트 관리를 경험해보세요.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="/app/team">
+            <Link href="/login">
               <Button size="lg" className="bg-primary hover:bg-primary/90" data-testid="button-get-started">
                 <CheckCircle className="w-4 h-4 mr-2" />
                 시작하기
               </Button>
             </Link>
-            <Link href="/app/list">
+            <Link href="/login">
               <Button size="lg" variant="outline" data-testid="button-view-tasks">
                 작업 목록 보기
               </Button>

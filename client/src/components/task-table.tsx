@@ -19,7 +19,7 @@ export function TaskTable({ onEditTask }: TaskTableProps) {
   const [, setLocation] = useLocation();
 
   const handleViewMore = () => {
-    setLocation("/app/my-tasks");
+    setLocation("/workspace/app/my-tasks");
   };
 
   const { data: tasks, isLoading } = useQuery({

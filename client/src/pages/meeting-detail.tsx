@@ -218,7 +218,7 @@ export default function MeetingDetail() {
         description: "미팅이 성공적으로 삭제되었습니다."
       });
       queryClient.invalidateQueries({ queryKey: ['/api/meetings'] });
-      setLocation('/app/meeting');
+      setLocation('/workspace/app/meeting');
     },
     onError: (error) => {
       console.error('Meeting delete error:', error);
@@ -288,7 +288,7 @@ export default function MeetingDetail() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setLocation('/app/meeting')}
+                onClick={() => setLocation('/workspace/app/meeting')}
                 data-testid="button-back"
               >
                 <ArrowLeft className="w-4 h-4 mr-2" />
@@ -317,7 +317,7 @@ export default function MeetingDetail() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setLocation('/app/meeting')}
+                onClick={() => setLocation('/workspace/app/meeting')}
                 data-testid="button-back"
               >
                 <ArrowLeft className="w-4 h-4 mr-2" />
@@ -348,7 +348,7 @@ export default function MeetingDetail() {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => setLocation('/app/meeting')}
+              onClick={() => setLocation('/workspace/app/meeting')}
               data-testid="button-back"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />

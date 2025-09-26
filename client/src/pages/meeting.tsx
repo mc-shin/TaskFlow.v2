@@ -354,7 +354,7 @@ export default function Meeting() {
                   key={meeting.id} 
                   className="p-3 hover:bg-accent cursor-pointer transition-colors min-w-48 flex-shrink-0"
                   data-testid={`card-today-meeting-${meeting.id}`}
-                  onClick={() => setLocation(`/app/meeting/${meeting.id}`)}
+                  onClick={() => setLocation(`/workspace/app/meeting/${meeting.id}`)}
                 >
                   <div className="flex items-center justify-between mb-2">
                     <h3 className="font-medium text-sm truncate" data-testid={`text-meeting-title-${meeting.id}`}>
@@ -495,7 +495,7 @@ export default function Meeting() {
                               data-testid={`meeting-block-${meeting.id}`}
                               title={`${meeting.title} - ${meeting.location || '위치 미정'} (${meetingStart.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })} - ${meetingEnd ? meetingEnd.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) : '종료시간 미정'})`}
                               onClick={() => {
-                                setLocation(`/app/meeting/${meeting.id}`);
+                                setLocation(`/workspace/app/meeting/${meeting.id}`);
                               }}
                             >
                               <div className="truncate leading-tight">{meeting.title}</div>

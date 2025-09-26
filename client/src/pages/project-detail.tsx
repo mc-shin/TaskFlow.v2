@@ -21,14 +21,14 @@ import { GoalModal } from "@/components/goal-modal";
 import { Comments } from "@/components/comments";
 
 export default function ProjectDetail() {
-  const [, params] = useRoute("/app/detail/project/:id");
+  const [, params] = useRoute("/workspace/app/detail/project/:id");
   const [, setLocation] = useLocation();
   
   // Helper function to get back URL based on where user came from
   const getBackUrl = () => {
     const urlParams = new URLSearchParams(window.location.search);
     const from = urlParams.get('from');
-    return from === 'kanban' ? '/app/kanban' : '/app/list';
+    return from === 'kanban' ? '/workspace/app/kanban' : '/workspace/app/list';
   };
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -133,7 +133,7 @@ export default function ProjectDetail() {
         title: "프로젝트 삭제 완료",
         description: "프로젝트가 성공적으로 삭제되었습니다.",
       });
-      setLocation("/app/list");
+      setLocation("/workspace/app/list");
     },
     onError: () => {
       toast({
@@ -158,11 +158,11 @@ export default function ProjectDetail() {
   };
 
   const handleGoalClick = (goalId: string) => {
-    setLocation(`/app/detail/goal/${goalId}`);
+    setLocation(`/workspace/app/detail/goal/${goalId}`);
   };
 
   const handleTaskClick = (taskId: string) => {
-    setLocation(`/app/detail/task/${taskId}`);
+    setLocation(`/workspace/app/detail/task/${taskId}`);
   };
 
   const calculateDDay = (deadline: string | null): string => {

@@ -21,14 +21,14 @@ import { TaskModal } from "@/components/task-modal";
 import { Comments } from "@/components/comments";
 
 export default function GoalDetail() {
-  const [, params] = useRoute("/app/detail/goal/:id");
+  const [, params] = useRoute("/workspace/app/detail/goal/:id");
   const [, setLocation] = useLocation();
   
   // Helper function to get back URL based on where user came from
   const getBackUrl = () => {
     const urlParams = new URLSearchParams(window.location.search);
     const from = urlParams.get('from');
-    return from === 'kanban' ? '/app/kanban' : '/app/list';
+    return from === 'kanban' ? '/workspace/app/kanban' : '/workspace/app/list';
   };
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -109,7 +109,7 @@ export default function GoalDetail() {
         title: "목표 삭제 완료",
         description: "목표가 성공적으로 삭제되었습니다.",
       });
-      setLocation("/app/list");
+      setLocation("/workspace/app/list");
     },
     onError: (error: any) => {
       const errorMsg = error?.message || "목표 삭제 중 오류가 발생했습니다.";
@@ -135,12 +135,12 @@ export default function GoalDetail() {
   };
 
   const handleTaskClick = (taskId: string) => {
-    setLocation(`/app/detail/task/${taskId}`);
+    setLocation(`/workspace/app/detail/task/${taskId}`);
   };
 
   const handleProjectClick = () => {
     if (parentProject) {
-      setLocation(`/app/detail/project/${parentProject.id}`);
+      setLocation(`/workspace/app/detail/project/${parentProject.id}`);
     }
   };
 

@@ -21,14 +21,14 @@ import { Comments } from "@/components/comments";
 import { mapPriorityToLabel, getPriorityBadgeVariant } from "@/lib/priority-utils";
 
 export default function TaskDetail() {
-  const [, params] = useRoute("/app/detail/task/:id");
+  const [, params] = useRoute("/workspace/app/detail/task/:id");
   const [, setLocation] = useLocation();
   
   // Helper function to get back URL based on where user came from
   const getBackUrl = () => {
     const urlParams = new URLSearchParams(window.location.search);
     const from = urlParams.get('from');
-    return from === 'kanban' ? '/app/kanban' : '/app/list';
+    return from === 'kanban' ? '/workspace/app/kanban' : '/workspace/app/list';
   };
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -112,7 +112,7 @@ export default function TaskDetail() {
         title: "작업 삭제 완료",
         description: "작업이 성공적으로 삭제되었습니다.",
       });
-      setLocation("/app/list");
+      setLocation("/workspace/app/list");
     },
     onError: () => {
       toast({
@@ -138,13 +138,13 @@ export default function TaskDetail() {
 
   const handleProjectClick = () => {
     if (parentProject) {
-      setLocation(`/app/detail/project/${parentProject.id}`);
+      setLocation(`/workspace/app/detail/project/${parentProject.id}`);
     }
   };
 
   const handleGoalClick = () => {
     if (parentGoal) {
-      setLocation(`/app/detail/goal/${parentGoal.id}`);
+      setLocation(`/workspace/app/detail/goal/${parentGoal.id}`);
     }
   };
 

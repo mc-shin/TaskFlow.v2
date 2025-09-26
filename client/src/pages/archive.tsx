@@ -492,7 +492,7 @@ export default function Archive() {
       
       // Navigate to list page after restoration
       setTimeout(() => {
-        setLocation('/app/list');
+        setLocation('/workspace/app/list');
       }, 1000);
 
     } catch (error) {
@@ -537,7 +537,7 @@ export default function Archive() {
           <Button 
             variant="ghost"
             size="sm"
-            onClick={() => setLocation('/app/list')}
+            onClick={() => setLocation('/workspace/app/list')}
             data-testid="button-back-to-list"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
