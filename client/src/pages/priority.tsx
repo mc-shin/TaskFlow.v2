@@ -125,23 +125,23 @@ export default function Priority() {
     {
       priority: "2",
       title: "3. 낮음",
-      bgColor: "bg-secondary",
-      textColor: "text-secondary-foreground"
+      bgColor: "bg-slate-600",
+      textColor: "text-white"
     },
     {
       priority: "4",
       title: "4. 미정", 
-      bgColor: "bg-muted",
-      textColor: "text-muted-foreground"
+      bgColor: "bg-slate-500",
+      textColor: "text-white"
     }
   ];
 
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {
-      case "완료": return "secondary";
+      case "진행전": return "secondary";
       case "진행중": return "default";
-      case "진행전": return "outline";
-      case "이슈": return "destructive";
+      case "완료": return "success"; // 완료 상태에 전용 success variant 사용
+      case "이슈": return "issue";
       default: return "outline";
     }
   };
