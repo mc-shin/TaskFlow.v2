@@ -43,7 +43,7 @@ export function TaskModal({ isOpen, onClose, editingTask, goalId, goalTitle }: T
       title: "",
       description: "",
       status: "진행전",
-      priority: "중간",
+      priority: "4",
       deadline: "",
       duration: 0,
       progress: 0,
@@ -59,7 +59,7 @@ export function TaskModal({ isOpen, onClose, editingTask, goalId, goalTitle }: T
         title: editingTask.title,
         description: editingTask.description || "",
         status: editingTask.status,
-        priority: editingTask.priority || "중간",
+        priority: editingTask.priority || "4",
         deadline: editingTask.deadline || "",
         duration: editingTask.duration || 0,
         progress: editingTask.progress || 0,
@@ -70,7 +70,7 @@ export function TaskModal({ isOpen, onClose, editingTask, goalId, goalTitle }: T
         title: "",
         description: "",
         status: "진행전",
-        priority: "중간",
+        priority: "4",
         deadline: "",
         duration: 0,
         progress: 0,
@@ -305,16 +305,17 @@ export function TaskModal({ isOpen, onClose, editingTask, goalId, goalTitle }: T
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>우선순위</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value || "중간"}>
+                    <Select onValueChange={field.onChange} value={field.value || "4"}>
                       <FormControl>
                         <SelectTrigger data-testid="select-task-priority">
                           <SelectValue placeholder="우선순위를 선택하세요" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="높음">높음</SelectItem>
-                        <SelectItem value="중간">중간</SelectItem>
-                        <SelectItem value="낮음">낮음</SelectItem>
+                        <SelectItem value="1">높음</SelectItem>
+                        <SelectItem value="3">중요</SelectItem>
+                        <SelectItem value="2">낮음</SelectItem>
+                        <SelectItem value="4">미정</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />

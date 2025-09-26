@@ -7,6 +7,7 @@ import type { ProjectWithDetails } from "@shared/schema";
 export default function Priority() {
   const { data: projects, isLoading } = useQuery({
     queryKey: ["/api/projects"],
+    refetchInterval: 3000, // 실시간 업데이트를 위해 3초마다 자동 갱신
   });
 
   // D-day 계산 함수
@@ -36,10 +37,22 @@ export default function Priority() {
     
     const tasksByPriority: { [key: string]: any[] } = { "1": [], "2": [], "3": [], "4": [] };
     
+    // 레거시 한국어 라벨을 숫자로 변환하는 함수
+    const mapLegacyToNumeric = (priority: string) => {
+      switch (priority) {
+        case "높음": return "1";
+        case "중간": return "3";
+        case "낮음": return "2";
+        case "중요": return "3";
+        default: return priority; // 이미 숫자이거나 기타 값
+      }
+    };
+    
     (projects as ProjectWithDetails[]).forEach(project => {
       project.goals?.forEach(goal => {
         goal.tasks?.forEach(task => {
-          const priority = task.priority || "4"; // 기본값은 4 (미정)
+          const rawPriority = task.priority || "4";
+          const priority = mapLegacyToNumeric(rawPriority); // 기본값은 4 (미정)
           if (tasksByPriority[priority]) {
             tasksByPriority[priority].push(task);
           }
@@ -103,7 +116,7 @@ export default function Priority() {
         </div>
       </header>
       
-      <main className="flex-1 p-6 overflow-auto" data-testid="main-content">
+      <main className="flex-1 overflow-auto" data-testid="main-content" style={{ padding: '1.5rem' }}>
         {isLoading ? (
           <div className="grid grid-cols-2 gap-6 h-full">
             {[...Array(4)].map((_, i) => (
