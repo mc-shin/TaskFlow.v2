@@ -40,6 +40,7 @@ export function WorkspacePage() {
   const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
   const [isAdminUser, setIsAdminUser] = useState(false);
   const [isNewUser, setIsNewUser] = useState(false);
+  const [isUserInfoLoaded, setIsUserInfoLoaded] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -74,7 +75,9 @@ export function WorkspacePage() {
         }
         
         // 신규가입자인지 확인 (백엔드에 등록되지 않은 사용자)
-        if (!currentUser) {
+        // 단, 이전에 초대를 수락한 경우는 신규 사용자가 아님
+        const hasAcceptedInvitation = localStorage.getItem(`hasAcceptedInvitation_${userEmail}`) === 'true';
+        if (!currentUser && !hasAcceptedInvitation) {
           setIsNewUser(true);
         }
         
@@ -84,20 +87,23 @@ export function WorkspacePage() {
           // 사용자 이름 저장 및 설정
           setUserName(currentUser.name);
           localStorage.setItem("userName", currentUser.name);
-          
-          // 기존 사용자의 경우 개별 받은 초대 목록 확인 (userEmail 기준)
-          const receivedInvitations = JSON.parse(localStorage.getItem(`receivedInvitations_${userEmail}`) || '[]');
-          pendingInvitations = receivedInvitations.filter((inv: any) => inv.status === 'pending');
-        } else {
-          // 신규가입자의 경우 전역 초대 목록에서 자신의 이메일로 된 초대 확인
+        }
+        
+        // 모든 사용자(기존/신규)에 대해 개별 받은 초대 목록 먼저 확인
+        const receivedInvitations = JSON.parse(localStorage.getItem(`receivedInvitations_${userEmail}`) || '[]');
+        pendingInvitations = receivedInvitations.filter((inv: any) => inv.status === 'pending');
+        
+        // 신규 사용자이고 개별 초대 목록이 비어있다면 전역 목록에서 확인
+        if (!currentUser && pendingInvitations.length === 0) {
           const globalInvitations = JSON.parse(localStorage.getItem('pendingInvitations') || '[]');
-          pendingInvitations = globalInvitations.filter((inv: any) => 
+          const globalPending = globalInvitations.filter((inv: any) => 
             inv.inviteeEmail === userEmail && inv.status === 'pending'
           );
           
-          // 신규가입자의 초대를 개별 받은 초대 목록으로 이동
-          if (pendingInvitations.length > 0) {
-            localStorage.setItem(`receivedInvitations_${userEmail}`, JSON.stringify(pendingInvitations));
+          // 전역에서 찾은 초대가 있다면 개별 목록으로 이동
+          if (globalPending.length > 0) {
+            localStorage.setItem(`receivedInvitations_${userEmail}`, JSON.stringify(globalPending));
+            pendingInvitations = globalPending;
             
             // 전역 목록에서 해당 초대들 제거
             const remainingGlobalInvitations = globalInvitations.filter((inv: any) => 
@@ -113,8 +119,13 @@ export function WorkspacePage() {
         if (pendingInvitations.length > 0) {
           setIsInviteDialogOpen(true);
         }
+        
+        // 사용자 정보 로딩 완료
+        setIsUserInfoLoaded(true);
       } catch (error) {
         console.error('초대 확인 중 오류:', error);
+        // 오류가 발생해도 로딩 완료로 표시
+        setIsUserInfoLoaded(true);
       }
     };
 
@@ -251,9 +262,44 @@ export function WorkspacePage() {
                   if (userResponse.ok) {
                     const userData = await userResponse.json();
                     inviteeUserId = userData.id;
+                  } else if (userResponse.status === 404) {
+                    // 신규 사용자이므로 백엔드에 생성
+                    console.log('신규 사용자 생성 중...');
+                    
+                    // 강력한 임의 비밀번호 생성 (초대 기반 계정이므로 사용자가 나중에 변경)
+                    const generateRandomPassword = () => {
+                      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
+                      let result = '';
+                      for (let i = 0; i < 16; i++) {
+                        result += chars.charAt(Math.floor(Math.random() * chars.length));
+                      }
+                      return result;
+                    };
+                    
+                    const createUserResponse = await fetch('/api/users', {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                      },
+                      body: JSON.stringify({
+                        username: userEmail.split('@')[0], // 이메일의 앞부분을 username으로 사용
+                        email: userEmail,
+                        password: generateRandomPassword(), // 강력한 임의 비밀번호
+                        name: userEmail.split('@')[0], // 이메일의 앞부분을 이름으로 사용
+                        initials: userEmail.charAt(0).toUpperCase(), // 첫 글자를 이니셜로 사용
+                      })
+                    });
+                    
+                    if (createUserResponse.ok) {
+                      const newUser = await createUserResponse.json();
+                      inviteeUserId = newUser.id;
+                      console.log('신규 사용자 생성 완료:', newUser);
+                    } else {
+                      console.error('신규 사용자 생성 실패');
+                    }
                   }
                 } catch (error) {
-                  console.log('신규 사용자 - 사용자 ID를 찾을 수 없음');
+                  console.error('사용자 조회/생성 중 오류:', error);
                 }
               }
               
@@ -306,6 +352,8 @@ export function WorkspacePage() {
           }
         }
         
+        // 초대 수락 기록 저장 (새로고침 후에도 유지)
+        localStorage.setItem(`hasAcceptedInvitation_${userEmail}`, 'true');
         setIsNewUser(false);
       }
 
@@ -352,7 +400,7 @@ export function WorkspacePage() {
 
         {/* Workspace Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-          {mockWorkspaces
+          {isUserInfoLoaded && mockWorkspaces
             .filter(workspace => {
               // 신규 사용자는 워크스페이스 숨김 (새 워크스페이스 추가만 표시)
               if (isNewUser) {
