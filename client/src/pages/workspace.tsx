@@ -72,8 +72,8 @@ export function WorkspacePage() {
         }
         
         if (currentUser) {
-          const currentUsername = currentUser.username;
-          const receivedInvitations = JSON.parse(localStorage.getItem(`receivedInvitations_${currentUsername}`) || '[]');
+          const currentEmail = currentUser.email;
+          const receivedInvitations = JSON.parse(localStorage.getItem(`receivedInvitations_${currentEmail}`) || '[]');
           const pendingInvitations = receivedInvitations.filter((inv: any) => inv.status === 'pending');
           setInvitations(pendingInvitations);
           
@@ -160,14 +160,14 @@ export function WorkspacePage() {
       
       if (!currentUser) return;
       
-      const currentUsername = currentUser.username;
+      const currentEmail = currentUser.email;
 
       // 받은 초대 목록 업데이트
-      const receivedInvitations = JSON.parse(localStorage.getItem(`receivedInvitations_${currentUsername}`) || '[]');
+      const receivedInvitations = JSON.parse(localStorage.getItem(`receivedInvitations_${currentEmail}`) || '[]');
       const updatedInvitations = receivedInvitations.map((inv: any) => 
         inv.id === invitationId ? { ...inv, status: action === 'accept' ? 'accepted' : 'declined' } : inv
       );
-      localStorage.setItem(`receivedInvitations_${currentUsername}`, JSON.stringify(updatedInvitations));
+      localStorage.setItem(`receivedInvitations_${currentEmail}`, JSON.stringify(updatedInvitations));
 
       // 로컬 상태 업데이트
       setInvitations(prev => prev.filter(inv => inv.id !== invitationId));

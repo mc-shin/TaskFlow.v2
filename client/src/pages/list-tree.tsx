@@ -2234,19 +2234,19 @@ export default function ListTree() {
           </DialogHeader>
           
           <div className="space-y-6">
-            {/* Username Input */}
+            {/* Email Input */}
             <div className="space-y-2">
               <div className="flex gap-2">
                 <Input
-                  type="text"
-                  placeholder="hyejin, chamin 등"
+                  type="email"
+                  placeholder="hyejin@qubicom.co.kr, chamin@qubicom.co.kr 등"
                   value={inviteUsername}
                   onChange={(e) => {
                     setInviteUsername(e.target.value);
                     if (usernameError) setUsernameError('');
                   }}
                   className={`flex-1 bg-slate-700 border-slate-600 text-white placeholder:text-slate-400 ${usernameError ? 'border-red-500' : ''}`}
-                  data-testid="input-invite-username"
+                  data-testid="input-invite-email"
                 />
                 <Select value={inviteRole} onValueChange={setInviteRole}>
                   <SelectTrigger className="w-32 bg-slate-700 border-slate-600 text-white" data-testid="select-invite-role">
@@ -2260,18 +2260,18 @@ export default function ListTree() {
                 <Button 
                   className="bg-blue-600 hover:bg-blue-700 text-white px-6"
                   onClick={async () => {
-                    // Username validation
+                    // Email validation
                     if (!inviteUsername.trim()) {
-                      setUsernameError('사용자명을 입력해 주세요.');
+                      setUsernameError('이메일을 입력해 주세요.');
                       return;
                     }
                     
                     try {
                       // 사용자 존재 여부 확인
-                      const response = await fetch(`/api/users/by-username/${encodeURIComponent(inviteUsername)}`);
+                      const response = await fetch(`/api/users/by-email/${encodeURIComponent(inviteUsername)}`);
                       
                       if (response.status === 404) {
-                        setUsernameError('존재하지 않는 사용자명입니다.');
+                        setUsernameError('존재하지 않는 이메일입니다.');
                         return;
                       }
                       
@@ -2304,8 +2304,9 @@ export default function ListTree() {
                       const invitations = JSON.parse(localStorage.getItem('invitations') || '[]');
                       const newInvitation = {
                         id: Date.now().toString(),
-                        inviterUsername: currentUser.username,
-                        inviteeUsername: inviteUsername,
+                        inviterEmail: currentUser.email,
+                        inviterName: currentUser.name,
+                        inviteeEmail: inviteUsername,
                         inviteeName: user.name,
                         role: inviteRole,
                         status: 'pending',
