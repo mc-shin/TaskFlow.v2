@@ -28,7 +28,7 @@ export default function ProjectDetail() {
   const getBackUrl = () => {
     const urlParams = new URLSearchParams(window.location.search);
     const from = urlParams.get('from');
-    return from === 'kanban' ? '/kanban' : '/list';
+    return from === 'kanban' ? '/app/kanban' : '/app/list';
   };
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -133,7 +133,7 @@ export default function ProjectDetail() {
         title: "프로젝트 삭제 완료",
         description: "프로젝트가 성공적으로 삭제되었습니다.",
       });
-      setLocation("/list");
+      setLocation("/app/list");
     },
     onError: () => {
       toast({
@@ -158,11 +158,11 @@ export default function ProjectDetail() {
   };
 
   const handleGoalClick = (goalId: string) => {
-    setLocation(`/detail/goal/${goalId}`);
+    setLocation(`/app/detail/goal/${goalId}`);
   };
 
   const handleTaskClick = (taskId: string) => {
-    setLocation(`/detail/task/${taskId}`);
+    setLocation(`/app/detail/task/${taskId}`);
   };
 
   const calculateDDay = (deadline: string | null): string => {

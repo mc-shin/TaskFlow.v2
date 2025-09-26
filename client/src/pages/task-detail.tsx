@@ -28,7 +28,7 @@ export default function TaskDetail() {
   const getBackUrl = () => {
     const urlParams = new URLSearchParams(window.location.search);
     const from = urlParams.get('from');
-    return from === 'kanban' ? '/kanban' : '/list';
+    return from === 'kanban' ? '/app/kanban' : '/app/list';
   };
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -112,7 +112,7 @@ export default function TaskDetail() {
         title: "작업 삭제 완료",
         description: "작업이 성공적으로 삭제되었습니다.",
       });
-      setLocation("/list");
+      setLocation("/app/list");
     },
     onError: () => {
       toast({
@@ -138,13 +138,13 @@ export default function TaskDetail() {
 
   const handleProjectClick = () => {
     if (parentProject) {
-      setLocation(`/detail/project/${parentProject.id}`);
+      setLocation(`/app/detail/project/${parentProject.id}`);
     }
   };
 
   const handleGoalClick = () => {
     if (parentGoal) {
-      setLocation(`/detail/goal/${parentGoal.id}`);
+      setLocation(`/app/detail/goal/${parentGoal.id}`);
     }
   };
 

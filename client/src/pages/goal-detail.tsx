@@ -28,7 +28,7 @@ export default function GoalDetail() {
   const getBackUrl = () => {
     const urlParams = new URLSearchParams(window.location.search);
     const from = urlParams.get('from');
-    return from === 'kanban' ? '/kanban' : '/list';
+    return from === 'kanban' ? '/app/kanban' : '/app/list';
   };
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -109,7 +109,7 @@ export default function GoalDetail() {
         title: "목표 삭제 완료",
         description: "목표가 성공적으로 삭제되었습니다.",
       });
-      setLocation("/list");
+      setLocation("/app/list");
     },
     onError: (error: any) => {
       const errorMsg = error?.message || "목표 삭제 중 오류가 발생했습니다.";
@@ -135,12 +135,12 @@ export default function GoalDetail() {
   };
 
   const handleTaskClick = (taskId: string) => {
-    setLocation(`/detail/task/${taskId}`);
+    setLocation(`/app/detail/task/${taskId}`);
   };
 
   const handleProjectClick = () => {
     if (parentProject) {
-      setLocation(`/detail/project/${parentProject.id}`);
+      setLocation(`/app/detail/project/${parentProject.id}`);
     }
   };
 

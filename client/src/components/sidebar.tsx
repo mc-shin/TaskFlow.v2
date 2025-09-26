@@ -51,9 +51,9 @@ export function Sidebar() {
           
           {isExpanded('dashboard') && (
             <div className="ml-6 mt-1 space-y-1">
-              <Link href="/team">
+              <Link href="/app/team">
                 <Button 
-                  variant={location === "/team" ? "default" : "ghost"} 
+                  variant={location === "/app/team" ? "default" : "ghost"} 
                   className="w-full justify-start space-x-3 text-muted-foreground hover:text-accent-foreground h-8"
                   data-testid="link-team"
                 >
@@ -61,9 +61,9 @@ export function Sidebar() {
                   <span>팀</span>
                 </Button>
               </Link>
-              <Link href="/admin">
+              <Link href="/app/admin">
                 <Button 
-                  variant={location === "/admin" ? "default" : "ghost"} 
+                  variant={location === "/app/admin" ? "default" : "ghost"} 
                   className="w-full justify-start space-x-3 text-muted-foreground hover:text-accent-foreground h-8"
                   data-testid="link-admin"
                 >
@@ -95,9 +95,9 @@ export function Sidebar() {
           
           {isExpanded('work-management') && (
             <div className="ml-6 mt-1 space-y-1">
-              <Link href="/list">
+              <Link href="/app/list">
                 <Button 
-                  variant={location === "/list" ? "default" : "ghost"} 
+                  variant={location === "/app/list" ? "default" : "ghost"} 
                   className="w-full justify-start space-x-3 h-8"
                   data-testid="link-list"
                 >
@@ -105,9 +105,9 @@ export function Sidebar() {
                   <span>리스트</span>
                 </Button>
               </Link>
-              <Link href="/kanban">
+              <Link href="/app/kanban">
                 <Button 
-                  variant={location === "/kanban" ? "default" : "ghost"} 
+                  variant={location === "/app/kanban" ? "default" : "ghost"} 
                   className="w-full justify-start space-x-3 text-muted-foreground hover:text-accent-foreground h-8"
                   data-testid="link-kanban"
                 >
@@ -115,9 +115,9 @@ export function Sidebar() {
                   <span>칸반</span>
                 </Button>
               </Link>
-              <Link href="/priority">
+              <Link href="/app/priority">
                 <Button 
-                  variant={location === "/priority" ? "default" : "ghost"} 
+                  variant={location === "/app/priority" ? "default" : "ghost"} 
                   className="w-full justify-start space-x-3 text-muted-foreground hover:text-accent-foreground h-8"
                   data-testid="link-priority"
                 >
@@ -149,9 +149,9 @@ export function Sidebar() {
           
           {isExpanded('meeting') && (
             <div className="ml-6 mt-1 space-y-1">
-              <Link href="/meeting">
+              <Link href="/app/meeting">
                 <Button 
-                  variant={location === "/meeting" ? "default" : "ghost"} 
+                  variant={location === "/app/meeting" ? "default" : "ghost"} 
                   className="w-full justify-start space-x-3 text-muted-foreground hover:text-accent-foreground h-8"
                   data-testid="link-meeting"
                 >
