@@ -10,9 +10,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { CheckSquare, Eye, EyeOff } from "lucide-react";
 
 const signupSchema = z.object({
-  username: z.string().min(3, "사용자명은 3자 이상이어야 합니다"),
-  name: z.string().min(1, "이름을 입력해주세요"),
   email: z.string().email("올바른 이메일 주소를 입력해주세요"),
+  name: z.string().min(1, "이름을 입력해주세요"),
   password: z.string().min(6, "비밀번호는 6자 이상이어야 합니다"),
   confirmPassword: z.string(),
 }).refine((data) => data.password === data.confirmPassword, {
@@ -31,9 +30,8 @@ export function SignupPage() {
   const form = useForm<SignupForm>({
     resolver: zodResolver(signupSchema),
     defaultValues: {
-      username: "",
-      name: "",
       email: "",
+      name: "",
       password: "",
       confirmPassword: "",
     },
@@ -75,15 +73,16 @@ export function SignupPage() {
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <FormField
                 control={form.control}
-                name="username"
+                name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>사용자명</FormLabel>
+                    <FormLabel>이메일</FormLabel>
                     <FormControl>
                       <Input
-                        placeholder="사용자명을 입력하세요"
+                        type="email"
+                        placeholder="이메일을 입력하세요"
                         {...field}
-                        data-testid="input-username"
+                        data-testid="input-email"
                       />
                     </FormControl>
                     <FormMessage />
@@ -102,25 +101,6 @@ export function SignupPage() {
                         placeholder="이름을 입력하세요"
                         {...field}
                         data-testid="input-name"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>이메일</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="email"
-                        placeholder="이메일을 입력하세요"
-                        {...field}
-                        data-testid="input-email"
                       />
                     </FormControl>
                     <FormMessage />
@@ -151,9 +131,9 @@ export function SignupPage() {
                           data-testid="button-toggle-password"
                         >
                           {showPassword ? (
-                            <EyeOff className="h-4 w-4" />
-                          ) : (
                             <Eye className="h-4 w-4" />
+                          ) : (
+                            <EyeOff className="h-4 w-4" />
                           )}
                         </Button>
                       </div>
@@ -186,9 +166,9 @@ export function SignupPage() {
                           data-testid="button-toggle-confirm-password"
                         >
                           {showConfirmPassword ? (
-                            <EyeOff className="h-4 w-4" />
-                          ) : (
                             <Eye className="h-4 w-4" />
+                          ) : (
+                            <EyeOff className="h-4 w-4" />
                           )}
                         </Button>
                       </div>

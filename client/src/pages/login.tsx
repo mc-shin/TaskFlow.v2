@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { CheckSquare, Eye, EyeOff } from "lucide-react";
 
 const loginSchema = z.object({
-  username: z.string().min(1, "사용자명을 입력해주세요"),
+  email: z.string().email("올바른 이메일 주소를 입력해주세요"),
   password: z.string().min(1, "비밀번호를 입력해주세요"),
 });
 
@@ -24,7 +24,7 @@ export function LoginPage() {
   const form = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      username: "",
+      email: "",
       password: "",
     },
   });
@@ -65,15 +65,16 @@ export function LoginPage() {
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <FormField
                 control={form.control}
-                name="username"
+                name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>사용자명</FormLabel>
+                    <FormLabel>이메일</FormLabel>
                     <FormControl>
                       <Input
-                        placeholder="사용자명을 입력하세요"
+                        type="email"
+                        placeholder="이메일을 입력하세요"
                         {...field}
-                        data-testid="input-username"
+                        data-testid="input-email"
                       />
                     </FormControl>
                     <FormMessage />
@@ -104,9 +105,9 @@ export function LoginPage() {
                           data-testid="button-toggle-password"
                         >
                           {showPassword ? (
-                            <EyeOff className="h-4 w-4" />
-                          ) : (
                             <Eye className="h-4 w-4" />
+                          ) : (
+                            <EyeOff className="h-4 w-4" />
                           )}
                         </Button>
                       </div>
