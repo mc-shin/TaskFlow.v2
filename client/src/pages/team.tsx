@@ -5,8 +5,6 @@ import { ActivityFeed } from "@/components/activity-feed";
 import { CalendarWidget } from "@/components/calendar-widget";
 import { TaskModal } from "@/components/task-modal";
 import { useState } from "react";
-import { Bell, Search } from "lucide-react";
-import { Button } from "@/components/ui/button";
 
 export default function Team() {
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
@@ -29,22 +27,6 @@ export default function Team() {
           <p className="text-sm text-muted-foreground" data-testid="header-subtitle">
             오늘도 그동안 힘을 세부시 옳 좀미다 니다난가.
           </p>
-        </div>
-        <div className="flex items-center space-x-4">
-          <Button 
-            variant="ghost" 
-            size="icon"
-            data-testid="button-search"
-          >
-            <Search className="h-4 w-4 text-muted-foreground" />
-          </Button>
-          <Button 
-            variant="ghost" 
-            size="icon"
-            data-testid="button-notifications"
-          >
-            <Bell className="h-4 w-4 text-muted-foreground" />
-          </Button>
         </div>
       </header>
       
