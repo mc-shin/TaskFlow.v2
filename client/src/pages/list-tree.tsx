@@ -2306,10 +2306,17 @@ export default function ListTree() {
                         currentUser = allUsers[0];
                       }
                       
+                      // 메인 프로젝트 찾기 (초대는 메인 프로젝트에 대한 것)
+                      const projectsResponse = await fetch('/api/projects');
+                      const allProjects = await projectsResponse.json();
+                      const mainProject = allProjects.find((p: any) => p.name === '메인 프로젝트');
+                      
                       // 초대 정보를 localStorage에 저장
                       const invitations = JSON.parse(localStorage.getItem('invitations') || '[]');
                       const newInvitation = {
                         id: Date.now().toString(),
+                        projectId: mainProject?.id || null,
+                        projectName: mainProject?.name || '메인 프로젝트',
                         inviterEmail: currentUser.email,
                         inviterName: currentUser.name,
                         inviteeEmail: inviteUsername,
@@ -2332,6 +2339,20 @@ export default function ListTree() {
                         const receivedInvitations = JSON.parse(localStorage.getItem(`receivedInvitations_${inviteUsername}`) || '[]');
                         receivedInvitations.push(newInvitation);
                         localStorage.setItem(`receivedInvitations_${inviteUsername}`, JSON.stringify(receivedInvitations));
+                        
+                        // 같은 브라우저의 다른 탭에서 즉시 업데이트되도록 storage 이벤트 수동 트리거
+                        window.dispatchEvent(new StorageEvent('storage', {
+                          key: `receivedInvitations_${inviteUsername}`,
+                          newValue: JSON.stringify(receivedInvitations),
+                          oldValue: JSON.stringify(receivedInvitations.slice(0, -1))
+                        }));
+                      } else {
+                        // 신규 사용자의 경우에도 pendingInvitations 변경 이벤트 트리거
+                        window.dispatchEvent(new StorageEvent('storage', {
+                          key: 'pendingInvitations',
+                          newValue: localStorage.getItem('pendingInvitations'),
+                          oldValue: JSON.stringify(globalInvitations.slice(0, -1))
+                        }));
                       }
                       
                       const inviteeName = existingUser ? existingUser.name : inviteUsername;

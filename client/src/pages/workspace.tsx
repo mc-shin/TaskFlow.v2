@@ -114,7 +114,26 @@ export function WorkspacePage() {
       }
     };
 
+    // 초기 체크
     checkInvitations();
+
+    // localStorage 변경 이벤트 리스너 추가 (같은 브라우저의 다른 탭에서 실시간 업데이트)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key && e.key.startsWith('receivedInvitations_') || e.key === 'pendingInvitations') {
+        // 초대 관련 localStorage가 변경되면 다시 체크
+        checkInvitations();
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+
+    // 주기적으로 초대 체크 (10초마다)
+    const interval = setInterval(checkInvitations, 10000);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      clearInterval(interval);
+    };
   }, []);
 
   const form = useForm<WorkspaceForm>({
@@ -203,8 +222,86 @@ export function WorkspacePage() {
         description: action === 'accept' ? "워크스페이스에 참여했습니다." : "초대를 거절했습니다.",
       });
 
-      // 초대를 수락한 경우 신규 사용자 플래그 클리어 (워크스페이스 접근 가능)
+      // 초대를 수락한 경우 프로젝트 멤버로 추가 및 신규 사용자 플래그 클리어
       if (action === 'accept') {
+        // 수락한 초대 정보에서 프로젝트 ID 가져오기
+        const acceptedInvitation = receivedInvitations.find((inv: any) => inv.id === invitationId);
+        
+        if (acceptedInvitation && acceptedInvitation.projectId) {
+          try {
+            // 현재 프로젝트 정보 가져오기
+            const projectResponse = await fetch(`/api/projects`);
+            const projects = await projectResponse.json();
+            const targetProject = projects.find((p: any) => p.id === acceptedInvitation.projectId);
+            
+            if (targetProject) {
+              // 현재 사용자 ID 가져오기
+              let inviteeUserId = null;
+              
+              if (currentUser) {
+                inviteeUserId = currentUser.id;
+              } else {
+                // 신규 사용자의 경우 이메일로 사용자 조회 시도
+                try {
+                  const userResponse = await fetch(`/api/users/by-email/${encodeURIComponent(userEmail)}`);
+                  if (userResponse.ok) {
+                    const userData = await userResponse.json();
+                    inviteeUserId = userData.id;
+                  }
+                } catch (error) {
+                  console.log('신규 사용자 - 사용자 ID를 찾을 수 없음');
+                }
+              }
+              
+              // 프로젝트 ownerIds에 사용자 추가
+              if (inviteeUserId && !(targetProject.ownerIds || []).includes(inviteeUserId)) {
+                const updatedOwnerIds = [...(targetProject.ownerIds || []), inviteeUserId];
+                
+                // 프로젝트 업데이트 API 호출
+                const updateResponse = await fetch(`/api/projects/${targetProject.id}`, {
+                  method: 'PUT',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    ownerIds: updatedOwnerIds
+                  })
+                });
+                
+                if (updateResponse.ok) {
+                  console.log('프로젝트 멤버로 성공적으로 추가됨');
+                  toast({
+                    title: "멤버 추가 완료",
+                    description: `${acceptedInvitation.projectName}의 멤버로 추가되었습니다.`,
+                  });
+                } else {
+                  console.error('프로젝트 멤버 추가 실패');
+                  const errorText = await updateResponse.text();
+                  console.error('Error details:', errorText);
+                  
+                  // 초대 상태 롤백 (다시 pending으로 되돌림)
+                  const rollbackInvitations = receivedInvitations.map((inv: any) => 
+                    inv.id === invitationId ? { ...inv, status: 'pending' } : inv
+                  );
+                  localStorage.setItem(`receivedInvitations_${userEmail}`, JSON.stringify(rollbackInvitations));
+                  
+                  toast({
+                    title: "멤버 추가 실패",
+                    description: "프로젝트 멤버 추가 중 오류가 발생했습니다. 다시 시도해주세요.",
+                    variant: "destructive",
+                  });
+                  
+                  // 초대 목록 새로고침
+                  setInvitations(rollbackInvitations.filter((inv: any) => inv.status === 'pending'));
+                  return; // 초기 성공 토스트와 플래그 클리어 방지
+                }
+              }
+            }
+          } catch (error) {
+            console.error('프로젝트 멤버 추가 중 오류:', error);
+          }
+        }
+        
         setIsNewUser(false);
       }
 
