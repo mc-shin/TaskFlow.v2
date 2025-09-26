@@ -81,9 +81,8 @@ export function WorkspacePage() {
         let pendingInvitations: any[] = [];
         
         if (currentUser) {
-          // 기존 사용자의 경우 개별 받은 초대 목록 확인
-          const currentEmail = currentUser.email;
-          const receivedInvitations = JSON.parse(localStorage.getItem(`receivedInvitations_${currentEmail}`) || '[]');
+          // 기존 사용자의 경우 개별 받은 초대 목록 확인 (userEmail 기준)
+          const receivedInvitations = JSON.parse(localStorage.getItem(`receivedInvitations_${userEmail}`) || '[]');
           pendingInvitations = receivedInvitations.filter((inv: any) => inv.status === 'pending');
         } else {
           // 신규가입자의 경우 전역 초대 목록에서 자신의 이메일로 된 초대 확인
@@ -105,15 +104,6 @@ export function WorkspacePage() {
         }
         
         setInvitations(pendingInvitations);
-        
-        // 디버깅: localStorage 상태 확인
-        console.log('현재 사용자 이메일:', userEmail);
-        console.log('매핑된 사용자:', currentUser);
-        console.log('확인된 초대:', pendingInvitations);
-        console.log('전역 초대 목록:', localStorage.getItem('pendingInvitations'));
-        if (currentUser) {
-          console.log('개별 초대 목록:', localStorage.getItem(`receivedInvitations_${currentUser.email}`));
-        }
         
         // 초대가 있다면 다이얼로그 자동 열기
         if (pendingInvitations.length > 0) {
@@ -195,8 +185,8 @@ export function WorkspacePage() {
       }
       // 신규가입자의 경우 currentUser는 undefined로 남겨둠
       
-      // 기존 사용자는 해당 이메일, 신규가입자는 로그인한 이메일 사용
-      const currentEmail = currentUser ? currentUser.email : userEmail;
+      // 모든 사용자에 대해 로그인한 이메일을 키로 사용 (일관성 유지)
+      const currentEmail = userEmail;
 
       // 받은 초대 목록 업데이트
       const receivedInvitations = JSON.parse(localStorage.getItem(`receivedInvitations_${currentEmail}`) || '[]');
@@ -212,6 +202,11 @@ export function WorkspacePage() {
         title: action === 'accept' ? "초대 수락" : "초대 거절",
         description: action === 'accept' ? "워크스페이스에 참여했습니다." : "초대를 거절했습니다.",
       });
+
+      // 초대를 수락한 경우 신규 사용자 플래그 클리어 (워크스페이스 접근 가능)
+      if (action === 'accept') {
+        setIsNewUser(false);
+      }
 
       // 모든 초대를 처리했다면 다이얼로그 닫기
       if (invitations.length <= 1) {
