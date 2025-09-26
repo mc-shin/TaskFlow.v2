@@ -2293,7 +2293,9 @@ export default function ListTree() {
                       const userEmail = localStorage.getItem('userEmail') || '';
                       const email = userEmail.toLowerCase();
                       let currentUser;
-                      if (email.includes('hyejin') || email === '1@qubicom.co.kr') {
+                      if (email.includes('admin') || email === 'admin@qubicom.co.kr') {
+                        currentUser = allUsers.find((u: any) => u.username === 'admin');
+                      } else if (email.includes('hyejin') || email === '1@qubicom.co.kr') {
                         currentUser = allUsers.find((u: any) => u.username === 'hyejin');
                       } else if (email.includes('hyejung') || email === '2@qubicom.co.kr') {
                         currentUser = allUsers.find((u: any) => u.username === 'hyejung');

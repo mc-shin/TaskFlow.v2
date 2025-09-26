@@ -38,6 +38,8 @@ export function WorkspacePage() {
   const [userName, setUserName] = useState("사용자");
   const [invitations, setInvitations] = useState<any[]>([]);
   const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
+  const [isAdminUser, setIsAdminUser] = useState(false);
+  const [isNewUser, setIsNewUser] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -60,14 +62,21 @@ export function WorkspacePage() {
         // userEmail을 기반으로 실제 사용자 매핑 (간단한 매핑 로직)
         let currentUser;
         const email = userEmail.toLowerCase();
-        if (email.includes('hyejin') || email === '1@qubicom.co.kr') {
+        if (email.includes('admin') || email === 'admin@qubicom.co.kr') {
+          currentUser = users.find((u: any) => u.username === 'admin');
+          setIsAdminUser(true);
+        } else if (email.includes('hyejin') || email === '1@qubicom.co.kr') {
           currentUser = users.find((u: any) => u.username === 'hyejin');
         } else if (email.includes('hyejung') || email === '2@qubicom.co.kr') {
           currentUser = users.find((u: any) => u.username === 'hyejung');
         } else if (email.includes('chamin') || email === '3@qubicom.co.kr') {
           currentUser = users.find((u: any) => u.username === 'chamin');
         }
-        // 신규가입자의 경우 currentUser는 undefined로 남겨둠
+        
+        // 신규가입자인지 확인 (백엔드에 등록되지 않은 사용자)
+        if (!currentUser) {
+          setIsNewUser(true);
+        }
         
         let pendingInvitations: any[] = [];
         
@@ -96,6 +105,15 @@ export function WorkspacePage() {
         }
         
         setInvitations(pendingInvitations);
+        
+        // 디버깅: localStorage 상태 확인
+        console.log('현재 사용자 이메일:', userEmail);
+        console.log('매핑된 사용자:', currentUser);
+        console.log('확인된 초대:', pendingInvitations);
+        console.log('전역 초대 목록:', localStorage.getItem('pendingInvitations'));
+        if (currentUser) {
+          console.log('개별 초대 목록:', localStorage.getItem(`receivedInvitations_${currentUser.email}`));
+        }
         
         // 초대가 있다면 다이얼로그 자동 열기
         if (pendingInvitations.length > 0) {
@@ -166,7 +184,9 @@ export function WorkspacePage() {
       // userEmail을 기반으로 실제 사용자 매핑
       let currentUser;
       const email = userEmail.toLowerCase();
-      if (email.includes('hyejin') || email === '1@qubicom.co.kr') {
+      if (email.includes('admin') || email === 'admin@qubicom.co.kr') {
+        currentUser = users.find((u: any) => u.username === 'admin');
+      } else if (email.includes('hyejin') || email === '1@qubicom.co.kr') {
         currentUser = users.find((u: any) => u.username === 'hyejin');
       } else if (email.includes('hyejung') || email === '2@qubicom.co.kr') {
         currentUser = users.find((u: any) => u.username === 'hyejung');
@@ -236,7 +256,20 @@ export function WorkspacePage() {
 
         {/* Workspace Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-          {mockWorkspaces.map((workspace) => (
+          {mockWorkspaces
+            .filter(workspace => {
+              // 신규 사용자는 워크스페이스 숨김 (새 워크스페이스 추가만 표시)
+              if (isNewUser) {
+                return false;
+              }
+              // admin 사용자는 메인 프로젝트만 표시
+              if (isAdminUser) {
+                return workspace.name === "메인 프로젝트";
+              }
+              // 기존 등록된 사용자는 모든 워크스페이스 표시
+              return true;
+            })
+            .map((workspace) => (
             <Card 
               key={workspace.id} 
               className="cursor-pointer hover:shadow-md transition-shadow"

@@ -146,6 +146,7 @@ export class MemStorage implements IStorage {
   private async initializeDefaultData() {
     // Initialize users
     const defaultUsers = [
+      { username: "admin", email: "admin@qubicom.co.kr", password: "password", name: "테스트", initials: "테", lastLoginAt: null },
       { username: "hyejin", email: "hyejin@qubicom.co.kr", password: "password", name: "전혜진", initials: "전", lastLoginAt: null },
       { username: "hyejung", email: "hyejung@qubicom.co.kr", password: "password", name: "전혜중", initials: "전", lastLoginAt: null },
       { username: "chamin", email: "chamin@qubicom.co.kr", password: "password", name: "차민", initials: "차", lastLoginAt: null },
@@ -159,13 +160,22 @@ export class MemStorage implements IStorage {
     const userArray = Array.from(this.users.values());
     const defaultProjects = [
       { 
+        name: "메인 프로젝트", 
+        code: "MAIN-01", 
+        description: "메인 프로젝트 관리",
+        deadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // D-30
+        status: "진행중",
+        labels: ["관리", "메인"],
+        ownerIds: userArray[0]?.id ? [userArray[0].id] : [] // admin 사용자 (첫 번째)
+      },
+      { 
         name: "지금 벙크 성장 기능 개발", 
         code: "RIIDO-41", 
         description: "성장 기능 구현",
         deadline: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // D-14
         status: "진행중",
         labels: ["개발", "핵심기능"],
-        ownerIds: userArray[0]?.id ? [userArray[0].id] : []
+        ownerIds: userArray[1]?.id ? [userArray[1].id] : [] // hyejin (두 번째)
       },
       { 
         name: "v0.10.4 업데이트", 
@@ -174,7 +184,7 @@ export class MemStorage implements IStorage {
         deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // D-7
         status: "진행중",
         labels: ["업데이트"],
-        ownerIds: userArray[1]?.id ? [userArray[1].id] : []
+        ownerIds: userArray[2]?.id ? [userArray[2].id] : [] // hyejung (세 번째)
       },
       { 
         name: "디스코드 연동", 
@@ -183,7 +193,7 @@ export class MemStorage implements IStorage {
         deadline: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // D-1
         status: "진행전",
         labels: ["연동", "봇"],
-        ownerIds: userArray[2]?.id ? [userArray[2].id] : []
+        ownerIds: userArray[3]?.id ? [userArray[3].id] : [] // chamin (네 번째)
       },
     ];
 
@@ -196,11 +206,13 @@ export class MemStorage implements IStorage {
     // Initialize goals for projects
     const projectArray = Array.from(this.projects.values());
     const defaultGoals = [
-      { title: "메인 기능 개발", description: "핵심 기능 구현", deadline: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], status: "진행중", labels: ["개발", "핵심"], assigneeIds: userArray[0]?.id ? [userArray[0].id] : [], projectId: projectArray[0]?.id },
-      { title: "UI/UX 개선", description: "사용자 인터페이스 개선", deadline: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], status: "목표", labels: ["디자인"], assigneeIds: userArray[1]?.id ? [userArray[1].id] : [], projectId: projectArray[0]?.id },
-      { title: "API 연동", description: "외부 API 연동 작업", deadline: null, status: "진행전", labels: ["연동", "API"], assigneeIds: userArray[1]?.id ? [userArray[1].id] : [], projectId: projectArray[1]?.id },
-      { title: "시스템 최적화", description: "성능 및 안정성 개선", deadline: null, status: "목표", labels: ["성능"], assigneeIds: userArray[0]?.id ? [userArray[0].id] : [], projectId: projectArray[1]?.id },
-      { title: "연동 기능", description: "다른 서비스와의 연동", deadline: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], status: "진행전", labels: ["연동"], assigneeIds: userArray[2]?.id ? [userArray[2].id] : [], projectId: projectArray[2]?.id },
+      { title: "프로젝트 관리", description: "메인 프로젝트 전체 관리", deadline: new Date(Date.now() + 20 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], status: "진행중", labels: ["관리", "계획"], assigneeIds: userArray[0]?.id ? [userArray[0].id] : [], projectId: projectArray[0]?.id },
+      { title: "팀 관리", description: "팀원들의 업무 및 성과 관리", deadline: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], status: "진행중", labels: ["팀", "관리"], assigneeIds: userArray[0]?.id ? [userArray[0].id] : [], projectId: projectArray[0]?.id },
+      { title: "메인 기능 개발", description: "핵심 기능 구현", deadline: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], status: "진행중", labels: ["개발", "핵심"], assigneeIds: userArray[1]?.id ? [userArray[1].id] : [], projectId: projectArray[1]?.id },
+      { title: "UI/UX 개선", description: "사용자 인터페이스 개선", deadline: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], status: "목표", labels: ["디자인"], assigneeIds: userArray[1]?.id ? [userArray[1].id] : [], projectId: projectArray[1]?.id },
+      { title: "API 연동", description: "외부 API 연동 작업", deadline: null, status: "진행전", labels: ["연동", "API"], assigneeIds: userArray[2]?.id ? [userArray[2].id] : [], projectId: projectArray[2]?.id },
+      { title: "시스템 최적화", description: "성능 및 안정성 개선", deadline: null, status: "목표", labels: ["성능"], assigneeIds: userArray[2]?.id ? [userArray[2].id] : [], projectId: projectArray[2]?.id },
+      { title: "연동 기능", description: "다른 서비스와의 연동", deadline: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], status: "진행전", labels: ["연동"], assigneeIds: userArray[3]?.id ? [userArray[3].id] : [], projectId: projectArray[3]?.id },
     ];
 
     for (let i = 0; i < defaultGoals.length; i++) {
@@ -212,22 +224,28 @@ export class MemStorage implements IStorage {
     // Initialize tasks for goals
     const goalArray = Array.from(this.goals.values());
     const defaultTasks = [
-      // Goal 1 tasks (메인 기능 개발) - 우선순위별 분배
-      { title: "지금 벙크 성장 기능", description: "", status: "완료", goalId: goalArray[0]?.id, projectId: projectArray[0]?.id, assigneeIds: userArray[0]?.id ? [userArray[0].id] : [], deadline: new Date(Date.now() + 8 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], duration: 0, priority: "3", labels: ["개발"] },
-      { title: "업데이트 창 폭을 정함", description: "", status: "진행전", goalId: goalArray[0]?.id, projectId: projectArray[0]?.id, assigneeIds: userArray[0]?.id ? [userArray[0].id] : [], deadline: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], duration: 0, priority: "1", labels: ["디자인"] },
-      { title: "프로젝트 UI 개선", description: "", status: "진행전", projectId: projectArray[0]?.id, assigneeIds: userArray[1]?.id ? [userArray[1].id] : [], deadline: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], duration: 0, priority: "3", labels: ["UI", "개선"] },
-      { title: "지금벙 API 연동", description: "", status: "진행중", projectId: projectArray[0]?.id, assigneeIds: userArray[0]?.id ? [userArray[0].id] : [], deadline: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], duration: 0, priority: "1", labels: ["API", "연동"] },
-      { title: "지금벙 Webhook 설정", description: "", status: "진행전", projectId: projectArray[0]?.id, assigneeIds: userArray[1]?.id ? [userArray[1].id] : [], deadline: new Date(Date.now() + 16 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], duration: 0, priority: "4", labels: ["설정"] },
+      // 메인 프로젝트 tasks (프로젝트 관리, 팀 관리)
+      { title: "프로젝트 계획 수립", description: "", status: "완료", goalId: goalArray[0]?.id, projectId: projectArray[0]?.id, assigneeIds: userArray[0]?.id ? [userArray[0].id] : [], deadline: new Date(Date.now() + 18 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], duration: 0, priority: "1", labels: ["계획", "관리"] },
+      { title: "일정 관리 시스템 구축", description: "", status: "진행중", goalId: goalArray[0]?.id, projectId: projectArray[0]?.id, assigneeIds: userArray[0]?.id ? [userArray[0].id] : [], deadline: new Date(Date.now() + 25 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], duration: 0, priority: "2", labels: ["시스템", "관리"] },
+      { title: "팀원 역할 분담", description: "", status: "완료", goalId: goalArray[1]?.id, projectId: projectArray[0]?.id, assigneeIds: userArray[0]?.id ? [userArray[0].id] : [], deadline: new Date(Date.now() + 12 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], duration: 0, priority: "1", labels: ["팀", "관리"] },
+      { title: "성과 평가 시스템", description: "", status: "진행전", goalId: goalArray[1]?.id, projectId: projectArray[0]?.id, assigneeIds: userArray[0]?.id ? [userArray[0].id] : [], deadline: new Date(Date.now() + 20 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], duration: 0, priority: "3", labels: ["평가", "시스템"] },
+
+      // Goal 3 tasks (메인 기능 개발) - 지금 벙크 성장 기능 개발
+      { title: "지금 벙크 성장 기능", description: "", status: "완료", goalId: goalArray[2]?.id, projectId: projectArray[1]?.id, assigneeIds: userArray[1]?.id ? [userArray[1].id] : [], deadline: new Date(Date.now() + 8 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], duration: 0, priority: "3", labels: ["개발"] },
+      { title: "업데이트 창 폭을 정함", description: "", status: "진행전", goalId: goalArray[2]?.id, projectId: projectArray[1]?.id, assigneeIds: userArray[1]?.id ? [userArray[1].id] : [], deadline: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], duration: 0, priority: "1", labels: ["디자인"] },
+      { title: "프로젝트 UI 개선", description: "", status: "진행전", goalId: goalArray[3]?.id, projectId: projectArray[1]?.id, assigneeIds: userArray[1]?.id ? [userArray[1].id] : [], deadline: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], duration: 0, priority: "3", labels: ["UI", "개선"] },
+      { title: "지금벙 API 연동", description: "", status: "진행중", goalId: goalArray[2]?.id, projectId: projectArray[1]?.id, assigneeIds: userArray[1]?.id ? [userArray[1].id] : [], deadline: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], duration: 0, priority: "1", labels: ["API", "연동"] },
+      { title: "지금벙 Webhook 설정", description: "", status: "진행전", goalId: goalArray[2]?.id, projectId: projectArray[1]?.id, assigneeIds: userArray[1]?.id ? [userArray[1].id] : [], deadline: new Date(Date.now() + 16 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], duration: 0, priority: "4", labels: ["설정"] },
       
-      // RIIDO-27 tasks  
-      { title: "미니 번번 생성 및 알림 기능", description: "", status: "완료", projectId: projectArray[1]?.id, assigneeIds: userArray[1]?.id ? [userArray[1].id] : [], deadline: new Date(Date.now() + 6 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], duration: 0, priority: "2", labels: ["기능", "알림"] },
-      { title: "넥스트 센터 개선 - 블랙 센터네트 업데이트", description: "", status: "진행전", projectId: projectArray[1]?.id, assigneeIds: userArray[1]?.id ? [userArray[1].id] : [], deadline: new Date(Date.now() + 9 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], duration: 0, priority: "3", labels: ["업데이트"] },
-      { title: "널링앱 설정창 이동을 성능 향 숫 안정 개선", description: "", status: "진행전", projectId: projectArray[1]?.id, assigneeIds: userArray[0]?.id ? [userArray[0].id] : [], deadline: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], duration: 0, priority: "2", labels: ["성능", "개선"] },
-      { title: "리스트에서 차례 드래그로널스 기능 발밑", description: "", status: "진행전", projectId: projectArray[1]?.id, assigneeIds: userArray[2]?.id ? [userArray[2].id] : [], deadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], duration: 0, priority: "4", labels: ["기능"] },
-      { title: "리스트에서 차례 사제지 즤저 방밎 입한", description: "", status: "진행전", projectId: projectArray[1]?.id, assigneeIds: userArray[1]?.id ? [userArray[1].id] : [], deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], duration: 0, priority: "2", labels: ["기능"] },
+      // v0.10.4 업데이트 tasks  
+      { title: "미니 번번 생성 및 알림 기능", description: "", status: "완료", goalId: goalArray[4]?.id, projectId: projectArray[2]?.id, assigneeIds: userArray[2]?.id ? [userArray[2].id] : [], deadline: new Date(Date.now() + 6 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], duration: 0, priority: "2", labels: ["기능", "알림"] },
+      { title: "넥스트 센터 개선 - 블랙 센터네트 업데이트", description: "", status: "진행전", goalId: goalArray[5]?.id, projectId: projectArray[2]?.id, assigneeIds: userArray[2]?.id ? [userArray[2].id] : [], deadline: new Date(Date.now() + 9 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], duration: 0, priority: "3", labels: ["업데이트"] },
+      { title: "널링앱 설정창 이동을 성능 향 숫 안정 개선", description: "", status: "진행전", goalId: goalArray[5]?.id, projectId: projectArray[2]?.id, assigneeIds: userArray[2]?.id ? [userArray[2].id] : [], deadline: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], duration: 0, priority: "2", labels: ["성능", "개선"] },
+      { title: "리스트에서 차례 드래그로널스 기능 발밑", description: "", status: "진행전", goalId: goalArray[4]?.id, projectId: projectArray[2]?.id, assigneeIds: userArray[2]?.id ? [userArray[2].id] : [], deadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], duration: 0, priority: "4", labels: ["기능"] },
+      { title: "리스트에서 차례 사제지 즤저 방밎 입한", description: "", status: "진행전", goalId: goalArray[4]?.id, projectId: projectArray[2]?.id, assigneeIds: userArray[2]?.id ? [userArray[2].id] : [], deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], duration: 0, priority: "2", labels: ["기능"] },
       
-      // RIIDO-70 tasks
-      { title: "차례 변경사항에 대한 알림", description: "", status: "진행전", projectId: projectArray[2]?.id, assigneeIds: userArray[2]?.id ? [userArray[2].id] : [], deadline: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], duration: 0, priority: "1", labels: ["알림", "봇"] },
+      // 디스코드 연동 tasks
+      { title: "차례 변경사항에 대한 알림", description: "", status: "진행전", goalId: goalArray[6]?.id, projectId: projectArray[3]?.id, assigneeIds: userArray[3]?.id ? [userArray[3].id] : [], deadline: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], duration: 0, priority: "1", labels: ["알림", "봇"] },
     ];
 
     for (let i = 0; i < defaultTasks.length; i++) {
