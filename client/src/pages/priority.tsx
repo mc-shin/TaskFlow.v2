@@ -116,8 +116,8 @@ export default function Priority() {
         </div>
       </header>
       
-      <main className="flex-1 overflow-auto" data-testid="main-content" style={{ padding: '1rem' }}>
-        <div className="flex justify-center">
+      <main className="flex-1 overflow-auto flex items-center" data-testid="main-content" style={{ padding: '1rem' }}>
+        <div className="flex justify-center w-full">
           {isLoading ? (
             <div className="grid grid-cols-2 gap-4" style={{ width: '1186px', height: '670px' }}>
               {[...Array(4)].map((_, i) => (
