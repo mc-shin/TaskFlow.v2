@@ -471,9 +471,9 @@ export default function Meeting() {
                       >
                         {slotMeetings.map((meeting) => {
                           const meetingStart = new Date(meeting.startAt);
-                          const meetingEnd = new Date(meeting.endAt);
+                          const meetingEnd = meeting.endAt ? new Date(meeting.endAt) : null;
                           const startMinutes = meetingStart.getMinutes();
-                          const duration = (meetingEnd.getTime() - meetingStart.getTime()) / (1000 * 60); // duration in minutes
+                          const duration = meetingEnd ? (meetingEnd.getTime() - meetingStart.getTime()) / (1000 * 60) : 60; // duration in minutes, default 1 hour if no end time
                           
                           // Calculate position within the hour slot
                           const topOffset = (startMinutes / 60) * 100; // percentage from top of hour
@@ -493,7 +493,7 @@ export default function Meeting() {
                                 minHeight: '30px' // Ensure minimum visibility for 2 lines
                               }}
                               data-testid={`meeting-block-${meeting.id}`}
-                              title={`${meeting.title} - ${meeting.location || '위치 미정'} (${meetingStart.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })} - ${meetingEnd.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })})`}
+                              title={`${meeting.title} - ${meeting.location || '위치 미정'} (${meetingStart.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })} - ${meetingEnd ? meetingEnd.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) : '종료시간 미정'})`}
                               onClick={() => {
                                 setLocation(`/meeting/${meeting.id}`);
                               }}
