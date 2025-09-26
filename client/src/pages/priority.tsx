@@ -110,28 +110,28 @@ export default function Priority() {
   // 우선순위 섹션 설정
   const prioritySections = [
     {
-      priority: "3",
-      title: "2. 중요",
-      bgColor: "bg-green-600",
-      textColor: "text-white"
-    },
-    {
       priority: "1", 
       title: "1. 높음",
-      bgColor: "bg-red-600",
-      textColor: "text-white"
+      bgColor: "bg-destructive",
+      textColor: "text-destructive-foreground"
     },
     {
-      priority: "4",
-      title: "4. 미정", 
-      bgColor: "bg-slate-600",
-      textColor: "text-white"
+      priority: "3",
+      title: "2. 중요",
+      bgColor: "bg-primary",
+      textColor: "text-primary-foreground"
     },
     {
       priority: "2",
       title: "3. 낮음",
-      bgColor: "bg-amber-700",
-      textColor: "text-white"
+      bgColor: "bg-secondary",
+      textColor: "text-secondary-foreground"
+    },
+    {
+      priority: "4",
+      title: "4. 미정", 
+      bgColor: "bg-muted",
+      textColor: "text-muted-foreground"
     }
   ];
 
