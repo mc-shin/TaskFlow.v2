@@ -125,13 +125,13 @@ export default function Priority() {
     {
       priority: "2",
       title: "3. 낮음",
-      bgColor: "bg-slate-600",
+      bgColor: "bg-slate-400",
       textColor: "text-white"
     },
     {
       priority: "4",
       title: "4. 미정", 
-      bgColor: "bg-slate-500",
+      bgColor: "bg-slate-700",
       textColor: "text-white"
     }
   ];
