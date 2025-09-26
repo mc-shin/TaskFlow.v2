@@ -145,9 +145,9 @@ export class MemStorage implements IStorage {
   private async initializeDefaultData() {
     // Initialize users
     const defaultUsers = [
-      { username: "hyejin", password: "password", name: "전혜진", initials: "전", lastLoginAt: null },
-      { username: "hyejung", password: "password", name: "전혜중", initials: "전", lastLoginAt: null },
-      { username: "chamin", password: "password", name: "차민", initials: "차", lastLoginAt: null },
+      { username: "hyejin", email: "hyejin@qubicom.co.kr", password: "password", name: "전혜진", initials: "전", lastLoginAt: null },
+      { username: "hyejung", email: "hyejung@qubicom.co.kr", password: "password", name: "전혜중", initials: "전", lastLoginAt: null },
+      { username: "chamin", email: "chamin@qubicom.co.kr", password: "password", name: "차민", initials: "차", lastLoginAt: null },
     ];
 
     for (const user of defaultUsers) {
@@ -1115,6 +1115,7 @@ export class MemStorage implements IStorage {
         const safeAuthor: SafeUser = {
           id: author.id,
           username: author.username,
+          email: author.email,
           name: author.name,
           initials: author.initials,
           lastLoginAt: author.lastLoginAt
