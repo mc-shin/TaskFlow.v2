@@ -116,26 +116,27 @@ export default function Priority() {
         </div>
       </header>
       
-      <main className="flex-1 overflow-auto" data-testid="main-content" style={{ padding: '1.5rem' }}>
-        {isLoading ? (
-          <div className="grid grid-cols-2 gap-6 h-full max-w-full">
-            {[...Array(4)].map((_, i) => (
-              <Card key={i} className="animate-pulse w-full" style={{ height: '323px' }}>
-                <CardContent className="p-6">
-                  <div className="h-8 bg-muted rounded mb-4"></div>
-                  <div className="space-y-3">
-                    {[...Array(3)].map((_, j) => (
-                      <div key={j} className="h-6 bg-muted rounded"></div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 gap-6 h-full max-w-full">
-            {prioritySections.map((section) => (
-              <Card key={section.priority} className="flex flex-col w-full" style={{ height: '323px' }}>
+      <main className="flex-1 overflow-auto" data-testid="main-content" style={{ padding: '1rem' }}>
+        <div className="flex justify-center">
+          {isLoading ? (
+            <div className="grid grid-cols-2 gap-4" style={{ width: '1186px', height: '670px' }}>
+              {[...Array(4)].map((_, i) => (
+                <Card key={i} className="animate-pulse" style={{ width: '581px', height: '323px' }}>
+                  <CardContent className="p-6">
+                    <div className="h-8 bg-muted rounded mb-4"></div>
+                    <div className="space-y-3">
+                      {[...Array(3)].map((_, j) => (
+                        <div key={j} className="h-6 bg-muted rounded"></div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-4" style={{ width: '1186px', height: '670px' }}>
+              {prioritySections.map((section) => (
+                <Card key={section.priority} className="flex flex-col" style={{ width: '581px', height: '323px' }}>
                 <CardHeader className={`${section.bgColor} ${section.textColor} rounded-t-lg`}>
                   <h2 className="text-lg font-semibold">{section.title}</h2>
                 </CardHeader>
@@ -185,8 +186,9 @@ export default function Priority() {
                 </CardContent>
               </Card>
             ))}
-          </div>
-        )}
+            </div>
+          )}
+        </div>
       </main>
     </>
   );
