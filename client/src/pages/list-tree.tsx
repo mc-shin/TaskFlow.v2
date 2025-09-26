@@ -926,6 +926,29 @@ export default function ListTree() {
       (users as SafeUser[])?.find(user => user.id === id)
     ).filter(Boolean) as SafeUser[];
 
+    // For projects, also get pending invitations to show in the member list
+    let pendingInvitations: any[] = [];
+    if (type === 'project') {
+      try {
+        // Get all pending invitations from localStorage
+        const globalInvitations = JSON.parse(localStorage.getItem('pendingInvitations') || '[]');
+        
+        // Also check individual user invitation lists (for existing users)
+        const allUsers = users as SafeUser[] || [];
+        allUsers.forEach(user => {
+          const userInvitations = JSON.parse(localStorage.getItem(`receivedInvitations_${user.email}`) || '[]');
+          globalInvitations.push(...userInvitations);
+        });
+        
+        // Filter invitations for this specific project that are still pending
+        pendingInvitations = globalInvitations.filter((inv: any) => 
+          inv.projectId === itemId && inv.status === 'pending'
+        );
+      } catch (error) {
+        console.error('Error loading pending invitations:', error);
+      }
+    }
+
     const handleAssigneeToggle = (userId: string, isSelected: boolean) => {
       // Get the latest assignee IDs from the current cache/data to avoid stale closure issues
       const latestData = queryClient.getQueryData(["/api/projects"]) as ProjectWithDetails[] | undefined;
@@ -981,17 +1004,26 @@ export default function ListTree() {
             className="cursor-pointer hover:bg-muted/20 px-1 py-1 rounded w-28 min-w-[7rem] max-w-[7rem] h-8 flex items-center overflow-hidden"
             data-testid={`edit-assignee-${itemId}`}
           >
-            {assignees.length > 0 ? (
+            {(assignees.length > 0 || pendingInvitations.length > 0) ? (
               <div className="flex items-center gap-1 truncate">
+                {/* Current members */}
                 {assignees.slice(0, 4).map((assignee, index) => (
-                  <Avatar key={assignee.id} className="w-6 h-6 flex-shrink-0" style={{ zIndex: assignees.length - index }}>
+                  <Avatar key={assignee.id} className="w-6 h-6 flex-shrink-0" style={{ zIndex: assignees.length + pendingInvitations.length - index }}>
                     <AvatarFallback className="text-xs bg-primary text-primary-foreground border border-white">
                       {assignee.name.charAt(0)}
                     </AvatarFallback>
                   </Avatar>
                 ))}
-                {assignees.length > 4 && (
-                  <span className="text-xs text-muted-foreground ml-1">+{assignees.length - 4}</span>
+                {/* Pending invitations */}
+                {pendingInvitations.slice(0, Math.max(0, 4 - assignees.length)).map((invitation, index) => (
+                  <Avatar key={`pending-${invitation.id}`} className="w-6 h-6 flex-shrink-0 border-2 border-dashed border-orange-400" style={{ zIndex: pendingInvitations.length - index }}>
+                    <AvatarFallback className="text-xs bg-orange-100 text-orange-600 border border-orange-300">
+                      {invitation.inviteeEmail ? invitation.inviteeEmail.charAt(0).toUpperCase() : '?'}
+                    </AvatarFallback>
+                  </Avatar>
+                ))}
+                {(assignees.length + pendingInvitations.length) > 4 && (
+                  <span className="text-xs text-muted-foreground ml-1">+{(assignees.length + pendingInvitations.length) - 4}</span>
                 )}
               </div>
             ) : (
@@ -1005,6 +1037,33 @@ export default function ListTree() {
               {type === 'project' ? '소유자' : '담당자'} 선택
             </h4>
             <div className="space-y-1 max-h-48 overflow-y-auto">
+              {/* Show pending invitations for projects */}
+              {type === 'project' && pendingInvitations.length > 0 && (
+                <>
+                  <div className="text-xs text-muted-foreground font-medium px-2 py-1 bg-orange-50 rounded">
+                    초대 대기 중
+                  </div>
+                  {pendingInvitations.map((invitation) => (
+                    <div
+                      key={`pending-${invitation.id}`}
+                      className="flex items-center gap-2 p-2 rounded bg-orange-50 border border-orange-200"
+                    >
+                      <Avatar className="w-6 h-6 border-2 border-dashed border-orange-400">
+                        <AvatarFallback className="text-xs bg-orange-100 text-orange-600">
+                          {invitation.inviteeEmail ? invitation.inviteeEmail.charAt(0).toUpperCase() : '?'}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 truncate">
+                        <span className="text-sm text-orange-700">{invitation.inviteeEmail}</span>
+                        <div className="text-xs text-orange-500">초대 대기 중</div>
+                      </div>
+                    </div>
+                  ))}
+                  <div className="border-t border-muted my-2"></div>
+                </>
+              )}
+              
+              {/* Current users */}
               {(users as SafeUser[])?.map(user => {
                 // Always get the latest data for checkbox state to avoid stale display
                 const latestData = queryClient.getQueryData(["/api/projects"]) as ProjectWithDetails[] | undefined;

@@ -81,6 +81,10 @@ export function WorkspacePage() {
         let pendingInvitations: any[] = [];
         
         if (currentUser) {
+          // 사용자 이름 저장 및 설정
+          setUserName(currentUser.name);
+          localStorage.setItem("userName", currentUser.name);
+          
           // 기존 사용자의 경우 개별 받은 초대 목록 확인 (userEmail 기준)
           const receivedInvitations = JSON.parse(localStorage.getItem(`receivedInvitations_${userEmail}`) || '[]');
           pendingInvitations = receivedInvitations.filter((inv: any) => inv.status === 'pending');
