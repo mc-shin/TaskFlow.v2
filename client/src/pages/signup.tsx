@@ -47,12 +47,9 @@ export function SignupPage() {
   const checkEmailDuplicate = useCallback(async (email: string) => {
     if (!email || !email.includes('@')) {
       setEmailStatus('unchecked');
-      setCurrentEmailRef('');
       return;
     }
     
-    // 현재 확인 중인 이메일 저장
-    setCurrentEmailRef(email);
     setEmailCheckLoading(true);
     
     try {
@@ -127,11 +124,16 @@ export function SignupPage() {
     try {
       // 실제 회원가입 API 호출
       const { confirmPassword, ...userData } = data;
+      
+      // 이름에서 이니셜 자동 생성 (첫 글자)
+      const initials = userData.name.charAt(0);
+      
       await apiRequest('POST', '/api/users', {
         email: userData.email,
         username: userData.name, // 이름을 username으로 사용
         name: userData.name,
         password: userData.password,
+        initials: initials,
         role: '팀원' // 기본 역할
       });
       
