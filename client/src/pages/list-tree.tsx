@@ -2524,21 +2524,43 @@ export default function ListTree() {
                               <Badge variant="outline" className="text-xs border-slate-600 text-slate-300">
                                 {originalIndex === 0 ? '관리자' : '팀원'}
                               </Badge>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-6 w-6 p-0 text-slate-400 hover:text-red-400 hover:bg-red-900/20"
-                                onClick={() => {
-                                  setDeletedMemberIds(prev => new Set([...Array.from(prev), user.id]));
-                                  toast({
-                                    title: "멤버 삭제",
-                                    description: `${user.name}님이 목록에서 제거되었습니다.`,
-                                  });
-                                }}
-                                data-testid={`button-delete-member-${user.id}`}
-                              >
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
+                              {originalIndex !== 0 && ( // 관리자는 삭제할 수 없음
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-6 w-6 p-0 text-slate-400 hover:text-red-400 hover:bg-red-900/20"
+                                      data-testid={`button-delete-member-${user.id}`}
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent className="bg-slate-800 border-slate-700">
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle className="text-white">멤버 삭제</AlertDialogTitle>
+                                      <AlertDialogDescription className="text-slate-300">
+                                        정말로 <strong>{user.name}</strong> 멤버를 삭제하시겠습니까?
+                                        <br />
+                                        <br />
+                                        <span className="text-red-400 font-medium">
+                                          ⚠️ 주의: 이 작업은 되돌릴 수 없으며, 해당 사용자가 모든 프로젝트, 목표, 작업, 미팅에서 제거됩니다.
+                                        </span>
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel className="bg-slate-700 text-white border-slate-600 hover:bg-slate-600">취소</AlertDialogCancel>
+                                      <AlertDialogAction
+                                        onClick={() => deleteUserMutation.mutate(user.id)}
+                                        className="bg-red-600 text-white hover:bg-red-700"
+                                        data-testid={`button-confirm-delete-${user.id}`}
+                                      >
+                                        삭제
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              )}
                             </div>
                           </div>
                         );
