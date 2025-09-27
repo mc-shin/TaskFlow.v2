@@ -52,6 +52,11 @@ export default function ProjectDetail() {
     queryKey: ["/api/users"],
   });
 
+  // 프로젝트 담당자 선택용 사용자 목록 (기본 워크스페이스 멤버만)
+  const { data: defaultUsers } = useQuery({
+    queryKey: ["/api/users/default"],
+  });
+
   const { data: attachments } = useQuery({
     queryKey: ["/api/attachments", "project", projectId],
     enabled: !!projectId,
@@ -789,7 +794,7 @@ export default function ProjectDetail() {
                   <div className="space-y-3">
                     <p className="text-sm font-medium">담당자 선택</p>
                     <div className="space-y-2 max-h-48 overflow-y-auto">
-                      {Array.isArray(users) ? (users as SafeUser[]).map((user) => {
+                      {Array.isArray(defaultUsers) ? (defaultUsers as SafeUser[]).map((user) => {
                         const currentOwnerIds = editedProject.ownerIds ?? project.ownerIds ?? [];
                         const isSelected = currentOwnerIds.includes(user.id);
                         

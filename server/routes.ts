@@ -299,6 +299,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get only default workspace members (for project owner selection)
+  app.get("/api/users/default", async (req, res) => {
+    try {
+      const users = await storage.getDefaultWorkspaceMembers();
+      res.json(users);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch default users" });
+    }
+  });
+
   app.get("/api/users/with-stats", async (req, res) => {
     try {
       const { workspace } = req.query;

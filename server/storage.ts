@@ -13,6 +13,9 @@ export interface IStorage {
   getAllUsersWithStats(): Promise<SafeUserWithStats[]>;
   getAllSafeUsers(): Promise<SafeUser[]>;
   updateUserLastLogin(id: string): Promise<void>;
+  getWorkspaceMembers(): Promise<SafeUser[]>;
+  getDefaultWorkspaceMembers(): Promise<SafeUser[]>;
+  getWorkspaceUsersWithStats(): Promise<SafeUserWithStats[]>;
 
   // Project methods
   getAllProjects(): Promise<ProjectWithOwners[]>;
@@ -1452,6 +1455,28 @@ export class MemStorage implements IStorage {
     
     // SafeUser 형태로 변환 (비밀번호 제거)
     return workspaceUsers.map(user => {
+      const { password, ...safeUser } = user;
+      return safeUser;
+    });
+  }
+
+  async getDefaultWorkspaceMembers(): Promise<SafeUser[]> {
+    // 기본 워크스페이스 멤버만 반환 (프로젝트 담당자 선택용)
+    // 초대를 수락한 사용자는 포함하지 않음
+    
+    const allUsers = Array.from(this.users.values());
+    const defaultUserEmails = [
+      'admin@qubicom.co.kr',
+      'hyejin@qubicom.co.kr', 
+      'hyejung@qubicom.co.kr',
+      'chamin@qubicom.co.kr'
+    ];
+    
+    // 기본 사용자들만 필터링
+    const defaultUsers = allUsers.filter(user => defaultUserEmails.includes(user.email));
+    
+    // SafeUser 형태로 변환 (비밀번호 제거)
+    return defaultUsers.map(user => {
       const { password, ...safeUser } = user;
       return safeUser;
     });
