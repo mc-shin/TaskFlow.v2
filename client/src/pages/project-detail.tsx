@@ -787,7 +787,12 @@ export default function ProjectDetail() {
             {/* Owners */}
             <Card>
               <CardHeader>
-                <CardTitle>담당자 ({project.owners?.length || 0}명)</CardTitle>
+                <CardTitle>담당자 ({(() => {
+                  // 기본 워크스페이스 멤버만 표시
+                  const defaultUserIds = (defaultUsers as SafeUser[])?.map(u => u.id) || [];
+                  const filteredOwners = project.owners?.filter(owner => defaultUserIds.includes(owner.id)) || [];
+                  return filteredOwners.length;
+                })()}명)</CardTitle>
               </CardHeader>
               <CardContent>
                 {isEditing ? (
@@ -834,25 +839,31 @@ export default function ProjectDetail() {
                     </div>
                   </div>
                 ) : (
-                  project.owners && project.owners.length > 0 ? (
-                    <div className="space-y-2">
-                      {project.owners.map((owner, index) => (
-                        <div key={owner.id} className="flex items-center gap-3">
-                          <Avatar>
-                            <AvatarFallback className="bg-primary text-primary-foreground">
-                              {owner.initials}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <p className="font-medium" data-testid={`text-owner-name-${index}`}>{owner.name}</p>
-                            <p className="text-sm text-muted-foreground">@{owner.username}</p>
+                  (() => {
+                    // 기본 워크스페이스 멤버만 표시
+                    const defaultUserIds = (defaultUsers as SafeUser[])?.map(u => u.id) || [];
+                    const filteredOwners = project.owners?.filter(owner => defaultUserIds.includes(owner.id)) || [];
+                    
+                    return filteredOwners.length > 0 ? (
+                      <div className="space-y-2">
+                        {filteredOwners.map((owner, index) => (
+                          <div key={owner.id} className="flex items-center gap-3">
+                            <Avatar>
+                              <AvatarFallback className="bg-primary text-primary-foreground">
+                                {owner.initials}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <p className="font-medium" data-testid={`text-owner-name-${index}`}>{owner.name}</p>
+                              <p className="text-sm text-muted-foreground">@{owner.username}</p>
+                            </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-muted-foreground">담당자가 지정되지 않았습니다.</p>
-                  )
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-muted-foreground">담당자가 지정되지 않았습니다.</p>
+                    );
+                  })()
                 )}
               </CardContent>
             </Card>

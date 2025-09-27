@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Badge } from "@/components/ui/badge";
 import { CheckSquare, Plus, Settings, Users, Calendar, LogOut, Mail, Check, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { queryClient } from "@/lib/queryClient";
 
 const workspaceSchema = z.object({
   name: z.string().min(1, "워크스페이스 이름을 입력해주세요"),
@@ -303,48 +304,20 @@ export function WorkspacePage() {
                 }
               }
               
-              // 프로젝트 ownerIds에 사용자 추가
-              if (inviteeUserId && !(targetProject.ownerIds || []).includes(inviteeUserId)) {
-                const updatedOwnerIds = [...(targetProject.ownerIds || []), inviteeUserId];
+              // 초대 수락 시 워크스페이스 멤버로만 추가 (프로젝트 소유자로는 추가하지 않음)
+              if (inviteeUserId) {
+                console.log('워크스페이스 멤버로 초대 수락 완료');
                 
-                // 프로젝트 업데이트 API 호출
-                const updateResponse = await fetch(`/api/projects/${targetProject.id}`, {
-                  method: 'PUT',
-                  headers: {
-                    'Content-Type': 'application/json',
-                  },
-                  body: JSON.stringify({
-                    ownerIds: updatedOwnerIds
-                  })
+                // 실시간 반영을 위해 관련 캐시 무효화
+                queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+                queryClient.invalidateQueries({ queryKey: ["/api/users", { workspace: true }] });
+                queryClient.invalidateQueries({ queryKey: ["/api/users/with-stats"] });
+                queryClient.invalidateQueries({ queryKey: ["/api/users/with-stats", { workspace: true }] });
+                
+                toast({
+                  title: "워크스페이스 참여 완료",
+                  description: `${acceptedInvitation.projectName} 워크스페이스에 참여했습니다.`,
                 });
-                
-                if (updateResponse.ok) {
-                  console.log('프로젝트 멤버로 성공적으로 추가됨');
-                  toast({
-                    title: "멤버 추가 완료",
-                    description: `${acceptedInvitation.projectName}의 멤버로 추가되었습니다.`,
-                  });
-                } else {
-                  console.error('프로젝트 멤버 추가 실패');
-                  const errorText = await updateResponse.text();
-                  console.error('Error details:', errorText);
-                  
-                  // 초대 상태 롤백 (다시 pending으로 되돌림)
-                  const rollbackInvitations = receivedInvitations.map((inv: any) => 
-                    inv.id === invitationId ? { ...inv, status: 'pending' } : inv
-                  );
-                  localStorage.setItem(`receivedInvitations_${userEmail}`, JSON.stringify(rollbackInvitations));
-                  
-                  toast({
-                    title: "멤버 추가 실패",
-                    description: "프로젝트 멤버 추가 중 오류가 발생했습니다. 다시 시도해주세요.",
-                    variant: "destructive",
-                  });
-                  
-                  // 초대 목록 새로고침
-                  setInvitations(rollbackInvitations.filter((inv: any) => inv.status === 'pending'));
-                  return; // 초기 성공 토스트와 플래그 클리어 방지
-                }
               }
             }
           } catch (error) {
