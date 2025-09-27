@@ -45,7 +45,8 @@ export default function ListHorizontal() {
   });
   
   const { data: users } = useQuery({
-    queryKey: ["/api/users"],
+    queryKey: ["/api/users", { workspace: true }],
+    queryFn: () => fetch('/api/users?workspace=true').then(res => res.json()),
   });
   
   const updateProjectMutation = useMutation({
