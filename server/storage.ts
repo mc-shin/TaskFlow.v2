@@ -146,10 +146,10 @@ export class MemStorage implements IStorage {
   private async initializeDefaultData() {
     // Initialize users
     const defaultUsers = [
-      { username: "admin", email: "admin@qubicom.co.kr", password: "password", name: "테스트", initials: "테", lastLoginAt: null },
-      { username: "hyejin", email: "hyejin@qubicom.co.kr", password: "password", name: "전혜진", initials: "전", lastLoginAt: null },
-      { username: "hyejung", email: "hyejung@qubicom.co.kr", password: "password", name: "전혜중", initials: "전", lastLoginAt: null },
-      { username: "chamin", email: "chamin@qubicom.co.kr", password: "password", name: "차민", initials: "차", lastLoginAt: null },
+      { username: "admin", email: "admin@qubicom.co.kr", password: "password", name: "테스트", initials: "테", role: "관리자", lastLoginAt: null },
+      { username: "hyejin", email: "hyejin@qubicom.co.kr", password: "password", name: "전혜진", initials: "전", role: "팀원", lastLoginAt: null },
+      { username: "hyejung", email: "hyejung@qubicom.co.kr", password: "password", name: "전혜중", initials: "전", role: "팀원", lastLoginAt: null },
+      { username: "chamin", email: "chamin@qubicom.co.kr", password: "password", name: "차민", initials: "차", role: "팀원", lastLoginAt: null },
     ];
 
     for (const user of defaultUsers) {
@@ -332,6 +332,7 @@ export class MemStorage implements IStorage {
     const user: User = { 
       ...insertUser, 
       id,
+      role: insertUser.role || "팀원", // 기본값 설정
       lastLoginAt: insertUser.lastLoginAt || null
     };
     this.users.set(id, user);
@@ -814,6 +815,15 @@ export class MemStorage implements IStorage {
     };
     this.goals.set(id, goal);
     
+    // Create activity log for goal creation
+    if (createdBy) {
+      await this.createActivity({
+        description: `새 목표가 생성되었습니다`,
+        taskId: null, // Goal creation doesn't have a taskId
+        userId: createdBy,
+      });
+    }
+    
     return goal;
   }
 
@@ -1143,6 +1153,7 @@ export class MemStorage implements IStorage {
           email: author.email,
           name: author.name,
           initials: author.initials,
+          role: author.role,
           lastLoginAt: author.lastLoginAt
         };
         return {

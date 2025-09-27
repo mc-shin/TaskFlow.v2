@@ -32,17 +32,30 @@ export function LoginPage() {
   const onSubmit = async (data: LoginForm) => {
     setIsLoading(true);
     try {
-      // TODO: 실제 로그인 API 연동
       console.log("Login attempt:", data);
       
-      // 로그인 상태를 localStorage에 저장
+      // 사용자 정보 조회
+      const response = await fetch(`/api/users/by-email/${encodeURIComponent(data.email)}`);
+      if (!response.ok) {
+        throw new Error("사용자를 찾을 수 없습니다");
+      }
+      
+      const user = await response.json();
+      console.log("Found user:", user);
+      
+      // 로그인 상태와 사용자 정보를 localStorage에 저장
       localStorage.setItem("isLoggedIn", "true");
       localStorage.setItem("userEmail", data.email);
+      localStorage.setItem("userId", user.id); // 실제 사용자 ID 저장
+      localStorage.setItem("userName", user.name);
+      localStorage.setItem("userInitials", user.initials);
+      localStorage.setItem("userRole", user.role);
       
-      // 임시로 워크스페이스 관리 페이지로 이동
+      // 워크스페이스 관리 페이지로 이동
       setLocation("/workspace");
     } catch (error) {
       console.error("Login error:", error);
+      // TODO: 에러 메시지 표시
     } finally {
       setIsLoading(false);
     }
