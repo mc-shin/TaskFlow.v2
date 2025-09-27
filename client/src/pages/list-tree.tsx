@@ -1085,17 +1085,8 @@ export default function ListTree() {
             <div className="space-y-1 max-h-48 overflow-y-auto">
               {/* 초대 대기중 표시 제거 - 실제 담당자만 표시 */}
               
-              {/* Current users - 프로젝트의 경우 프로젝트에 이미 포함된 사용자만 표시 */}
-              {(users as SafeUser[])?.filter(user => {
-                // 프로젝트의 경우 현재 ownerIds에 포함된 사용자만 표시
-                if (type === 'project') {
-                  const latestData = queryClient.getQueryData(["/api/projects"]) as ProjectWithDetails[] | undefined;
-                  const currentProject = latestData?.find(p => p.id === itemId);
-                  return currentProject?.ownerIds?.includes(user.id) || false;
-                }
-                // goal이나 task의 경우는 모든 사용자 표시 (기존 동작 유지)
-                return true;
-              }).map(user => {
+              {/* Current users - 모든 사용자 표시하여 다중 선택 가능 */}
+              {(users as SafeUser[])?.map(user => {
                 // Always get the latest data for checkbox state to avoid stale display
                 const latestData = queryClient.getQueryData(["/api/projects"]) as ProjectWithDetails[] | undefined;
                 let latestAssigneeIds: string[] = [];
