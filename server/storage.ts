@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type Task, type InsertTask, type Activity, type InsertActivity, type TaskWithAssignees, type ActivityWithDetails, type Project, type InsertProject, type ProjectWithOwners, type UserWithStats, type SafeUser, type SafeUserWithStats, type SafeTaskWithAssignees, type SafeActivityWithDetails, type Meeting, type InsertMeeting, type MeetingComment, type InsertMeetingComment, type MeetingAttachment, type InsertMeetingAttachment, type MeetingCommentWithAuthor, type MeetingWithDetails, type Goal, type InsertGoal, type GoalWithTasks, type ProjectWithDetails, type Attachment, type InsertAttachment, type Comment, type InsertComment, type CommentWithAuthor } from "@shared/schema";
+import { type User, type InsertUser, type Task, type InsertTask, type Activity, type InsertActivity, type TaskWithAssignees, type ActivityWithDetails, type Project, type InsertProject, type ProjectWithOwners, type UserWithStats, type SafeUser, type SafeUserWithStats, type SafeTaskWithAssignees, type SafeActivityWithDetails, type Meeting, type InsertMeeting, type MeetingComment, type InsertMeetingComment, type MeetingAttachment, type InsertMeetingAttachment, type MeetingCommentWithAuthor, type MeetingWithDetails, type Goal, type InsertGoal, type GoalWithTasks, type ProjectWithDetails, type Attachment, type InsertAttachment, type Comment, type InsertComment, type CommentWithAuthor, type Invitation, type InsertInvitation } from "@shared/schema";
 import { randomUUID } from "crypto";
 
 export interface IStorage {
@@ -9,6 +9,7 @@ export interface IStorage {
   createUser(user: InsertUser): Promise<User>;
   deleteUser(id: string): Promise<boolean>;
   getAllUsers(): Promise<User[]>;
+  getUsersByIds(userIds: string[]): Promise<SafeUser[]>;
   getAllUsersWithStats(): Promise<SafeUserWithStats[]>;
   getAllSafeUsers(): Promise<SafeUser[]>;
   updateUserLastLogin(id: string): Promise<void>;
@@ -72,6 +73,14 @@ export interface IStorage {
   createComment(comment: InsertComment): Promise<Comment>;
   updateComment(id: string, content: string): Promise<Comment | undefined>;
   deleteComment(id: string): Promise<boolean>;
+
+  // Invitation methods
+  createInvitation(invitation: InsertInvitation): Promise<Invitation>;
+  getInvitationsByProject(projectId: string): Promise<Invitation[]>;
+  getInvitationsByEmail(email: string): Promise<Invitation[]>;
+  updateInvitationStatus(id: string, status: string): Promise<Invitation | undefined>;
+  deleteInvitation(id: string): Promise<boolean>;
+  getProjectMemberIds(projectId: string): Promise<string[]>; // 초대받은 사용자 ID 목록
 }
 
 export class MemStorage implements IStorage {
@@ -127,6 +136,7 @@ export class MemStorage implements IStorage {
   private meetingAttachments: Map<string, MeetingAttachment>;
   private attachments: Map<string, Attachment>;
   private comments: Map<string, Comment>;
+  private invitations: Map<string, Invitation>;
 
   constructor() {
     this.users = new Map();
@@ -139,6 +149,7 @@ export class MemStorage implements IStorage {
     this.meetingAttachments = new Map();
     this.attachments = new Map();
     this.comments = new Map();
+    this.invitations = new Map();
     
     // Initialize with some default data
     this.initializeDefaultData();
@@ -917,6 +928,18 @@ export class MemStorage implements IStorage {
     return Array.from(this.users.values());
   }
 
+  async getUsersByIds(userIds: string[]): Promise<SafeUser[]> {
+    const users: SafeUser[] = [];
+    for (const userId of userIds) {
+      const user = await this.getUser(userId);
+      if (user) {
+        const { password, ...safeUser } = user;
+        users.push(safeUser);
+      }
+    }
+    return users;
+  }
+
   async getAllTasks(): Promise<SafeTaskWithAssignees[]> {
     const tasks = Array.from(this.tasks.values());
     const tasksWithAssignees: SafeTaskWithAssignees[] = [];
@@ -1334,6 +1357,67 @@ export class MemStorage implements IStorage {
 
   async deleteComment(id: string): Promise<boolean> {
     return this.comments.delete(id);
+  }
+
+  // Invitation methods
+  async createInvitation(insertInvitation: InsertInvitation): Promise<Invitation> {
+    const id = randomUUID();
+    const invitation: Invitation = {
+      ...insertInvitation,
+      id,
+      status: insertInvitation.status || "pending",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    this.invitations.set(id, invitation);
+    return invitation;
+  }
+
+  async getInvitationsByProject(projectId: string): Promise<Invitation[]> {
+    return Array.from(this.invitations.values()).filter(invitation => invitation.projectId === projectId);
+  }
+
+  async getInvitationsByEmail(email: string): Promise<Invitation[]> {
+    return Array.from(this.invitations.values()).filter(invitation => invitation.inviteeEmail === email);
+  }
+
+  async updateInvitationStatus(id: string, status: string): Promise<Invitation | undefined> {
+    const invitation = this.invitations.get(id);
+    if (!invitation) return undefined;
+    
+    invitation.status = status;
+    invitation.updatedAt = new Date();
+    this.invitations.set(id, invitation);
+    return invitation;
+  }
+
+  async deleteInvitation(id: string): Promise<boolean> {
+    return this.invitations.delete(id);
+  }
+
+  async getProjectMemberIds(projectId: string): Promise<string[]> {
+    // 프로젝트 owner들의 ID 목록을 반환
+    const project = this.projects.get(projectId);
+    if (!project) return [];
+    
+    // 현재 프로젝트의 ownerIds와 초대를 수락한 사용자들을 포함
+    const ownerIds = project.ownerIds || [];
+    
+    // 초대를 수락한 사용자들의 이메일을 찾아서 해당 사용자 ID로 변환
+    const acceptedInvitations = Array.from(this.invitations.values())
+      .filter(inv => inv.projectId === projectId && inv.status === 'accepted');
+    
+    const invitedUserIds: string[] = [];
+    for (const invitation of acceptedInvitations) {
+      const user = Array.from(this.users.values()).find(u => u.email === invitation.inviteeEmail);
+      if (user) {
+        invitedUserIds.push(user.id);
+      }
+    }
+    
+    // 중복 제거하여 반환
+    const allIds = ownerIds.concat(invitedUserIds);
+    return Array.from(new Set(allIds));
   }
 }
 

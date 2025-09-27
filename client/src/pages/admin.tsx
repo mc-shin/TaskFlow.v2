@@ -38,18 +38,32 @@ export default function Admin() {
       return apiRequest('DELETE', `/api/users/${userId}`, {});
     },
     onSuccess: () => {
-      // predicate를 사용해서 모든 사용자 관련 쿼리들을 무효화
+      // 명시적으로 모든 사용자 관련 쿼리들을 무효화
+      console.log('관리자 페이지 멤버 삭제 후 캐시 무효화 시작');
+      
+      // 구체적인 쿼리들을 명시적으로 무효화
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/users/with-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/goals"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/meetings"] });
+      
+      // predicate를 사용한 추가 무효화
       queryClient.invalidateQueries({ 
         predicate: ({ queryKey }) => {
           const key = queryKey[0] as string;
+          console.log('관리자 페이지 캐시 무효화 확인 중:', key);
           return key?.startsWith('/api/users') ||
                  key?.startsWith('/api/projects') ||
                  key?.startsWith('/api/goals') ||
                  key?.startsWith('/api/tasks') ||
-                 key?.startsWith('/api/meetings') ||
-                 key?.startsWith('/api/assignments');
+                 key?.startsWith('/api/meetings');
         }
       });
+      
+      console.log('관리자 페이지 멤버 삭제 후 캐시 무효화 완료');
+      
       toast({
         title: "멤버 삭제 완료",
         description: "멤버가 성공적으로 삭제되었습니다.",

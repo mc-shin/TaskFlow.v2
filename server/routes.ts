@@ -179,6 +179,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get project members (owners + invited/accepted users)
+  app.get("/api/projects/:id/members", async (req, res) => {
+    try {
+      const projectId = req.params.id;
+      const memberIds = await storage.getProjectMemberIds(projectId);
+      const members = await storage.getUsersByIds(memberIds);
+      res.json(members);
+    } catch (error) {
+      console.error('Error fetching project members:', error);
+      res.status(500).json({ message: "Failed to fetch project members" });
+    }
+  });
+
   // Goal routes
   app.get("/api/goals", async (req, res) => {
     try {
