@@ -546,8 +546,11 @@ export function WorkspacePage() {
               <Card key={invitation.id} className="p-4">
                 <div className="space-y-3">
                   <div>
-                    <p className="font-medium">{invitation.inviterUsername}님의 초대</p>
+                    <p className="font-medium">{invitation.inviterName || invitation.inviterUsername}님이 보낸 초대</p>
                     <p className="text-sm text-muted-foreground">
+                      {invitation.inviterEmail && (
+                        <span className="block text-blue-600 mb-1">발신자: {invitation.inviterEmail}</span>
+                      )}
                       {invitation.role} 권한으로 워크스페이스에 초대했습니다.
                     </p>
                   </div>
