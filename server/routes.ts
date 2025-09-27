@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertTaskSchema, insertTaskWithValidationSchema, insertActivitySchema, insertProjectSchema, insertProjectWithValidationSchema, insertGoalSchema, insertGoalWithValidationSchema, insertMeetingSchema, insertMeetingCommentSchema, insertMeetingAttachmentSchema, insertCommentSchema, insertUserSchema } from "@shared/schema";
+import { insertTaskSchema, insertTaskWithValidationSchema, insertActivitySchema, insertProjectSchema, insertProjectWithValidationSchema, insertGoalSchema, insertGoalWithValidationSchema, insertMeetingSchema, insertMeetingCommentSchema, insertMeetingAttachmentSchema, insertCommentSchema, insertUserSchema, insertInvitationSchema } from "@shared/schema";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { z } from "zod";
 
@@ -811,6 +811,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ message: "Failed to delete comment" });
+    }
+  });
+
+  // Invitations API
+  app.post("/api/invitations", async (req, res) => {
+    try {
+      const invitationData = insertInvitationSchema.parse(req.body);
+      const invitation = await storage.createInvitation(invitationData);
+      res.status(201).json(invitation);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid invitation data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create invitation" });
+    }
+  });
+
+  app.get("/api/invitations/projects/:projectId", async (req, res) => {
+    try {
+      const invitations = await storage.getInvitationsByProject(req.params.projectId);
+      res.json(invitations);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch invitations" });
+    }
+  });
+
+  app.get("/api/invitations/email/:email", async (req, res) => {
+    try {
+      const invitations = await storage.getInvitationsByEmail(req.params.email);
+      res.json(invitations);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch invitations" });
+    }
+  });
+
+  app.put("/api/invitations/:id", async (req, res) => {
+    try {
+      const { status } = req.body;
+      if (!status || !['pending', 'accepted', 'declined'].includes(status)) {
+        return res.status(400).json({ message: "Valid status is required (pending, accepted, declined)" });
+      }
+      
+      const invitation = await storage.updateInvitationStatus(req.params.id, status);
+      if (!invitation) {
+        return res.status(404).json({ message: "Invitation not found" });
+      }
+      res.json(invitation);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update invitation status" });
+    }
+  });
+
+  app.delete("/api/invitations/:id", async (req, res) => {
+    try {
+      const deleted = await storage.deleteInvitation(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ message: "Invitation not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete invitation" });
     }
   });
 
