@@ -1124,69 +1124,25 @@ export default function ListTree() {
                 
                 // Check if user is explicitly in the assignee list
                 const isSelected = latestAssigneeIds.includes(user.id);
-                // 관리자가 아닌 사용자만 삭제 버튼 표시
-                const canDelete = user.role !== "관리자";
                 
                 return (
                   <div
                     key={user.id}
-                    className="flex items-center gap-2 hover:bg-muted/50 p-2 rounded"
+                    className="flex items-center gap-2 hover:bg-muted/50 p-2 rounded cursor-pointer"
+                    onClick={() => handleAssigneeToggle(user.id, !isSelected)}
                     data-testid={`user-item-${user.id}`}
                   >
-                    <div 
-                      className="flex items-center gap-2 flex-1 cursor-pointer"
-                      onClick={() => handleAssigneeToggle(user.id, !isSelected)}
+                    <Checkbox
+                      checked={isSelected}
+                      className="pointer-events-none"
                       data-testid={`checkbox-user-${user.id}`}
-                    >
-                      <Checkbox
-                        checked={isSelected}
-                        className="pointer-events-none"
-                      />
-                      <Avatar className="w-6 h-6">
-                        <AvatarFallback className="text-xs">
-                          {user.name.charAt(0)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <span className="text-sm">{user.name}</span>
-                    </div>
-                    {/* 멤버 삭제 버튼 - 관리자 제외 */}
-                    {canDelete && (
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 w-6 p-0 text-destructive hover:text-destructive"
-                            data-testid={`button-delete-member-${user.id}`}
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>멤버 삭제</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              정말로 <strong>{user.name}</strong> 멤버를 삭제하시겠습니까?
-                              <br />
-                              <br />
-                              <span className="text-red-600 font-medium">
-                                ⚠️ 주의: 이 작업은 되돌릴 수 없으며, 해당 사용자가 모든 프로젝트, 목표, 작업, 미팅에서 제거됩니다.
-                              </span>
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>취소</AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={() => deleteUserMutation.mutate(user.id)}
-                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                              data-testid={`button-confirm-delete-${user.id}`}
-                            >
-                              삭제
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    )}
+                    />
+                    <Avatar className="w-6 h-6">
+                      <AvatarFallback className="text-xs">
+                        {user.name.charAt(0)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="text-sm">{user.name}</span>
                   </div>
                 );
               })}
