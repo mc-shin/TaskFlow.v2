@@ -1075,21 +1075,29 @@ export default function ListTree() {
                 const latestData = queryClient.getQueryData(["/api/projects"]) as ProjectWithDetails[] | undefined;
                 let latestAssigneeIds: string[] = [];
                 
-                if (latestData) {
+                // Get assignee IDs from latest data, allowing empty arrays
+                if (latestData && Array.isArray(latestData)) {
                   if (type === 'project') {
                     const latestProject = latestData.find(p => p.id === itemId);
-                    latestAssigneeIds = Array.isArray(latestProject?.ownerIds) ? latestProject.ownerIds : [];
+                    if (latestProject && Array.isArray(latestProject.ownerIds)) {
+                      latestAssigneeIds = latestProject.ownerIds;
+                    }
                   } else if (type === 'goal') {
                     const latestGoal = latestData.flatMap(p => p.goals || []).find(g => g.id === itemId);
-                    latestAssigneeIds = Array.isArray(latestGoal?.assigneeIds) ? latestGoal.assigneeIds : [];
+                    if (latestGoal && Array.isArray(latestGoal.assigneeIds)) {
+                      latestAssigneeIds = latestGoal.assigneeIds;
+                    }
                   } else if (type === 'task') {
                     const latestTask = latestData
                       .flatMap(p => [...(p.tasks || []), ...(p.goals || []).flatMap(g => g.tasks || [])])
                       .find(t => t.id === itemId);
-                    latestAssigneeIds = Array.isArray(latestTask?.assigneeIds) ? latestTask.assigneeIds : [];
+                    if (latestTask && Array.isArray(latestTask.assigneeIds)) {
+                      latestAssigneeIds = latestTask.assigneeIds;
+                    }
                   }
                 }
                 
+                // Check if user is explicitly in the assignee list
                 const isSelected = latestAssigneeIds.includes(user.id);
                 return (
                   <div

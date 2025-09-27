@@ -7,6 +7,7 @@ import { Plus, MoreHorizontal, Edit, Trash2 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
+import { useMemo } from "react";
 import type { TaskWithAssignees } from "@shared/schema";
 
 interface TaskTableProps {
@@ -26,6 +27,16 @@ export function TaskTable({ onEditTask }: TaskTableProps) {
     queryKey: ["/api/tasks"],
     refetchInterval: 10000,
   });
+
+  // Filter tasks to show only current user's tasks
+  const myTasks = useMemo(() => {
+    const currentUserId = localStorage.getItem("userId");
+    if (!currentUserId || !tasks) return [];
+    
+    return (tasks as TaskWithAssignees[]).filter(task => 
+      task.assignees && task.assignees.some(assignee => assignee.id === currentUserId)
+    );
+  }, [tasks]);
 
   const deleteTaskMutation = useMutation({
     mutationFn: async (taskId: string) => {
@@ -134,7 +145,7 @@ export function TaskTable({ onEditTask }: TaskTableProps) {
               </tr>
             </thead>
             <tbody>
-              {(tasks as TaskWithAssignees[] || []).map((task: TaskWithAssignees) => (
+              {myTasks.map((task: TaskWithAssignees) => (
                 <tr 
                   key={task.id}
                   className="task-row border-b border-border hover:bg-accent/50 transition-colors"
@@ -192,10 +203,10 @@ export function TaskTable({ onEditTask }: TaskTableProps) {
                 </tr>
               ))}
               
-              {(!(tasks as TaskWithAssignees[]) || (tasks as TaskWithAssignees[]).length === 0) && (
+              {myTasks.length === 0 && (
                 <tr>
                   <td colSpan={5} className="p-8 text-center text-muted-foreground" data-testid="text-empty-tasks">
-                    작업이 없습니다. 새 작업을 생성해보세요.
+                    나에게 할당된 작업이 없습니다.
                   </td>
                 </tr>
               )}

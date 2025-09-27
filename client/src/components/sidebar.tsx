@@ -1,11 +1,31 @@
 import { Home, Users, Settings, List, Calendar, GitBranch, Star, Archive, MessageSquare, CheckSquare, ChevronDown, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
+import { useQuery } from "@tanstack/react-query";
+import type { SafeUser } from "@shared/schema";
 
 export function Sidebar() {
   const [expandedSections, setExpandedSections] = useState<string[]>(['dashboard', 'work-management', 'meeting']);
   const [location, setLocation] = useLocation();
+  const [currentUser, setCurrentUser] = useState<SafeUser | null>(null);
+
+  // Get current user information
+  const { data: users } = useQuery({
+    queryKey: ["/api/users"],
+    staleTime: 0,
+    refetchInterval: 10000,
+  });
+
+  useEffect(() => {
+    const userId = localStorage.getItem("userId");
+    const userName = localStorage.getItem("userName");
+    
+    if (userId && users) {
+      const user = (users as SafeUser[]).find(u => u.id === userId);
+      setCurrentUser(user || null);
+    }
+  }, [users]);
 
   const toggleSection = (section: string) => {
     setExpandedSections(prev => 
@@ -180,11 +200,17 @@ export function Sidebar() {
       <div className="p-4 border-t border-border" data-testid="user-profile">
         <div className="flex items-center space-x-2">
           <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
-            <span className="text-sm text-primary-foreground font-medium">사</span>
+            <span className="text-sm text-primary-foreground font-medium">
+              {currentUser?.initials || localStorage.getItem("userInitials") || "사"}
+            </span>
           </div>
           <div>
-            <div className="text-sm font-medium" data-testid="text-username">사용자</div>
-            <div className="text-xs text-muted-foreground" data-testid="text-user-role">관리자</div>
+            <div className="text-sm font-medium" data-testid="text-username">
+              {currentUser?.name || localStorage.getItem("userName") || "사용자"}
+            </div>
+            <div className="text-xs text-muted-foreground" data-testid="text-user-role">
+              {currentUser?.role || "팀원"}
+            </div>
           </div>
         </div>
       </div>
