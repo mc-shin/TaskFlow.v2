@@ -93,16 +93,18 @@ export function Sidebar() {
                   <span>팀</span>
                 </Button>
               </Link>
-              <Link href="/workspace/app/admin">
-                <Button 
-                  variant={location === "/workspace/app/admin" ? "default" : "ghost"} 
-                  className="w-full justify-start space-x-3 text-muted-foreground hover:text-accent-foreground h-8"
-                  data-testid="link-admin"
-                >
-                  <Settings className="h-4 w-4" />
-                  <span>관리자</span>
-                </Button>
-              </Link>
+              {currentUser?.role === "관리자" && (
+                <Link href="/workspace/app/admin">
+                  <Button 
+                    variant={location === "/workspace/app/admin" ? "default" : "ghost"} 
+                    className="w-full justify-start space-x-3 text-muted-foreground hover:text-accent-foreground h-8"
+                    data-testid="link-admin"
+                  >
+                    <Settings className="h-4 w-4" />
+                    <span>관리자</span>
+                  </Button>
+                </Link>
+              )}
             </div>
           )}
         </div>
