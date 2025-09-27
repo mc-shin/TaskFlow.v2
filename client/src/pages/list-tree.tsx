@@ -135,9 +135,10 @@ export default function ListTree() {
     }
   }, [projects]);
 
-  // Get users for assignee dropdown
+  // Get users for assignee dropdown (워크스페이스 멤버만)
   const { data: users } = useQuery({
-    queryKey: ["/api/users"],
+    queryKey: ["/api/users", { workspace: true }],
+    queryFn: () => fetch('/api/users?workspace=true').then(res => res.json()),
     refetchInterval: 10000, // 실시간 업데이트를 위해 10초마다 자동 갱신
     staleTime: 0, // 즉시 stale 상태로 만들어 항상 새로운 데이터 요청
     refetchOnWindowFocus: true, // 창 포커스 시에도 갱신
@@ -155,7 +156,7 @@ export default function ListTree() {
       console.log('멤버 삭제 후 캐시 무효화 시작');
       
       // 구체적인 쿼리들을 명시적으로 무효화
-      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/users", { workspace: true }] });
       queryClient.invalidateQueries({ queryKey: ["/api/users/with-stats"] });
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
       queryClient.invalidateQueries({ queryKey: ["/api/goals"] });
@@ -2347,8 +2348,8 @@ export default function ListTree() {
                         // 사용자가 존재하지 않아도 괜찮음
                       }
                       
-                      // 현재 로그인된 사용자의 정보 가져오기
-                      const usersResponse = await fetch('/api/users');
+                      // 현재 로그인된 사용자의 정보 가져오기 (워크스페이스 멤버만)
+                      const usersResponse = await fetch('/api/users?workspace=true');
                       const allUsers = await usersResponse.json();
                       
                       // localStorage의 userEmail을 기반으로 실제 사용자 매핑

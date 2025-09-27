@@ -283,8 +283,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // User routes
   app.get("/api/users", async (req, res) => {
     try {
-      const users = await storage.getAllSafeUsers();
-      res.json(users);
+      const { workspace } = req.query;
+      
+      // workspace=true 파라미터가 있으면 워크스페이스 멤버만 반환
+      if (workspace === 'true') {
+        const workspaceMembers = await storage.getWorkspaceMembers();
+        res.json(workspaceMembers);
+      } else {
+        // 기본 동작: 모든 사용자 반환 (하위 호환성 유지)
+        const users = await storage.getAllSafeUsers();
+        res.json(users);
+      }
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch users" });
     }
@@ -292,8 +301,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/users/with-stats", async (req, res) => {
     try {
-      const users = await storage.getAllUsersWithStats();
-      res.json(users);
+      const { workspace } = req.query;
+      
+      // workspace=true 파라미터가 있으면 워크스페이스 멤버만 반환
+      if (workspace === 'true') {
+        const workspaceUsersWithStats = await storage.getWorkspaceUsersWithStats();
+        res.json(workspaceUsersWithStats);
+      } else {
+        // 기본 동작: 모든 사용자 반환 (하위 호환성 유지)
+        const users = await storage.getAllUsersWithStats();
+        res.json(users);
+      }
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch users with stats" });
     }

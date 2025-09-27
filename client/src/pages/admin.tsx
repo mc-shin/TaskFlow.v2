@@ -23,7 +23,8 @@ export default function Admin() {
   });
 
   const { data: usersWithStats, isLoading: usersLoading } = useQuery({
-    queryKey: ["/api/users/with-stats"],
+    queryKey: ["/api/users/with-stats", { workspace: true }],
+    queryFn: () => fetch('/api/users/with-stats?workspace=true').then(res => res.json()),
     refetchInterval: 10000,
   });
 
@@ -42,8 +43,8 @@ export default function Admin() {
       console.log('관리자 페이지 멤버 삭제 후 캐시 무효화 시작');
       
       // 구체적인 쿼리들을 명시적으로 무효화
-      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/users/with-stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/users", { workspace: true }] });
+      queryClient.invalidateQueries({ queryKey: ["/api/users/with-stats", { workspace: true }] });
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
       queryClient.invalidateQueries({ queryKey: ["/api/goals"] });
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });

@@ -56,8 +56,8 @@ export function WorkspacePage() {
       if (!userEmail) return;
 
       try {
-        // 현재 로그인된 사용자의 실제 정보 가져오기
-        const response = await fetch('/api/users');
+        // 현재 로그인된 사용자의 실제 정보 가져오기 (워크스페이스 멤버만)
+        const response = await fetch('/api/users?workspace=true');
         const users = await response.json();
         
         // userEmail을 기반으로 실제 사용자 매핑 (간단한 매핑 로직)
@@ -201,8 +201,8 @@ export function WorkspacePage() {
     if (!userEmail) return;
 
     try {
-      // 현재 로그인된 사용자의 실제 username 가져오기
-      const response = await fetch('/api/users');
+      // 현재 로그인된 사용자의 실제 username 가져오기 (워크스페이스 멤버만)
+      const response = await fetch('/api/users?workspace=true');
       const users = await response.json();
       
       // userEmail을 기반으로 실제 사용자 매핑

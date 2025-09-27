@@ -1419,6 +1419,78 @@ export class MemStorage implements IStorage {
     const allIds = ownerIds.concat(invitedUserIds);
     return Array.from(new Set(allIds));
   }
+
+  async getWorkspaceMembers(): Promise<SafeUser[]> {
+    // 워크스페이스 멤버는 다음과 같습니다:
+    // 1. 초기 기본 사용자들 (admin, hyejin, hyejung, chamin)
+    // 2. 초대를 수락한 사용자들
+    
+    const allUsers = Array.from(this.users.values());
+    const defaultUserEmails = [
+      'admin@qubicom.co.kr',
+      'hyejin@qubicom.co.kr', 
+      'hyejung@qubicom.co.kr',
+      'chamin@qubicom.co.kr'
+    ];
+    
+    // 기본 사용자들
+    const defaultUsers = allUsers.filter(user => defaultUserEmails.includes(user.email));
+    
+    // 초대를 수락한 사용자들의 이메일 목록
+    const acceptedInvitations = Array.from(this.invitations.values())
+      .filter(inv => inv.status === 'accepted');
+    
+    const invitedUserEmails = new Set(acceptedInvitations.map(inv => inv.inviteeEmail));
+    
+    // 초대를 수락한 사용자들
+    const invitedUsers = allUsers.filter(user => 
+      invitedUserEmails.has(user.email) && !defaultUserEmails.includes(user.email)
+    );
+    
+    // 기본 사용자들과 초대 수락한 사용자들을 합침
+    const workspaceUsers = [...defaultUsers, ...invitedUsers];
+    
+    // SafeUser 형태로 변환 (비밀번호 제거)
+    return workspaceUsers.map(user => {
+      const { password, ...safeUser } = user;
+      return safeUser;
+    });
+  }
+
+  async getWorkspaceUsersWithStats(): Promise<SafeUserWithStats[]> {
+    // 워크스페이스 멤버들의 통계와 함께 정보 반환
+    const workspaceMembers = await this.getWorkspaceMembers();
+    
+    // 각 사용자의 통계 계산
+    const usersWithStats = await Promise.all(
+      workspaceMembers.map(async (user) => {
+        // 사용자가 생성한 프로젝트 수
+        const projectCount = Array.from(this.projects.values())
+          .filter(project => project.createdBy === user.id).length;
+
+        // 사용자가 담당한 작업 수
+        const taskCount = Array.from(this.tasks.values())
+          .filter(task => task.assigneeIds && task.assigneeIds.includes(user.id)).length;
+
+        // 사용자가 완료한 작업 수
+        const completedTaskCount = Array.from(this.tasks.values())
+          .filter(task => 
+            task.assigneeIds && 
+            task.assigneeIds.includes(user.id) && 
+            task.status === '완료'
+          ).length;
+
+        return {
+          ...user,
+          projectCount,
+          taskCount,
+          completedTaskCount,
+        };
+      })
+    );
+
+    return usersWithStats;
+  }
 }
 
 export const storage = new MemStorage();
