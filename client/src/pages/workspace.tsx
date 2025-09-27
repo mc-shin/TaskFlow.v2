@@ -223,6 +223,17 @@ export function WorkspacePage() {
       // 모든 사용자에 대해 로그인한 이메일을 키로 사용 (일관성 유지)
       const currentEmail = userEmail;
 
+      // 백엔드에 초대 상태 업데이트 (중요: 이것이 없으면 워크스페이스 멤버로 포함되지 않음!)
+      await fetch(`/api/invitations/${invitationId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          status: action === 'accept' ? 'accepted' : 'declined'
+        })
+      });
+
       // 받은 초대 목록 업데이트
       const receivedInvitations = JSON.parse(localStorage.getItem(`receivedInvitations_${currentEmail}`) || '[]');
       const updatedInvitations = receivedInvitations.map((inv: any) => 
