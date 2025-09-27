@@ -546,7 +546,7 @@ export function WorkspacePage() {
               <Card key={invitation.id} className="p-4">
                 <div className="space-y-3">
                   <div>
-                    <p className="font-medium">{invitation.inviterName || invitation.inviterUsername}님이 보낸 초대</p>
+                    <p className="font-medium">{invitation.inviterName || invitation.inviterEmail?.split('@')[0] || '관리자'}님이 보낸 초대</p>
                     <p className="text-sm text-muted-foreground">
                       {invitation.inviterEmail && (
                         <span className="block text-blue-600 mb-1">발신자: {invitation.inviterEmail}</span>

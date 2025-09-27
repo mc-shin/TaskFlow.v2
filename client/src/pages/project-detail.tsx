@@ -48,14 +48,11 @@ export default function ProjectDetail() {
     queryKey: ["/api/projects"],
   });
 
+  // 워크스페이스 멤버 목록 (기본 멤버 + 초대 수락한 멤버)
   const { data: users } = useQuery({
-    queryKey: ["/api/users"],
+    queryKey: ["/api/users", { workspace: true }],
   });
 
-  // 프로젝트 담당자 선택용 사용자 목록 (기본 워크스페이스 멤버만)
-  const { data: defaultUsers } = useQuery({
-    queryKey: ["/api/users/default"],
-  });
 
   const { data: attachments } = useQuery({
     queryKey: ["/api/attachments", "project", projectId],
@@ -788,9 +785,9 @@ export default function ProjectDetail() {
             <Card>
               <CardHeader>
                 <CardTitle>담당자 ({(() => {
-                  // 기본 워크스페이스 멤버만 표시
-                  const defaultUserIds = (defaultUsers as SafeUser[])?.map(u => u.id) || [];
-                  const filteredOwners = project.owners?.filter(owner => defaultUserIds.includes(owner.id)) || [];
+                  // 워크스페이스 멤버 전체 (기본 멤버 + 초대 수락한 멤버) 표시
+                  const workspaceUserIds = (users as SafeUser[])?.map(u => u.id) || [];
+                  const filteredOwners = project.owners?.filter(owner => workspaceUserIds.includes(owner.id)) || [];
                   return filteredOwners.length;
                 })()}명)</CardTitle>
               </CardHeader>
@@ -799,7 +796,7 @@ export default function ProjectDetail() {
                   <div className="space-y-3">
                     <p className="text-sm font-medium">담당자 선택</p>
                     <div className="space-y-2 max-h-48 overflow-y-auto">
-                      {Array.isArray(defaultUsers) ? (defaultUsers as SafeUser[]).map((user) => {
+                      {Array.isArray(users) ? (users as SafeUser[]).map((user) => {
                         const currentOwnerIds = editedProject.ownerIds ?? project.ownerIds ?? [];
                         const isSelected = currentOwnerIds.includes(user.id);
                         
@@ -840,9 +837,9 @@ export default function ProjectDetail() {
                   </div>
                 ) : (
                   (() => {
-                    // 기본 워크스페이스 멤버만 표시
-                    const defaultUserIds = (defaultUsers as SafeUser[])?.map(u => u.id) || [];
-                    const filteredOwners = project.owners?.filter(owner => defaultUserIds.includes(owner.id)) || [];
+                    // 워크스페이스 멤버 전체 (기본 멤버 + 초대 수락한 멤버) 표시
+                    const workspaceUserIds = (users as SafeUser[])?.map(u => u.id) || [];
+                    const filteredOwners = project.owners?.filter(owner => workspaceUserIds.includes(owner.id)) || [];
                     
                     return filteredOwners.length > 0 ? (
                       <div className="space-y-2">

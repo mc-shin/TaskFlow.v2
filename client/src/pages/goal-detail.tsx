@@ -48,8 +48,9 @@ export default function GoalDetail() {
     queryKey: ["/api/projects"],
   });
 
+  // 워크스페이스 멤버 목록 (기본 멤버 + 초대 수락한 멤버)
   const { data: users } = useQuery({
-    queryKey: ["/api/users"],
+    queryKey: ["/api/users", { workspace: true }],
   });
 
   // Find the goal and its parent project
