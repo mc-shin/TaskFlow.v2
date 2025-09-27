@@ -7,6 +7,7 @@ export interface IStorage {
   getUserByUsername(username: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  deleteUser(id: string): Promise<boolean>;
   getAllUsers(): Promise<User[]>;
   getAllUsersWithStats(): Promise<SafeUserWithStats[]>;
   getAllSafeUsers(): Promise<SafeUser[]>;
@@ -337,6 +338,60 @@ export class MemStorage implements IStorage {
     };
     this.users.set(id, user);
     return user;
+  }
+
+  async deleteUser(id: string): Promise<boolean> {
+    // 사용자 존재 확인
+    const user = this.users.get(id);
+    if (!user) {
+      return false;
+    }
+    
+    // 관리자 사용자 삭제 방지
+    if (user.role === "관리자") {
+      throw new Error("관리자 계정은 삭제할 수 없습니다.");
+    }
+    
+    // 모든 프로젝트에서 해당 사용자를 ownerIds에서 제거
+    const projects = Array.from(this.projects.values());
+    for (const project of projects) {
+      if (project.ownerIds && project.ownerIds.includes(id)) {
+        project.ownerIds = project.ownerIds.filter(ownerId => ownerId !== id);
+        this.projects.set(project.id, project);
+      }
+    }
+    
+    // 모든 목표에서 해당 사용자를 assigneeIds에서 제거
+    const goals = Array.from(this.goals.values());
+    for (const goal of goals) {
+      if (goal.assigneeIds && goal.assigneeIds.includes(id)) {
+        goal.assigneeIds = goal.assigneeIds.filter(assigneeId => assigneeId !== id);
+        this.goals.set(goal.id, goal);
+      }
+    }
+    
+    // 모든 작업에서 해당 사용자를 assigneeIds에서 제거
+    const tasks = Array.from(this.tasks.values());
+    for (const task of tasks) {
+      if (task.assigneeIds && task.assigneeIds.includes(id)) {
+        task.assigneeIds = task.assigneeIds.filter(assigneeId => assigneeId !== id);
+        this.tasks.set(task.id, task);
+      }
+    }
+    
+    // 모든 미팅에서 해당 사용자를 attendeeIds에서 제거
+    const meetings = Array.from(this.meetings.values());
+    for (const meeting of meetings) {
+      if (meeting.attendeeIds && meeting.attendeeIds.includes(id)) {
+        meeting.attendeeIds = meeting.attendeeIds.filter(attendeeId => attendeeId !== id);
+        this.meetings.set(meeting.id, meeting);
+      }
+    }
+    
+    // 사용자 삭제
+    this.users.delete(id);
+    
+    return true;
   }
 
   async getAllUsersWithStats(): Promise<SafeUserWithStats[]> {

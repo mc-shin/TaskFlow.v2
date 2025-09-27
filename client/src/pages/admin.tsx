@@ -5,12 +5,17 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { AlertTriangle, Calendar, Clock, User, Users } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { AlertTriangle, Calendar, Clock, User, Users, Trash2 } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { ProjectWithOwners, SafeUserWithStats } from "@shared/schema";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Admin() {
   const [activeTab, setActiveTab] = useState("projects");
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const { data: projects, isLoading: projectsLoading } = useQuery({
     queryKey: ["/api/projects"],
@@ -26,6 +31,43 @@ export default function Admin() {
     queryKey: ["/api/tasks"],
     refetchInterval: 10000,
   });
+
+  // 사용자 삭제 뮤테이션
+  const deleteUserMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      return apiRequest('DELETE', `/api/users/${userId}`, {});
+    },
+    onSuccess: () => {
+      // predicate를 사용해서 모든 사용자 관련 쿼리들을 무효화
+      queryClient.invalidateQueries({ 
+        predicate: ({ queryKey }) => {
+          const key = queryKey[0] as string;
+          return key?.startsWith('/api/users') ||
+                 key?.startsWith('/api/projects') ||
+                 key?.startsWith('/api/goals') ||
+                 key?.startsWith('/api/tasks') ||
+                 key?.startsWith('/api/meetings') ||
+                 key?.startsWith('/api/assignments');
+        }
+      });
+      toast({
+        title: "멤버 삭제 완료",
+        description: "멤버가 성공적으로 삭제되었습니다.",
+      });
+    },
+    onError: (error) => {
+      console.error('멤버 삭제 실패:', error);
+      toast({
+        title: "멤버 삭제 실패",
+        description: "멤버 삭제 중 오류가 발생했습니다.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleDeleteUser = (userId: string) => {
+    deleteUserMutation.mutate(userId);
+  };
 
   const formatDeadline = (deadline: string) => {
     const deadlineDate = new Date(deadline);
@@ -355,6 +397,44 @@ export default function Admin() {
                               className="h-2"
                             />
                           </div>
+                          
+                          {/* 삭제 버튼 - admin 사용자는 삭제 불가 */}
+                          {user.role !== "관리자" && (
+                            <div className="pt-3 border-t">
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button 
+                                    variant="destructive" 
+                                    size="sm" 
+                                    className="w-full"
+                                    data-testid={`button-delete-user-${user.id}`}
+                                  >
+                                    <Trash2 className="w-4 h-4 mr-2" />
+                                    멤버 삭제
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>멤버 삭제 확인</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      정말로 "{user.name}" 멤버를 삭제하시겠습니까? 
+                                      이 작업은 되돌릴 수 없으며, 해당 멤버는 모든 프로젝트와 작업에서 제거됩니다.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>취소</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      onClick={() => handleDeleteUser(user.id)}
+                                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                      data-testid={`button-confirm-delete-user-${user.id}`}
+                                    >
+                                      삭제
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </div>
+                          )}
                         </div>
                       </CardContent>
                     </Card>

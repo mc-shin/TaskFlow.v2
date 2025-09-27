@@ -331,6 +331,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.delete("/api/users/:id", async (req, res) => {
+    try {
+      const userId = req.params.id;
+      const deleted = await storage.deleteUser(userId);
+      if (!deleted) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      res.json({ message: "User deleted successfully" });
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      // 관리자 삭제 방지 에러 처리
+      if (error instanceof Error && error.message === "관리자 계정은 삭제할 수 없습니다.") {
+        return res.status(403).json({ message: error.message });
+      }
+      res.status(500).json({ message: "Failed to delete user" });
+    }
+  });
+
   // Activity routes
   app.get("/api/activities", async (req, res) => {
     try {
