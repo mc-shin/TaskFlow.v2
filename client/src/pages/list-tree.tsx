@@ -2374,22 +2374,40 @@ export default function ListTree() {
                       const allProjects = await projectsResponse.json();
                       const mainProject = allProjects.find((p: any) => p.name === '메인 프로젝트');
                       
-                      // 초대 정보를 localStorage에 저장
-                      const invitations = JSON.parse(localStorage.getItem('invitations') || '[]');
-                      const newInvitation = {
-                        id: Date.now().toString(),
+                      // 백엔드에 초대 생성 API 호출 (중요: DB에 저장해야 수락 시 작동함)
+                      const invitationData = {
                         projectId: mainProject?.id || null,
-                        projectName: mainProject?.name || '메인 프로젝트',
                         inviterEmail: currentUser.email,
-                        inviterName: currentUser.name,
                         inviteeEmail: inviteUsername,
-                        inviteeName: existingUser ? existingUser.name : inviteUsername, // 신규 사용자는 이메일 표시
-                        role: inviteRole,
-                        status: 'pending',
+                        inviteeUsername: existingUser ? existingUser.username : inviteUsername.split('@')[0], // 신규 사용자는 이메일의 앞부분을 username으로 사용
+                        role: inviteRole
+                      };
+                      
+                      const response = await fetch('/api/invitations', {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(invitationData)
+                      });
+                      
+                      if (!response.ok) {
+                        throw new Error('초대 생성 실패');
+                      }
+                      
+                      const newInvitation = await response.json();
+                      
+                      // localStorage에도 저장 (기존 호환성 유지)
+                      const invitations = JSON.parse(localStorage.getItem('invitations') || '[]');
+                      const localInvitation = {
+                        ...newInvitation,
+                        projectName: mainProject?.name || '메인 프로젝트',
+                        inviterName: currentUser.name,
+                        inviteeName: existingUser ? existingUser.name : inviteUsername,
                         createdAt: new Date().toISOString()
                       };
                       
-                      invitations.push(newInvitation);
+                      invitations.push(localInvitation);
                       localStorage.setItem('invitations', JSON.stringify(invitations));
                       
                       // 전역 초대 목록에 저장 (신규가입자도 확인할 수 있도록)
