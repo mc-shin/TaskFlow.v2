@@ -142,9 +142,28 @@ export function WorkspacePage() {
           localStorage.setItem("userName", currentUser.name);
         }
         
-        // 모든 사용자(기존/신규)에 대해 개별 받은 초대 목록 먼저 확인
-        const receivedInvitations = JSON.parse(localStorage.getItem(`receivedInvitations_${userEmail}`) || '[]');
-        pendingInvitations = receivedInvitations.filter((inv: any) => inv.status === 'pending');
+        // 서버에서 실제 초대 목록 가져오기 (동기화)
+        try {
+          const serverInvitationsResponse = await fetch(`/api/invitations/email/${encodeURIComponent(userEmail)}`);
+          if (serverInvitationsResponse.ok) {
+            const serverInvitations = await serverInvitationsResponse.json();
+            // 서버에서 가져온 pending 초대만 사용
+            pendingInvitations = serverInvitations.filter((inv: any) => inv.status === 'pending');
+            
+            // localStorage와 동기화 (서버 데이터를 신뢰할 수 있는 소스로 사용)
+            localStorage.setItem(`receivedInvitations_${userEmail}`, JSON.stringify(serverInvitations));
+          } else {
+            // 서버에서 가져오기 실패 시 localStorage 백업 사용
+            console.warn('서버에서 초대 목록을 가져올 수 없습니다. localStorage 데이터를 사용합니다.');
+            const receivedInvitations = JSON.parse(localStorage.getItem(`receivedInvitations_${userEmail}`) || '[]');
+            pendingInvitations = receivedInvitations.filter((inv: any) => inv.status === 'pending');
+          }
+        } catch (error) {
+          console.error('초대 목록 동기화 오류:', error);
+          // 오류 시 localStorage 백업 사용
+          const receivedInvitations = JSON.parse(localStorage.getItem(`receivedInvitations_${userEmail}`) || '[]');
+          pendingInvitations = receivedInvitations.filter((inv: any) => inv.status === 'pending');
+        }
         
         // 신규 사용자이고 개별 초대 목록이 비어있다면 전역 목록에서 확인
         if (!currentUser && pendingInvitations.length === 0) {
@@ -168,8 +187,8 @@ export function WorkspacePage() {
         
         setInvitations(pendingInvitations);
         
-        // 초대가 있다면 다이얼로그 자동 열기
-        if (pendingInvitations.length > 0) {
+        // 초대가 있고 다이얼로그가 닫혀있을 때만 다이얼로그 열기 (중복 열림 방지)
+        if (pendingInvitations.length > 0 && !isInviteDialogOpen) {
           setIsInviteDialogOpen(true);
         }
         

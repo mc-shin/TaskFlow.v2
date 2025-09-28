@@ -1,19 +1,35 @@
 import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
-import { AlertTriangle, Calendar, Clock, User, Users, Trash2 } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AlertTriangle, Calendar, Clock, User, Users, Trash2, UserPlus, Mail } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { ProjectWithOwners, SafeUserWithStats } from "@shared/schema";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
+const inviteSchema = z.object({
+  email: z.string().email("올바른 이메일을 입력해주세요"),
+  role: z.enum(["관리자", "팀원"], { message: "역할을 선택해주세요" }),
+});
+
+type InviteForm = z.infer<typeof inviteSchema>;
+
 export default function Admin() {
   const [activeTab, setActiveTab] = useState("projects");
+  const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
+  const [isInviteLoading, setIsInviteLoading] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -31,6 +47,15 @@ export default function Admin() {
   const { data: tasks, isLoading: tasksLoading } = useQuery({
     queryKey: ["/api/tasks"],
     refetchInterval: 10000,
+  });
+
+  // 초대 폼
+  const inviteForm = useForm<InviteForm>({
+    resolver: zodResolver(inviteSchema),
+    defaultValues: {
+      email: "",
+      role: "팀원",
+    },
   });
 
   // 사용자 삭제 뮤테이션
@@ -82,6 +107,116 @@ export default function Admin() {
 
   const handleDeleteUser = (userId: string) => {
     deleteUserMutation.mutate(userId);
+  };
+
+  // 초대 보내기 함수
+  const handleInviteSubmit = async (data: InviteForm) => {
+    setIsInviteLoading(true);
+    try {
+      // 이메일 중복 확인
+      const userResponse = await fetch(`/api/users/by-email/${encodeURIComponent(data.email)}`);
+      if (userResponse.ok) {
+        toast({
+          title: "초대 실패",
+          description: "이미 등록된 사용자입니다.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // 현재 사용자 정보 가져오기 (admin은 이미 로그인되어 있으므로 기본값 사용)
+      let currentUser = { 
+        name: "관리자", 
+        email: "admin@qubicom.co.kr",
+        id: "admin" 
+      };
+
+      // 실제 현재 사용자 정보가 있다면 사용
+      const userEmail = localStorage.getItem("userEmail");
+      if (userEmail) {
+        try {
+          const currentUserResponse = await fetch(`/api/users/by-email/${encodeURIComponent(userEmail)}`);
+          if (currentUserResponse.ok) {
+            currentUser = await currentUserResponse.json();
+          }
+        } catch (error) {
+          console.log('사용자 정보 조회 실패, 기본값 사용:', error);
+        }
+      } else {
+        // userEmail이 localStorage에 없다면 admin으로 설정
+        localStorage.setItem("userEmail", "admin@qubicom.co.kr");
+        localStorage.setItem("userName", "관리자");
+      }
+
+      // 메인 프로젝트 찾기
+      const projectsResponse = await fetch('/api/projects');
+      if (!projectsResponse.ok) {
+        throw new Error("프로젝트 정보를 가져올 수 없습니다.");
+      }
+      const projects = await projectsResponse.json();
+      const mainProject = projects.find((p: any) => p.name === '메인 프로젝트');
+      
+      if (!mainProject) {
+        throw new Error("메인 프로젝트를 찾을 수 없습니다.");
+      }
+
+      // 초대 생성
+      const invitationResponse = await fetch('/api/invitations', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          projectId: mainProject.id,
+          projectName: mainProject.name,
+          inviterName: currentUser.name,
+          inviterEmail: currentUser.email,
+          inviteeEmail: data.email,
+          role: data.role,
+          status: 'pending'
+        })
+      });
+
+      if (!invitationResponse.ok) {
+        throw new Error("초대 전송에 실패했습니다.");
+      }
+
+      const invitation = await invitationResponse.json();
+
+      // localStorage에 초대 정보 저장 (수신자용)
+      const receivedInvitations = JSON.parse(localStorage.getItem(`receivedInvitations_${data.email}`) || '[]');
+      receivedInvitations.push(invitation);
+      localStorage.setItem(`receivedInvitations_${data.email}`, JSON.stringify(receivedInvitations));
+
+      // 전역 초대 목록에도 추가
+      const pendingInvitations = JSON.parse(localStorage.getItem('pendingInvitations') || '[]');
+      pendingInvitations.push(invitation);
+      localStorage.setItem('pendingInvitations', JSON.stringify(pendingInvitations));
+
+      // 다른 탭에 알림
+      window.dispatchEvent(new StorageEvent('storage', {
+        key: 'pendingInvitations',
+        newValue: JSON.stringify(pendingInvitations)
+      }));
+
+      toast({
+        title: "초대 전송 완료",
+        description: `${data.email}에게 초대를 전송했습니다.`,
+      });
+
+      // 폼 리셋 및 다이얼로그 닫기
+      inviteForm.reset();
+      setIsInviteDialogOpen(false);
+    } catch (error) {
+      console.error('초대 전송 중 오류:', error);
+      toast({
+        title: "초대 전송 실패",
+        description: error instanceof Error ? error.message : "알 수 없는 오류가 발생했습니다.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsInviteLoading(false);
+    }
   };
 
   const formatDeadline = (deadline: string) => {
@@ -321,6 +456,92 @@ export default function Admin() {
             
             {/* 멤버 탭 */}
             <TabsContent value="members" data-testid="content-members">
+              {/* 멤버 탭 헤더 */}
+              <div className="flex justify-between items-center mb-6">
+                <div>
+                  <h3 className="text-lg font-semibold">팀 멤버</h3>
+                  <p className="text-sm text-muted-foreground">프로젝트 팀 멤버를 관리합니다</p>
+                </div>
+                <Dialog open={isInviteDialogOpen} onOpenChange={setIsInviteDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button data-testid="button-invite-member">
+                      <UserPlus className="h-4 w-4 mr-2" />
+                      멤버 초대
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                      <DialogTitle className="flex items-center gap-2">
+                        <Mail className="h-5 w-5" />
+                        멤버 초대
+                      </DialogTitle>
+                      <DialogDescription>
+                        새로운 팀 멤버를 워크스페이스에 초대합니다.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <Form {...inviteForm}>
+                      <form onSubmit={inviteForm.handleSubmit(handleInviteSubmit)} className="space-y-4">
+                        <FormField
+                          control={inviteForm.control}
+                          name="email"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>이메일 주소</FormLabel>
+                              <FormControl>
+                                <Input
+                                  placeholder="member@example.com"
+                                  {...field}
+                                  data-testid="input-invite-email"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={inviteForm.control}
+                          name="role"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>역할</FormLabel>
+                              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <FormControl>
+                                  <SelectTrigger data-testid="select-invite-role">
+                                    <SelectValue placeholder="역할을 선택하세요" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  <SelectItem value="팀원">팀원</SelectItem>
+                                  <SelectItem value="관리자">관리자</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <div className="flex justify-end space-x-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setIsInviteDialogOpen(false)}
+                            disabled={isInviteLoading}
+                          >
+                            취소
+                          </Button>
+                          <Button
+                            type="submit"
+                            disabled={isInviteLoading}
+                            data-testid="button-send-invite"
+                          >
+                            {isInviteLoading ? "전송 중..." : "초대하기"}
+                          </Button>
+                        </div>
+                      </form>
+                    </Form>
+                  </DialogContent>
+                </Dialog>
+              </div>
+              
               {usersLoading ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {[...Array(3)].map((_, i) => (
