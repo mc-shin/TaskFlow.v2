@@ -2101,7 +2101,15 @@ export default function ListTree() {
                                 {renderEditableStatus(goal.id, 'goal', goal.status || '', goal.progressPercentage || 0)}
                               </div>
                               <div className="col-span-2">
-                                {renderEditableProgress(goal.id, 'goal', goal.progressPercentage || 0)}
+                                {(() => {
+                                  // 목표 진행도 = 목표 하위 작업들 진행도 합 / 목표 하위 작업들 수
+                                  const goalTasks = goal.tasks || [];
+                                  if (goalTasks.length === 0) return renderEditableProgress(goal.id, 'goal', 0);
+                                  
+                                  const taskProgressSum = goalTasks.reduce((sum, task) => sum + (task.progress || 0), 0);
+                                  const averageProgress = Math.round(taskProgressSum / goalTasks.length);
+                                  return renderEditableProgress(goal.id, 'goal', averageProgress);
+                                })()}
                               </div>
                               <div className="col-span-1">
                                 {renderEditableImportance(goal.id, 'goal', '중간')}
