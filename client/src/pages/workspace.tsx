@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -56,8 +56,8 @@ export function WorkspacePage() {
     queryFn: () => fetch('/api/users?workspace=true').then(res => res.json()),
   });
 
-  // 실제 데이터를 기반으로 워크스페이스 정보 생성
-  const generateWorkspaceData = () => {
+  // 실제 데이터를 기반으로 워크스페이스 정보 생성 (메모화)
+  const workspaceData = useMemo(() => {
     if (!projects || !workspaceUsers || !Array.isArray(projects) || !Array.isArray(workspaceUsers)) {
       return [];
     }
@@ -84,7 +84,7 @@ export function WorkspacePage() {
       projectCount,
       lastAccess,
     }];
-  };
+  }, [projects, workspaceUsers, workspaceName, workspaceDescription]);
 
   useEffect(() => {
     // localStorage에서 사용자 이름 및 워크스페이스 정보 가져오기
@@ -249,6 +249,9 @@ export function WorkspacePage() {
       // 상태 업데이트
       setWorkspaceName(data.name);
       setWorkspaceDescription(data.description || "주요 업무 관리 워크스페이스");
+      
+      // 사이드바 실시간 업데이트를 위한 이벤트 발생
+      window.dispatchEvent(new Event('workspaceNameUpdated'));
       
       // 다이얼로그 닫기
       setIsSettingsDialogOpen(false);
@@ -477,15 +480,15 @@ export function WorkspacePage() {
 
         {/* Workspace Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-          {isUserInfoLoaded && generateWorkspaceData()
+          {isUserInfoLoaded && workspaceData
             .filter(workspace => {
               // 신규 사용자는 워크스페이스 숨김 (새 워크스페이스 추가만 표시)
               if (isNewUser) {
                 return false;
               }
-              // admin 사용자는 하이더 워크스페이스만 표시
+              // admin 사용자는 모든 워크스페이스 표시 (기본 워크스페이스)
               if (isAdminUser) {
-                return workspace.name === "하이더";
+                return true; // admin은 모든 워크스페이스에 접근 가능
               }
               // 기존 등록된 사용자는 모든 워크스페이스 표시
               return true;

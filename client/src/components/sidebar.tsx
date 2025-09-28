@@ -9,6 +9,7 @@ export function Sidebar() {
   const [expandedSections, setExpandedSections] = useState<string[]>(['dashboard', 'work-management', 'meeting']);
   const [location, setLocation] = useLocation();
   const [currentUser, setCurrentUser] = useState<SafeUser | null>(null);
+  const [workspaceName, setWorkspaceName] = useState("하이더");
 
   // Get current user information
   const { data: users } = useQuery({
@@ -25,7 +26,36 @@ export function Sidebar() {
       const user = (users as SafeUser[]).find(u => u.id === userId);
       setCurrentUser(user || null);
     }
-  }, [users]);
+    
+    // localStorage에서 워크스페이스 이름 로드
+    const storedWorkspaceName = localStorage.getItem("workspaceName");
+    if (storedWorkspaceName) {
+      setWorkspaceName(storedWorkspaceName);
+    }
+    
+    // localStorage 변경 이벤트 리스너 추가 (실시간 업데이트)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'workspaceName' && e.newValue) {
+        setWorkspaceName(e.newValue);
+      }
+    };
+    
+    // 수동 이벤트 리스너 (같은 탭에서의 변경 감지)
+    const handleWorkspaceNameChange = () => {
+      const newWorkspaceName = localStorage.getItem("workspaceName");
+      if (newWorkspaceName && newWorkspaceName !== workspaceName) {
+        setWorkspaceName(newWorkspaceName);
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('workspaceNameUpdated', handleWorkspaceNameChange);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('workspaceNameUpdated', handleWorkspaceNameChange);
+    };
+  }, [users, workspaceName]);
 
   const toggleSection = (section: string) => {
     setExpandedSections(prev => 
@@ -57,7 +87,7 @@ export function Sidebar() {
           <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
             <CheckSquare className="h-4 w-4 text-primary-foreground" />
           </div>
-          <span className="font-semibold text-lg" data-testid="text-logo">하이더</span>
+          <span className="font-semibold text-lg" data-testid="text-logo">{workspaceName}</span>
         </div>
       </div>
       
