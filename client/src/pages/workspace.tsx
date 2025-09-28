@@ -20,14 +20,24 @@ const workspaceSchema = z.object({
   description: z.string().optional(),
 });
 
+const workspaceSettingsSchema = z.object({
+  name: z.string().min(1, "워크스페이스 이름을 입력해주세요"),
+  description: z.string().optional(),
+});
+
 type WorkspaceForm = z.infer<typeof workspaceSchema>;
+type WorkspaceSettingsForm = z.infer<typeof workspaceSettingsSchema>;
 
 
 export function WorkspacePage() {
   const [, setLocation] = useLocation();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSettingsLoading, setIsSettingsLoading] = useState(false);
   const [userName, setUserName] = useState("사용자");
+  const [workspaceName, setWorkspaceName] = useState("하이더");
+  const [workspaceDescription, setWorkspaceDescription] = useState("주요 업무 관리 워크스페이스");
   const [invitations, setInvitations] = useState<any[]>([]);
   const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
   const [isAdminUser, setIsAdminUser] = useState(false);
@@ -68,8 +78,8 @@ export function WorkspacePage() {
     
     return [{
       id: "1",
-      name: "하이더",
-      description: "주요 업무 관리 워크스페이스",
+      name: workspaceName,
+      description: workspaceDescription,
       memberCount,
       projectCount,
       lastAccess,
@@ -77,10 +87,20 @@ export function WorkspacePage() {
   };
 
   useEffect(() => {
-    // localStorage에서 사용자 이름 가져오기
+    // localStorage에서 사용자 이름 및 워크스페이스 정보 가져오기
     const storedUserName = localStorage.getItem("userName");
     if (storedUserName) {
       setUserName(storedUserName);
+    }
+    
+    // localStorage에서 워크스페이스 정보 가져오기
+    const storedWorkspaceName = localStorage.getItem("workspaceName");
+    const storedWorkspaceDescription = localStorage.getItem("workspaceDescription");
+    if (storedWorkspaceName) {
+      setWorkspaceName(storedWorkspaceName);
+    }
+    if (storedWorkspaceDescription) {
+      setWorkspaceDescription(storedWorkspaceDescription);
     }
 
     // 현재 로그인된 사용자의 이메일을 가져와서 실제 username 찾기
@@ -192,6 +212,14 @@ export function WorkspacePage() {
     },
   });
 
+  const settingsForm = useForm<WorkspaceSettingsForm>({
+    resolver: zodResolver(workspaceSettingsSchema),
+    defaultValues: {
+      name: workspaceName,
+      description: workspaceDescription,
+    },
+  });
+
   const onSubmit = async (data: WorkspaceForm) => {
     setIsLoading(true);
     try {
@@ -206,6 +234,39 @@ export function WorkspacePage() {
       console.error("Create workspace error:", error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const onSettingsSubmit = async (data: WorkspaceSettingsForm) => {
+    setIsSettingsLoading(true);
+    try {
+      // localStorage에 워크스페이스 정보 저장
+      localStorage.setItem("workspaceName", data.name);
+      if (data.description) {
+        localStorage.setItem("workspaceDescription", data.description);
+      }
+      
+      // 상태 업데이트
+      setWorkspaceName(data.name);
+      setWorkspaceDescription(data.description || "주요 업무 관리 워크스페이스");
+      
+      // 다이얼로그 닫기
+      setIsSettingsDialogOpen(false);
+      
+      // 성공 토스트
+      toast({
+        title: "워크스페이스 설정 완료",
+        description: "워크스페이스 정보가 성공적으로 업데이트되었습니다.",
+      });
+    } catch (error) {
+      console.error("Workspace settings update error:", error);
+      toast({
+        title: "설정 업데이트 실패",
+        description: "워크스페이스 설정 업데이트 중 오류가 발생했습니다.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSettingsLoading(false);
     }
   };
 
@@ -446,9 +507,13 @@ export function WorkspacePage() {
                   </div>
                   <Button variant="ghost" size="sm" onClick={(e) => {
                     e.stopPropagation();
-                    // TODO: 워크스페이스 설정
-                    alert("워크스페이스 설정은 준비 중입니다.");
-                  }}>
+                    // 워크스페이스 설정 다이얼로그 열기
+                    settingsForm.reset({
+                      name: workspaceName,
+                      description: workspaceDescription,
+                    });
+                    setIsSettingsDialogOpen(true);
+                  }} data-testid="button-workspace-settings">
                     <Settings className="h-4 w-4" />
                   </Button>
                 </div>
@@ -559,6 +624,75 @@ export function WorkspacePage() {
         </div>
 
       </main>
+
+      {/* 워크스페이스 설정 다이얼로그 */}
+      <Dialog open={isSettingsDialogOpen} onOpenChange={setIsSettingsDialogOpen}>
+        <DialogContent data-testid="dialog-workspace-settings">
+          <DialogHeader>
+            <DialogTitle>워크스페이스 설정</DialogTitle>
+            <DialogDescription>
+              워크스페이스 정보를 수정하세요.
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...settingsForm}>
+            <form onSubmit={settingsForm.handleSubmit(onSettingsSubmit)} className="space-y-4">
+              <FormField
+                control={settingsForm.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>워크스페이스 이름</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="예: 하이더"
+                        {...field}
+                        data-testid="input-settings-workspace-name"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={settingsForm.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>설명 (선택사항)</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="워크스페이스에 대한 간단한 설명"
+                        {...field}
+                        data-testid="input-settings-workspace-description"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <div className="flex justify-end space-x-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsSettingsDialogOpen(false)}
+                  data-testid="button-cancel-settings"
+                >
+                  취소
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={isSettingsLoading}
+                  data-testid="button-save-settings"
+                >
+                  {isSettingsLoading ? "저장 중..." : "저장"}
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
 
       {/* 초대 알림 다이얼로그 */}
       <Dialog open={isInviteDialogOpen} onOpenChange={setIsInviteDialogOpen}>
