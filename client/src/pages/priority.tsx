@@ -189,7 +189,7 @@ export default function Priority() {
                     {tasksByPriority[section.priority]?.map((task) => (
                       <Link
                         key={task.id}
-                        href={`/workspace/app/detail/task/${task.id}`}
+                        href={`/workspace/app/detail/task/${task.id}?from=priority`}
                         className="flex items-center gap-3 bg-slate-700 p-3 rounded text-white text-sm hover:bg-slate-600 transition-colors cursor-pointer"
                         data-testid={`task-${task.id}`}
                       >

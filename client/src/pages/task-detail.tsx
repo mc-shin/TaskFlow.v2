@@ -28,7 +28,9 @@ export default function TaskDetail() {
   const getBackUrl = () => {
     const urlParams = new URLSearchParams(window.location.search);
     const from = urlParams.get('from');
-    return from === 'kanban' ? '/workspace/app/kanban' : '/workspace/app/list';
+    if (from === 'kanban') return '/workspace/app/kanban';
+    if (from === 'priority') return '/workspace/app/priority';
+    return '/workspace/app/list';
   };
   const { toast } = useToast();
   const queryClient = useQueryClient();
