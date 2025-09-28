@@ -3,6 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Link, useLocation } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -12,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { CheckSquare, Plus, Settings, Users, Calendar, LogOut, Mail, Check, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
+import type { ProjectWithDetails } from "@shared/schema";
 
 const workspaceSchema = z.object({
   name: z.string().min(1, "워크스페이스 이름을 입력해주세요"),
@@ -20,17 +22,6 @@ const workspaceSchema = z.object({
 
 type WorkspaceForm = z.infer<typeof workspaceSchema>;
 
-// 임시 워크스페이스 데이터
-const mockWorkspaces = [
-  {
-    id: "1",
-    name: "메인 프로젝트",
-    description: "주요 업무 관리 워크스페이스",
-    memberCount: 8,
-    projectCount: 12,
-    lastAccess: "2025-09-26",
-  },
-];
 
 export function WorkspacePage() {
   const [, setLocation] = useLocation();
@@ -43,6 +34,47 @@ export function WorkspacePage() {
   const [isNewUser, setIsNewUser] = useState(false);
   const [isUserInfoLoaded, setIsUserInfoLoaded] = useState(false);
   const { toast } = useToast();
+
+  // 실제 프로젝트 데이터 가져오기
+  const { data: projects } = useQuery({
+    queryKey: ["/api/projects"],
+  });
+
+  // 실제 사용자 데이터 가져오기 (워크스페이스 멤버)
+  const { data: workspaceUsers } = useQuery({
+    queryKey: ["/api/users", { workspace: true }],
+    queryFn: () => fetch('/api/users?workspace=true').then(res => res.json()),
+  });
+
+  // 실제 데이터를 기반으로 워크스페이스 정보 생성
+  const generateWorkspaceData = () => {
+    if (!projects || !workspaceUsers || !Array.isArray(projects) || !Array.isArray(workspaceUsers)) {
+      return [];
+    }
+    
+    const projectList = projects as ProjectWithDetails[];
+    const memberCount = workspaceUsers.length;
+    const projectCount = projectList.length;
+    
+    // 가장 오래된 프로젝트의 생성일 찾기
+    const oldestProject = projectList.reduce((oldest, current) => {
+      if (!oldest.createdAt || !current.createdAt) return oldest;
+      return new Date(current.createdAt) < new Date(oldest.createdAt) ? current : oldest;
+    }, projectList[0]);
+    
+    const lastAccess = oldestProject?.createdAt ? 
+      new Date(oldestProject.createdAt).toISOString().split('T')[0] : 
+      "2025-09-26";
+    
+    return [{
+      id: "1",
+      name: "하이더",
+      description: "주요 업무 관리 워크스페이스",
+      memberCount,
+      projectCount,
+      lastAccess,
+    }];
+  };
 
   useEffect(() => {
     // localStorage에서 사용자 이름 가져오기
@@ -384,15 +416,15 @@ export function WorkspacePage() {
 
         {/* Workspace Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-          {isUserInfoLoaded && mockWorkspaces
+          {isUserInfoLoaded && generateWorkspaceData()
             .filter(workspace => {
               // 신규 사용자는 워크스페이스 숨김 (새 워크스페이스 추가만 표시)
               if (isNewUser) {
                 return false;
               }
-              // admin 사용자는 메인 프로젝트만 표시
+              // admin 사용자는 하이더 워크스페이스만 표시
               if (isAdminUser) {
-                return workspace.name === "메인 프로젝트";
+                return workspace.name === "하이더";
               }
               // 기존 등록된 사용자는 모든 워크스페이스 표시
               return true;
