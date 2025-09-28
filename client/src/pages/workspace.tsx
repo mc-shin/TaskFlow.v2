@@ -531,25 +531,6 @@ export function WorkspacePage() {
   //   return null; // 로딩 화면 제거됨
   // }
 
-  // 신규 사용자이면서 초대가 없는 경우 접근 제한
-  if (isNewUser && invitations.length === 0) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="max-w-md text-center">
-          <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
-            <Mail className="h-8 w-8 text-muted-foreground" />
-          </div>
-          <h2 className="text-2xl font-semibold mb-2">워크스페이스 초대 필요</h2>
-          <p className="text-muted-foreground mb-6">
-            이 워크스페이스에 접근하려면 관리자로부터 초대를 받아야 합니다.
-          </p>
-          <Button onClick={() => setLocation("/")} variant="outline">
-            메인 페이지로 돌아가기
-          </Button>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-background">
