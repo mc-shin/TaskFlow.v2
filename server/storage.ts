@@ -1,5 +1,8 @@
-import { type User, type InsertUser, type Task, type InsertTask, type Activity, type InsertActivity, type TaskWithAssignees, type ActivityWithDetails, type Project, type InsertProject, type ProjectWithOwners, type UserWithStats, type SafeUser, type SafeUserWithStats, type SafeTaskWithAssignees, type SafeActivityWithDetails, type Meeting, type InsertMeeting, type MeetingComment, type InsertMeetingComment, type MeetingAttachment, type InsertMeetingAttachment, type MeetingCommentWithAuthor, type MeetingWithDetails, type Goal, type InsertGoal, type GoalWithTasks, type ProjectWithDetails, type Attachment, type InsertAttachment, type Comment, type InsertComment, type CommentWithAuthor, type Invitation, type InsertInvitation } from "@shared/schema";
+import { type User, type InsertUser, type Task, type InsertTask, type Activity, type InsertActivity, type TaskWithAssignees, type ActivityWithDetails, type Project, type InsertProject, type ProjectWithOwners, type UserWithStats, type SafeUser, type SafeUserWithStats, type SafeTaskWithAssignees, type SafeActivityWithDetails, type Meeting, type InsertMeeting, type MeetingComment, type InsertMeetingComment, type MeetingAttachment, type InsertMeetingAttachment, type MeetingCommentWithAuthor, type MeetingWithDetails, type Goal, type InsertGoal, type GoalWithTasks, type ProjectWithDetails, type Attachment, type InsertAttachment, type Comment, type InsertComment, type CommentWithAuthor, type Invitation, type InsertInvitation, users, projects, goals, tasks, activities, meetings, meetingComments, meetingAttachments, attachments, comments, invitations } from "@shared/schema";
 import { randomUUID } from "crypto";
+import { drizzle } from "drizzle-orm/neon-serverless";
+import { and, eq, inArray, sql } from "drizzle-orm";
+import { neonConfig, Pool } from "@neondatabase/serverless";
 
 export interface IStorage {
   // User methods
@@ -1518,4 +1521,1054 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+// Database connection setup
+let db: ReturnType<typeof drizzle> | undefined;
+
+function getDatabase() {
+  if (!db) {
+    if (!process.env.DATABASE_URL) {
+      throw new Error("DATABASE_URL is not set");
+    }
+    
+    // Configure Neon for serverless environment
+    neonConfig.fetchConnectionCache = true;
+    
+    const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+    db = drizzle(pool);
+  }
+  return db;
+}
+
+export class DrizzleStorage implements IStorage {
+  private db = getDatabase();
+
+  // User methods
+  async getUser(id: string): Promise<User | undefined> {
+    const result = await this.db.select().from(users).where(eq(users.id, id)).limit(1);
+    return result[0];
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const result = await this.db.select().from(users).where(eq(users.username, username)).limit(1);
+    return result[0];
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const result = await this.db.select().from(users).where(eq(users.email, email)).limit(1);
+    return result[0];
+  }
+
+  async createUser(insertUser: InsertUser): Promise<User> {
+    const result = await this.db.insert(users).values({
+      ...insertUser,
+      role: insertUser.role || "팀원",
+      lastLoginAt: insertUser.lastLoginAt || null
+    }).returning();
+    return result[0];
+  }
+
+  async deleteUser(id: string): Promise<boolean> {
+    // Check if user exists
+    const user = await this.getUser(id);
+    if (!user) {
+      return false;
+    }
+    
+    // Prevent deletion of admin users
+    if (user.role === "관리자") {
+      throw new Error("관리자 계정은 삭제할 수 없습니다.");
+    }
+    
+    // Remove user from all project ownerIds
+    await this.db.update(projects)
+      .set({ 
+        ownerIds: sql`array_remove(${projects.ownerIds}, ${id})`,
+        updatedAt: new Date()
+      })
+      .where(sql`${id} = ANY(${projects.ownerIds})`);
+    
+    // Remove user from all goal assigneeIds
+    await this.db.update(goals)
+      .set({ 
+        assigneeIds: sql`array_remove(${goals.assigneeIds}, ${id})`,
+        updatedAt: new Date()
+      })
+      .where(sql`${id} = ANY(${goals.assigneeIds})`);
+    
+    // Remove user from all task assigneeIds
+    await this.db.update(tasks)
+      .set({ 
+        assigneeIds: sql`array_remove(${tasks.assigneeIds}, ${id})`,
+        updatedAt: new Date()
+      })
+      .where(sql`${id} = ANY(${tasks.assigneeIds})`);
+    
+    // Remove user from all meeting attendeeIds
+    await this.db.update(meetings)
+      .set({ 
+        attendeeIds: sql`array_remove(${meetings.attendeeIds}, ${id})`,
+        updatedAt: new Date()
+      })
+      .where(sql`${id} = ANY(${meetings.attendeeIds})`);
+    
+    // Delete the user
+    const result = await this.db.delete(users).where(eq(users.id, id));
+    return true;
+  }
+
+  async getAllUsers(): Promise<User[]> {
+    return await this.db.select().from(users);
+  }
+
+  async getUsersByIds(userIds: string[]): Promise<SafeUser[]> {
+    if (userIds.length === 0) return [];
+    
+    const userResults = await this.db.select().from(users).where(inArray(users.id, userIds));
+    return userResults.map(({ password, ...safeUser }) => safeUser);
+  }
+
+  async getAllUsersWithStats(): Promise<SafeUserWithStats[]> {
+    const allUsers = await this.db.select().from(users);
+    const usersWithStats: SafeUserWithStats[] = [];
+    
+    for (const user of allUsers) {
+      const userTasks = await this.db.select()
+        .from(tasks)
+        .where(sql`${user.id} = ANY(${tasks.assigneeIds})`);
+      
+      const completedTasks = userTasks.filter(task => task.status === "완료");
+      const overdueTasks = userTasks.filter(task => {
+        if (!task.deadline) return false;
+        return new Date(task.deadline) < new Date();
+      });
+      
+      const progressPercentage = userTasks.length > 0 ? (completedTasks.length / userTasks.length) * 100 : 0;
+      
+      const { password, ...safeUser } = user;
+      usersWithStats.push({
+        ...safeUser,
+        taskCount: userTasks.length,
+        completedTaskCount: completedTasks.length,
+        overdueTaskCount: overdueTasks.length,
+        progressPercentage: Math.round(progressPercentage),
+        hasOverdueTasks: overdueTasks.length > 0,
+      });
+    }
+    
+    return usersWithStats;
+  }
+
+  async getAllSafeUsers(): Promise<SafeUser[]> {
+    const allUsers = await this.db.select().from(users);
+    return allUsers.map(({ password, ...safeUser }) => safeUser);
+  }
+
+  async updateUserLastLogin(id: string): Promise<void> {
+    await this.db.update(users)
+      .set({ lastLoginAt: new Date() })
+      .where(eq(users.id, id));
+  }
+
+  async getWorkspaceMembers(): Promise<SafeUser[]> {
+    // For now, return all users as workspace members
+    // TODO: Implement proper workspace membership logic if needed
+    return await this.getAllSafeUsers();
+  }
+
+  async getDefaultWorkspaceMembers(): Promise<SafeUser[]> {
+    const defaultUserEmails = [
+      "admin@qubicom.co.kr",
+      "hyejin@qubicom.co.kr", 
+      "hyejung@qubicom.co.kr",
+      "chamin@qubicom.co.kr"
+    ];
+    
+    const allUsers = await this.db.select().from(users);
+    const defaultUsers = allUsers.filter(user => defaultUserEmails.includes(user.email));
+    return defaultUsers.map(user => {
+      const { password, ...safeUser } = user;
+      return safeUser;
+    });
+  }
+
+  async getWorkspaceUsersWithStats(): Promise<SafeUserWithStats[]> {
+    const workspaceMembers = await this.getWorkspaceMembers();
+    
+    const usersWithStats = await Promise.all(
+      workspaceMembers.map(async (user) => {
+        const projectCount = await this.db.select({ count: sql`count(*)` })
+          .from(projects)
+          .where(eq(projects.createdBy, user.id));
+
+        const taskCount = await this.db.select({ count: sql`count(*)` })
+          .from(tasks)
+          .where(sql`${user.id} = ANY(${tasks.assigneeIds})`);
+
+        const completedTaskCount = await this.db.select({ count: sql`count(*)` })
+          .from(tasks)
+          .where(
+            and(
+              sql`${user.id} = ANY(${tasks.assigneeIds})`,
+              eq(tasks.status, '완료')
+            )
+          );
+
+        return {
+          ...user,
+          projectCount: Number(projectCount[0]?.count || 0),
+          taskCount: Number(taskCount[0]?.count || 0),
+          completedTaskCount: Number(completedTaskCount[0]?.count || 0),
+        };
+      })
+    );
+
+    return usersWithStats;
+  }
+
+  // Project methods
+  async getAllProjects(): Promise<ProjectWithOwners[]> {
+    const projectResults = await this.db.select().from(projects);
+    
+    const projectsWithOwners = await Promise.all(
+      projectResults.map(async (project) => {
+        const owners = (project.ownerIds && project.ownerIds.length > 0) 
+          ? await this.getUsersByIds(project.ownerIds)
+          : [];
+        
+        return {
+          ...project,
+          owners
+        };
+      })
+    );
+    
+    return projectsWithOwners;
+  }
+
+  async getAllProjectsWithDetails(): Promise<ProjectWithDetails[]> {
+    const projectResults = await this.db.select().from(projects);
+    
+    const projectsWithDetails = await Promise.all(
+      projectResults.map(async (project) => {
+        // Get goals for this project
+        const projectGoals = await this.db.select().from(goals).where(eq(goals.projectId, project.id));
+        
+        // Get goals with their tasks
+        const goalsWithTasks = await Promise.all(
+          projectGoals.map(async (goal) => {
+            const goalTasks = await this.db.select().from(tasks).where(eq(tasks.goalId, goal.id));
+            
+            const tasksWithAssignees = await Promise.all(
+              goalTasks.map(async (task) => {
+                const assignees = task.assigneeIds?.length > 0 
+                  ? await this.getUsersByIds(task.assigneeIds)
+                  : [];
+                
+                return {
+                  ...task,
+                  assignees
+                };
+              })
+            );
+            
+            return {
+              ...goal,
+              tasks: tasksWithAssignees
+            };
+          })
+        );
+        
+        return {
+          ...project,
+          goals: goalsWithTasks
+        };
+      })
+    );
+    
+    return projectsWithDetails;
+  }
+
+  async getProject(id: string): Promise<ProjectWithOwners | undefined> {
+    const result = await this.db.select().from(projects).where(eq(projects.id, id)).limit(1);
+    if (!result[0]) return undefined;
+    
+    const project = result[0];
+    const owners = project.ownerIds?.length > 0 
+      ? await this.getUsersByIds(project.ownerIds)
+      : [];
+    
+    return {
+      ...project,
+      owners
+    };
+  }
+
+  async createProject(insertProject: InsertProject, createdBy?: string): Promise<Project> {
+    const result = await this.db.insert(projects).values({
+      ...insertProject,
+      createdBy,
+      lastUpdatedBy: createdBy,
+    }).returning();
+    return result[0];
+  }
+
+  async updateProject(id: string, projectUpdate: Partial<InsertProject>, lastUpdatedBy?: string): Promise<Project | undefined> {
+    const result = await this.db.update(projects)
+      .set({
+        ...projectUpdate,
+        lastUpdatedBy,
+        updatedAt: new Date()
+      })
+      .where(eq(projects.id, id))
+      .returning();
+    
+    return result[0];
+  }
+
+  async deleteProject(id: string): Promise<boolean> {
+    // Delete associated goals and tasks first
+    const projectGoals = await this.db.select().from(goals).where(eq(goals.projectId, id));
+    
+    for (const goal of projectGoals) {
+      await this.deleteGoal(goal.id);
+    }
+    
+    // Delete project
+    const result = await this.db.delete(projects).where(eq(projects.id, id));
+    return true;
+  }
+
+  // Goal methods
+  async getAllGoals(): Promise<GoalWithTasks[]> {
+    const goalResults = await this.db.select().from(goals);
+    
+    const goalsWithTasks = await Promise.all(
+      goalResults.map(async (goal) => {
+        const goalTasks = await this.db.select().from(tasks).where(eq(tasks.goalId, goal.id));
+        
+        const tasksWithAssignees = await Promise.all(
+          goalTasks.map(async (task) => {
+            const assignees = task.assigneeIds?.length > 0 
+              ? await this.getUsersByIds(task.assigneeIds)
+              : [];
+            
+            return {
+              ...task,
+              assignees
+            };
+          })
+        );
+        
+        return {
+          ...goal,
+          tasks: tasksWithAssignees
+        };
+      })
+    );
+    
+    return goalsWithTasks;
+  }
+
+  async getGoal(id: string): Promise<GoalWithTasks | undefined> {
+    const result = await this.db.select().from(goals).where(eq(goals.id, id)).limit(1);
+    if (!result[0]) return undefined;
+    
+    const goal = result[0];
+    const goalTasks = await this.db.select().from(tasks).where(eq(tasks.goalId, goal.id));
+    
+    const tasksWithAssignees = await Promise.all(
+      goalTasks.map(async (task) => {
+        const assignees = task.assigneeIds?.length > 0 
+          ? await this.getUsersByIds(task.assigneeIds)
+          : [];
+        
+        return {
+          ...task,
+          assignees
+        };
+      })
+    );
+    
+    return {
+      ...goal,
+      tasks: tasksWithAssignees
+    };
+  }
+
+  async createGoal(insertGoal: InsertGoal, createdBy?: string): Promise<Goal> {
+    const result = await this.db.insert(goals).values({
+      ...insertGoal,
+      createdBy,
+      lastUpdatedBy: createdBy,
+    }).returning();
+    return result[0];
+  }
+
+  async updateGoal(id: string, goalUpdate: Partial<InsertGoal>, lastUpdatedBy?: string): Promise<Goal | undefined> {
+    const result = await this.db.update(goals)
+      .set({
+        ...goalUpdate,
+        lastUpdatedBy,
+        updatedAt: new Date()
+      })
+      .where(eq(goals.id, id))
+      .returning();
+    
+    return result[0];
+  }
+
+  async deleteGoal(id: string): Promise<boolean> {
+    // Delete associated tasks first
+    await this.db.delete(tasks).where(eq(tasks.goalId, id));
+    
+    // Delete goal
+    const result = await this.db.delete(goals).where(eq(goals.id, id));
+    return true;
+  }
+
+  async getGoalsByProject(projectId: string): Promise<GoalWithTasks[]> {
+    const goalResults = await this.db.select().from(goals).where(eq(goals.projectId, projectId));
+    
+    const goalsWithTasks = await Promise.all(
+      goalResults.map(async (goal) => {
+        const goalTasks = await this.db.select().from(tasks).where(eq(tasks.goalId, goal.id));
+        
+        const tasksWithAssignees = await Promise.all(
+          goalTasks.map(async (task) => {
+            const assignees = task.assigneeIds?.length > 0 
+              ? await this.getUsersByIds(task.assigneeIds)
+              : [];
+            
+            return {
+              ...task,
+              assignees
+            };
+          })
+        );
+        
+        return {
+          ...goal,
+          tasks: tasksWithAssignees
+        };
+      })
+    );
+    
+    return goalsWithTasks;
+  }
+
+  // Task methods
+  async getAllTasks(): Promise<SafeTaskWithAssignees[]> {
+    const taskResults = await this.db.select().from(tasks);
+    
+    const tasksWithAssignees = await Promise.all(
+      taskResults.map(async (task) => {
+        const assignees = task.assigneeIds?.length > 0 
+          ? await this.getUsersByIds(task.assigneeIds)
+          : [];
+        
+        return {
+          ...task,
+          assignees
+        };
+      })
+    );
+    
+    return tasksWithAssignees;
+  }
+
+  async getTask(id: string): Promise<SafeTaskWithAssignees | undefined> {
+    const result = await this.db.select().from(tasks).where(eq(tasks.id, id)).limit(1);
+    if (!result[0]) return undefined;
+    
+    const task = result[0];
+    const assignees = task.assigneeIds?.length > 0 
+      ? await this.getUsersByIds(task.assigneeIds)
+      : [];
+    
+    return {
+      ...task,
+      assignees
+    };
+  }
+
+  async createTask(insertTask: InsertTask, createdBy?: string): Promise<Task> {
+    const result = await this.db.insert(tasks).values({
+      ...insertTask,
+      createdBy,
+      lastUpdatedBy: createdBy,
+    }).returning();
+    return result[0];
+  }
+
+  async updateTask(id: string, taskUpdate: Partial<InsertTask>, lastUpdatedBy?: string): Promise<Task | undefined> {
+    const result = await this.db.update(tasks)
+      .set({
+        ...taskUpdate,
+        lastUpdatedBy,
+        updatedAt: new Date()
+      })
+      .where(eq(tasks.id, id))
+      .returning();
+    
+    return result[0];
+  }
+
+  async deleteTask(id: string): Promise<boolean> {
+    const result = await this.db.delete(tasks).where(eq(tasks.id, id));
+    return true;
+  }
+
+  async getTasksByStatus(status: string): Promise<SafeTaskWithAssignees[]> {
+    const taskResults = await this.db.select().from(tasks).where(eq(tasks.status, status));
+    
+    const tasksWithAssignees = await Promise.all(
+      taskResults.map(async (task) => {
+        const assignees = task.assigneeIds?.length > 0 
+          ? await this.getUsersByIds(task.assigneeIds)
+          : [];
+        
+        return {
+          ...task,
+          assignees
+        };
+      })
+    );
+    
+    return tasksWithAssignees;
+  }
+
+  async getTasksByProject(projectId: string): Promise<SafeTaskWithAssignees[]> {
+    const taskResults = await this.db.select().from(tasks).where(eq(tasks.projectId, projectId));
+    
+    const tasksWithAssignees = await Promise.all(
+      taskResults.map(async (task) => {
+        const assignees = task.assigneeIds?.length > 0 
+          ? await this.getUsersByIds(task.assigneeIds)
+          : [];
+        
+        return {
+          ...task,
+          assignees
+        };
+      })
+    );
+    
+    return tasksWithAssignees;
+  }
+
+  async getTasksByGoal(goalId: string): Promise<SafeTaskWithAssignees[]> {
+    const taskResults = await this.db.select().from(tasks).where(eq(tasks.goalId, goalId));
+    
+    const tasksWithAssignees = await Promise.all(
+      taskResults.map(async (task) => {
+        const assignees = task.assigneeIds?.length > 0 
+          ? await this.getUsersByIds(task.assigneeIds)
+          : [];
+        
+        return {
+          ...task,
+          assignees
+        };
+      })
+    );
+    
+    return tasksWithAssignees;
+  }
+
+  // Activity methods
+  async getAllActivities(): Promise<SafeActivityWithDetails[]> {
+    const activityResults = await this.db.select().from(activities);
+    
+    const activitiesWithDetails = await Promise.all(
+      activityResults.map(async (activity) => {
+        const user = activity.userId ? await this.getUser(activity.userId) : undefined;
+        const task = activity.taskId ? await this.getTask(activity.taskId) : undefined;
+        
+        return {
+          ...activity,
+          user: user ? { ...user, password: undefined } : undefined,
+          task
+        };
+      })
+    );
+    
+    return activitiesWithDetails;
+  }
+
+  async createActivity(insertActivity: InsertActivity): Promise<Activity> {
+    const result = await this.db.insert(activities).values(insertActivity).returning();
+    return result[0];
+  }
+
+  // Meeting methods
+  async listMeetings(options?: { from?: string; to?: string }): Promise<Meeting[]> {
+    let query = this.db.select().from(meetings);
+    
+    if (options?.from || options?.to) {
+      const conditions = [];
+      if (options.from) {
+        conditions.push(sql`${meetings.startAt} >= ${options.from}`);
+      }
+      if (options.to) {
+        conditions.push(sql`${meetings.startAt} <= ${options.to}`);
+      }
+      query = query.where(and(...conditions));
+    }
+    
+    return await query;
+  }
+
+  async getMeeting(id: string): Promise<Meeting | undefined> {
+    const result = await this.db.select().from(meetings).where(eq(meetings.id, id)).limit(1);
+    return result[0];
+  }
+
+  async createMeeting(insertMeeting: InsertMeeting): Promise<Meeting> {
+    const result = await this.db.insert(meetings).values(insertMeeting).returning();
+    return result[0];
+  }
+
+  async updateMeeting(id: string, meetingUpdate: Partial<InsertMeeting>): Promise<Meeting | undefined> {
+    const result = await this.db.update(meetings)
+      .set({
+        ...meetingUpdate,
+        updatedAt: new Date()
+      })
+      .where(eq(meetings.id, id))
+      .returning();
+    
+    return result[0];
+  }
+
+  async deleteMeeting(id: string): Promise<boolean> {
+    // Delete associated comments and attachments first
+    await this.db.delete(meetingComments).where(eq(meetingComments.meetingId, id));
+    await this.db.delete(meetingAttachments).where(eq(meetingAttachments.meetingId, id));
+    
+    // Delete meeting
+    const result = await this.db.delete(meetings).where(eq(meetings.id, id));
+    return true;
+  }
+
+  async addAttendee(meetingId: string, userId: string): Promise<Meeting | undefined> {
+    const meeting = await this.getMeeting(meetingId);
+    if (!meeting) return undefined;
+    
+    const attendeeIds = meeting.attendeeIds || [];
+    if (!attendeeIds.includes(userId)) {
+      attendeeIds.push(userId);
+      
+      const result = await this.db.update(meetings)
+        .set({ 
+          attendeeIds,
+          updatedAt: new Date()
+        })
+        .where(eq(meetings.id, meetingId))
+        .returning();
+      
+      return result[0];
+    }
+    
+    return meeting;
+  }
+
+  async removeAttendee(meetingId: string, userId: string): Promise<Meeting | undefined> {
+    const meeting = await this.getMeeting(meetingId);
+    if (!meeting) return undefined;
+    
+    const attendeeIds = (meeting.attendeeIds || []).filter(id => id !== userId);
+    
+    const result = await this.db.update(meetings)
+      .set({ 
+        attendeeIds,
+        updatedAt: new Date()
+      })
+      .where(eq(meetings.id, meetingId))
+      .returning();
+    
+    return result[0];
+  }
+
+  // Meeting Comment methods
+  async getMeetingComments(meetingId: string): Promise<MeetingCommentWithAuthor[]> {
+    const commentResults = await this.db.select()
+      .from(meetingComments)
+      .where(eq(meetingComments.meetingId, meetingId));
+    
+    const commentsWithAuthor = await Promise.all(
+      commentResults.map(async (comment) => {
+        const author = await this.getUser(comment.authorId);
+        
+        return {
+          ...comment,
+          author: author ? { ...author, password: undefined } : undefined
+        };
+      })
+    );
+    
+    return commentsWithAuthor;
+  }
+
+  async createMeetingComment(insertComment: InsertMeetingComment): Promise<MeetingComment> {
+    const result = await this.db.insert(meetingComments).values(insertComment).returning();
+    return result[0];
+  }
+
+  async deleteMeetingComment(id: string): Promise<boolean> {
+    const result = await this.db.delete(meetingComments).where(eq(meetingComments.id, id));
+    return true;
+  }
+
+  // Meeting Attachment methods
+  async getMeetingAttachments(meetingId: string): Promise<MeetingAttachment[]> {
+    return await this.db.select().from(meetingAttachments).where(eq(meetingAttachments.meetingId, meetingId));
+  }
+
+  async createMeetingAttachment(insertAttachment: InsertMeetingAttachment): Promise<MeetingAttachment> {
+    const result = await this.db.insert(meetingAttachments).values(insertAttachment).returning();
+    return result[0];
+  }
+
+  async deleteMeetingAttachment(id: string): Promise<boolean> {
+    const result = await this.db.delete(meetingAttachments).where(eq(meetingAttachments.id, id));
+    return true;
+  }
+
+  // General Attachment methods
+  async getAttachments(entityType: string, entityId: string): Promise<Attachment[]> {
+    return await this.db.select()
+      .from(attachments)
+      .where(
+        and(
+          eq(attachments.entityType, entityType),
+          eq(attachments.entityId, entityId)
+        )
+      );
+  }
+
+  async createAttachment(insertAttachment: InsertAttachment): Promise<Attachment> {
+    const result = await this.db.insert(attachments).values(insertAttachment).returning();
+    return result[0];
+  }
+
+  async deleteAttachment(id: string): Promise<boolean> {
+    const result = await this.db.delete(attachments).where(eq(attachments.id, id));
+    return true;
+  }
+
+  // Comment methods
+  async getComments(entityType: string, entityId: string): Promise<CommentWithAuthor[]> {
+    const commentResults = await this.db.select()
+      .from(comments)
+      .where(
+        and(
+          eq(comments.entityType, entityType),
+          eq(comments.entityId, entityId)
+        )
+      );
+    
+    const commentsWithAuthor = await Promise.all(
+      commentResults.map(async (comment) => {
+        const author = await this.getUser(comment.authorId);
+        
+        return {
+          ...comment,
+          author: author ? { ...author, password: undefined } : undefined
+        };
+      })
+    );
+    
+    return commentsWithAuthor;
+  }
+
+  async createComment(insertComment: InsertComment): Promise<Comment> {
+    const result = await this.db.insert(comments).values(insertComment).returning();
+    return result[0];
+  }
+
+  async updateComment(id: string, content: string): Promise<Comment | undefined> {
+    const result = await this.db.update(comments)
+      .set({ 
+        content,
+        updatedAt: new Date()
+      })
+      .where(eq(comments.id, id))
+      .returning();
+    
+    return result[0];
+  }
+
+  async deleteComment(id: string): Promise<boolean> {
+    const result = await this.db.delete(comments).where(eq(comments.id, id));
+    return true;
+  }
+
+  // Invitation methods
+  async createInvitation(insertInvitation: InsertInvitation): Promise<Invitation> {
+    const result = await this.db.insert(invitations).values(insertInvitation).returning();
+    return result[0];
+  }
+
+  async getInvitationsByProject(projectId: string): Promise<Invitation[]> {
+    return await this.db.select().from(invitations).where(eq(invitations.projectId, projectId));
+  }
+
+  async getInvitationsByEmail(email: string): Promise<Invitation[]> {
+    return await this.db.select().from(invitations).where(eq(invitations.inviteeEmail, email));
+  }
+
+  async updateInvitationStatus(id: string, status: string): Promise<Invitation | undefined> {
+    const result = await this.db.update(invitations)
+      .set({ 
+        status,
+        updatedAt: new Date()
+      })
+      .where(eq(invitations.id, id))
+      .returning();
+    
+    return result[0];
+  }
+
+  async deleteInvitation(id: string): Promise<boolean> {
+    const result = await this.db.delete(invitations).where(eq(invitations.id, id));
+    return true;
+  }
+
+  async getProjectMemberIds(projectId: string): Promise<string[]> {
+    const acceptedInvitations = await this.db.select()
+      .from(invitations)
+      .where(
+        and(
+          eq(invitations.projectId, projectId),
+          eq(invitations.status, 'accepted')
+        )
+      );
+    
+    // Get users by email from accepted invitations
+    const memberIds: string[] = [];
+    for (const invitation of acceptedInvitations) {
+      const user = await this.getUserByEmail(invitation.inviteeEmail);
+      if (user) {
+        memberIds.push(user.id);
+      }
+    }
+    
+    return memberIds;
+  }
+}
+
+// Initialize database with default data only if tables are empty
+async function initializeDefaultDataIfNeeded() {
+  const db = getDatabase();
+  
+  try {
+    // Check if users table has any data
+    const existingUsers = await db.select().from(users).limit(1);
+    
+    if (existingUsers.length > 0) {
+      console.log("Database already contains data, skipping initialization");
+      return;
+    }
+    
+    console.log("Initializing database with default data...");
+    
+    // Initialize users
+    const defaultUsers = [
+      { username: "admin", email: "admin@qubicom.co.kr", password: "password", name: "테스트", initials: "테", role: "관리자", lastLoginAt: null },
+      { username: "hyejin", email: "hyejin@qubicom.co.kr", password: "password", name: "전혜진", initials: "전", role: "팀원", lastLoginAt: null },
+      { username: "hyejung", email: "hyejung@qubicom.co.kr", password: "password", name: "전혜중", initials: "전", role: "팀원", lastLoginAt: null },
+      { username: "chamin", email: "chamin@qubicom.co.kr", password: "password", name: "차민", initials: "차", role: "팀원", lastLoginAt: null },
+    ];
+
+    const createdUsers: User[] = [];
+    for (const user of defaultUsers) {
+      const result = await db.insert(users).values(user).returning();
+      createdUsers.push(result[0]);
+    }
+
+    // Initialize projects
+    const defaultProjects = [
+      { 
+        name: "메인 프로젝트", 
+        code: "MAIN-01", 
+        description: "메인 프로젝트 관리",
+        deadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        status: "진행중",
+        labels: ["관리", "메인"],
+        ownerIds: [createdUsers[0].id] // admin 사용자
+      },
+      { 
+        name: "지금 벙크 성장 기능 개발", 
+        code: "RIIDO-41", 
+        description: "성장 기능 구현",
+        deadline: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        status: "진행중",
+        labels: ["개발", "핵심기능"],
+        ownerIds: [createdUsers[1].id] // hyejin
+      },
+      { 
+        name: "v0.10.4 업데이트", 
+        code: "RIIDO-27", 
+        description: "앱 업데이트",
+        deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        status: "진행중",
+        labels: ["업데이트"],
+        ownerIds: [createdUsers[2].id] // hyejung
+      },
+      { 
+        name: "디스코드 연동", 
+        code: "RIIDO-70", 
+        description: "디스코드 연동 기능",
+        deadline: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        status: "진행전",
+        labels: ["연동", "봇"],
+        ownerIds: [createdUsers[3].id] // chamin
+      },
+    ];
+
+    const createdProjects: Project[] = [];
+    for (let i = 0; i < defaultProjects.length; i++) {
+      const project = defaultProjects[i];
+      const creator = createdUsers[i % createdUsers.length];
+      const result = await db.insert(projects).values({
+        ...project,
+        createdBy: creator.id,
+        lastUpdatedBy: creator.id,
+      }).returning();
+      createdProjects.push(result[0]);
+    }
+
+    // Initialize goals for projects
+    const defaultGoals = [
+      { title: "프로젝트 관리", description: "메인 프로젝트 전체 관리", deadline: new Date(Date.now() + 20 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], status: "진행중", labels: ["관리", "계획"], assigneeIds: [createdUsers[0].id], projectId: createdProjects[0].id },
+      { title: "팀 관리", description: "팀원들의 업무 및 성과 관리", deadline: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], status: "진행중", labels: ["팀", "관리"], assigneeIds: [createdUsers[0].id], projectId: createdProjects[0].id },
+      { title: "메인 기능 개발", description: "핵심 기능 구현", deadline: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], status: "진행중", labels: ["개발", "핵심"], assigneeIds: [createdUsers[1].id], projectId: createdProjects[1].id },
+      { title: "UI/UX 개선", description: "사용자 인터페이스 개선", deadline: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], status: "목표", labels: ["디자인"], assigneeIds: [createdUsers[1].id], projectId: createdProjects[1].id },
+      { title: "API 연동", description: "외부 API 연동 작업", deadline: null, status: "진행전", labels: ["연동", "API"], assigneeIds: [createdUsers[2].id], projectId: createdProjects[2].id },
+      { title: "시스템 최적화", description: "성능 및 안정성 개선", deadline: null, status: "목표", labels: ["성능"], assigneeIds: [createdUsers[2].id], projectId: createdProjects[2].id },
+      { title: "연동 기능", description: "다른 서비스와의 연동", deadline: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], status: "진행전", labels: ["연동"], assigneeIds: [createdUsers[3].id], projectId: createdProjects[3].id },
+    ];
+
+    const createdGoals: Goal[] = [];
+    for (let i = 0; i < defaultGoals.length; i++) {
+      const goal = defaultGoals[i];
+      const creator = createdUsers[i % createdUsers.length];
+      const result = await db.insert(goals).values({
+        ...goal,
+        createdBy: creator.id,
+        lastUpdatedBy: creator.id,
+      }).returning();
+      createdGoals.push(result[0]);
+    }
+
+    // Initialize tasks for goals
+    const defaultTasks = [
+      // 메인 프로젝트 tasks
+      { title: "프로젝트 계획 수립", description: "", status: "완료", goalId: createdGoals[0].id, projectId: createdProjects[0].id, assigneeIds: [createdUsers[0].id], deadline: new Date(Date.now() + 18 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], duration: 0, priority: "1", labels: ["계획", "관리"] },
+      { title: "일정 관리 시스템 구축", description: "", status: "진행중", goalId: createdGoals[0].id, projectId: createdProjects[0].id, assigneeIds: [createdUsers[0].id], deadline: new Date(Date.now() + 25 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], duration: 0, priority: "2", labels: ["시스템", "관리"] },
+      { title: "팀원 역할 분담", description: "", status: "완료", goalId: createdGoals[1].id, projectId: createdProjects[0].id, assigneeIds: [createdUsers[0].id], deadline: new Date(Date.now() + 12 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], duration: 0, priority: "1", labels: ["팀", "관리"] },
+      { title: "성과 평가 시스템", description: "", status: "진행전", goalId: createdGoals[1].id, projectId: createdProjects[0].id, assigneeIds: [createdUsers[0].id], deadline: new Date(Date.now() + 20 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], duration: 0, priority: "3", labels: ["평가", "시스템"] },
+
+      // 지금 벙크 성장 기능 개발 tasks
+      { title: "지금 벙크 성장 기능", description: "", status: "완료", goalId: createdGoals[2].id, projectId: createdProjects[1].id, assigneeIds: [createdUsers[1].id], deadline: new Date(Date.now() + 8 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], duration: 0, priority: "3", labels: ["개발"] },
+      { title: "업데이트 창 폭을 정함", description: "", status: "진행전", goalId: createdGoals[2].id, projectId: createdProjects[1].id, assigneeIds: [createdUsers[1].id], deadline: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], duration: 0, priority: "1", labels: ["디자인"] },
+      { title: "프로젝트 UI 개선", description: "", status: "진행전", goalId: createdGoals[3].id, projectId: createdProjects[1].id, assigneeIds: [createdUsers[1].id], deadline: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], duration: 0, priority: "3", labels: ["UI", "개선"] },
+      { title: "지금벙 API 연동", description: "", status: "진행중", goalId: createdGoals[2].id, projectId: createdProjects[1].id, assigneeIds: [createdUsers[1].id], deadline: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], duration: 0, priority: "1", labels: ["API", "연동"] },
+      { title: "지금벙 Webhook 설정", description: "", status: "진행전", goalId: createdGoals[2].id, projectId: createdProjects[1].id, assigneeIds: [createdUsers[1].id], deadline: new Date(Date.now() + 16 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], duration: 0, priority: "4", labels: ["설정"] },
+      
+      // v0.10.4 업데이트 tasks  
+      { title: "미니 번번 생성 및 알림 기능", description: "", status: "완료", goalId: createdGoals[4].id, projectId: createdProjects[2].id, assigneeIds: [createdUsers[2].id], deadline: new Date(Date.now() + 6 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], duration: 0, priority: "2", labels: ["기능", "알림"] },
+      { title: "넥스트 센터 개선 - 블랙 센터네트 업데이트", description: "", status: "진행전", goalId: createdGoals[5].id, projectId: createdProjects[2].id, assigneeIds: [createdUsers[2].id], deadline: new Date(Date.now() + 9 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], duration: 0, priority: "3", labels: ["업데이트"] },
+      { title: "널링앱 설정창 이동을 성능 향 숫 안정 개선", description: "", status: "진행전", goalId: createdGoals[5].id, projectId: createdProjects[2].id, assigneeIds: [createdUsers[2].id], deadline: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], duration: 0, priority: "2", labels: ["성능", "개선"] },
+      { title: "리스트에서 차례 드래그로널스 기능 발밑", description: "", status: "진행전", goalId: createdGoals[4].id, projectId: createdProjects[2].id, assigneeIds: [createdUsers[2].id], deadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], duration: 0, priority: "4", labels: ["기능"] },
+      { title: "리스트에서 차례 사제지 즤저 방밎 입한", description: "", status: "진행전", goalId: createdGoals[4].id, projectId: createdProjects[2].id, assigneeIds: [createdUsers[2].id], deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], duration: 0, priority: "2", labels: ["기능"] },
+      
+      // 디스코드 연동 tasks
+      { title: "차례 변경사항에 대한 알림", description: "", status: "진행전", goalId: createdGoals[6].id, projectId: createdProjects[3].id, assigneeIds: [createdUsers[3].id], deadline: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], duration: 0, priority: "1", labels: ["알림", "봇"] },
+    ];
+
+    for (let i = 0; i < defaultTasks.length; i++) {
+      const task = defaultTasks[i];
+      const creator = createdUsers[i % createdUsers.length];
+      
+      // Set progress based on status
+      let progress = 0;
+      if (task.status === '완료') {
+        progress = 100;
+      } else if (task.status === '진행중') {
+        progress = 50;
+      }
+      
+      await db.insert(tasks).values({
+        ...task,
+        progress,
+        createdBy: creator.id,
+        lastUpdatedBy: creator.id,
+      });
+    }
+
+    // Initialize meetings
+    const defaultMeetings = [
+      {
+        title: "데일리 스탠드업",
+        description: "오늘의 작업 계획과 이슈를 공유합니다.",
+        startAt: "2025-09-12T09:30:00.000Z",
+        endAt: "2025-09-12T10:00:00.000Z",
+        type: "standup",
+        location: "Google Meet",
+        attendeeIds: [createdUsers[0].id, createdUsers[1].id, createdUsers[2].id]
+      },
+      {
+        title: "주간 스프린트 리뷰",
+        description: "이번 주 진행된 작업들을 검토하고 다음 주 계획을 논의합니다.",
+        startAt: "2025-09-15T14:00:00.000Z",
+        endAt: "2025-09-15T15:00:00.000Z",
+        type: "other",
+        location: "Zoom",
+        attendeeIds: [createdUsers[0].id, createdUsers[1].id]
+      },
+      {
+        title: "클라이언트 미팅",
+        description: "프로젝트 진행 상황을 클라이언트에게 보고합니다.",
+        startAt: "2025-09-16T10:00:00.000Z",
+        endAt: "2025-09-16T11:30:00.000Z",
+        type: "other",
+        location: "회의실 A",
+        attendeeIds: [createdUsers[0].id]
+      },
+      {
+        title: "4년 회의",
+        description: "연간 계획 및 리뷰 미팅입니다.",
+        startAt: "2025-09-17T10:00:00.000Z",
+        endAt: "2025-09-17T11:00:00.000Z",
+        type: "other",
+        location: "회의실 B",
+        attendeeIds: [createdUsers[0].id, createdUsers[1].id, createdUsers[2].id]
+      },
+      {
+        title: "스팸티브 어린이",
+        description: "특별 미팅입니다.",
+        startAt: "2025-09-18T20:00:00.000Z",
+        endAt: "2025-09-18T20:30:00.000Z",
+        type: "other",
+        location: "Zoom",
+        attendeeIds: [createdUsers[0].id]
+      }
+    ];
+
+    for (const meeting of defaultMeetings) {
+      await db.insert(meetings).values(meeting);
+    }
+    
+    console.log("Database initialization completed successfully");
+  } catch (error) {
+    console.error("Error initializing database:", error);
+    throw error;
+  }
+}
+
+// Use database storage
+export const storage = new DrizzleStorage();
+
+// Initialize default data when the module is loaded
+initializeDefaultDataIfNeeded().catch(console.error);
