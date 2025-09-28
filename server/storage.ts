@@ -2567,8 +2567,5 @@ async function initializeDefaultDataIfNeeded() {
   }
 }
 
-// Use database storage
-export const storage = new DrizzleStorage();
-
-// Initialize default data when the module is loaded
-initializeDefaultDataIfNeeded().catch(console.error);
+// Use memory storage (temporarily due to WebSocket connection issues)
+export const storage = new MemStorage();
