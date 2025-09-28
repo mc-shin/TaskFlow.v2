@@ -55,22 +55,38 @@ export function WorkspaceAppShell() {
           }
         }
 
-        // 신규가입자이지만 이전에 초대를 수락한 경우는 접근 허용
+        // 관리자 사용자는 항상 접근 허용
+        const isAdminUser = userEmail.includes('admin') || userEmail === 'admin@qubicom.co.kr';
+        if (isAdminUser && currentUser) {
+          setIsAuthorized(true);
+          return;
+        }
+
+        // 초대를 수락한 기록 확인 (localStorage)
         const hasAcceptedInvitation = localStorage.getItem(`hasAcceptedInvitation_${userEmail}`) === 'true';
 
-        // 초대 상태 확인 - pending 초대가 있는지 체크
-        const receivedInvitations = JSON.parse(localStorage.getItem(`receivedInvitations_${userEmail}`) || '[]');
-        const hasPendingInvitation = receivedInvitations.some((inv: any) => inv.status === 'pending');
+        // 서버에서 실제 초대 수락 상태 확인
+        let hasServerAcceptedInvitation = false;
+        try {
+          const serverInvitationsResponse = await fetch(`/api/invitations/email/${encodeURIComponent(userEmail)}`);
+          if (serverInvitationsResponse.ok) {
+            const serverInvitations = await serverInvitationsResponse.json();
+            hasServerAcceptedInvitation = serverInvitations.some((inv: any) => inv.status === 'accepted');
+          }
+        } catch (error) {
+          console.error('서버 초대 상태 확인 오류:', error);
+        }
 
-        if (!currentUser && !hasAcceptedInvitation) {
+        // 워크스페이스 멤버이거나 초대를 수락한 사용자만 접근 허용
+        if (!currentUser && !hasAcceptedInvitation && !hasServerAcceptedInvitation) {
           // 워크스페이스 멤버가 아니고 초대를 수락한 적도 없으면 접근 차단
           setLocation("/workspace");
           return;
         }
 
-        // 초대를 받았지만 아직 수락하지 않은 경우 워크스페이스 페이지로 리다이렉트
-        if (!currentUser && hasPendingInvitation && !hasAcceptedInvitation) {
-          setLocation("/workspace");
+        // 백엔드에 등록되지 않았지만 초대를 수락한 경우는 접근 허용 (신규 가입자)
+        if (!currentUser && (hasAcceptedInvitation || hasServerAcceptedInvitation)) {
+          setIsAuthorized(true);
           return;
         }
 
