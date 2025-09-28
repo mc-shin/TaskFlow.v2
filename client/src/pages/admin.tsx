@@ -124,6 +124,7 @@ export default function Admin() {
             description: "이미 초대가 진행 중인 사용자입니다.",
             variant: "destructive",
           });
+          setIsInviteLoading(false);
           return;
         }
       }

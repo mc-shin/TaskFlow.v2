@@ -100,6 +100,7 @@ export default function ListTree() {
   const [inviteUsername, setInviteUsername] = useState('');
   const [inviteRole, setInviteRole] = useState('팀원');
   const [usernameError, setUsernameError] = useState('');
+  const [isInviteLoading, setIsInviteLoading] = useState(false);
   const [deletedMemberIds, setDeletedMemberIds] = useState<Set<string>>(new Set());
 
   // Inline editing state
@@ -2335,8 +2336,25 @@ export default function ListTree() {
                       setUsernameError('올바른 이메일 형식을 입력해 주세요.');
                       return;
                     }
+
+                    setIsInviteLoading(true);
                     
                     try {
+                      // 이미 해당 워크스페이스에 초대되었는지 확인
+                      const existingInviteResponse = await fetch(`/api/invitations/email/${encodeURIComponent(inviteUsername)}`);
+                      if (existingInviteResponse.ok) {
+                        const existingInvites = await existingInviteResponse.json();
+                        const pendingInvite = existingInvites.find((invite: any) => invite.status === 'pending');
+                        if (pendingInvite) {
+                          toast({
+                            title: "초대 실패",
+                            description: "이미 초대가 진행 중인 사용자입니다.",
+                            variant: "destructive",
+                          });
+                          setIsInviteLoading(false);
+                          return;
+                        }
+                      }
                       // 기존 사용자인지 확인 (선택 사항)
                       let existingUser = null;
                       try {
@@ -2452,12 +2470,14 @@ export default function ListTree() {
                     } catch (error) {
                       console.error('초대 실패:', error);
                       setUsernameError('초대 발송 중 오류가 발생했습니다.');
+                    } finally {
+                      setIsInviteLoading(false);
                     }
                   }}
-                  disabled={!inviteUsername.trim()}
+                  disabled={!inviteUsername.trim() || isInviteLoading}
                   data-testid="button-send-invite"
                 >
-                  초대하기
+                  {isInviteLoading ? "전송 중..." : "초대하기"}
                 </Button>
               </div>
               {usernameError && (
