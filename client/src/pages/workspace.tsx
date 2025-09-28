@@ -519,20 +519,20 @@ export function WorkspacePage() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="flex items-center justify-between text-sm text-muted-foreground">
-                  <div className="flex items-center space-x-4">
-                    <div className="flex items-center space-x-1">
-                      <Users className="h-4 w-4" />
-                      <span>{workspace.memberCount}명</span>
-                    </div>
-                    <div className="flex items-center space-x-1">
-                      <Calendar className="h-4 w-4" />
-                      <span>{workspace.projectCount}개 프로젝트</span>
-                    </div>
+                <div className="space-y-3">
+                  <div className="flex items-center space-x-1 text-sm text-muted-foreground">
+                    <Users className="h-4 w-4" />
+                    <span>{workspace.memberCount}명</span>
                   </div>
-                  <Badge variant="secondary" className="text-xs">
-                    {workspace.lastAccess}
-                  </Badge>
+                  <div className="flex items-center space-x-1 text-sm text-muted-foreground">
+                    <Calendar className="h-4 w-4" />
+                    <span>{workspace.projectCount}개 프로젝트</span>
+                  </div>
+                  <div className="text-right">
+                    <Badge variant="secondary" className="text-xs">
+                      {workspace.lastAccess}
+                    </Badge>
+                  </div>
                 </div>
               </CardContent>
             </Card>
