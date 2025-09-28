@@ -567,24 +567,23 @@ export function WorkspacePage() {
 
         {/* Workspace Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-          {isUserInfoLoaded && workspaceData
-            .filter(workspace => {
-              // 워크스페이스 접근 권한 체크
-              const hasAcceptedInvitation = localStorage.getItem(`hasAcceptedInvitation_${localStorage.getItem("userEmail")}`) === 'true';
-              
-              // admin 사용자는 모든 워크스페이스 표시
-              if (isAdminUser) {
-                return true;
-              }
-              
-              // 초대를 수락한 경우에만 워크스페이스 표시
-              if (hasAcceptedInvitation) {
-                return true;
-              }
-              
-              // 그 외에는 모든 워크스페이스 카드 숨김 (초대 수락 전 상태)
-              return false;
-            })
+          {isUserInfoLoaded && (() => {
+            // 워크스페이스 접근 권한 체크
+            const hasAcceptedInvitation = localStorage.getItem(`hasAcceptedInvitation_${localStorage.getItem("userEmail")}`) === 'true';
+            
+            // admin 사용자는 모든 워크스페이스 표시
+            if (isAdminUser) {
+              return workspaceData;
+            }
+            
+            // 초대를 수락한 경우에만 워크스페이스 표시
+            if (hasAcceptedInvitation) {
+              return workspaceData;
+            }
+            
+            // 그 외에는 빈 배열 반환 (초대 수락 전 상태)
+            return [];
+          })()
             .map((workspace) => (
             <Card 
               key={workspace.id} 
