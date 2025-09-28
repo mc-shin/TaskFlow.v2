@@ -421,15 +421,12 @@ function ProjectGoalsContent({
                           <div className="flex items-center space-x-3">
                             {/* 담당자 */}
                             {task.assignees && task.assignees.length > 0 && (
-                              <div className="flex items-center space-x-2">
+                              <div className="flex items-center">
                                 <Avatar className="w-5 h-5">
                                   <AvatarFallback className="text-xs bg-primary text-primary-foreground">
                                     {task.assignees[0].initials}
                                   </AvatarFallback>
                                 </Avatar>
-                                <span className="text-xs text-muted-foreground">
-                                  {task.assignees[0].name}
-                                </span>
                               </div>
                             )}
                             

@@ -684,15 +684,12 @@ export default function GoalDetail() {
                                     {task.status}
                                   </Badge>
                                   {task.assignees && task.assignees.length > 0 && (
-                                    <div className="flex items-center gap-1">
+                                    <div className="flex items-center">
                                       <Avatar className="h-4 w-4">
                                         <AvatarFallback className="text-xs">
                                           {task.assignees[0].initials}
                                         </AvatarFallback>
                                       </Avatar>
-                                      <span className="text-xs text-muted-foreground">
-                                        {task.assignees[0].name}
-                                      </span>
                                     </div>
                                   )}
                                 </div>

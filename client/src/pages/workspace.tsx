@@ -577,13 +577,13 @@ export function WorkspacePage() {
                 return true;
               }
               
-              // 기존 워크스페이스 멤버는 항상 표시 (서버에서 확인된 사용자)
+              // 기존 확인된 워크스페이스 멤버는 표시 (서버에서 확인된 사용자)
               if (!isNewUser) {
                 return true;
               }
               
-              // 신규 사용자이지만 초대를 수락한 경우 표시
-              if (hasAcceptedInvitation) {
+              // 신규 사용자는 반드시 초대를 수락해야만 워크스페이스 표시
+              if (isNewUser && hasAcceptedInvitation) {
                 return true;
               }
               
