@@ -113,15 +113,19 @@ export default function Admin() {
   const handleInviteSubmit = async (data: InviteForm) => {
     setIsInviteLoading(true);
     try {
-      // 이메일 중복 확인
-      const userResponse = await fetch(`/api/users/by-email/${encodeURIComponent(data.email)}`);
-      if (userResponse.ok) {
-        toast({
-          title: "초대 실패",
-          description: "이미 등록된 사용자입니다.",
-          variant: "destructive",
-        });
-        return;
+      // 이미 해당 워크스페이스에 초대되었는지 확인
+      const existingInviteResponse = await fetch(`/api/invitations/email/${encodeURIComponent(data.email)}`);
+      if (existingInviteResponse.ok) {
+        const existingInvites = await existingInviteResponse.json();
+        const pendingInvite = existingInvites.find((invite: any) => invite.status === 'pending');
+        if (pendingInvite) {
+          toast({
+            title: "초대 실패",
+            description: "이미 초대가 진행 중인 사용자입니다.",
+            variant: "destructive",
+          });
+          return;
+        }
       }
 
       // 현재 사용자 정보 가져오기 (admin은 이미 로그인되어 있으므로 기본값 사용)

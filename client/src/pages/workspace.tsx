@@ -106,32 +106,49 @@ export function WorkspacePage() {
     // 현재 로그인된 사용자의 이메일을 가져와서 실제 username 찾기
     const checkInvitations = async () => {
       const userEmail = localStorage.getItem("userEmail");
-      if (!userEmail) return;
+      if (!userEmail) {
+        setIsUserInfoLoaded(true); // userEmail이 없어도 로딩 완료로 설정
+        return;
+      }
 
       try {
         // 현재 로그인된 사용자의 실제 정보 가져오기 (워크스페이스 멤버만)
         const response = await fetch('/api/users?workspace=true');
         const users = await response.json();
         
-        // userEmail을 기반으로 실제 사용자 매핑 (간단한 매핑 로직)
+        // userEmail을 기반으로 실제 사용자 매핑
         let currentUser;
         const email = userEmail.toLowerCase();
+        
+        // 워크스페이스 멤버 목록에서 현재 이메일로 사용자 찾기
+        currentUser = users.find((u: any) => u.email?.toLowerCase() === email);
+        
+        // 특정 사용자에 대한 관리자 권한 설정
         if (email.includes('admin') || email === 'admin@qubicom.co.kr') {
-          currentUser = users.find((u: any) => u.username === 'admin');
           setIsAdminUser(true);
-        } else if (email.includes('hyejin') || email === '1@qubicom.co.kr') {
-          currentUser = users.find((u: any) => u.username === 'hyejin');
-        } else if (email.includes('hyejung') || email === '2@qubicom.co.kr') {
-          currentUser = users.find((u: any) => u.username === 'hyejung');
-        } else if (email.includes('chamin') || email === '3@qubicom.co.kr') {
-          currentUser = users.find((u: any) => u.username === 'chamin');
+        }
+        
+        // 레거시 하드코딩된 매핑 (백업용)
+        if (!currentUser) {
+          if (email.includes('admin') || email === 'admin@qubicom.co.kr') {
+            currentUser = users.find((u: any) => u.username === 'admin');
+          } else if (email.includes('hyejin') || email === '1@qubicom.co.kr') {
+            currentUser = users.find((u: any) => u.username === 'hyejin');
+          } else if (email.includes('hyejung') || email === '2@qubicom.co.kr') {
+            currentUser = users.find((u: any) => u.username === 'hyejung');
+          } else if (email.includes('chamin') || email === '3@qubicom.co.kr') {
+            currentUser = users.find((u: any) => u.username === 'chamin');
+          }
         }
         
         // 신규가입자인지 확인 (백엔드에 등록되지 않은 사용자)
         // 단, 이전에 초대를 수락한 경우는 신규 사용자가 아님
         const hasAcceptedInvitation = localStorage.getItem(`hasAcceptedInvitation_${userEmail}`) === 'true';
+        
         if (!currentUser && !hasAcceptedInvitation) {
           setIsNewUser(true);
+        } else {
+          setIsNewUser(false);
         }
         
         let pendingInvitations: any[] = [];
@@ -187,9 +204,22 @@ export function WorkspacePage() {
         
         setInvitations(pendingInvitations);
         
-        // 초대가 있고 다이얼로그가 닫혀있을 때만 다이얼로그 열기 (중복 열림 방지)
-        if (pendingInvitations.length > 0 && !isInviteDialogOpen) {
+        // 이미 표시된 초대 ID 목록 가져오기
+        const shownInvitationsKey = `shownInvitations_${userEmail}`;
+        const shownInvitations = JSON.parse(localStorage.getItem(shownInvitationsKey) || '[]');
+        
+        // 새로운 초대(아직 표시되지 않은 초대)가 있는지 확인
+        const newInvitations = pendingInvitations.filter((inv: any) => 
+          !shownInvitations.includes(inv.id)
+        );
+        
+        // 새로운 초대가 있고 다이얼로그가 닫혀있을 때만 다이얼로그 열기
+        if (newInvitations.length > 0 && !isInviteDialogOpen) {
           setIsInviteDialogOpen(true);
+          
+          // 새로운 초대들을 표시된 목록에 추가
+          const updatedShownInvitations = [...shownInvitations, ...newInvitations.map((inv: any) => inv.id)];
+          localStorage.setItem(shownInvitationsKey, JSON.stringify(updatedShownInvitations));
         }
         
         // 사용자 정보 로딩 완료
@@ -359,6 +389,18 @@ export function WorkspacePage() {
       // 로컬 상태 업데이트
       setInvitations(prev => prev.filter(inv => inv.id !== invitationId));
 
+      // 표시된 초대 목록에서도 제거 (중복 표시 방지)
+      const shownInvitationsKey = `shownInvitations_${currentEmail}`;
+      const shownInvitations = JSON.parse(localStorage.getItem(shownInvitationsKey) || '[]');
+      const updatedShownInvitations = shownInvitations.filter((id: string) => id !== invitationId);
+      localStorage.setItem(shownInvitationsKey, JSON.stringify(updatedShownInvitations));
+
+      // 초대를 수락한 경우 수락 플래그 설정
+      if (action === 'accept') {
+        localStorage.setItem(`hasAcceptedInvitation_${currentEmail}`, 'true');
+        setIsNewUser(false); // 더 이상 신규 사용자가 아님
+      }
+
       toast({
         title: action === 'accept' ? "초대 수락" : "초대 거절",
         description: action === 'accept' ? "워크스페이스에 참여했습니다." : "초대를 거절했습니다.",
@@ -464,6 +506,38 @@ export function WorkspacePage() {
       console.error('초대 응답 처리 중 오류:', error);
     }
   };
+
+  // 사용자 정보 로딩 중일 때 로딩 화면 표시
+  if (!isUserInfoLoaded) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">사용자 정보를 확인하는 중...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // 신규 사용자이면서 초대가 없는 경우 접근 제한
+  if (isNewUser && invitations.length === 0) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="max-w-md text-center">
+          <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+            <Mail className="h-8 w-8 text-muted-foreground" />
+          </div>
+          <h2 className="text-2xl font-semibold mb-2">워크스페이스 초대 필요</h2>
+          <p className="text-muted-foreground mb-6">
+            이 워크스페이스에 접근하려면 관리자로부터 초대를 받아야 합니다.
+          </p>
+          <Button onClick={() => setLocation("/")} variant="outline">
+            메인 페이지로 돌아가기
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
