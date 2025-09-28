@@ -244,12 +244,15 @@ export default function MyTasks() {
                       </td>
                       <td className="p-4">
                         {task.assignee && (
-                          <div className="flex items-center">
+                          <div className="flex items-center space-x-2">
                             <Avatar className="w-6 h-6">
                               <AvatarFallback className="text-xs bg-primary text-primary-foreground">
                                 {task.assignee.initials}
                               </AvatarFallback>
                             </Avatar>
+                            <span className="text-sm" data-testid={`text-assignee-${task.id}`}>
+                              {task.assignee.name || ''}
+                            </span>
                           </div>
                         )}
                       </td>
