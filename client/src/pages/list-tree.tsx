@@ -1915,7 +1915,6 @@ export default function ListTree() {
                               {member.initials}
                             </AvatarFallback>
                           </Avatar>
-                          <span className="text-sm font-medium">{member.name}</span>
                         </div>
                       ));
                     })()}
