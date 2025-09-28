@@ -2447,6 +2447,7 @@ export default function ListTree() {
                       setInviteUsername('');
                       setInviteRole('팀원');
                       setUsernameError('');
+                      setIsInviteModalOpen(false);
                       
                     } catch (error) {
                       console.error('초대 실패:', error);

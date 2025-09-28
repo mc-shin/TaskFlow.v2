@@ -484,7 +484,7 @@ export function WorkspacePage() {
                 
                 toast({
                   title: "워크스페이스 참여 완료",
-                  description: `${acceptedInvitation.projectName} 워크스페이스에 참여했습니다.`,
+                  description: `${acceptedInvitation.projectName || '하이더'} 워크스페이스에 참여했습니다.`,
                 });
               }
             }
