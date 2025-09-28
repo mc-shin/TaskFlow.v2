@@ -20,12 +20,7 @@ const workspaceSchema = z.object({
   description: z.string().optional(),
 });
 
-const workspaceSettingsSchema = z.object({
-  name: z.string().min(1, "워크스페이스 이름을 입력해주세요"),
-});
-
 type WorkspaceForm = z.infer<typeof workspaceSchema>;
-type WorkspaceSettingsForm = z.infer<typeof workspaceSettingsSchema>;
 
 
 export function WorkspacePage() {
@@ -38,7 +33,6 @@ export function WorkspacePage() {
   const [isAdminUser, setIsAdminUser] = useState(false);
   const [isNewUser, setIsNewUser] = useState(false);
   const [isUserInfoLoaded, setIsUserInfoLoaded] = useState(false);
-  const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false);
   const { toast } = useToast();
 
   // 실제 프로젝트 데이터 가져오기
@@ -72,18 +66,13 @@ export function WorkspacePage() {
       new Date(oldestProject.createdAt).toISOString().split('T')[0] : 
       "2025-09-26";
     
-    // 첫 번째 프로젝트 이름을 워크스페이스 이름으로 사용 (기본값: "하이더")
-    const workspaceName = projectList.length > 0 ? projectList[0].name : "하이더";
-    const workspaceProjectId = projectList.length > 0 ? projectList[0].id : null;
-    
     return [{
       id: "1",
-      name: workspaceName,
+      name: "하이더",
       description: "주요 업무 관리 워크스페이스",
       memberCount,
       projectCount,
       lastAccess,
-      projectId: workspaceProjectId, // 설정에서 이름 변경을 위해 프로젝트 ID 저장
     }];
   };
 
@@ -203,13 +192,6 @@ export function WorkspacePage() {
     },
   });
 
-  const settingsForm = useForm<WorkspaceSettingsForm>({
-    resolver: zodResolver(workspaceSettingsSchema),
-    defaultValues: {
-      name: "",
-    },
-  });
-
   const onSubmit = async (data: WorkspaceForm) => {
     setIsLoading(true);
     try {
@@ -222,51 +204,6 @@ export function WorkspacePage() {
       setLocation("/workspace/app/team");
     } catch (error) {
       console.error("Create workspace error:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const onSettingsSubmit = async (data: WorkspaceSettingsForm) => {
-    setIsLoading(true);
-    try {
-      const workspaceData = generateWorkspaceData();
-      if (workspaceData.length > 0 && workspaceData[0].projectId) {
-        const projectId = workspaceData[0].projectId;
-        
-        // 첫 번째 프로젝트의 이름을 업데이트 (워크스페이스 이름으로 사용)
-        const response = await fetch(`/api/projects/${projectId}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            name: data.name
-          })
-        });
-
-        if (!response.ok) {
-          throw new Error('프로젝트 이름 변경에 실패했습니다.');
-        }
-
-        // 캐시 무효화하여 실시간 반영
-        queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
-        
-        toast({
-          title: "워크스페이스 이름 변경 완료",
-          description: `워크스페이스 이름이 "${data.name}"으로 변경되었습니다.`,
-        });
-        
-        setIsSettingsDialogOpen(false);
-        settingsForm.reset();
-      }
-    } catch (error) {
-      console.error("Settings update error:", error);
-      toast({
-        title: "오류",
-        description: "워크스페이스 이름 변경에 실패했습니다.",
-        variant: "destructive",
-      });
     } finally {
       setIsLoading(false);
     }
@@ -485,9 +422,9 @@ export function WorkspacePage() {
               if (isNewUser) {
                 return false;
               }
-              // admin 사용자는 첫 번째 워크스페이스 항상 표시 (이름이 변경되어도)
+              // admin 사용자는 하이더 워크스페이스만 표시
               if (isAdminUser) {
-                return true; // 하드코딩된 이름 체크 제거
+                return workspace.name === "하이더";
               }
               // 기존 등록된 사용자는 모든 워크스페이스 표시
               return true;
@@ -495,11 +432,11 @@ export function WorkspacePage() {
             .map((workspace) => (
             <Card 
               key={workspace.id} 
-              className="cursor-pointer hover:shadow-md transition-shadow min-h-[160px] flex flex-col"
+              className="cursor-pointer hover:shadow-md transition-shadow"
               onClick={() => handleWorkspaceSelect(workspace.id)}
               data-testid={`card-workspace-${workspace.id}`}
             >
-              <CardHeader className="flex-1 pb-2">
+              <CardHeader>
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <CardTitle className="text-lg">{workspace.name}</CardTitle>
@@ -509,15 +446,14 @@ export function WorkspacePage() {
                   </div>
                   <Button variant="ghost" size="sm" onClick={(e) => {
                     e.stopPropagation();
-                    // 현재 워크스페이스 이름으로 폼 초기값 설정
-                    settingsForm.setValue("name", workspace.name);
-                    setIsSettingsDialogOpen(true);
-                  }} data-testid="button-workspace-settings">
+                    // TODO: 워크스페이스 설정
+                    alert("워크스페이스 설정은 준비 중입니다.");
+                  }}>
                     <Settings className="h-4 w-4" />
                   </Button>
                 </div>
               </CardHeader>
-              <CardContent className="pt-0 mt-auto">
+              <CardContent>
                 <div className="flex items-center justify-between text-sm text-muted-foreground">
                   <div className="flex items-center space-x-4">
                     <div className="flex items-center space-x-1">
@@ -614,57 +550,6 @@ export function WorkspacePage() {
                       data-testid="button-create-workspace"
                     >
                       {isLoading ? "생성 중..." : "워크스페이스 생성"}
-                    </Button>
-                  </div>
-                </form>
-              </Form>
-            </DialogContent>
-          </Dialog>
-
-          {/* Workspace Settings Dialog */}
-          <Dialog open={isSettingsDialogOpen} onOpenChange={setIsSettingsDialogOpen}>
-            <DialogContent data-testid="dialog-workspace-settings">
-              <DialogHeader>
-                <DialogTitle>워크스페이스 설정</DialogTitle>
-                <DialogDescription>
-                  워크스페이스 이름을 변경할 수 있습니다.
-                </DialogDescription>
-              </DialogHeader>
-              <Form {...settingsForm}>
-                <form onSubmit={settingsForm.handleSubmit(onSettingsSubmit)} className="space-y-4">
-                  <FormField
-                    control={settingsForm.control}
-                    name="name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>워크스페이스 이름</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="워크스페이스 이름을 입력하세요"
-                            {...field}
-                            data-testid="input-workspace-settings-name"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <div className="flex justify-end space-x-2">
-                    <Button 
-                      type="button" 
-                      variant="outline" 
-                      onClick={() => setIsSettingsDialogOpen(false)}
-                      data-testid="button-cancel-settings"
-                    >
-                      취소
-                    </Button>
-                    <Button 
-                      type="submit" 
-                      disabled={isLoading}
-                      data-testid="button-save-settings"
-                    >
-                      {isLoading ? "저장 중..." : "저장"}
                     </Button>
                   </div>
                 </form>
