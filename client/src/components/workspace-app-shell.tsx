@@ -58,8 +58,18 @@ export function WorkspaceAppShell() {
         // 신규가입자이지만 이전에 초대를 수락한 경우는 접근 허용
         const hasAcceptedInvitation = localStorage.getItem(`hasAcceptedInvitation_${userEmail}`) === 'true';
 
+        // 초대 상태 확인 - pending 초대가 있는지 체크
+        const receivedInvitations = JSON.parse(localStorage.getItem(`receivedInvitations_${userEmail}`) || '[]');
+        const hasPendingInvitation = receivedInvitations.some((inv: any) => inv.status === 'pending');
+
         if (!currentUser && !hasAcceptedInvitation) {
           // 워크스페이스 멤버가 아니고 초대를 수락한 적도 없으면 접근 차단
+          setLocation("/workspace");
+          return;
+        }
+
+        // 초대를 받았지만 아직 수락하지 않은 경우 워크스페이스 페이지로 리다이렉트
+        if (!currentUser && hasPendingInvitation && !hasAcceptedInvitation) {
           setLocation("/workspace");
           return;
         }
