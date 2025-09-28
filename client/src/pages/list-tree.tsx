@@ -2412,13 +2412,13 @@ export default function ListTree() {
                       
                       // 전역 초대 목록에 저장 (신규가입자도 확인할 수 있도록)
                       const globalInvitations = JSON.parse(localStorage.getItem('pendingInvitations') || '[]');
-                      globalInvitations.push(newInvitation);
+                      globalInvitations.push(localInvitation);
                       localStorage.setItem('pendingInvitations', JSON.stringify(globalInvitations));
                       
                       // 기존 사용자의 경우 개별 받은 초대 목록에도 추가
                       if (existingUser) {
                         const receivedInvitations = JSON.parse(localStorage.getItem(`receivedInvitations_${inviteUsername}`) || '[]');
-                        receivedInvitations.push(newInvitation);
+                        receivedInvitations.push(localInvitation);
                         localStorage.setItem(`receivedInvitations_${inviteUsername}`, JSON.stringify(receivedInvitations));
                         
                         // 같은 브라우저의 다른 탭에서 즉시 업데이트되도록 storage 이벤트 수동 트리거

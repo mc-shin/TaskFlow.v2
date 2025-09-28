@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "wouter";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -186,9 +187,10 @@ export default function Priority() {
                 <CardContent className="flex-1 p-4 overflow-auto bg-slate-800">
                   <div className="space-y-2">
                     {tasksByPriority[section.priority]?.map((task) => (
-                      <div 
-                        key={task.id} 
-                        className="flex items-center gap-3 bg-slate-700 p-3 rounded text-white text-sm"
+                      <Link
+                        key={task.id}
+                        href={`/workspace/app/detail/task/${task.id}`}
+                        className="flex items-center gap-3 bg-slate-700 p-3 rounded text-white text-sm hover:bg-slate-600 transition-colors cursor-pointer"
                         data-testid={`task-${task.id}`}
                       >
                         {/* D-day */}
@@ -223,7 +225,7 @@ export default function Priority() {
                         >
                           {task.status}
                         </Badge>
-                      </div>
+                      </Link>
                     )) || (
                       <div className="text-slate-400 text-sm text-center py-8">
                         해당 우선순위의 작업이 없습니다
