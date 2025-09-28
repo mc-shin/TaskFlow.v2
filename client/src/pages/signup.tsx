@@ -130,7 +130,7 @@ export function SignupPage() {
       
       await apiRequest('POST', '/api/users', {
         email: userData.email,
-        username: userData.name, // 이름을 username으로 사용
+        username: userData.email, // 이메일을 username으로 사용 (유니크 보장)
         name: userData.name,
         password: userData.password,
         initials: initials,

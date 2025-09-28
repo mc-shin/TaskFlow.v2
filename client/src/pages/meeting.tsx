@@ -323,7 +323,7 @@ export default function Meeting() {
             <RealtimeClock />
             
             {/* New Meeting Button */}
-            <Link href="/meeting/new">
+            <Link href="/workspace/app/meeting/new">
               <Button 
                 className="bg-blue-600 hover:bg-blue-700 text-white"
                 data-testid="button-new-meeting"

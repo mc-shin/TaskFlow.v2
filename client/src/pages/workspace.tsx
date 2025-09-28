@@ -145,11 +145,8 @@ export function WorkspacePage() {
         // 단, 이전에 초대를 수락한 경우는 신규 사용자가 아님
         const hasAcceptedInvitation = localStorage.getItem(`hasAcceptedInvitation_${userEmail}`) === 'true';
         
-        // 로그인에 성공했다는 것은 유효한 계정이 있다는 의미이므로
-        // 워크스페이스 멤버 목록에 없더라도 접근을 허용
-        const isLoggedIn = localStorage.getItem("isLoggedIn") === "true";
-        
-        if (!currentUser && !hasAcceptedInvitation && !isLoggedIn) {
+        // 워크스페이스 접근 권한은 초대 수락 여부로만 결정
+        if (!currentUser && !hasAcceptedInvitation) {
           setIsNewUser(true);
         } else {
           setIsNewUser(false);
@@ -511,17 +508,10 @@ export function WorkspacePage() {
     }
   };
 
-  // 사용자 정보 로딩 중일 때 로딩 화면 표시
-  if (!isUserInfoLoaded) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">사용자 정보를 확인하는 중...</p>
-        </div>
-      </div>
-    );
-  }
+  // 사용자 정보 로딩 중일 때 로딩 화면 제거 (즉시 렌더링)
+  // if (!isUserInfoLoaded) {
+  //   return null; // 로딩 화면 제거됨
+  // }
 
   // 신규 사용자이면서 초대가 없는 경우 접근 제한
   if (isNewUser && invitations.length === 0) {
@@ -579,8 +569,7 @@ export function WorkspacePage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           {isUserInfoLoaded && workspaceData
             .filter(workspace => {
-              // 로그인한 사용자는 워크스페이스 표시 (워크스페이스 접근 로직과 일치)
-              const isLoggedIn = localStorage.getItem("isLoggedIn") === "true";
+              // 워크스페이스 접근 권한 체크
               const hasAcceptedInvitation = localStorage.getItem(`hasAcceptedInvitation_${localStorage.getItem("userEmail")}`) === 'true';
               
               // admin 사용자는 모든 워크스페이스 표시
@@ -588,12 +577,17 @@ export function WorkspacePage() {
                 return true;
               }
               
-              // 로그인했거나 초대를 수락한 사용자는 워크스페이스 표시
-              if (isLoggedIn || hasAcceptedInvitation || !isNewUser) {
+              // 기존 워크스페이스 멤버는 항상 표시 (서버에서 확인된 사용자)
+              if (!isNewUser) {
                 return true;
               }
               
-              // 그 외에는 숨김
+              // 신규 사용자이지만 초대를 수락한 경우 표시
+              if (hasAcceptedInvitation) {
+                return true;
+              }
+              
+              // 그 외에는 숨김 (신규 사용자이면서 초대를 수락하지 않은 경우)
               return false;
             })
             .map((workspace) => (
