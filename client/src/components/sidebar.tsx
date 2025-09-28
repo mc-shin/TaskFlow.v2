@@ -17,6 +17,13 @@ export function Sidebar() {
     refetchInterval: 10000,
   });
 
+  // Get projects data for workspace name
+  const { data: projects } = useQuery({
+    queryKey: ["/api/projects"],
+    staleTime: 0,
+    refetchInterval: 10000,
+  });
+
   useEffect(() => {
     const userId = localStorage.getItem("userId");
     const userName = localStorage.getItem("userName");
@@ -57,7 +64,11 @@ export function Sidebar() {
           <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
             <CheckSquare className="h-4 w-4 text-primary-foreground" />
           </div>
-          <span className="font-semibold text-lg" data-testid="text-logo">하이더</span>
+          <span className="font-semibold text-lg" data-testid="text-logo">
+            {projects && Array.isArray(projects) && projects.length > 0 
+              ? projects[0].name 
+              : "하이더"}
+          </span>
         </div>
       </div>
       
