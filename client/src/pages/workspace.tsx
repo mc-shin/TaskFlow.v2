@@ -145,7 +145,11 @@ export function WorkspacePage() {
         // 단, 이전에 초대를 수락한 경우는 신규 사용자가 아님
         const hasAcceptedInvitation = localStorage.getItem(`hasAcceptedInvitation_${userEmail}`) === 'true';
         
-        if (!currentUser && !hasAcceptedInvitation) {
+        // 로그인에 성공했다는 것은 유효한 계정이 있다는 의미이므로
+        // 워크스페이스 멤버 목록에 없더라도 접근을 허용
+        const isLoggedIn = localStorage.getItem("isLoggedIn") === "true";
+        
+        if (!currentUser && !hasAcceptedInvitation && !isLoggedIn) {
           setIsNewUser(true);
         } else {
           setIsNewUser(false);
@@ -575,16 +579,22 @@ export function WorkspacePage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           {isUserInfoLoaded && workspaceData
             .filter(workspace => {
-              // 신규 사용자는 워크스페이스 숨김 (새 워크스페이스 추가만 표시)
-              if (isNewUser) {
-                return false;
-              }
-              // admin 사용자는 모든 워크스페이스 표시 (기본 워크스페이스)
+              // 로그인한 사용자는 워크스페이스 표시 (워크스페이스 접근 로직과 일치)
+              const isLoggedIn = localStorage.getItem("isLoggedIn") === "true";
+              const hasAcceptedInvitation = localStorage.getItem(`hasAcceptedInvitation_${localStorage.getItem("userEmail")}`) === 'true';
+              
+              // admin 사용자는 모든 워크스페이스 표시
               if (isAdminUser) {
-                return true; // admin은 모든 워크스페이스에 접근 가능
+                return true;
               }
-              // 기존 등록된 사용자는 모든 워크스페이스 표시
-              return true;
+              
+              // 로그인했거나 초대를 수락한 사용자는 워크스페이스 표시
+              if (isLoggedIn || hasAcceptedInvitation || !isNewUser) {
+                return true;
+              }
+              
+              // 그 외에는 숨김
+              return false;
             })
             .map((workspace) => (
             <Card 

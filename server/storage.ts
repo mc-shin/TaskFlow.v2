@@ -1,8 +1,8 @@
 import { type User, type InsertUser, type Task, type InsertTask, type Activity, type InsertActivity, type TaskWithAssignees, type ActivityWithDetails, type Project, type InsertProject, type ProjectWithOwners, type UserWithStats, type SafeUser, type SafeUserWithStats, type SafeTaskWithAssignees, type SafeActivityWithDetails, type Meeting, type InsertMeeting, type MeetingComment, type InsertMeetingComment, type MeetingAttachment, type InsertMeetingAttachment, type MeetingCommentWithAuthor, type MeetingWithDetails, type Goal, type InsertGoal, type GoalWithTasks, type ProjectWithDetails, type Attachment, type InsertAttachment, type Comment, type InsertComment, type CommentWithAuthor, type Invitation, type InsertInvitation, users, projects, goals, tasks, activities, meetings, meetingComments, meetingAttachments, attachments, comments, invitations } from "@shared/schema";
 import { randomUUID } from "crypto";
-import { drizzle } from "drizzle-orm/neon-serverless";
+import { drizzle } from "drizzle-orm/neon-http";
 import { and, eq, inArray, sql } from "drizzle-orm";
-import { neonConfig, Pool } from "@neondatabase/serverless";
+import { neon } from "@neondatabase/serverless";
 
 export interface IStorage {
   // User methods
@@ -1530,11 +1530,9 @@ function getDatabase() {
       throw new Error("DATABASE_URL is not set");
     }
     
-    // Configure Neon for serverless environment
-    neonConfig.fetchConnectionCache = true;
-    
-    const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-    db = drizzle(pool);
+    // Use HTTP connection instead of WebSocket to avoid connection issues
+    const sql = neon(process.env.DATABASE_URL);
+    db = drizzle(sql);
   }
   return db;
 }
@@ -2567,8 +2565,27 @@ async function initializeDefaultDataIfNeeded() {
   }
 }
 
-// Use database storage
-export const storage = new DrizzleStorage();
+// Initialize storage with proper synchronous fallback
+async function initializeStorage(): Promise<IStorage> {
+  try {
+    // Try to initialize DrizzleStorage
+    console.log("Attempting to connect to database...");
+    const drizzleStorage = new DrizzleStorage();
+    
+    // Test database connection by trying to fetch users
+    await drizzleStorage.getAllUsers();
+    
+    // If successful, initialize with default data if needed
+    await initializeDefaultDataIfNeeded();
+    
+    console.log("Database connection successful - using persistent storage");
+    return drizzleStorage;
+  } catch (error) {
+    console.error("Database connection failed, falling back to memory storage:", error);
+    console.log("Using memory storage as fallback");
+    return new MemStorage();
+  }
+}
 
-// Initialize default data when the module is loaded
-initializeDefaultDataIfNeeded().catch(console.error);
+// Initialize storage synchronously with promise that resolves to actual storage
+export const storage = await initializeStorage();

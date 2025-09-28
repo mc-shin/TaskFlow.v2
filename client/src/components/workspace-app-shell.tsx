@@ -127,6 +127,7 @@ export function WorkspaceAppShell() {
           <Route path="/workspace/app/team" component={Team} />
           <Route path="/workspace/app/my-tasks" component={MyTasks} />
           <Route path="/workspace/app/list" component={ListTree} />
+          <Route path="/workspace/app/list-tree" component={ListTree} />
           <Route path="/workspace/app/list-horizontal" component={ListHorizontal} />
           <Route path="/workspace/app/kanban" component={Kanban} />
           <Route path="/workspace/app/priority" component={Priority} />
