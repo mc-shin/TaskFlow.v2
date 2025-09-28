@@ -46,9 +46,8 @@ export const queryClient = new QueryClient({
     queries: {
       queryFn: getQueryFn({ on401: "throw" }),
       refetchInterval: false,
-      refetchOnWindowFocus: true, // 윈도우 포커스 시 데이터 새로고침
-      staleTime: 30 * 1000, // 30초 후 데이터를 stale로 간주
-      gcTime: 5 * 60 * 1000, // 5분 동안 캐시 유지
+      refetchOnWindowFocus: false,
+      staleTime: Infinity,
       retry: false,
     },
     mutations: {
