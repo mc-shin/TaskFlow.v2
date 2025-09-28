@@ -175,20 +175,6 @@ export default function Admin() {
         localStorage.setItem("userName", "관리자");
       }
 
-      // 초대할 사용자가 이미 시스템에 존재하는지 확인
-      let existingUser = null;
-      try {
-        const userResponse = await fetch(`/api/users/by-email/${encodeURIComponent(data.email)}`);
-        if (userResponse.ok) {
-          existingUser = await userResponse.json();
-        }
-      } catch (error) {
-        // 사용자가 없거나 오류 - 신규 사용자로 처리
-        console.log('사용자 조회 실패:', error);
-      }
-      
-      const userStatus = existingUser ? "기존 사용자" : "신규 가입 예정자";
-
       // 메인 프로젝트 찾기
       const projectsResponse = await fetch('/api/projects');
       if (!projectsResponse.ok) {
@@ -241,8 +227,8 @@ export default function Admin() {
       }));
 
       toast({
-        title: "초대 완료",
-        description: `${data.email}(${userStatus})에게 ${data.role} 권한으로 초대를 보냈습니다.`,
+        title: "초대 전송 완료",
+        description: `${data.email}에게 초대를 전송했습니다.`,
       });
 
       // 폼 리셋 및 다이얼로그 닫기
