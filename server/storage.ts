@@ -1428,19 +1428,13 @@ export class MemStorage implements IStorage {
 
   async getWorkspaceMembers(): Promise<SafeUser[]> {
     // 워크스페이스 멤버는 다음과 같습니다:
-    // 1. 초기 기본 사용자들 (admin, hyejin, hyejung, chamin)
+    // 1. admin 사용자만 자동 포함 (워크스페이스 관리를 위해)
     // 2. 초대를 수락한 사용자들
     
     const allUsers = Array.from(this.users.values());
-    const defaultUserEmails = [
-      'admin@qubicom.co.kr',
-      'hyejin@qubicom.co.kr', 
-      'hyejung@qubicom.co.kr',
-      'chamin@qubicom.co.kr'
-    ];
     
-    // 기본 사용자들
-    const defaultUsers = allUsers.filter(user => defaultUserEmails.includes(user.email));
+    // admin 사용자만 자동 포함
+    const adminUsers = allUsers.filter(user => user.role === '관리자');
     
     // 초대를 수락한 사용자들의 이메일 목록
     const acceptedInvitations = Array.from(this.invitations.values())
@@ -1448,13 +1442,13 @@ export class MemStorage implements IStorage {
     
     const invitedUserEmails = new Set(acceptedInvitations.map(inv => inv.inviteeEmail));
     
-    // 초대를 수락한 사용자들
+    // 초대를 수락한 사용자들 (admin 사용자 제외)
     const invitedUsers = allUsers.filter(user => 
-      invitedUserEmails.has(user.email) && !defaultUserEmails.includes(user.email)
+      invitedUserEmails.has(user.email) && user.role !== '관리자'
     );
     
-    // 기본 사용자들과 초대 수락한 사용자들을 합침
-    const workspaceUsers = [...defaultUsers, ...invitedUsers];
+    // admin 사용자와 초대 수락한 사용자들을 합침
+    const workspaceUsers = [...adminUsers, ...invitedUsers];
     
     // SafeUser 형태로 변환 (비밀번호 제거)
     return workspaceUsers.map(user => {
@@ -1668,9 +1662,34 @@ export class DrizzleStorage implements IStorage {
   }
 
   async getWorkspaceMembers(): Promise<SafeUser[]> {
-    // For now, return all users as workspace members
-    // TODO: Implement proper workspace membership logic if needed
-    return await this.getAllSafeUsers();
+    // 워크스페이스 멤버는 다음과 같습니다:
+    // 1. admin 사용자만 자동 포함 (워크스페이스 관리를 위해)
+    // 2. 초대를 수락한 사용자들
+    
+    const allUsers = await this.db.select().from(users);
+    
+    // admin 사용자만 자동 포함
+    const adminUsers = allUsers.filter(user => user.role === '관리자');
+    
+    // 초대를 수락한 사용자들의 이메일 목록
+    const acceptedInvitations = await this.db.select().from(invitations)
+      .where(eq(invitations.status, 'accepted'));
+    
+    const invitedUserEmails = new Set(acceptedInvitations.map(inv => inv.inviteeEmail));
+    
+    // 초대를 수락한 사용자들 (admin 사용자 제외)
+    const invitedUsers = allUsers.filter(user => 
+      invitedUserEmails.has(user.email) && user.role !== '관리자'
+    );
+    
+    // admin 사용자와 초대 수락한 사용자들을 합침
+    const workspaceUsers = [...adminUsers, ...invitedUsers];
+    
+    // SafeUser 형태로 변환 (비밀번호 제거)
+    return workspaceUsers.map(user => {
+      const { password, ...safeUser } = user;
+      return safeUser;
+    });
   }
 
   async getDefaultWorkspaceMembers(): Promise<SafeUser[]> {
