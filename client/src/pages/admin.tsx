@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { AlertTriangle, Calendar, Clock, User, Users, Trash2 } from "lucide-react";
+import { AlertTriangle, Calendar, Clock, User, Users, Trash2, RefreshCcw } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { ProjectWithOwners, SafeUserWithStats } from "@shared/schema";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -140,6 +140,26 @@ export default function Admin() {
     }
   });
 
+  // 데이터 새로고침 함수
+  const handleRefresh = async () => {
+    toast({ 
+      title: "데이터 새로고침", 
+      description: "최신 데이터를 가져오는 중입니다..."
+    });
+    
+    // 모든 관련 쿼리를 무효화하여 새로운 데이터 가져오기
+    await queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+    await queryClient.invalidateQueries({ queryKey: ["/api/users/with-stats"] });
+    await queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+    await queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+    await queryClient.invalidateQueries({ queryKey: ["/api/meetings"] });
+    
+    toast({ 
+      title: "새로고침 완료", 
+      description: "최신 데이터를 성공적으로 가져왔습니다."
+    });
+  };
+
   // 아카이브되지 않은 프로젝트들만 필터링
   const activeProjects = (projects as ProjectWithOwners[])?.filter(project => {
     return !archivedIds.has(project.id);
@@ -183,6 +203,16 @@ export default function Admin() {
               프로젝트와 팀 멤버를 관리합니다
             </p>
           </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRefresh}
+            className="flex items-center gap-2"
+            data-testid="button-refresh"
+          >
+            <RefreshCcw className="h-4 w-4" />
+            새로고침
+          </Button>
         </header>
         
         {/* Admin Content */}
