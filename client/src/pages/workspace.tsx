@@ -58,8 +58,18 @@ export function WorkspacePage() {
 
   // 실제 데이터를 기반으로 워크스페이스 정보 생성 (메모화)
   const workspaceData = useMemo(() => {
+    // 사용자 정보 로딩이 완료되지 않으면 빈 배열 반환
+    if (!isUserInfoLoaded) {
+      return [];
+    }
+    
     // 먼저 사용자 권한 체크 - 권한이 없으면 아예 빈 배열 반환
     const hasAcceptedInvitation = localStorage.getItem(`hasAcceptedInvitation_${localStorage.getItem("userEmail")}`) === 'true';
+    
+    // 신규 사용자이고, admin도 아니고, 초대도 수락하지 않은 경우 빈 배열 반환
+    if (isNewUser && !isAdminUser && !hasAcceptedInvitation) {
+      return [];
+    }
     
     // admin이 아니고 초대를 수락하지 않은 경우 빈 배열 반환
     if (!isAdminUser && !hasAcceptedInvitation) {
@@ -92,7 +102,7 @@ export function WorkspacePage() {
       projectCount,
       lastAccess,
     }];
-  }, [projects, workspaceUsers, workspaceName, workspaceDescription, isAdminUser]);
+  }, [projects, workspaceUsers, workspaceName, workspaceDescription, isAdminUser, isNewUser, isUserInfoLoaded]);
 
   useEffect(() => {
     // localStorage에서 사용자 이름 및 워크스페이스 정보 가져오기
