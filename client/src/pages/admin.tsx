@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -30,8 +30,30 @@ export default function Admin() {
   const [activeTab, setActiveTab] = useState("projects");
   const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
   const [isInviteLoading, setIsInviteLoading] = useState(false);
+  const [workspaceName, setWorkspaceName] = useState("하이더");
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Load workspace name from localStorage
+  useEffect(() => {
+    const storedWorkspaceName = localStorage.getItem("workspaceName");
+    if (storedWorkspaceName) {
+      setWorkspaceName(storedWorkspaceName);
+    }
+    
+    // Listen for workspace name updates
+    const handleWorkspaceNameUpdate = () => {
+      const updatedName = localStorage.getItem("workspaceName");
+      if (updatedName) {
+        setWorkspaceName(updatedName);
+      }
+    };
+    
+    window.addEventListener('workspaceNameUpdated', handleWorkspaceNameUpdate);
+    return () => {
+      window.removeEventListener('workspaceNameUpdated', handleWorkspaceNameUpdate);
+    };
+  }, []);
 
   const { data: projects, isLoading: projectsLoading } = useQuery({
     queryKey: ["/api/projects"],
@@ -554,7 +576,7 @@ export default function Admin() {
 
                       {/* Existing Members */}
                       <div className="space-y-3">
-                        <h4 className="text-sm font-medium text-slate-300">하이더의 멤버</h4>
+                        <h4 className="text-sm font-medium text-slate-300">{workspaceName}의 멤버</h4>
                         <div className="space-y-2 overflow-y-auto relative" style={{minHeight: '340px', maxHeight: '340px'}}>
                           {(() => {
                             const allUsers = Array.isArray(usersWithStats) ? usersWithStats as SafeUserWithStats[] : [];

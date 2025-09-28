@@ -84,6 +84,7 @@ export default function ListTree() {
   const [expandedGoals, setExpandedGoals] = useState<Set<string>>(new Set());
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [showSelectionToast, setShowSelectionToast] = useState(false);
+  const [workspaceName, setWorkspaceName] = useState("하이더");
   
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [goalModalState, setGoalModalState] = useState<{ isOpen: boolean; projectId: string; projectTitle: string }>({ 
@@ -109,6 +110,27 @@ export default function ListTree() {
   
   // Local state to track completed items
   const [completedItems, setCompletedItems] = useState<Set<string>>(new Set());
+
+  // Load workspace name from localStorage
+  useEffect(() => {
+    const storedWorkspaceName = localStorage.getItem("workspaceName");
+    if (storedWorkspaceName) {
+      setWorkspaceName(storedWorkspaceName);
+    }
+    
+    // Listen for workspace name updates
+    const handleWorkspaceNameUpdate = () => {
+      const updatedName = localStorage.getItem("workspaceName");
+      if (updatedName) {
+        setWorkspaceName(updatedName);
+      }
+    };
+    
+    window.addEventListener('workspaceNameUpdated', handleWorkspaceNameUpdate);
+    return () => {
+      window.removeEventListener('workspaceNameUpdated', handleWorkspaceNameUpdate);
+    };
+  }, []);
 
   // Sync database completion state with local state when projects data changes
   useEffect(() => {
@@ -2487,7 +2509,7 @@ export default function ListTree() {
 
             {/* Existing Members */}
             <div className="space-y-3">
-              <h4 className="text-sm font-medium text-slate-300">하이더의 멤버</h4>
+              <h4 className="text-sm font-medium text-slate-300">{workspaceName}의 멤버</h4>
               <div className="space-y-2 overflow-y-auto relative" style={{minHeight: '340px', maxHeight: '340px'}}>
                 {(() => {
                   const allUsers = Array.isArray(users) ? users as SafeUser[] : [];
