@@ -330,9 +330,11 @@ export function WorkspacePage() {
         })
       });
 
-      // 받은 초대 목록에서 처리된 초대 제거 (중복 방지)
+      // 받은 초대 목록 업데이트
       const receivedInvitations = JSON.parse(localStorage.getItem(`receivedInvitations_${currentEmail}`) || '[]');
-      const updatedInvitations = receivedInvitations.filter((inv: any) => inv.id !== invitationId);
+      const updatedInvitations = receivedInvitations.map((inv: any) => 
+        inv.id === invitationId ? { ...inv, status: action === 'accept' ? 'accepted' : 'declined' } : inv
+      );
       localStorage.setItem(`receivedInvitations_${currentEmail}`, JSON.stringify(updatedInvitations));
 
       // 로컬 상태 업데이트
