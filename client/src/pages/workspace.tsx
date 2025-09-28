@@ -58,6 +58,14 @@ export function WorkspacePage() {
 
   // 실제 데이터를 기반으로 워크스페이스 정보 생성 (메모화)
   const workspaceData = useMemo(() => {
+    // 먼저 사용자 권한 체크 - 권한이 없으면 아예 빈 배열 반환
+    const hasAcceptedInvitation = localStorage.getItem(`hasAcceptedInvitation_${localStorage.getItem("userEmail")}`) === 'true';
+    
+    // admin이 아니고 초대를 수락하지 않은 경우 빈 배열 반환
+    if (!isAdminUser && !hasAcceptedInvitation) {
+      return [];
+    }
+    
     if (!projects || !workspaceUsers || !Array.isArray(projects) || !Array.isArray(workspaceUsers)) {
       return [];
     }
@@ -84,7 +92,7 @@ export function WorkspacePage() {
       projectCount,
       lastAccess,
     }];
-  }, [projects, workspaceUsers, workspaceName, workspaceDescription]);
+  }, [projects, workspaceUsers, workspaceName, workspaceDescription, isAdminUser]);
 
   useEffect(() => {
     // localStorage에서 사용자 이름 및 워크스페이스 정보 가져오기
@@ -567,23 +575,7 @@ export function WorkspacePage() {
 
         {/* Workspace Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-          {isUserInfoLoaded && (() => {
-            // 워크스페이스 접근 권한 체크
-            const hasAcceptedInvitation = localStorage.getItem(`hasAcceptedInvitation_${localStorage.getItem("userEmail")}`) === 'true';
-            
-            // admin 사용자는 모든 워크스페이스 표시
-            if (isAdminUser) {
-              return workspaceData;
-            }
-            
-            // 초대를 수락한 경우에만 워크스페이스 표시
-            if (hasAcceptedInvitation) {
-              return workspaceData;
-            }
-            
-            // 그 외에는 빈 배열 반환 (초대 수락 전 상태)
-            return [];
-          })()
+          {isUserInfoLoaded && workspaceData
             .map((workspace) => (
             <Card 
               key={workspace.id} 
