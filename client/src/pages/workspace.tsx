@@ -168,8 +168,8 @@ export function WorkspacePage() {
         
         setInvitations(pendingInvitations);
         
-        // 초대가 있고, 이전에 초대를 수락한 적이 없다면 다이얼로그 자동 열기
-        if (pendingInvitations.length > 0 && !hasAcceptedInvitation) {
+        // 초대가 있다면 다이얼로그 자동 열기
+        if (pendingInvitations.length > 0) {
           setIsInviteDialogOpen(true);
         }
         
