@@ -273,10 +273,10 @@ export default function Admin() {
                           
                           {/* 프로젝트 정보 */}
                           <div className="text-center mb-6">
-                            <div className="text-blue-400 text-sm font-medium mb-1">
+                            <div className="text-blue-400 text-lg font-semibold mb-1">
                               {project.name}
                             </div>
-                            <div className="text-white text-lg font-semibold mb-2">
+                            <div className="text-white text-sm font-medium mb-2">
                               {project.description || '프로젝트 설명 없음'}
                             </div>
                             <div className="text-slate-300 text-sm">
