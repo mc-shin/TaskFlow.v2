@@ -32,51 +32,9 @@ export default function ListTree() {
     refetchOnWindowFocus: true, // 창 포커스 시에도 갱신
   });
 
-  // Get archived items from localStorage and filter out archived projects
-  const archivedItems = (() => {
-    try {
-      const stored = localStorage.getItem('archivedItems');
-      return stored ? JSON.parse(stored) : [];
-    } catch {
-      return [];
-    }
-  })();
-
-  // Create a set of archived IDs for fast lookup
-  // Handle both old format (array of IDs) and new format (array of objects)
-  const archivedIds = new Set<string>();
-  archivedItems.forEach((item: any) => {
-    if (typeof item === 'string') {
-      // Old format: item is an ID
-      archivedIds.add(item);
-    } else if (item && typeof item === 'object') {
-      // New format: item is an object with data
-      if (item.id) {
-        archivedIds.add(item.id);
-      } else if (item.data && item.data.id) {
-        archivedIds.add(item.data.id);
-      }
-    }
-  });
-
-  // Filter projects to exclude archived ones
-  const activeProjects = (projects as ProjectWithDetails[])?.filter(project => {
-    return !archivedIds.has(project.id); // Exclude archived projects
-  }).map(project => {
-    // Filter out archived goals and tasks (without mutating original data)
-    const activeGoals = project.goals?.filter(goal => {
-      const isGoalArchived = archivedIds.has(goal.id);
-      return !isGoalArchived;
-    }).map(goal => ({
-      ...goal,
-      tasks: goal.tasks?.filter(task => !archivedIds.has(task.id)) || []
-    }));
-    
-    return {
-      ...project,
-      goals: activeGoals || []
-    };
-  }) || [];
+  // Database-based archive filtering is now handled by the backend
+  // Projects, goals, and tasks with isArchived=true are excluded from API responses
+  const activeProjects = projects as ProjectWithDetails[];
 
   const [_, setLocation] = useLocation();
   const { toast } = useToast();
@@ -832,6 +790,49 @@ export default function ListTree() {
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
     }
+  });
+
+  // Archive mutations for database-based archive functionality
+  const archiveProjectMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return await apiRequest("POST", `/api/projects/${id}/archive`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/archive/projects"] });
+      toast({
+        title: "프로젝트 보관 완료",
+        description: "프로젝트가 성공적으로 보관되었습니다.",
+      });
+    },
+  });
+
+  const archiveGoalMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return await apiRequest("POST", `/api/goals/${id}/archive`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/archive/goals"] });
+      toast({
+        title: "목표 보관 완료",
+        description: "목표가 성공적으로 보관되었습니다.",
+      });
+    },
+  });
+
+  const archiveTaskMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return await apiRequest("POST", `/api/tasks/${id}/archive`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/archive/tasks"] });
+      toast({
+        title: "작업 보관 완료",
+        description: "작업이 성공적으로 보관되었습니다.",
+      });
+    },
   });
 
   const saveEdit = async () => {
@@ -2258,39 +2259,9 @@ export default function ListTree() {
                 }
                 
                 try {
-                  // Get existing archived items from localStorage
-                  const existingArchived = localStorage.getItem('archivedItems');
-                  const archivedItems = existingArchived ? JSON.parse(existingArchived) : [];
-                  
-                  // Collect full data for selected projects only
-                  const itemsToArchive: any[] = [];
-                  
-                  selectedProjectIds.forEach(projectId => {
-                    // Find the project data
-                    const project = (projects as ProjectWithDetails[])?.find(p => p.id === projectId);
-                    if (project) {
-                      // Clean the project data to avoid task duplication
-                      // Only include direct project tasks (not those under goals)
-                      const directProjectTasks = project.tasks?.filter(task => 
-                        !task.goalId // Only tasks that are not under any goal
-                      ) || [];
-                      
-                      itemsToArchive.push({ 
-                        ...project, 
-                        type: 'project',
-                        tasks: directProjectTasks // Use cleaned task list
-                      });
-                    }
-                  });
-                  
-                  // Add items with full data to archived list
-                  const newArchivedItems = [...archivedItems, ...itemsToArchive];
-                  localStorage.setItem('archivedItems', JSON.stringify(newArchivedItems));
-                  console.log('List page - archived items after move:', newArchivedItems);
-                  
-                  // Delete selected projects from database
+                  // Archive selected projects using database-based mutations
                   for (const projectId of selectedProjectIds) {
-                    await deleteProjectMutation.mutateAsync(projectId);
+                    await archiveProjectMutation.mutateAsync(projectId);
                   }
                   
                   toast({
@@ -2300,10 +2271,10 @@ export default function ListTree() {
                   
                   clearSelection();
                   setTimeout(() => {
-                    setLocation('/archive');
+                    setLocation('/workspace/app/archive');
                   }, 1000);
                 } catch (error) {
-                  console.error('Failed to move items to archive:', error);
+                  console.error('Failed to archive items:', error);
                   toast({
                     title: "보관 실패",
                     description: "항목을 보관하는 중 오류가 발생했습니다.",
@@ -2311,10 +2282,10 @@ export default function ListTree() {
                   });
                 }
               }}
-              disabled={deleteProjectMutation.isPending || deleteGoalMutation.isPending || deleteTaskMutation.isPending}
+              disabled={archiveProjectMutation.isPending || archiveGoalMutation.isPending || archiveTaskMutation.isPending}
               data-testid="button-archive"
             >
-              {(deleteProjectMutation.isPending || deleteGoalMutation.isPending || deleteTaskMutation.isPending) ? '보관 중...' : '보관하기'}
+              {(archiveProjectMutation.isPending || archiveGoalMutation.isPending || archiveTaskMutation.isPending) ? '보관 중...' : '보관하기'}
             </Button>
           </div>
         </div>
