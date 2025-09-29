@@ -152,7 +152,8 @@ export default function List() {
   };
 
   // Calculate what the status should be based on child progress
-  const getCalculatedStatus = (itemId: string, type: 'project' | 'goal'): string => {
+  // For cancellation: return the natural progress-based status without manual completion
+  const getCalculatedStatus = (itemId: string, type: 'project' | 'goal', forCancellation: boolean = false): string => {
     if (!projects || !Array.isArray(projects)) return '진행전';
     
     if (type === 'project') {
@@ -162,7 +163,7 @@ export default function List() {
       if (project.goals && project.goals.length > 0) {
         const allCompleted = project.goals.every(goal => (goal.progressPercentage || 0) === 100);
         const anyStarted = project.goals.some(goal => (goal.progressPercentage || 0) > 0);
-        if (allCompleted) return '완료';
+        if (allCompleted && !forCancellation) return '완료';
         if (anyStarted) return '진행중';
         return '진행전';
       }
@@ -179,8 +180,10 @@ export default function List() {
               const anyStarted = goal.tasks.some(task => 
                 (task.progress !== null && task.progress > 0) || task.status === '진행중'
               );
-              if (allCompleted) return '완료';
-              if (anyStarted) return '진행중';
+              // For cancellation: don't return '완료' even if all tasks are complete
+              // This allows manual completion to be cancelled back to '진행중'
+              if (allCompleted && !forCancellation) return '완료';
+              if (anyStarted || (allCompleted && forCancellation)) return '진행중';
               return '진행전';
             }
             return '진행전';
@@ -210,7 +213,7 @@ export default function List() {
     try {
       if (isActuallyCompleted) {
         // This is a cancel operation - revert to calculated status
-        const calculatedStatus = getCalculatedStatus(itemId, type);
+        const calculatedStatus = getCalculatedStatus(itemId, type, true); // forCancellation = true
         
         if (type === 'project') {
           await updateProjectMutation.mutateAsync({ 
