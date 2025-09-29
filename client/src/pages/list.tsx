@@ -172,6 +172,8 @@ export default function List() {
 
   // Interactive status handler for projects and goals
   const handleStatusClick = async (itemId: string, type: 'project' | 'goal', currentStatus: string) => {
+    console.log('🔄 handleStatusClick called:', { itemId, type, currentStatus });
+    
     // Don't allow interaction with '이슈' status
     if (currentStatus === '이슈') return;
     
@@ -179,13 +181,24 @@ export default function List() {
     const autoCompleteAllowed = canAutoComplete(itemId, type);
     const isActuallyCompleted = currentStatus === '완료' || isLocallyCompleted;
     
+    console.log('🔍 Status check:', { 
+      isLocallyCompleted, 
+      autoCompleteAllowed, 
+      isActuallyCompleted,
+      currentStatus,
+      completedItemsSize: completedItems.size,
+      completedItemsHasItem: completedItems.has(itemId)
+    });
+    
     // Enable completion button if auto-completion is allowed OR if already completed
     if (!autoCompleteAllowed && !isLocallyCompleted) {
+      console.log('❌ Not allowed to complete - returning early');
       return; // Not allowed to complete
     }
     
     try {
       if (isActuallyCompleted) {
+        console.log('🚫 CANCEL operation triggered');
         // This is a cancel operation - revert to calculated status
         setCompletedItems(prev => {
           const newSet = new Set(prev);
@@ -206,6 +219,7 @@ export default function List() {
         });
         
         const calculatedStatus = getCalculatedStatus(itemId, type);
+        console.log('📊 Calculated status for cancel:', calculatedStatus);
         
         if (type === 'project') {
           await updateProjectMutation.mutateAsync({ 
@@ -229,6 +243,7 @@ export default function List() {
           });
         }
       } else {
+        console.log('✅ COMPLETE operation triggered');
         // This is a complete operation
         setCompletedItems(prev => new Set(Array.from(prev).concat(itemId)));
         
