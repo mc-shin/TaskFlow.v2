@@ -34,7 +34,8 @@ export function TaskModal({ isOpen, onClose, editingTask, goalId, goalTitle }: T
   const queryClient = useQueryClient();
 
   const { data: users } = useQuery({
-    queryKey: ["/api/users"],
+    queryKey: ["/api/users", { workspace: true }],
+    queryFn: () => fetch('/api/users?workspace=true').then(res => res.json()),
   });
 
   const form = useForm<TaskFormData>({

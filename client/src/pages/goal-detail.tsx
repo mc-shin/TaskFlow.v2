@@ -253,9 +253,25 @@ export default function GoalDetail() {
   const inProgressTasksStats = goalTasksStats.filter(task => task.status === '진행중');
   const pendingTasksStats = goalTasksStats.filter(task => task.status === '진행전');
 
-  // Calculate goal progress based on task progress
+  // Helper function to get task progress - use stored progress value if available, otherwise derive from status
+  // This mirrors the server-side getTaskProgress logic
+  const getTaskProgress = (task: { status: string; progress?: number | null }): number => {
+    // If progress is explicitly stored, use that value
+    if (task.progress !== null && task.progress !== undefined) {
+      return task.progress;
+    }
+    
+    // Otherwise, derive from status for backward compatibility
+    switch (task.status) {
+      case '완료': return 100;
+      case '진행전': return 0;
+      default: return 50;
+    }
+  };
+
+  // Calculate goal progress based on task progress - mirroring the server-side calculation
   const averageGoalProgress = goalTasksStats.length > 0 
-    ? Math.round(goalTasksStats.reduce((sum, task) => sum + (task.progress || 0), 0) / goalTasksStats.length)
+    ? Math.round(goalTasksStats.reduce((sum, task) => sum + getTaskProgress(task), 0) / goalTasksStats.length)
     : 0;
 
   // Calculate status based on progress percentage
