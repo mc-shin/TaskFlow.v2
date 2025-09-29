@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, integer } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, integer, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -23,6 +23,7 @@ export const projects = pgTable("projects", {
   status: text("status").default("진행전"), // 진행전, 진행중, 완료, 이슈
   labels: text("labels").array().default(sql`'{}'`), // Labels (최대 2개)
   ownerIds: text("owner_ids").array().default(sql`'{}'`), // Multiple owners
+  isArchived: boolean("is_archived").default(false).notNull(), // 보관 상태
   createdBy: varchar("created_by").references(() => users.id),
   lastUpdatedBy: varchar("last_updated_by").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
@@ -38,6 +39,7 @@ export const goals = pgTable("goals", {
   labels: text("labels").array().default(sql`'{}'`), // Labels (최대 2개)
   assigneeIds: text("assignee_ids").array().default(sql`'{}'`), // Multiple assignees
   projectId: varchar("project_id").references(() => projects.id).notNull(),
+  isArchived: boolean("is_archived").default(false).notNull(), // 보관 상태
   createdBy: varchar("created_by").references(() => users.id),
   lastUpdatedBy: varchar("last_updated_by").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
@@ -57,6 +59,7 @@ export const tasks = pgTable("tasks", {
   assigneeIds: text("assignee_ids").array().default(sql`'{}'`), // Multiple assignees
   goalId: varchar("goal_id").references(() => goals.id),
   projectId: varchar("project_id").references(() => projects.id), // Keep for backward compatibility
+  isArchived: boolean("is_archived").default(false).notNull(), // 보관 상태
   createdBy: varchar("created_by").references(() => users.id),
   lastUpdatedBy: varchar("last_updated_by").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
