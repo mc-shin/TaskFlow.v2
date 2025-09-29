@@ -365,6 +365,10 @@ function ProjectGoalsContent({
                         {goal.progressPercentage}% 진행률
                       </div>
                     </div>
+                    {/* 목표 상태 뱃지 */}
+                    <Badge variant={getStatusBadgeVariant(goal.status || "진행전")} className="text-xs" data-testid={`badge-goal-status-${goal.id}`}>
+                      {goal.status || "진행전"}
+                    </Badge>
                     {(expandedGoals.has(goal.id) || hoveredGoal === goal.id) && (
                       <Button 
                         size="sm" 
