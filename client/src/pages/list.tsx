@@ -119,7 +119,8 @@ export default function List() {
                 task.progress === 100 || task.status === '완료'
               );
             }
-            return false;
+            // If no tasks, allow completion (goal can be completed without tasks)
+            return true;
           }
         }
       }
@@ -276,7 +277,7 @@ export default function List() {
         variant={getStatusBadgeVariant(displayStatus || "진행전")} 
         className={`text-xs ${isClickable ? 'cursor-pointer hover:opacity-80' : ''}`}
         data-testid={`badge-${type}-status-${itemId}`}
-        onClick={isClickable ? () => handleStatusClick(itemId, type, status || '진행전') : undefined}
+        onClick={isClickable ? () => handleStatusClick(itemId, type, displayStatus || '진행전') : undefined}
       >
         {displayStatus || "진행전"}
       </Badge>
