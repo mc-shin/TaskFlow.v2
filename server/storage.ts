@@ -87,6 +87,17 @@ export interface IStorage {
   updateInvitationStatus(id: string, status: string): Promise<Invitation | undefined>;
   deleteInvitation(id: string): Promise<boolean>;
   getProjectMemberIds(projectId: string): Promise<string[]>; // 초대받은 사용자 ID 목록
+  
+  // Archive methods
+  archiveProject(id: string, lastUpdatedBy?: string): Promise<Project | undefined>;
+  unarchiveProject(id: string, lastUpdatedBy?: string): Promise<Project | undefined>;
+  archiveGoal(id: string, lastUpdatedBy?: string): Promise<Goal | undefined>;
+  unarchiveGoal(id: string, lastUpdatedBy?: string): Promise<Goal | undefined>;
+  archiveTask(id: string, lastUpdatedBy?: string): Promise<Task | undefined>;
+  unarchiveTask(id: string, lastUpdatedBy?: string): Promise<Task | undefined>;
+  getArchivedProjects(): Promise<ProjectWithDetails[]>;
+  getArchivedGoals(): Promise<GoalWithTasks[]>;
+  getArchivedTasks(): Promise<SafeTaskWithAssignees[]>;
 }
 
 export class MemStorage implements IStorage {
@@ -1559,6 +1570,164 @@ export class MemStorage implements IStorage {
 
     return usersWithStats;
   }
+
+  // Archive methods
+  async archiveProject(id: string, lastUpdatedBy?: string): Promise<Project | undefined> {
+    const project = this.projects.get(id);
+    if (!project) return undefined;
+    
+    const updatedProject = { ...project, isArchived: true, lastUpdatedBy, updatedAt: new Date() };
+    this.projects.set(id, updatedProject);
+    return updatedProject;
+  }
+
+  async unarchiveProject(id: string, lastUpdatedBy?: string): Promise<Project | undefined> {
+    const project = this.projects.get(id);
+    if (!project) return undefined;
+    
+    const updatedProject = { ...project, isArchived: false, lastUpdatedBy, updatedAt: new Date() };
+    this.projects.set(id, updatedProject);
+    return updatedProject;
+  }
+
+  async archiveGoal(id: string, lastUpdatedBy?: string): Promise<Goal | undefined> {
+    const goal = this.goals.get(id);
+    if (!goal) return undefined;
+    
+    const updatedGoal = { ...goal, isArchived: true, lastUpdatedBy, updatedAt: new Date() };
+    this.goals.set(id, updatedGoal);
+    return updatedGoal;
+  }
+
+  async unarchiveGoal(id: string, lastUpdatedBy?: string): Promise<Goal | undefined> {
+    const goal = this.goals.get(id);
+    if (!goal) return undefined;
+    
+    const updatedGoal = { ...goal, isArchived: false, lastUpdatedBy, updatedAt: new Date() };
+    this.goals.set(id, updatedGoal);
+    return updatedGoal;
+  }
+
+  async archiveTask(id: string, lastUpdatedBy?: string): Promise<Task | undefined> {
+    const task = this.tasks.get(id);
+    if (!task) return undefined;
+    
+    const updatedTask = { ...task, isArchived: true, lastUpdatedBy, updatedAt: new Date() };
+    this.tasks.set(id, updatedTask);
+    return updatedTask;
+  }
+
+  async unarchiveTask(id: string, lastUpdatedBy?: string): Promise<Task | undefined> {
+    const task = this.tasks.get(id);
+    if (!task) return undefined;
+    
+    const updatedTask = { ...task, isArchived: false, lastUpdatedBy, updatedAt: new Date() };
+    this.tasks.set(id, updatedTask);
+    return updatedTask;
+  }
+
+  async getArchivedProjects(): Promise<ProjectWithDetails[]> {
+    const archivedProjects = Array.from(this.projects.values()).filter(p => p.isArchived);
+    const projectsWithDetails: ProjectWithDetails[] = [];
+
+    for (const project of archivedProjects) {
+      const ownerIds = project.ownerIds || [];
+      let ownerUsers: SafeUser[] = [];
+      if (ownerIds.length > 0) {
+        ownerUsers = await this.getUsersByIds(ownerIds);
+      }
+
+      const projectGoals = Array.from(this.goals.values()).filter(g => g.projectId === project.id);
+      const projectTasks = Array.from(this.tasks.values()).filter(t => t.projectId === project.id);
+
+      const goalTaskCounts = projectGoals.map(goal => {
+        return Array.from(this.tasks.values()).filter(t => t.goalId === goal.id).length;
+      });
+
+      const totalTasks = projectTasks.length + goalTaskCounts.reduce((sum, count) => sum + count, 0);
+      const completedTasks = projectTasks.filter(task => task.status === '완료').length +
+        projectGoals.map(goal => {
+          return Array.from(this.tasks.values()).filter(t => t.goalId === goal.id && t.status === '완료').length;
+        }).reduce((sum, count) => sum + count, 0);
+
+      const progressPercentage = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+
+      projectsWithDetails.push({
+        ...project,
+        owners: ownerUsers,
+        totalTasks,
+        completedTasks,
+        progressPercentage,
+        hasOverdueTasks: false,
+        overdueTaskCount: 0
+      });
+    }
+
+    return projectsWithDetails;
+  }
+
+  async getArchivedGoals(): Promise<GoalWithTasks[]> {
+    const archivedGoals = Array.from(this.goals.values()).filter(g => g.isArchived);
+    const goalsWithTasks: GoalWithTasks[] = [];
+
+    for (const goal of archivedGoals) {
+      const goalTasks = Array.from(this.tasks.values()).filter(t => t.goalId === goal.id);
+      
+      const tasksWithAssignees: SafeTaskWithAssignees[] = [];
+      for (const task of goalTasks) {
+        const assigneeIds = task.assigneeIds || [];
+        let assigneeUsers: SafeUser[] = [];
+        if (assigneeIds.length > 0) {
+          assigneeUsers = await this.getUsersByIds(assigneeIds);
+        }
+        tasksWithAssignees.push({
+          ...task,
+          assignees: assigneeUsers
+        });
+      }
+
+      const assigneeIds = goal.assigneeIds || [];
+      let assigneeUsers: SafeUser[] = [];
+      if (assigneeIds.length > 0) {
+        assigneeUsers = await this.getUsersByIds(assigneeIds);
+      }
+
+      const totalTasks = goalTasks.length;
+      const completedTasks = goalTasks.filter(task => task.status === '완료').length;
+      const progressPercentage = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+
+      goalsWithTasks.push({
+        ...goal,
+        tasks: tasksWithAssignees,
+        assignees: assigneeUsers,
+        totalTasks,
+        completedTasks,
+        progressPercentage
+      });
+    }
+
+    return goalsWithTasks;
+  }
+
+  async getArchivedTasks(): Promise<SafeTaskWithAssignees[]> {
+    const archivedTasks = Array.from(this.tasks.values()).filter(t => t.isArchived);
+    const tasksWithAssignees: SafeTaskWithAssignees[] = [];
+
+    for (const task of archivedTasks) {
+      const assigneeIds = task.assigneeIds || [];
+      let assigneeUsers: SafeUser[] = [];
+      if (assigneeIds.length > 0) {
+        assigneeUsers = await this.getUsersByIds(assigneeIds);
+      }
+
+      tasksWithAssignees.push({
+        ...task,
+        assignees: assigneeUsers
+      });
+    }
+
+    return tasksWithAssignees;
+  }
 }
 
 // Database connection setup
@@ -2429,6 +2598,188 @@ export class DrizzleStorage implements IStorage {
     }
     
     return memberIds;
+  }
+
+  // Archive methods
+  async archiveProject(id: string, lastUpdatedBy?: string): Promise<Project | undefined> {
+    const result = await this.db.update(projects)
+      .set({ 
+        isArchived: true, 
+        lastUpdatedBy,
+        updatedAt: new Date()
+      })
+      .where(eq(projects.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async unarchiveProject(id: string, lastUpdatedBy?: string): Promise<Project | undefined> {
+    const result = await this.db.update(projects)
+      .set({ 
+        isArchived: false, 
+        lastUpdatedBy,
+        updatedAt: new Date()
+      })
+      .where(eq(projects.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async archiveGoal(id: string, lastUpdatedBy?: string): Promise<Goal | undefined> {
+    const result = await this.db.update(goals)
+      .set({ 
+        isArchived: true, 
+        lastUpdatedBy,
+        updatedAt: new Date()
+      })
+      .where(eq(goals.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async unarchiveGoal(id: string, lastUpdatedBy?: string): Promise<Goal | undefined> {
+    const result = await this.db.update(goals)
+      .set({ 
+        isArchived: false, 
+        lastUpdatedBy,
+        updatedAt: new Date()
+      })
+      .where(eq(goals.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async archiveTask(id: string, lastUpdatedBy?: string): Promise<Task | undefined> {
+    const result = await this.db.update(tasks)
+      .set({ 
+        isArchived: true, 
+        lastUpdatedBy,
+        updatedAt: new Date()
+      })
+      .where(eq(tasks.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async unarchiveTask(id: string, lastUpdatedBy?: string): Promise<Task | undefined> {
+    const result = await this.db.update(tasks)
+      .set({ 
+        isArchived: false, 
+        lastUpdatedBy,
+        updatedAt: new Date()
+      })
+      .where(eq(tasks.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async getArchivedProjects(): Promise<ProjectWithDetails[]> {
+    const result = await this.db.select().from(projects).where(eq(projects.isArchived, true));
+    const projectsWithDetails: ProjectWithDetails[] = [];
+
+    for (const project of result) {
+      const ownerIds = project.ownerIds || [];
+      let ownerUsers: SafeUser[] = [];
+      if (ownerIds.length > 0) {
+        ownerUsers = await this.getUsersByIds(ownerIds);
+      }
+
+      const projectGoals = await this.db.select().from(goals).where(eq(goals.projectId, project.id));
+      const projectTasks = await this.db.select().from(tasks).where(eq(tasks.projectId, project.id));
+
+      const goalTaskCounts = await Promise.all(
+        projectGoals.map(async (goal) => {
+          const goalTasks = await this.db.select().from(tasks).where(eq(tasks.goalId, goal.id));
+          return goalTasks.length;
+        })
+      );
+
+      const totalTasks = projectTasks.length + goalTaskCounts.reduce((sum, count) => sum + count, 0);
+      const completedTasks = projectTasks.filter(task => task.status === '완료').length +
+        (await Promise.all(
+          projectGoals.map(async (goal) => {
+            const goalTasks = await this.db.select().from(tasks).where(eq(tasks.goalId, goal.id));
+            return goalTasks.filter(task => task.status === '완료').length;
+          })
+        )).reduce((sum, count) => sum + count, 0);
+
+      const progressPercentage = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+
+      projectsWithDetails.push({
+        ...project,
+        owners: ownerUsers,
+        totalTasks,
+        completedTasks,
+        progressPercentage,
+        hasOverdueTasks: false,
+        overdueTaskCount: 0
+      });
+    }
+
+    return projectsWithDetails;
+  }
+
+  async getArchivedGoals(): Promise<GoalWithTasks[]> {
+    const result = await this.db.select().from(goals).where(eq(goals.isArchived, true));
+    const goalsWithTasks: GoalWithTasks[] = [];
+
+    for (const goal of result) {
+      const goalTasks = await this.db.select().from(tasks).where(eq(tasks.goalId, goal.id));
+      
+      const tasksWithAssignees: SafeTaskWithAssignees[] = [];
+      for (const task of goalTasks) {
+        const assigneeIds = task.assigneeIds || [];
+        let assigneeUsers: SafeUser[] = [];
+        if (assigneeIds.length > 0) {
+          assigneeUsers = await this.getUsersByIds(assigneeIds);
+        }
+        tasksWithAssignees.push({
+          ...task,
+          assignees: assigneeUsers
+        });
+      }
+
+      const assigneeIds = goal.assigneeIds || [];
+      let assigneeUsers: SafeUser[] = [];
+      if (assigneeIds.length > 0) {
+        assigneeUsers = await this.getUsersByIds(assigneeIds);
+      }
+
+      const totalTasks = goalTasks.length;
+      const completedTasks = goalTasks.filter(task => task.status === '완료').length;
+      const progressPercentage = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+
+      goalsWithTasks.push({
+        ...goal,
+        tasks: tasksWithAssignees,
+        assignees: assigneeUsers,
+        totalTasks,
+        completedTasks,
+        progressPercentage
+      });
+    }
+
+    return goalsWithTasks;
+  }
+
+  async getArchivedTasks(): Promise<SafeTaskWithAssignees[]> {
+    const result = await this.db.select().from(tasks).where(eq(tasks.isArchived, true));
+    const tasksWithAssignees: SafeTaskWithAssignees[] = [];
+
+    for (const task of result) {
+      const assigneeIds = task.assigneeIds || [];
+      let assigneeUsers: SafeUser[] = [];
+      if (assigneeIds.length > 0) {
+        assigneeUsers = await this.getUsersByIds(assigneeIds);
+      }
+
+      tasksWithAssignees.push({
+        ...task,
+        assignees: assigneeUsers
+      });
+    }
+
+    return tasksWithAssignees;
   }
 }
 
