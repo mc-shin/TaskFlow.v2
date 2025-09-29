@@ -284,13 +284,12 @@ export default function Archive() {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Header - matching list page exactly */}
-      <header className="border-b p-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-semibold" data-testid="header-title">보관함</h1>
-            <p className="text-sm text-muted-foreground" data-testid="header-subtitle">보관된 프로젝트, 목표, 작업을 관리합니다</p>
-          </div>
-          <div className="flex items-center space-x-4">
+      <header className="h-16 bg-card border-b border-border flex items-center justify-between px-6">
+        <div>
+          <h1 className="text-xl font-semibold" data-testid="header-title">보관함</h1>
+          <p className="text-sm text-muted-foreground" data-testid="header-subtitle">보관된 프로젝트, 목표, 작업을 관리합니다</p>
+        </div>
+        <div className="flex items-center space-x-4">
             {selectedItems.size > 0 && (
               <Button
                 onClick={restoreSelectedItems}
@@ -310,7 +309,6 @@ export default function Archive() {
               <ArrowLeft className="w-4 h-4 mr-2" />
               리스트로 돌아가기
             </Button>
-          </div>
         </div>
       </header>
 
@@ -416,7 +414,7 @@ export default function Archive() {
                         {project.labels && project.labels.length > 0 ? (
                           <div className="flex flex-wrap gap-1">
                             {project.labels.slice(0, 2).map((label: string, index: number) => (
-                              <Badge key={index} variant="outline" className="text-xs">
+                              <Badge key={index} variant="outline" className={`text-xs ${index === 0 ? 'bg-blue-500 hover:bg-blue-600 text-white' : 'bg-green-500 hover:bg-green-600 text-white'}`}>
                                 {label}
                               </Badge>
                             ))}
@@ -520,7 +518,7 @@ export default function Archive() {
                                 {goal.labels && goal.labels.length > 0 ? (
                                   <div className="flex flex-wrap gap-1">
                                     {goal.labels.slice(0, 2).map((label: string, index: number) => (
-                                      <Badge key={index} variant="outline" className="text-xs">
+                                      <Badge key={index} variant="outline" className={`text-xs ${index === 0 ? 'bg-blue-500 hover:bg-blue-600 text-white' : 'bg-green-500 hover:bg-green-600 text-white'}`}>
                                         {label}
                                       </Badge>
                                     ))}
@@ -610,7 +608,7 @@ export default function Archive() {
                                       {task.labels && task.labels.length > 0 ? (
                                         <div className="flex flex-wrap gap-1">
                                           {task.labels.slice(0, 2).map((label: string, index: number) => (
-                                            <Badge key={index} variant="outline" className="text-xs">
+                                            <Badge key={index} variant="outline" className={`text-xs ${index === 0 ? 'bg-blue-500 hover:bg-blue-600 text-white' : 'bg-green-500 hover:bg-green-600 text-white'}`}>
                                               {label}
                                             </Badge>
                                           ))}
