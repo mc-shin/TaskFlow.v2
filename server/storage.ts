@@ -2683,48 +2683,103 @@ export class DrizzleStorage implements IStorage {
   }
 
   async getArchivedProjects(): Promise<ProjectWithDetails[]> {
-    const result = await this.db.select().from(projects).where(eq(projects.isArchived, true));
-    const projectsWithDetails: ProjectWithDetails[] = [];
-
-    for (const project of result) {
-      const ownerIds = project.ownerIds || [];
-      let ownerUsers: SafeUser[] = [];
-      if (ownerIds.length > 0) {
-        ownerUsers = await this.getUsersByIds(ownerIds);
-      }
-
-      const projectGoals = await this.db.select().from(goals).where(eq(goals.projectId, project.id));
-      const projectTasks = await this.db.select().from(tasks).where(eq(tasks.projectId, project.id));
-
-      const goalTaskCounts = await Promise.all(
-        projectGoals.map(async (goal) => {
-          const goalTasks = await this.db.select().from(tasks).where(eq(tasks.goalId, goal.id));
-          return goalTasks.length;
-        })
-      );
-
-      const totalTasks = projectTasks.length + goalTaskCounts.reduce((sum, count) => sum + count, 0);
-      const completedTasks = projectTasks.filter(task => task.status === '완료').length +
-        (await Promise.all(
+    const projectResults = await this.db.select().from(projects)
+      .where(eq(projects.isArchived, true))
+      .orderBy(projects.createdAt, projects.id);
+    
+    const projectsWithDetails = await Promise.all(
+      projectResults.map(async (project) => {
+        // Get goals for this project (only archived)
+        const projectGoals = await this.db.select().from(goals)
+          .where(and(eq(goals.projectId, project.id), eq(goals.isArchived, true)))
+          .orderBy(goals.createdAt, goals.id);
+        
+        // Get goals with their tasks
+        const goalsWithTasks = await Promise.all(
           projectGoals.map(async (goal) => {
-            const goalTasks = await this.db.select().from(tasks).where(eq(tasks.goalId, goal.id));
-            return goalTasks.filter(task => task.status === '완료').length;
+            const goalTasks = await this.db.select().from(tasks)
+              .where(and(eq(tasks.goalId, goal.id), eq(tasks.isArchived, true)))
+              .orderBy(tasks.createdAt, tasks.id);
+            
+            const tasksWithAssignees = await Promise.all(
+              goalTasks.map(async (task) => {
+                const assignees = task.assigneeIds?.length > 0 
+                  ? await this.getUsersByIds(task.assigneeIds)
+                  : [];
+                
+                return {
+                  ...task,
+                  assignees
+                };
+              })
+            );
+            
+            const goalAssignees = goal.assigneeIds?.length > 0 
+              ? await this.getUsersByIds(goal.assigneeIds)
+              : [];
+            
+            // Calculate goal progress
+            const totalTasks = tasksWithAssignees.length;
+            const completedTasks = tasksWithAssignees.filter(task => task.status === '완료').length;
+            const progressPercentage = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+            
+            return {
+              ...goal,
+              tasks: tasksWithAssignees,
+              assignees: goalAssignees,
+              totalTasks,
+              completedTasks,
+              progressPercentage
+            };
           })
-        )).reduce((sum, count) => sum + count, 0);
-
-      const progressPercentage = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
-
-      projectsWithDetails.push({
-        ...project,
-        owners: ownerUsers,
-        totalTasks,
-        completedTasks,
-        progressPercentage,
-        hasOverdueTasks: false,
-        overdueTaskCount: 0
-      });
-    }
-
+        );
+        
+        // Get owners
+        const owners = project.ownerIds?.length > 0 
+          ? await this.getUsersByIds(project.ownerIds)
+          : [];
+        
+        // Calculate project progress
+        const totalGoalTasks = goalsWithTasks.reduce((sum, goal) => sum + goal.totalTasks, 0);
+        const completedGoalTasks = goalsWithTasks.reduce((sum, goal) => sum + goal.completedTasks, 0);
+        
+        // Get direct project tasks (archived)
+        const directProjectTasks = await this.db.select().from(tasks)
+          .where(and(eq(tasks.projectId, project.id), eq(tasks.isArchived, true)));
+        
+        const directProjectTasksWithAssignees = await Promise.all(
+          directProjectTasks.map(async (task) => {
+            const assignees = task.assigneeIds?.length > 0 
+              ? await this.getUsersByIds(task.assigneeIds)
+              : [];
+            
+            return {
+              ...task,
+              assignees
+            };
+          })
+        );
+        
+        const totalDirectTasks = directProjectTasksWithAssignees.length;
+        const completedDirectTasks = directProjectTasksWithAssignees.filter(task => task.status === '완료').length;
+        
+        const totalTasks = totalGoalTasks + totalDirectTasks;
+        const completedTasks = completedGoalTasks + completedDirectTasks;
+        const progressPercentage = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+        
+        return {
+          ...project,
+          goals: goalsWithTasks,
+          owners,
+          totalTasks,
+          completedTasks,
+          progressPercentage,
+          hasOverdueTasks: false,
+          overdueTaskCount: 0
+        };
+      })
+    );
+    
     return projectsWithDetails;
   }
 
@@ -2733,7 +2788,8 @@ export class DrizzleStorage implements IStorage {
     const goalsWithTasks: GoalWithTasks[] = [];
 
     for (const goal of result) {
-      const goalTasks = await this.db.select().from(tasks).where(eq(tasks.goalId, goal.id));
+      const goalTasks = await this.db.select().from(tasks)
+        .where(and(eq(tasks.goalId, goal.id), eq(tasks.isArchived, true)));
       
       const tasksWithAssignees: SafeTaskWithAssignees[] = [];
       for (const task of goalTasks) {

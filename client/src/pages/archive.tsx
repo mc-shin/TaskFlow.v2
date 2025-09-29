@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { ChevronDown, ChevronRight, FolderOpen, Target, Circle, ArrowLeft, Undo2 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -15,17 +15,9 @@ import { parse } from "date-fns";
 import { mapPriorityToLabel, getPriorityBadgeVariant } from "@/lib/priority-utils";
 
 export default function Archive() {
-  // Fetch archived data from database-based endpoints
-  const { data: archivedProjects, isLoading: loadingProjects } = useQuery<ProjectWithDetails[]>({
+  // Fetch archived data - projects now include hierarchical structure
+  const { data: archivedProjects, isLoading } = useQuery<ProjectWithDetails[]>({
     queryKey: ["/api/archive/projects"],
-  });
-
-  const { data: archivedGoals, isLoading: loadingGoals } = useQuery<GoalWithTasks[]>({
-    queryKey: ["/api/archive/goals"],
-  });
-
-  const { data: archivedTasks, isLoading: loadingTasks } = useQuery<SafeTaskWithAssignees[]>({
-    queryKey: ["/api/archive/tasks"],
   });
 
   const { data: users } = useQuery({
@@ -79,8 +71,6 @@ export default function Archive() {
 
   const [_, setLocation] = useLocation();
 
-  // Loading state combining all queries
-  const isLoading = loadingProjects || loadingGoals || loadingTasks;
 
   // Helper functions
   const toggleProject = (projectId: string) => {
@@ -213,18 +203,41 @@ export default function Archive() {
           continue;
         }
 
-        // Check if it's a goal
-        const goal = archivedGoals?.find((g: any) => g.id === itemId);
-        if (goal) {
-          await unarchiveGoalMutation.mutateAsync(itemId);
-          continue;
+        // Find the item in the hierarchical structure
+        let found = false;
+        
+        // Check if it's a project
+        const project = archivedProjects?.find((p: any) => p.id === itemId);
+        if (project) {
+          await unarchiveProjectMutation.mutateAsync(itemId);
+          found = true;
         }
-
-        // Check if it's a task
-        const task = archivedTasks?.find((t: any) => t.id === itemId);
-        if (task) {
-          await unarchiveTaskMutation.mutateAsync(itemId);
-          continue;
+        
+        if (!found) {
+          // Check if it's a goal within any project
+          for (const proj of archivedProjects || []) {
+            const goal = proj.goals?.find((g: any) => g.id === itemId);
+            if (goal) {
+              await unarchiveGoalMutation.mutateAsync(itemId);
+              found = true;
+              break;
+            }
+          }
+        }
+        
+        if (!found) {
+          // Check if it's a task within any goal
+          for (const proj of archivedProjects || []) {
+            for (const goal of proj.goals || []) {
+              const task = goal.tasks?.find((t: any) => t.id === itemId);
+              if (task) {
+                await unarchiveTaskMutation.mutateAsync(itemId);
+                found = true;
+                break;
+              }
+            }
+            if (found) break;
+          }
         }
       }
 
@@ -243,30 +256,27 @@ export default function Archive() {
     }
   };
 
-  // Merge all archived items into projects structure for hierarchical display
+  // Backend now provides hierarchical structure, so we can use archived projects directly
   const mergedArchivedData = () => {
-    const projects = archivedProjects || [];
-    const goals = archivedGoals || [];
-    const tasks = archivedTasks || [];
-
-    // Add orphaned goals and tasks to projects
-    return projects.map((project: any) => ({
-      ...project,
-      goals: [
-        ...(project.goals || []),
-        ...goals.filter((goal: any) => goal.projectId === project.id)
-      ].map((goal: any) => ({
-        ...goal,
-        tasks: [
-          ...(goal.tasks || []),
-          ...tasks.filter((task: any) => task.goalId === goal.id)
-        ]
-      }))
-    }));
+    return archivedProjects || [];
   };
 
-  // Calculate total archived items count
-  const totalArchivedCount = (archivedProjects?.length || 0) + (archivedGoals?.length || 0) + (archivedTasks?.length || 0);
+  // Calculate total archived items count from hierarchical structure
+  const totalArchivedCount = useMemo(() => {
+    if (!archivedProjects) return 0;
+    
+    let count = archivedProjects.length; // Count projects
+    
+    // Count goals and tasks within projects
+    for (const project of archivedProjects) {
+      count += (project.goals || []).length; // Count goals
+      for (const goal of project.goals || []) {
+        count += (goal.tasks || []).length; // Count tasks
+      }
+    }
+    
+    return count;
+  }, [archivedProjects]);
 
   if (isLoading) {
     return (
