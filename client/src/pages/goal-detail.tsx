@@ -30,6 +30,12 @@ export default function GoalDetail() {
     const from = urlParams.get('from');
     return from === 'kanban' ? '/workspace/app/kanban' : '/workspace/app/list';
   };
+  
+  // Check if user came from list page to disable status editing
+  const isFromList = () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    return urlParams.get('from') === 'list';
+  };
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
@@ -513,7 +519,7 @@ export default function GoalDetail() {
 
                 <div>
                   <label className="text-sm font-medium text-muted-foreground">상태</label>
-                  {isEditing ? (
+                  {isEditing && !isFromList() ? (
                     <Select
                       value={editedGoal.status ?? goal.status ?? "진행전"}
                       onValueChange={(value) => setEditedGoal(prev => ({ ...prev, status: value }))}
@@ -541,6 +547,11 @@ export default function GoalDetail() {
                       >
                         {goal.status ?? "진행전"}
                       </Badge>
+                      {isEditing && isFromList() && (
+                        <div className="text-xs text-muted-foreground mt-1">
+                          리스트 페이지에서 상태를 관리하세요
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

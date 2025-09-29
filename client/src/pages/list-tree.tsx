@@ -1878,15 +1878,7 @@ export default function ListTree() {
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="container mx-auto p-6">
-        <div className="flex items-center justify-center min-h-[200px]">
-          <div className="text-muted-foreground">로딩 중...</div>
-        </div>
-      </div>
-    );
-  }
+  // Note: 로딩 처리를 삭제했습니다. 사용자 요청에 따라 "로딩중" 텍스트를 제거했습니다.
 
   if (error) {
     return (
