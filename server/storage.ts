@@ -2689,16 +2689,16 @@ export class DrizzleStorage implements IStorage {
     
     const projectsWithDetails = await Promise.all(
       projectResults.map(async (project) => {
-        // Get goals for this project (only archived)
+        // Get all goals for this archived project
         const projectGoals = await this.db.select().from(goals)
-          .where(and(eq(goals.projectId, project.id), eq(goals.isArchived, true)))
+          .where(eq(goals.projectId, project.id))
           .orderBy(goals.createdAt, goals.id);
         
         // Get goals with their tasks
         const goalsWithTasks = await Promise.all(
           projectGoals.map(async (goal) => {
             const goalTasks = await this.db.select().from(tasks)
-              .where(and(eq(tasks.goalId, goal.id), eq(tasks.isArchived, true)))
+              .where(eq(tasks.goalId, goal.id))
               .orderBy(tasks.createdAt, tasks.id);
             
             const tasksWithAssignees = await Promise.all(
@@ -2743,9 +2743,9 @@ export class DrizzleStorage implements IStorage {
         const totalGoalTasks = goalsWithTasks.reduce((sum, goal) => sum + goal.totalTasks, 0);
         const completedGoalTasks = goalsWithTasks.reduce((sum, goal) => sum + goal.completedTasks, 0);
         
-        // Get direct project tasks (archived)
+        // Get all direct project tasks
         const directProjectTasks = await this.db.select().from(tasks)
-          .where(and(eq(tasks.projectId, project.id), eq(tasks.isArchived, true)));
+          .where(eq(tasks.projectId, project.id));
         
         const directProjectTasksWithAssignees = await Promise.all(
           directProjectTasks.map(async (task) => {
