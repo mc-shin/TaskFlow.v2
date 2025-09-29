@@ -74,8 +74,6 @@ export default function Archive() {
 
   // State management
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
-  const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
-  const [expandedGoals, setExpandedGoals] = useState<Set<string>>(new Set());
 
   const [_, setLocation] = useLocation();
 
@@ -83,29 +81,6 @@ export default function Archive() {
   const isLoading = loadingProjects || loadingGoals || loadingTasks;
 
   // Helper functions
-  const toggleProject = (projectId: string) => {
-    setExpandedProjects(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(projectId)) {
-        newSet.delete(projectId);
-      } else {
-        newSet.add(projectId);
-      }
-      return newSet;
-    });
-  };
-
-  const toggleGoal = (goalId: string) => {
-    setExpandedGoals(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(goalId)) {
-        newSet.delete(goalId);
-      } else {
-        newSet.add(goalId);
-      }
-      return newSet;
-    });
-  };
 
   const toggleItemSelection = (itemId: string) => {
     setSelectedItems(prev => {
@@ -243,48 +218,33 @@ export default function Archive() {
     }
   };
 
-  // Merge all archived items into a comprehensive hierarchical structure
+  // Merge all archived items into a flat structure for table rendering
   const mergedArchivedData = () => {
     const projects = archivedProjects || [];
     const goals = archivedGoals || [];
     const tasks = archivedTasks || [];
 
-    // Create a comprehensive structure with all archived items
+    // Create a flat array with all archived items
     const result = [];
 
-    // Add archived projects with their goals and tasks
+    // Add all archived projects
     projects.forEach((project: any) => {
-      const projectGoals = goals.filter((goal: any) => goal.projectId === project.id);
-      const projectGoalsWithTasks = projectGoals.map((goal: any) => ({
-        ...goal,
-        tasks: tasks.filter((task: any) => task.goalId === goal.id)
-      }));
-      
       result.push({
         ...project,
-        type: 'project',
-        goals: projectGoalsWithTasks
+        type: 'project'
       });
     });
 
-    // Add orphaned goals (goals whose projects are not archived)
-    const orphanedGoals = goals.filter((goal: any) => 
-      !projects.some((project: any) => project.id === goal.projectId)
-    );
-    orphanedGoals.forEach((goal: any) => {
-      const goalTasks = tasks.filter((task: any) => task.goalId === goal.id);
+    // Add all archived goals
+    goals.forEach((goal: any) => {
       result.push({
         ...goal,
-        type: 'goal',
-        tasks: goalTasks
+        type: 'goal'
       });
     });
 
-    // Add orphaned tasks (tasks whose goals are not archived)
-    const orphanedTasks = tasks.filter((task: any) => 
-      !goals.some((goal: any) => goal.id === task.goalId)
-    );
-    orphanedTasks.forEach((task: any) => {
+    // Add all archived tasks
+    tasks.forEach((task: any) => {
       result.push({
         ...task,
         type: 'task'
@@ -357,319 +317,65 @@ export default function Archive() {
           ) : (
             <div className="divide-y">
               {/* Render all archived items */}
-              {mergedArchivedData().map((item: any) => {
-                if (item.type === 'project') {
-                  return (
-                    <div key={item.id}>
-                      {/* Project Row */}
-                      <div className="p-3 hover:bg-muted/50 transition-colors">
-                        <div className="grid grid-cols-12 gap-4 items-center">
-                          <div className="col-span-4 flex items-center gap-2">
-                            <Checkbox
-                              checked={selectedItems.has(item.id)}
-                              onCheckedChange={() => toggleItemSelection(item.id)}
-                              data-testid={`checkbox-project-${item.id}`}
-                            />
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-6 w-6 p-0"
-                              onClick={() => toggleProject(item.id)}
-                            >
-                              {expandedProjects.has(item.id) ? (
-                                <ChevronDown className="w-4 h-4" />
-                              ) : (
-                                <ChevronRight className="w-4 h-4" />
-                              )}
-                            </Button>
-                            <FolderOpen className="w-4 h-4 text-blue-600" />
-                            <span className="font-medium" data-testid={`text-project-name-${item.id}`}>
-                              {item.name}
-                            </span>
-                            <Badge variant="outline" className="text-xs">
-                              {item.code}
-                            </Badge>
-                          </div>
-                      <div className="col-span-1">
-                        <span className={getDDayColorClass(project.deadline)}>
-                          {formatDeadline(project.deadline)}
-                        </span>
-                      </div>
-                      <div className="col-span-1">
-                        {project.owners && project.owners.length > 0 ? (
-                          <div className="flex -space-x-1">
-                            {project.owners.slice(0, 2).map((owner: SafeUser, index: number) => (
-                              <Avatar key={owner.id} className="h-6 w-6 border border-background">
-                                <AvatarFallback className="text-xs">
-                                  {owner.initials}
-                                </AvatarFallback>
-                              </Avatar>
-                            ))}
-                            {project.owners.length > 2 && (
-                              <span className="text-xs text-muted-foreground ml-1">
-                                +{project.owners.length - 2}
-                              </span>
-                            )}
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground text-sm">담당자 없음</span>
-                        )}
-                      </div>
-                      <div className="col-span-2">
-                        {project.labels && project.labels.length > 0 ? (
-                          <div className="flex flex-wrap gap-1">
-                            {project.labels.slice(0, 2).map((label: string, index: number) => (
-                              <Badge key={index} variant="outline" className="text-xs">
-                                {label}
-                              </Badge>
-                            ))}
-                            {project.labels.length > 2 && (
-                              <span className="text-xs text-muted-foreground">
-                                +{project.labels.length - 2}
-                              </span>
-                            )}
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground text-sm">-</span>
-                        )}
-                      </div>
-                      <div className="col-span-1">
-                        <Badge variant={getStatusBadgeVariant(project.status || '진행전')}>
-                          {project.status || '진행전'}
-                        </Badge>
-                      </div>
-                      <div className="col-span-2">
-                        <div className="flex items-center gap-2">
-                          <Progress value={project.progressPercentage || 0} className="flex-1" />
-                          <span className="text-sm text-muted-foreground w-10">
-                            {project.progressPercentage || 0}%
+              {mergedArchivedData().map((item: any) => (
+                <div key={item.id} className="p-3 hover:bg-muted/50 transition-colors">
+                  <div className="grid grid-cols-12 gap-4 items-center">
+                    {/* Name column */}
+                    <div className="col-span-4 flex items-center gap-2">
+                      <Checkbox
+                        checked={selectedItems.has(item.id)}
+                        onCheckedChange={() => toggleItemSelection(item.id)}
+                        data-testid={`checkbox-${item.type}-${item.id}`}
+                      />
+                      {item.type === 'project' && (
+                        <>
+                          <FolderOpen className="w-4 h-4 text-blue-600" />
+                          <span className="font-medium" data-testid={`text-project-name-${item.id}`}>
+                            {item.name}
                           </span>
-                        </div>
-                      </div>
-                      <div className="col-span-1">
-                        <span className="text-sm text-muted-foreground">중간</span>
-                      </div>
+                          <Badge variant="outline" className="text-xs">
+                            {item.code}
+                          </Badge>
+                        </>
+                      )}
+                      {item.type === 'goal' && (
+                        <>
+                          <Target className="w-4 h-4 text-green-600" />
+                          <span className="font-medium" data-testid={`text-goal-title-${item.id}`}>
+                            {item.title || item.name}
+                          </span>
+                        </>
+                      )}
+                      {item.type === 'task' && (
+                        <>
+                          <Circle className="w-4 h-4 text-orange-600" />
+                          <span className="font-medium" data-testid={`text-task-title-${item.id}`}>
+                            {item.title || item.name}
+                          </span>
+                        </>
+                      )}
                     </div>
-                  </div>
-
-                  {/* Goals */}
-                  {expandedProjects.has(project.id) && project.goals && project.goals.length > 0 && (
-                    <div className="bg-muted/20">
-                      {project.goals.map((goal: any) => (
-                        <div key={goal.id}>
-                          {/* Goal Row */}
-                          <div className="p-3 hover:bg-muted/50 transition-colors">
-                            <div className="grid grid-cols-12 gap-4 items-center">
-                              <div className="col-span-4 flex items-center gap-2 pl-8">
-                                <Checkbox
-                                  checked={selectedItems.has(goal.id)}
-                                  onCheckedChange={() => toggleItemSelection(goal.id)}
-                                  data-testid={`checkbox-goal-${goal.id}`}
-                                />
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-6 w-6 p-0"
-                                  onClick={() => toggleGoal(goal.id)}
-                                >
-                                  {expandedGoals.has(goal.id) ? (
-                                    <ChevronDown className="w-4 h-4" />
-                                  ) : (
-                                    <ChevronRight className="w-4 h-4" />
-                                  )}
-                                </Button>
-                                <Target className="w-4 h-4 text-green-600" />
-                                <span className="font-medium" data-testid={`text-goal-title-${goal.id}`}>
-                                  {goal.title}
-                                </span>
-                              </div>
-                              <div className="col-span-1">
-                                <span className={getDDayColorClass(goal.deadline)}>
-                                  {formatDeadline(goal.deadline)}
-                                </span>
-                              </div>
-                              <div className="col-span-1">
-                                {goal.assignees && goal.assignees.length > 0 ? (
-                                  <div className="flex -space-x-1">
-                                    {goal.assignees.slice(0, 2).map((assignee: SafeUser, index: number) => (
-                                      <Avatar key={assignee.id} className="h-6 w-6 border border-background">
-                                        <AvatarFallback className="text-xs">
-                                          {assignee.initials}
-                                        </AvatarFallback>
-                                      </Avatar>
-                                    ))}
-                                    {goal.assignees.length > 2 && (
-                                      <span className="text-xs text-muted-foreground ml-1">
-                                        +{goal.assignees.length - 2}
-                                      </span>
-                                    )}
-                                  </div>
-                                ) : (
-                                  <span className="text-muted-foreground text-sm">담당자 없음</span>
-                                )}
-                              </div>
-                              <div className="col-span-2">
-                                {goal.labels && goal.labels.length > 0 ? (
-                                  <div className="flex flex-wrap gap-1">
-                                    {goal.labels.slice(0, 2).map((label: string, index: number) => (
-                                      <Badge key={index} variant="outline" className="text-xs">
-                                        {label}
-                                      </Badge>
-                                    ))}
-                                    {goal.labels.length > 2 && (
-                                      <span className="text-xs text-muted-foreground">
-                                        +{goal.labels.length - 2}
-                                      </span>
-                                    )}
-                                  </div>
-                                ) : (
-                                  <span className="text-muted-foreground text-sm">-</span>
-                                )}
-                              </div>
-                              <div className="col-span-1">
-                                <Badge variant={getStatusBadgeVariant(goal.status || '진행전')}>
-                                  {goal.status || '진행전'}
-                                </Badge>
-                              </div>
-                              <div className="col-span-2">
-                                <div className="flex items-center gap-2">
-                                  <Progress value={goal.progressPercentage || 0} className="flex-1" />
-                                  <span className="text-sm text-muted-foreground w-10">
-                                    {goal.progressPercentage || 0}%
-                                  </span>
-                                </div>
-                              </div>
-                              <div className="col-span-1">
-                                <span className="text-sm text-muted-foreground">중간</span>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Tasks */}
-                          {expandedGoals.has(goal.id) && goal.tasks && goal.tasks.length > 0 && (
-                            <div className="bg-muted/30">
-                              {goal.tasks.map((task: any) => (
-                                <div key={task.id} className="p-3 hover:bg-muted/50 transition-colors">
-                                  <div className="grid grid-cols-12 gap-4 items-center">
-                                    <div className="col-span-4 flex items-center gap-2 pl-16">
-                                      <Checkbox
-                                        checked={selectedItems.has(task.id)}
-                                        onCheckedChange={() => toggleItemSelection(task.id)}
-                                        data-testid={`checkbox-task-${task.id}`}
-                                      />
-                                      <Circle className="w-4 h-4 text-orange-600" />
-                                      <span className="font-medium" data-testid={`text-task-title-${task.id}`}>
-                                        {task.title}
-                                      </span>
-                                    </div>
-                                    <div className="col-span-1">
-                                      <span className={getDDayColorClass(task.deadline)}>
-                                        {formatDeadline(task.deadline)}
-                                      </span>
-                                    </div>
-                                    <div className="col-span-1">
-                                      {task.assignees && task.assignees.length > 0 ? (
-                                        <div className="flex -space-x-1">
-                                          {task.assignees.slice(0, 2).map((assignee: SafeUser, index: number) => (
-                                            <Avatar key={assignee.id} className="h-6 w-6 border border-background">
-                                              <AvatarFallback className="text-xs">
-                                                {assignee.initials}
-                                              </AvatarFallback>
-                                            </Avatar>
-                                          ))}
-                                          {task.assignees.length > 2 && (
-                                            <span className="text-xs text-muted-foreground ml-1">
-                                              +{task.assignees.length - 2}
-                                            </span>
-                                          )}
-                                        </div>
-                                      ) : (
-                                        <span className="text-muted-foreground text-sm">담당자 없음</span>
-                                      )}
-                                    </div>
-                                    <div className="col-span-2">
-                                      {task.labels && task.labels.length > 0 ? (
-                                        <div className="flex flex-wrap gap-1">
-                                          {task.labels.slice(0, 2).map((label: string, index: number) => (
-                                            <Badge key={index} variant="outline" className="text-xs">
-                                              {label}
-                                            </Badge>
-                                          ))}
-                                          {task.labels.length > 2 && (
-                                            <span className="text-xs text-muted-foreground">
-                                              +{task.labels.length - 2}
-                                            </span>
-                                          )}
-                                        </div>
-                                      ) : (
-                                        <span className="text-muted-foreground text-sm">-</span>
-                                      )}
-                                    </div>
-                                    <div className="col-span-1">
-                                      <Badge variant={getStatusBadgeVariant(task.status)}>
-                                        {task.status}
-                                      </Badge>
-                                    </div>
-                                    <div className="col-span-2">
-                                      <div className="flex items-center gap-2">
-                                        <Progress value={task.progress || 0} className="flex-1" />
-                                        <span className="text-sm text-muted-foreground w-10">
-                                          {task.progress || 0}%
-                                        </span>
-                                      </div>
-                                    </div>
-                                    <div className="col-span-1">
-                                      {task.priority && (
-                                        <Badge variant={getPriorityBadgeVariant(task.priority)}>
-                                          {mapPriorityToLabel(task.priority)}
-                                        </Badge>
-                                      )}
-                                    </div>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
-
-              {/* Orphaned Goals (goals without parent projects) */}
-              {archivedGoals?.filter((goal: any) => !archivedProjects?.some((project: any) => project.id === goal.projectId)).map((goal: any) => (
-                <div key={goal.id} className="p-3 hover:bg-muted/50 transition-colors">
-                  <div className="grid grid-cols-12 gap-4 items-center">
-                    <div className="col-span-4 flex items-center gap-2">
-                      <Checkbox
-                        checked={selectedItems.has(goal.id)}
-                        onCheckedChange={() => toggleItemSelection(goal.id)}
-                        data-testid={`checkbox-goal-${goal.id}`}
-                      />
-                      <Target className="w-4 h-4 text-green-600" />
-                      <span className="font-medium" data-testid={`text-goal-title-${goal.id}`}>
-                        {goal.title}
+                    {/* Deadline column */}
+                    <div className="col-span-1">
+                      <span className={getDDayColorClass(item.deadline)}>
+                        {formatDeadline(item.deadline)}
                       </span>
                     </div>
+                    
+                    {/* Assignee column */}
                     <div className="col-span-1">
-                      <span className={getDDayColorClass(goal.deadline)}>
-                        {formatDeadline(goal.deadline)}
-                      </span>
-                    </div>
-                    <div className="col-span-1">
-                      {goal.assignees && goal.assignees.length > 0 ? (
+                      {(item.owners || item.assignees) && (item.owners || item.assignees).length > 0 ? (
                         <div className="flex -space-x-1">
-                          {goal.assignees.slice(0, 2).map((assignee: SafeUser, index: number) => (
+                          {(item.owners || item.assignees).slice(0, 2).map((assignee: SafeUser, index: number) => (
                             <Avatar key={assignee.id} className="h-6 w-6 border border-background">
                               <AvatarFallback className="text-xs">
                                 {assignee.initials}
                               </AvatarFallback>
                             </Avatar>
                           ))}
-                          {goal.assignees.length > 2 && (
+                          {(item.owners || item.assignees).length > 2 && (
                             <span className="text-xs text-muted-foreground ml-1">
-                              +{goal.assignees.length - 2}
+                              +{(item.owners || item.assignees).length - 2}
                             </span>
                           )}
                         </div>
@@ -677,17 +383,19 @@ export default function Archive() {
                         <span className="text-muted-foreground text-sm">담당자 없음</span>
                       )}
                     </div>
+                    
+                    {/* Labels column */}
                     <div className="col-span-2">
-                      {goal.labels && goal.labels.length > 0 ? (
+                      {item.labels && item.labels.length > 0 ? (
                         <div className="flex flex-wrap gap-1">
-                          {goal.labels.slice(0, 2).map((label: string, index: number) => (
+                          {item.labels.slice(0, 2).map((label: string, index: number) => (
                             <Badge key={index} variant="outline" className="text-xs">
                               {label}
                             </Badge>
                           ))}
-                          {goal.labels.length > 2 && (
+                          {item.labels.length > 2 && (
                             <span className="text-xs text-muted-foreground">
-                              +{goal.labels.length - 2}
+                              +{item.labels.length - 2}
                             </span>
                           )}
                         </div>
@@ -695,102 +403,32 @@ export default function Archive() {
                         <span className="text-muted-foreground text-sm">-</span>
                       )}
                     </div>
+                    
+                    {/* Status column */}
                     <div className="col-span-1">
-                      <Badge variant={getStatusBadgeVariant(goal.status || '진행전')}>
-                        {goal.status || '진행전'}
+                      <Badge variant={getStatusBadgeVariant(item.status || '진행전')}>
+                        {item.status || '진행전'}
                       </Badge>
                     </div>
+                    
+                    {/* Progress column */}
                     <div className="col-span-2">
                       <div className="flex items-center gap-2">
-                        <Progress value={goal.progressPercentage || 0} className="flex-1" />
+                        <Progress value={item.progressPercentage || item.progress || 0} className="flex-1" />
                         <span className="text-sm text-muted-foreground w-10">
-                          {goal.progressPercentage || 0}%
+                          {item.progressPercentage || item.progress || 0}%
                         </span>
                       </div>
                     </div>
+                    
+                    {/* Priority column */}
                     <div className="col-span-1">
-                      <span className="text-sm text-muted-foreground">중간</span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-
-              {/* Orphaned Tasks (tasks without parent goals) */}
-              {archivedTasks?.filter((task: any) => !archivedGoals?.some((goal: any) => goal.id === task.goalId)).map((task: any) => (
-                <div key={task.id} className="p-3 hover:bg-muted/50 transition-colors">
-                  <div className="grid grid-cols-12 gap-4 items-center">
-                    <div className="col-span-4 flex items-center gap-2">
-                      <Checkbox
-                        checked={selectedItems.has(task.id)}
-                        onCheckedChange={() => toggleItemSelection(task.id)}
-                        data-testid={`checkbox-task-${task.id}`}
-                      />
-                      <Circle className="w-4 h-4 text-orange-600" />
-                      <span className="font-medium" data-testid={`text-task-title-${task.id}`}>
-                        {task.title}
-                      </span>
-                    </div>
-                    <div className="col-span-1">
-                      <span className={getDDayColorClass(task.deadline)}>
-                        {formatDeadline(task.deadline)}
-                      </span>
-                    </div>
-                    <div className="col-span-1">
-                      {task.assignees && task.assignees.length > 0 ? (
-                        <div className="flex -space-x-1">
-                          {task.assignees.slice(0, 2).map((assignee: SafeUser, index: number) => (
-                            <Avatar key={assignee.id} className="h-6 w-6 border border-background">
-                              <AvatarFallback className="text-xs">
-                                {assignee.initials}
-                              </AvatarFallback>
-                            </Avatar>
-                          ))}
-                          {task.assignees.length > 2 && (
-                            <span className="text-xs text-muted-foreground ml-1">
-                              +{task.assignees.length - 2}
-                            </span>
-                          )}
-                        </div>
-                      ) : (
-                        <span className="text-muted-foreground text-sm">담당자 없음</span>
-                      )}
-                    </div>
-                    <div className="col-span-2">
-                      {task.labels && task.labels.length > 0 ? (
-                        <div className="flex flex-wrap gap-1">
-                          {task.labels.slice(0, 2).map((label: string, index: number) => (
-                            <Badge key={index} variant="outline" className="text-xs">
-                              {label}
-                            </Badge>
-                          ))}
-                          {task.labels.length > 2 && (
-                            <span className="text-xs text-muted-foreground">
-                              +{task.labels.length - 2}
-                            </span>
-                          )}
-                        </div>
-                      ) : (
-                        <span className="text-muted-foreground text-sm">-</span>
-                      )}
-                    </div>
-                    <div className="col-span-1">
-                      <Badge variant={getStatusBadgeVariant(task.status)}>
-                        {task.status}
-                      </Badge>
-                    </div>
-                    <div className="col-span-2">
-                      <div className="flex items-center gap-2">
-                        <Progress value={task.progress || 0} className="flex-1" />
-                        <span className="text-sm text-muted-foreground w-10">
-                          {task.progress || 0}%
-                        </span>
-                      </div>
-                    </div>
-                    <div className="col-span-1">
-                      {task.priority && (
-                        <Badge variant={getPriorityBadgeVariant(task.priority)}>
-                          {mapPriorityToLabel(task.priority)}
+                      {item.priority ? (
+                        <Badge variant={getPriorityBadgeVariant(item.priority)}>
+                          {mapPriorityToLabel(item.priority)}
                         </Badge>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">중간</span>
                       )}
                     </div>
                   </div>

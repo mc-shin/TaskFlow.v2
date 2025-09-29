@@ -1579,8 +1579,24 @@ export class MemStorage implements IStorage {
     const project = this.projects.get(id);
     if (!project) return undefined;
     
+    // Archive the project
     const updatedProject = { ...project, isArchived: true, lastUpdatedBy: lastUpdatedBy || null, updatedAt: new Date() };
     this.projects.set(id, updatedProject);
+    
+    // Archive all goals belonging to this project
+    const projectGoals = Array.from(this.goals.values()).filter(goal => goal.projectId === id);
+    for (const goal of projectGoals) {
+      const updatedGoal = { ...goal, isArchived: true, lastUpdatedBy: lastUpdatedBy || null, updatedAt: new Date() };
+      this.goals.set(goal.id, updatedGoal);
+      
+      // Archive all tasks belonging to this goal
+      const goalTasks = Array.from(this.tasks.values()).filter(task => task.goalId === goal.id);
+      for (const task of goalTasks) {
+        const updatedTask = { ...task, isArchived: true, lastUpdatedBy: lastUpdatedBy || null, updatedAt: new Date() };
+        this.tasks.set(task.id, updatedTask);
+      }
+    }
+    
     return updatedProject;
   }
 
@@ -2611,6 +2627,7 @@ export class DrizzleStorage implements IStorage {
 
   // Archive methods
   async archiveProject(id: string, lastUpdatedBy?: string): Promise<Project | undefined> {
+    // Archive the project
     const result = await this.db.update(projects)
       .set({ 
         isArchived: true, 
@@ -2619,6 +2636,30 @@ export class DrizzleStorage implements IStorage {
       })
       .where(eq(projects.id, id))
       .returning();
+    
+    if (result[0]) {
+      // Archive all goals belonging to this project
+      await this.db.update(goals)
+        .set({ 
+          isArchived: true, 
+          lastUpdatedBy,
+          updatedAt: new Date()
+        })
+        .where(eq(goals.projectId, id));
+      
+      // Archive all tasks belonging to goals of this project
+      const projectGoals = await this.db.select({ id: goals.id }).from(goals).where(eq(goals.projectId, id));
+      for (const goal of projectGoals) {
+        await this.db.update(tasks)
+          .set({ 
+            isArchived: true, 
+            lastUpdatedBy,
+            updatedAt: new Date()
+          })
+          .where(eq(tasks.goalId, goal.id));
+      }
+    }
+    
     return result[0];
   }
 
