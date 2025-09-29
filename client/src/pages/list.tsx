@@ -1,15 +1,17 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { CheckCircle, Clock, AlertTriangle, User, Plus, ChevronDown, ChevronRight, Target, FolderOpen } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { SafeTaskWithAssignees, ProjectWithDetails, GoalWithTasks } from "@shared/schema";
 import { ProjectModal } from "@/components/project-modal";
 import { GoalModal } from "@/components/goal-modal";
 import { TaskModal } from "@/components/task-modal";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 export default function List() {
   const { data: projects, isLoading, error } = useQuery({
@@ -31,6 +33,255 @@ export default function List() {
     goalId: '', 
     goalTitle: '' 
   });
+  
+  // Local state to track completed items for immediate UI feedback
+  const [completedItems, setCompletedItems] = useState<Set<string>>(new Set());
+  
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  // Sync database completion state with local state when projects data changes
+  useEffect(() => {
+    if (projects && Array.isArray(projects)) {
+      const newCompletedItems = new Set<string>();
+      
+      // Add projects that are completed in database
+      (projects as ProjectWithDetails[]).forEach(project => {
+        if (project.status === '완료') {
+          newCompletedItems.add(project.id);
+        }
+        
+        // Add goals that are completed in database
+        if (project.goals) {
+          project.goals.forEach(goal => {
+            if (goal.status === '완료') {
+              newCompletedItems.add(goal.id);
+            }
+          });
+        }
+      });
+      
+      setCompletedItems(newCompletedItems);
+    }
+  }, [projects]);
+
+  // Mutation for updating project status
+  const updateProjectMutation = useMutation({
+    mutationFn: async ({ id, updates }: { id: string; updates: { status: string } }) => {
+      return apiRequest("PUT", `/api/projects/${id}`, updates);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+    },
+  });
+
+  // Mutation for updating goal status
+  const updateGoalMutation = useMutation({
+    mutationFn: async ({ id, updates }: { id: string; updates: { status: string } }) => {
+      return apiRequest("PUT", `/api/goals/${id}`, updates);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+    },
+  });
+
+  // Check if auto-completion is allowed for a project or goal
+  const canAutoComplete = (itemId: string, type: 'project' | 'goal'): boolean => {
+    if (!projects || !Array.isArray(projects)) return false;
+    
+    if (type === 'project') {
+      const project = (projects as ProjectWithDetails[]).find(p => p.id === itemId);
+      if (!project) return false;
+      
+      // Check if all goals in this project are 100% complete
+      if (project.goals && project.goals.length > 0) {
+        return project.goals.every(goal => {
+          if (goal.tasks && goal.tasks.length > 0) {
+            return goal.tasks.every(task => 
+              task.progress === 100 || task.status === '완료'
+            );
+          }
+          return false;
+        });
+      }
+      return false;
+    }
+    
+    if (type === 'goal') {
+      // Find the goal across all projects
+      for (const project of projects as ProjectWithDetails[]) {
+        if (project.goals) {
+          const goal = project.goals.find(g => g.id === itemId);
+          if (goal) {
+            // Check if all tasks in this goal are 100% complete
+            if (goal.tasks && goal.tasks.length > 0) {
+              return goal.tasks.every(task => 
+                task.progress === 100 || task.status === '완료'
+              );
+            }
+            return false;
+          }
+        }
+      }
+    }
+    
+    return false;
+  };
+
+  // Calculate what the status should be based on child progress
+  const getCalculatedStatus = (itemId: string, type: 'project' | 'goal'): string => {
+    if (!projects || !Array.isArray(projects)) return '진행전';
+    
+    if (type === 'project') {
+      const project = (projects as ProjectWithDetails[]).find(p => p.id === itemId);
+      if (!project) return '진행전';
+      
+      if (project.goals && project.goals.length > 0) {
+        const allCompleted = project.goals.every(goal => (goal.progressPercentage || 0) === 100);
+        const anyStarted = project.goals.some(goal => (goal.progressPercentage || 0) > 0);
+        if (allCompleted) return '완료';
+        if (anyStarted) return '진행중';
+        return '진행전';
+      }
+      return '진행전';
+    } else if (type === 'goal') {
+      for (const project of projects as ProjectWithDetails[]) {
+        if (project.goals) {
+          const goal = project.goals.find(g => g.id === itemId);
+          if (goal) {
+            if (goal.tasks && goal.tasks.length > 0) {
+              const allCompleted = goal.tasks.every(task => 
+                task.progress === 100 || task.status === '완료'
+              );
+              const anyStarted = goal.tasks.some(task => 
+                (task.progress !== null && task.progress > 0) || task.status === '진행중'
+              );
+              if (allCompleted) return '완료';
+              if (anyStarted) return '진행중';
+              return '진행전';
+            }
+            return '진행전';
+          }
+        }
+      }
+    }
+    
+    return '진행전';
+  };
+
+  // Interactive status handler for projects and goals
+  const handleStatusClick = async (itemId: string, type: 'project' | 'goal', currentStatus: string) => {
+    // Don't allow interaction with '이슈' status
+    if (currentStatus === '이슈') return;
+    
+    const isLocallyCompleted = completedItems.has(itemId);
+    const autoCompleteAllowed = canAutoComplete(itemId, type);
+    const isActuallyCompleted = currentStatus === '완료' || isLocallyCompleted;
+    
+    // Enable completion button if auto-completion is allowed OR if already completed
+    if (!autoCompleteAllowed && !isLocallyCompleted) {
+      return; // Not allowed to complete
+    }
+    
+    try {
+      if (isActuallyCompleted) {
+        // This is a cancel operation - revert to calculated status
+        setCompletedItems(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(itemId);
+          
+          // Remove child items as well for cancellation
+          if (type === 'project') {
+            // For project cancellation, remove all goals
+            const project = (projects as ProjectWithDetails[])?.find(p => p.id === itemId);
+            if (project?.goals) {
+              project.goals.forEach(goal => {
+                newSet.delete(goal.id);
+              });
+            }
+          }
+          
+          return newSet;
+        });
+        
+        const calculatedStatus = getCalculatedStatus(itemId, type);
+        
+        if (type === 'project') {
+          await updateProjectMutation.mutateAsync({ 
+            id: itemId, 
+            updates: { status: calculatedStatus } 
+          });
+          
+          toast({
+            title: "프로젝트 완료 취소",
+            description: "프로젝트 완료가 취소되었습니다.",
+          });
+        } else if (type === 'goal') {
+          await updateGoalMutation.mutateAsync({ 
+            id: itemId, 
+            updates: { status: calculatedStatus } 
+          });
+          
+          toast({
+            title: "목표 완료 취소",
+            description: "목표 완료가 취소되었습니다.",
+          });
+        }
+      } else {
+        // This is a complete operation
+        setCompletedItems(prev => new Set(Array.from(prev).concat(itemId)));
+        
+        if (type === 'project') {
+          await updateProjectMutation.mutateAsync({ 
+            id: itemId, 
+            updates: { status: '완료' } 
+          });
+          
+          toast({
+            title: "프로젝트 완료",
+            description: "프로젝트가 완료 상태로 변경되었습니다.",
+          });
+        } else if (type === 'goal') {
+          await updateGoalMutation.mutateAsync({ 
+            id: itemId, 
+            updates: { status: '완료' } 
+          });
+          
+          toast({
+            title: "목표 완료",
+            description: "목표가 완료 상태로 변경되었습니다.",
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Status update failed:', error);
+      toast({
+        title: "상태 변경 실패",
+        description: "상태 변경 중 오류가 발생했습니다.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Render interactive status badge for projects and goals
+  const renderInteractiveStatus = (itemId: string, type: 'project' | 'goal', status: string) => {
+    const isLocallyCompleted = completedItems.has(itemId);
+    const displayStatus = isLocallyCompleted ? '완료' : status;
+    const autoCompleteAllowed = canAutoComplete(itemId, type);
+    const isActuallyCompleted = status === '완료' || isLocallyCompleted;
+    const isClickable = displayStatus !== '이슈' && (autoCompleteAllowed || isActuallyCompleted);
+    
+    return (
+      <Badge 
+        variant={getStatusBadgeVariant(displayStatus || "진행전")} 
+        className={`text-xs ${isClickable ? 'cursor-pointer hover:opacity-80' : ''}`}
+        data-testid={`badge-${type}-status-${itemId}`}
+        onClick={isClickable ? () => handleStatusClick(itemId, type, status || '진행전') : undefined}
+      >
+        {displayStatus || "진행전"}
+      </Badge>
+    );
+  };
   
   const toggleProject = (projectId: string) => {
     const newExpanded = new Set(expandedProjects);
@@ -181,6 +432,8 @@ export default function List() {
                               {project.progressPercentage}% 진행률
                             </div>
                           </div>
+                          {/* 프로젝트 상태 뱃지 */}
+                          {renderInteractiveStatus(project.id, 'project', project.status || '진행전')}
                           {hoveredProject === project.id && (
                             <Button 
                               size="sm" 
@@ -219,6 +472,7 @@ export default function List() {
                           hoveredProject={hoveredProject}
                           setGoalModalState={setGoalModalState}
                           setTaskModalState={setTaskModalState}
+                          renderInteractiveStatus={renderInteractiveStatus}
                         />
                       )}
                     </CardContent>
@@ -265,6 +519,7 @@ interface ProjectGoalsContentProps {
   hoveredProject: string | null;
   setGoalModalState: (state: { isOpen: boolean; projectId: string; projectTitle: string }) => void;
   setTaskModalState: (state: { isOpen: boolean; goalId: string; goalTitle: string }) => void;
+  renderInteractiveStatus: (itemId: string, type: 'project' | 'goal', status: string) => JSX.Element;
 }
 
 function ProjectGoalsContent({ 
@@ -278,7 +533,8 @@ function ProjectGoalsContent({
   getStatusBadgeVariant,
   hoveredProject,
   setGoalModalState,
-  setTaskModalState
+  setTaskModalState,
+  renderInteractiveStatus
 }: ProjectGoalsContentProps) {
   // Fetch goals for this project
   const { data: goals, isLoading: goalsLoading, error: goalsError } = useQuery({
@@ -366,9 +622,7 @@ function ProjectGoalsContent({
                       </div>
                     </div>
                     {/* 목표 상태 뱃지 */}
-                    <Badge variant={getStatusBadgeVariant(goal.status || "진행전")} className="text-xs" data-testid={`badge-goal-status-${goal.id}`}>
-                      {goal.status || "진행전"}
-                    </Badge>
+                    {renderInteractiveStatus(goal.id, 'goal', goal.status || '진행전')}
                     {(expandedGoals.has(goal.id) || hoveredGoal === goal.id) && (
                       <Button 
                         size="sm" 
