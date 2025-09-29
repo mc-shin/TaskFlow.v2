@@ -885,6 +885,118 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Archive routes
+  app.post("/api/projects/:id/archive", async (req, res) => {
+    try {
+      const users = await storage.getAllUsers();
+      const currentUser = users.length > 0 ? users[0].id : undefined;
+      const project = await storage.archiveProject(req.params.id, currentUser);
+      if (!project) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+      res.json(project);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to archive project" });
+    }
+  });
+
+  app.post("/api/projects/:id/unarchive", async (req, res) => {
+    try {
+      const users = await storage.getAllUsers();
+      const currentUser = users.length > 0 ? users[0].id : undefined;
+      const project = await storage.unarchiveProject(req.params.id, currentUser);
+      if (!project) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+      res.json(project);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to unarchive project" });
+    }
+  });
+
+  app.post("/api/goals/:id/archive", async (req, res) => {
+    try {
+      const users = await storage.getAllUsers();
+      const currentUser = users.length > 0 ? users[0].id : undefined;
+      const goal = await storage.archiveGoal(req.params.id, currentUser);
+      if (!goal) {
+        return res.status(404).json({ message: "Goal not found" });
+      }
+      res.json(goal);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to archive goal" });
+    }
+  });
+
+  app.post("/api/goals/:id/unarchive", async (req, res) => {
+    try {
+      const users = await storage.getAllUsers();
+      const currentUser = users.length > 0 ? users[0].id : undefined;
+      const goal = await storage.unarchiveGoal(req.params.id, currentUser);
+      if (!goal) {
+        return res.status(404).json({ message: "Goal not found" });
+      }
+      res.json(goal);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to unarchive goal" });
+    }
+  });
+
+  app.post("/api/tasks/:id/archive", async (req, res) => {
+    try {
+      const users = await storage.getAllUsers();
+      const currentUser = users.length > 0 ? users[0].id : undefined;
+      const task = await storage.archiveTask(req.params.id, currentUser);
+      if (!task) {
+        return res.status(404).json({ message: "Task not found" });
+      }
+      res.json(task);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to archive task" });
+    }
+  });
+
+  app.post("/api/tasks/:id/unarchive", async (req, res) => {
+    try {
+      const users = await storage.getAllUsers();
+      const currentUser = users.length > 0 ? users[0].id : undefined;
+      const task = await storage.unarchiveTask(req.params.id, currentUser);
+      if (!task) {
+        return res.status(404).json({ message: "Task not found" });
+      }
+      res.json(task);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to unarchive task" });
+    }
+  });
+
+  app.get("/api/archive/projects", async (req, res) => {
+    try {
+      const projects = await storage.getArchivedProjects();
+      res.json(projects);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch archived projects" });
+    }
+  });
+
+  app.get("/api/archive/goals", async (req, res) => {
+    try {
+      const goals = await storage.getArchivedGoals();
+      res.json(goals);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch archived goals" });
+    }
+  });
+
+  app.get("/api/archive/tasks", async (req, res) => {
+    try {
+      const tasks = await storage.getArchivedTasks();
+      res.json(tasks);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch archived tasks" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
