@@ -2122,7 +2122,7 @@ export default function ListTree() {
                                 {renderEditableDeadline(goal.id, 'goal', goal.deadline)}
                               </div>
                               <div className="col-span-1">
-                                {renderEditableAssignee(goal.id, 'goal', goal.assigneeIds && goal.assigneeIds.length > 0 ? (users as SafeUser[])?.find(u => u.id === goal.assigneeIds![0]) || null : null, undefined, goal.assigneeIds)}
+                                {renderEditableAssignee(goal.id, 'goal', goal.assignees && goal.assignees.length > 0 ? goal.assignees[0] : null, undefined, goal.assigneeIds)}
                               </div>
                               <div className="col-span-2">
                                 {renderEditableLabel(goal.id, 'goal', goal.labels || [])}

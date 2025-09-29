@@ -831,12 +831,25 @@ export class MemStorage implements IStorage {
         tasksWithAssignees.push({ ...task, assignees });
       }
       
+      // Add assignees info to goal
+      const goalAssignees: SafeUser[] = [];
+      if (goal.assigneeIds && Array.isArray(goal.assigneeIds)) {
+        for (const assigneeId of goal.assigneeIds) {
+          const assigneeUser = await this.getUser(assigneeId);
+          if (assigneeUser) {
+            const { password, ...safeAssignee } = assigneeUser;
+            goalAssignees.push(safeAssignee);
+          }
+        }
+      }
+      
       goalsWithTasks.push({
         ...goal,
         tasks: tasksWithAssignees,
         totalTasks: goalTasks.length,
         completedTasks: completedTasks.length,
         progressPercentage: Math.round(progressPercentage),
+        assignees: goalAssignees,
       });
     }
     
@@ -875,12 +888,25 @@ export class MemStorage implements IStorage {
       tasksWithAssignees.push({ ...task, assignees });
     }
     
+    // Add assignees info to goal
+    const goalAssignees: SafeUser[] = [];
+    if (goal.assigneeIds && Array.isArray(goal.assigneeIds)) {
+      for (const assigneeId of goal.assigneeIds) {
+        const assigneeUser = await this.getUser(assigneeId);
+        if (assigneeUser) {
+          const { password, ...safeAssignee } = assigneeUser;
+          goalAssignees.push(safeAssignee);
+        }
+      }
+    }
+    
     return {
       ...goal,
       tasks: tasksWithAssignees,
       totalTasks: goalTasks.length,
       completedTasks: completedTasks.length,
       progressPercentage: Math.round(progressPercentage),
+      assignees: goalAssignees,
     };
   }
 
@@ -1896,9 +1922,15 @@ export class DrizzleStorage implements IStorage {
           })
         );
         
+        // Add assignees info to goal
+        const goalAssignees = goal.assigneeIds?.length > 0 
+          ? await this.getUsersByIds(goal.assigneeIds)
+          : [];
+        
         return {
           ...goal,
-          tasks: tasksWithAssignees
+          tasks: tasksWithAssignees,
+          assignees: goalAssignees
         };
       })
     );
@@ -1983,9 +2015,15 @@ export class DrizzleStorage implements IStorage {
           })
         );
         
+        // Add assignees info to goal
+        const goalAssignees = goal.assigneeIds?.length > 0 
+          ? await this.getUsersByIds(goal.assigneeIds)
+          : [];
+        
         return {
           ...goal,
-          tasks: tasksWithAssignees
+          tasks: tasksWithAssignees,
+          assignees: goalAssignees
         };
       })
     );
