@@ -544,11 +544,11 @@ export default function TaskDetail() {
                       </SelectContent>
                     </Select>
                   ) : (
-                    <p className="mt-1" data-testid="text-task-status">
+                    <div className="mt-1" data-testid="text-task-status">
                       <Badge variant={getStatusBadgeVariant(task.status)}>
                         {task.status}
                       </Badge>
-                    </p>
+                    </div>
                   )}
                 </div>
 
