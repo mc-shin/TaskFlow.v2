@@ -253,6 +253,32 @@ export default function GoalDetail() {
   const inProgressTasksStats = goalTasksStats.filter(task => task.status === '진행중');
   const pendingTasksStats = goalTasksStats.filter(task => task.status === '진행전');
 
+  // Calculate goal progress based on task progress
+  const averageGoalProgress = goalTasksStats.length > 0 
+    ? Math.round(goalTasksStats.reduce((sum, task) => sum + (task.progress || 0), 0) / goalTasksStats.length)
+    : 0;
+
+  // Calculate status based on progress percentage
+  const getCalculatedStatus = (progress: number, currentStatus?: string): string => {
+    // "이슈" 상태는 진행도와 상관없이 우선적으로 표시
+    if (currentStatus === '이슈') {
+      return '이슈';
+    }
+    
+    // 진행도 기반 상태 계산
+    if (progress === 0) {
+      return '진행전';
+    } else if (progress >= 10 && progress < 100) {
+      return '진행중';
+    } else if (progress === 100) {
+      return '완료';
+    } else {
+      return '진행전';
+    }
+  };
+
+  const calculatedStatus = getCalculatedStatus(averageGoalProgress, goal?.status || undefined);
+
   return (
     <>
       {/* Header */}
@@ -518,37 +544,23 @@ export default function GoalDetail() {
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">상태</label>
-                  {isEditing && !isFromList() ? (
-                    <Select
-                      value={editedGoal.status ?? goal.status ?? "진행전"}
-                      onValueChange={(value) => setEditedGoal(prev => ({ ...prev, status: value }))}
+                  <label className="text-sm font-medium text-muted-foreground">상태 (진행도 기반 자동 계산)</label>
+                  <div className="mt-1">
+                    <Badge 
+                      variant={
+                        calculatedStatus === "완료" ? "default" : 
+                        calculatedStatus === "진행중" ? "secondary" : 
+                        calculatedStatus === "이슈" ? "issue" :
+                        "outline"
+                      }
+                      data-testid="badge-goal-status"
                     >
-                      <SelectTrigger className="mt-1 h-10" data-testid="select-goal-status">
-                        <SelectValue placeholder="상태를 선택하세요" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="진행전">진행전</SelectItem>
-                        <SelectItem value="진행중">진행중</SelectItem>
-                        <SelectItem value="완료">완료</SelectItem>
-                        <SelectItem value="이슈">이슈</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <div className="mt-1">
-                      <Badge 
-                        variant={
-                          goal.status === "완료" ? "default" : 
-                          goal.status === "진행중" ? "secondary" : 
-                          goal.status === "이슈" ? "issue" :
-                          "outline"
-                        }
-                        data-testid="badge-goal-status"
-                      >
-                        {goal.status ?? "진행전"}
-                      </Badge>
-                    </div>
-                  )}
+                      {calculatedStatus}
+                    </Badge>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      진행도 {averageGoalProgress}% → {calculatedStatus}
+                    </p>
+                  </div>
                 </div>
 
                 <div>
