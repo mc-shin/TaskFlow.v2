@@ -274,6 +274,7 @@ export default function GoalDetail() {
     ? Math.round(goalTasksStats.reduce((sum, task) => sum + getTaskProgress(task), 0) / goalTasksStats.length)
     : 0;
 
+
   // Calculate status based on progress percentage
   const getCalculatedStatus = (progress: number, currentStatus?: string): string => {
     // "이슈" 상태는 진행도와 상관없이 우선적으로 표시
@@ -808,11 +809,11 @@ export default function GoalDetail() {
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-2xl font-bold" data-testid="text-progress-percentage">
-                      {goal.progressPercentage || 0}%
+                      {averageGoalProgress}%
                     </span>
                   </div>
                   <Progress 
-                    value={goal.progressPercentage || 0} 
+                    value={averageGoalProgress} 
                     className="h-3"
                     data-testid="progress-bar"
                   />
@@ -906,7 +907,7 @@ export default function GoalDetail() {
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">전체 작업</span>
                   <span className="font-medium" data-testid="text-total-tasks">
-                    {goal.totalTasks || 0}개
+                    {goalTasksStats.length}개
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
