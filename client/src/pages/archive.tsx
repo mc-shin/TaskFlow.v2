@@ -356,38 +356,40 @@ export default function Archive() {
             </div>
           ) : (
             <div className="divide-y">
-              {/* Archived Projects */}
-              {mergedArchivedData().map((project: any) => (
-                <div key={project.id}>
-                  {/* Project Row */}
-                  <div className="p-3 hover:bg-muted/50 transition-colors">
-                    <div className="grid grid-cols-12 gap-4 items-center">
-                      <div className="col-span-4 flex items-center gap-2">
-                        <Checkbox
-                          checked={selectedItems.has(project.id)}
-                          onCheckedChange={() => toggleItemSelection(project.id)}
-                          data-testid={`checkbox-project-${project.id}`}
-                        />
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 w-6 p-0"
-                          onClick={() => toggleProject(project.id)}
-                        >
-                          {expandedProjects.has(project.id) ? (
-                            <ChevronDown className="w-4 h-4" />
-                          ) : (
-                            <ChevronRight className="w-4 h-4" />
-                          )}
-                        </Button>
-                        <FolderOpen className="w-4 h-4 text-blue-600" />
-                        <span className="font-medium" data-testid={`text-project-name-${project.id}`}>
-                          {project.name}
-                        </span>
-                        <Badge variant="outline" className="text-xs">
-                          {project.code}
-                        </Badge>
-                      </div>
+              {/* Render all archived items */}
+              {mergedArchivedData().map((item: any) => {
+                if (item.type === 'project') {
+                  return (
+                    <div key={item.id}>
+                      {/* Project Row */}
+                      <div className="p-3 hover:bg-muted/50 transition-colors">
+                        <div className="grid grid-cols-12 gap-4 items-center">
+                          <div className="col-span-4 flex items-center gap-2">
+                            <Checkbox
+                              checked={selectedItems.has(item.id)}
+                              onCheckedChange={() => toggleItemSelection(item.id)}
+                              data-testid={`checkbox-project-${item.id}`}
+                            />
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 w-6 p-0"
+                              onClick={() => toggleProject(item.id)}
+                            >
+                              {expandedProjects.has(item.id) ? (
+                                <ChevronDown className="w-4 h-4" />
+                              ) : (
+                                <ChevronRight className="w-4 h-4" />
+                              )}
+                            </Button>
+                            <FolderOpen className="w-4 h-4 text-blue-600" />
+                            <span className="font-medium" data-testid={`text-project-name-${item.id}`}>
+                              {item.name}
+                            </span>
+                            <Badge variant="outline" className="text-xs">
+                              {item.code}
+                            </Badge>
+                          </div>
                       <div className="col-span-1">
                         <span className={getDDayColorClass(project.deadline)}>
                           {formatDeadline(project.deadline)}
@@ -480,17 +482,6 @@ export default function Archive() {
                                 <span className="font-medium" data-testid={`text-goal-title-${goal.id}`}>
                                   {goal.title}
                                 </span>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => unarchiveGoalMutation.mutate(goal.id)}
-                                  disabled={unarchiveGoalMutation.isPending}
-                                  className="ml-2"
-                                  data-testid={`button-restore-goal-${goal.id}`}
-                                >
-                                  <Undo2 className="h-4 w-4 mr-1" />
-                                  복원
-                                </Button>
                               </div>
                               <div className="col-span-1">
                                 <span className={getDDayColorClass(goal.deadline)}>
@@ -570,17 +561,6 @@ export default function Archive() {
                                       <span className="font-medium" data-testid={`text-task-title-${task.id}`}>
                                         {task.title}
                                       </span>
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => unarchiveTaskMutation.mutate(task.id)}
-                                        disabled={unarchiveTaskMutation.isPending}
-                                        className="ml-2"
-                                        data-testid={`button-restore-task-${task.id}`}
-                                      >
-                                        <Undo2 className="h-4 w-4 mr-1" />
-                                        복원
-                                      </Button>
                                     </div>
                                     <div className="col-span-1">
                                       <span className={getDDayColorClass(task.deadline)}>
@@ -671,17 +651,6 @@ export default function Archive() {
                       <span className="font-medium" data-testid={`text-goal-title-${goal.id}`}>
                         {goal.title}
                       </span>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => unarchiveGoalMutation.mutate(goal.id)}
-                        disabled={unarchiveGoalMutation.isPending}
-                        className="ml-2"
-                        data-testid={`button-restore-goal-${goal.id}`}
-                      >
-                        <Undo2 className="h-4 w-4 mr-1" />
-                        복원
-                      </Button>
                     </div>
                     <div className="col-span-1">
                       <span className={getDDayColorClass(goal.deadline)}>
@@ -760,17 +729,6 @@ export default function Archive() {
                       <span className="font-medium" data-testid={`text-task-title-${task.id}`}>
                         {task.title}
                       </span>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => unarchiveTaskMutation.mutate(task.id)}
-                        disabled={unarchiveTaskMutation.isPending}
-                        className="ml-2"
-                        data-testid={`button-restore-task-${task.id}`}
-                      >
-                        <Undo2 className="h-4 w-4 mr-1" />
-                        복원
-                      </Button>
                     </div>
                     <div className="col-span-1">
                       <span className={getDDayColorClass(task.deadline)}>
