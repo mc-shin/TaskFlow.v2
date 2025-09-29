@@ -24,13 +24,11 @@ import { parse } from "date-fns";
 import { mapPriorityToLabel, getPriorityBadgeVariant } from "@/lib/priority-utils";
 
 export default function ListTree() {
-  const [cacheKey, setCacheKey] = useState(Date.now());
-  
   const { data: projects, isLoading, error } = useQuery({
-    queryKey: ["/api/projects", { t: cacheKey }],
-    queryFn: () => fetch(`/api/projects?t=${cacheKey}`).then(res => res.json()),
+    queryKey: ["/api/projects"],
+    queryFn: () => fetch("/api/projects").then(res => res.json()),
     refetchInterval: 10000, // 실시간 업데이트를 위해 10초마다 자동 갱신
-    staleTime: 0, // 즉시 stale 상태로 만들어 항상 새로운 데이터 요청
+    staleTime: 300000, // 5분간 캐시 유지하여 즉시 데이터 표시
     refetchOnWindowFocus: true, // 창 포커스 시에도 갱신
   });
 
@@ -114,17 +112,12 @@ export default function ListTree() {
   // Local state to track completed items
   const [completedItems, setCompletedItems] = useState<Set<string>>(new Set());
 
-  // Load workspace name from localStorage and force cache refresh
+  // Load workspace name from localStorage
   useEffect(() => {
     const storedWorkspaceName = localStorage.getItem("workspaceName");
     if (storedWorkspaceName) {
       setWorkspaceName(storedWorkspaceName);
     }
-    
-    // Force cache refresh on page load to ensure latest data
-    queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
-    queryClient.invalidateQueries({ queryKey: ["/api/goals"] });
-    setCacheKey(Date.now());
     
     // Listen for workspace name updates
     const handleWorkspaceNameUpdate = () => {
@@ -171,7 +164,7 @@ export default function ListTree() {
     queryKey: ["/api/users", { workspace: true }],
     queryFn: () => fetch('/api/users?workspace=true').then(res => res.json()),
     refetchInterval: 10000, // 실시간 업데이트를 위해 10초마다 자동 갱신
-    staleTime: 0, // 즉시 stale 상태로 만들어 항상 새로운 데이터 요청
+    staleTime: 300000, // 5분간 캐시 유지하여 즉시 데이터 표시
     refetchOnWindowFocus: true, // 창 포커스 시에도 갱신
   });
 

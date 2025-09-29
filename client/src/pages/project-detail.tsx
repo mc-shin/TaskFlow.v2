@@ -530,11 +530,6 @@ export default function ProjectDetail() {
                       >
                         {project.status ?? "진행전"}
                       </Badge>
-                      {isEditing && isFromList() && (
-                        <div className="text-xs text-muted-foreground mt-1">
-                          리스트 페이지에서 상태를 관리하세요
-                        </div>
-                      )}
                     </div>
                   )}
                 </div>

@@ -11,7 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { ArrowLeft, Edit, Save, X, Circle, Target, FolderOpen, Calendar, User, Clock, Trash2, Tag, Paperclip, Download } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useLocation, useRoute } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { ObjectUploader } from "@/components/ObjectUploader";
@@ -47,6 +47,28 @@ export default function TaskDetail() {
 
   const { data: users } = useQuery({
     queryKey: ["/api/users"],
+  });
+
+  // Calculate parentProject ID for useQuery
+  const parentProjectId = useMemo(() => {
+    if (!projects || !taskId) return undefined;
+    
+    for (const project of (projects as ProjectWithDetails[])) {
+      for (const goal of project.goals || []) {
+        const foundTask = goal.tasks?.find(t => t.id === taskId);
+        if (foundTask) {
+          return project.id;
+        }
+      }
+    }
+    return undefined;
+  }, [projects, taskId]);
+
+  // Get accepted invitations for the project to filter assignee candidates
+  const { data: acceptedInvitations } = useQuery({
+    queryKey: ["/api/invitations/projects", parentProjectId],
+    queryFn: () => fetch(`/api/invitations/projects/${parentProjectId}`).then(res => res.json()),
+    enabled: !!parentProjectId,
   });
 
   // Find the task and its parent goal/project
@@ -819,7 +841,17 @@ export default function TaskDetail() {
                   <div className="space-y-3">
                     <p className="text-sm font-medium">담당자 선택</p>
                     <div className="space-y-2 max-h-48 overflow-y-auto">
-                      {Array.isArray(users) ? (users as SafeUser[]).map((user) => {
+                      {Array.isArray(users) ? (users as SafeUser[]).filter((user) => {
+                        // Filter to only show users who have accepted invitations to this project
+                        if (!Array.isArray(acceptedInvitations)) {
+                          // If no accepted invitations data, show no users
+                          return false;
+                        }
+                        const acceptedEmails = (acceptedInvitations as any[])
+                          .filter(inv => inv.status === 'accepted')
+                          .map(inv => inv.inviteeEmail);
+                        return acceptedEmails.includes(user.email);
+                      }).map((user) => {
                         const currentAssigneeIds = editedTask.assigneeIds ?? task.assigneeIds ?? [];
                         const isSelected = currentAssigneeIds.includes(user.id);
                         
