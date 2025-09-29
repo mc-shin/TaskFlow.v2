@@ -314,38 +314,6 @@ export default function Archive() {
       {/* Main Content */}
       <main className="flex-1 p-6 overflow-auto" data-testid="main-content">
 
-        {/* Project Members Section - matching list page */}
-        <div className="mb-6">
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <h3 className="text-lg font-semibold">프로젝트 참여자</h3>
-                  <div className="flex items-center gap-2">
-                    {(() => {
-                      // Show all system users in project participants for real-time updates
-                      // This ensures new users appear immediately when they join the system
-                      const uniqueMembers = (users as SafeUser[]) || [];
-                      
-                      return uniqueMembers.map(member => (
-                        <div key={member.id} className="flex items-center gap-2" data-testid={`member-${member.id}`}>
-                          <Avatar className="h-8 w-8">
-                            <AvatarFallback className="bg-primary text-primary-foreground text-sm">
-                              {member.initials}
-                            </AvatarFallback>
-                          </Avatar>
-                        </div>
-                      ));
-                    })()}
-                  </div>
-                </div>
-                <Badge variant="secondary" data-testid="text-archive-count">
-                  {totalArchivedCount}개 보관됨
-                </Badge>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
 
       {/* Table Header */}
       <div className="bg-muted/30 p-3 rounded-t-lg border">
