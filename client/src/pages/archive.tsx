@@ -243,26 +243,55 @@ export default function Archive() {
     }
   };
 
-  // Merge all archived items into projects structure for hierarchical display
+  // Merge all archived items into a comprehensive hierarchical structure
   const mergedArchivedData = () => {
     const projects = archivedProjects || [];
     const goals = archivedGoals || [];
     const tasks = archivedTasks || [];
 
-    // Add orphaned goals and tasks to projects
-    return projects.map((project: any) => ({
-      ...project,
-      goals: [
-        ...(project.goals || []),
-        ...goals.filter((goal: any) => goal.projectId === project.id)
-      ].map((goal: any) => ({
+    // Create a comprehensive structure with all archived items
+    const result = [];
+
+    // Add archived projects with their goals and tasks
+    projects.forEach((project: any) => {
+      const projectGoals = goals.filter((goal: any) => goal.projectId === project.id);
+      const projectGoalsWithTasks = projectGoals.map((goal: any) => ({
         ...goal,
-        tasks: [
-          ...(goal.tasks || []),
-          ...tasks.filter((task: any) => task.goalId === goal.id)
-        ]
-      }))
-    }));
+        tasks: tasks.filter((task: any) => task.goalId === goal.id)
+      }));
+      
+      result.push({
+        ...project,
+        type: 'project',
+        goals: projectGoalsWithTasks
+      });
+    });
+
+    // Add orphaned goals (goals whose projects are not archived)
+    const orphanedGoals = goals.filter((goal: any) => 
+      !projects.some((project: any) => project.id === goal.projectId)
+    );
+    orphanedGoals.forEach((goal: any) => {
+      const goalTasks = tasks.filter((task: any) => task.goalId === goal.id);
+      result.push({
+        ...goal,
+        type: 'goal',
+        tasks: goalTasks
+      });
+    });
+
+    // Add orphaned tasks (tasks whose goals are not archived)
+    const orphanedTasks = tasks.filter((task: any) => 
+      !goals.some((goal: any) => goal.id === task.goalId)
+    );
+    orphanedTasks.forEach((task: any) => {
+      result.push({
+        ...task,
+        type: 'task'
+      });
+    });
+
+    return result;
   };
 
   // Calculate total archived items count
@@ -279,55 +308,40 @@ export default function Archive() {
   }
 
   return (
-    <div className="container mx-auto p-6">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <Button
+    <>
+      {/* Header - Same as list page */}
+      <header className="h-16 bg-card border-b border-border flex items-center justify-between px-6">
+        <div>
+          <h1 className="text-xl font-semibold" data-testid="header-title">보관함</h1>
+          <p className="text-sm text-muted-foreground" data-testid="header-subtitle">{totalArchivedCount}개 항목이 보관되어 있습니다</p>
+        </div>
+        <div className="flex items-center space-x-4">
+          <Button 
             variant="ghost"
-            size="sm"
-            onClick={() => setLocation("/workspace/app/list")}
-            className="text-muted-foreground hover:text-foreground"
-            data-testid="button-back"
+            onClick={() => setLocation('/workspace/app/list')}
+            data-testid="button-back-to-list"
           >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            뒤로
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            리스트로 돌아가기
           </Button>
-          <h1 className="text-3xl font-bold" data-testid="text-archive-title">보관함</h1>
-          <Badge variant="secondary" data-testid="text-archive-count">
-            {totalArchivedCount}개
-          </Badge>
         </div>
+      </header>
 
-        {selectedItems.size > 0 && (
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">
-              {selectedItems.size}개 선택됨
-            </span>
-            <Button
-              onClick={restoreSelectedItems}
-              disabled={unarchiveProjectMutation.isPending || unarchiveGoalMutation.isPending || unarchiveTaskMutation.isPending}
-              data-testid="button-restore-selected"
-            >
-              <Undo2 className="h-4 w-4 mr-2" />
-              선택 항목 복원
-            </Button>
+      {/* Main Content */}
+      <main className="flex-1 p-6 overflow-auto" data-testid="main-content">
+
+        {/* Table Header */}
+        <div className="bg-muted/30 p-3 rounded-t-lg border">
+          <div className="grid grid-cols-12 gap-4 text-sm font-medium text-muted-foreground">
+            <div className="col-span-4">이름</div>
+            <div className="col-span-1">마감일</div>
+            <div className="col-span-1">담당자</div>
+            <div className="col-span-2">라벨</div>
+            <div className="col-span-1">상태</div>
+            <div className="col-span-2">진행도</div>
+            <div className="col-span-1">우선순위</div>
           </div>
-        )}
-      </div>
-
-      {/* Table Header */}
-      <div className="bg-muted/30 p-3 rounded-t-lg border">
-        <div className="grid grid-cols-12 gap-4 text-sm font-medium text-muted-foreground">
-          <div className="col-span-4">이름</div>
-          <div className="col-span-1">마감일</div>
-          <div className="col-span-1">담당자</div>
-          <div className="col-span-2">라벨</div>
-          <div className="col-span-1">상태</div>
-          <div className="col-span-2">진행도</div>
-          <div className="col-span-1">우선순위</div>
         </div>
-      </div>
 
       {/* Content */}
       <Card className="rounded-t-none">
@@ -373,17 +387,6 @@ export default function Archive() {
                         <Badge variant="outline" className="text-xs">
                           {project.code}
                         </Badge>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => unarchiveProjectMutation.mutate(project.id)}
-                          disabled={unarchiveProjectMutation.isPending}
-                          className="ml-2"
-                          data-testid={`button-restore-project-${project.id}`}
-                        >
-                          <Undo2 className="h-4 w-4 mr-1" />
-                          복원
-                        </Button>
                       </div>
                       <div className="col-span-1">
                         <span className={getDDayColorClass(project.deadline)}>
@@ -839,6 +842,8 @@ export default function Archive() {
           )}
         </CardContent>
       </Card>
-    </div>
+
+      </main>
+    </>
   );
 }
