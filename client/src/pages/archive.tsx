@@ -279,42 +279,73 @@ export default function Archive() {
   }
 
   return (
-    <div className="container mx-auto p-6">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setLocation("/workspace/app/list")}
-            className="text-muted-foreground hover:text-foreground"
-            data-testid="button-back"
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            뒤로
-          </Button>
-          <h1 className="text-3xl font-bold" data-testid="text-archive-title">보관함</h1>
-          <Badge variant="secondary" data-testid="text-archive-count">
-            {totalArchivedCount}개
-          </Badge>
-        </div>
-
-        {selectedItems.size > 0 && (
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">
-              {selectedItems.size}개 선택됨
-            </span>
-            <Button
-              onClick={restoreSelectedItems}
-              disabled={unarchiveProjectMutation.isPending || unarchiveGoalMutation.isPending || unarchiveTaskMutation.isPending}
-              data-testid="button-restore-selected"
-            >
-              <Undo2 className="h-4 w-4 mr-2" />
-              선택 항목 복원
-            </Button>
+    <div className="min-h-screen bg-background flex flex-col">
+      {/* Header - matching list page exactly */}
+      <header className="border-b p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-xl font-semibold" data-testid="header-title">보관함</h1>
+            <p className="text-sm text-muted-foreground" data-testid="header-subtitle">보관된 프로젝트, 목표, 작업을 관리합니다</p>
           </div>
-        )}
-      </div>
+          <div className="flex items-center space-x-4">
+            <Button 
+              variant="default"
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+              onClick={() => setLocation('/workspace/app/list')}
+              data-testid="button-list-page"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              리스트로 돌아가기
+            </Button>
+            {selectedItems.size > 0 && (
+              <Button
+                onClick={restoreSelectedItems}
+                disabled={unarchiveProjectMutation.isPending || unarchiveGoalMutation.isPending || unarchiveTaskMutation.isPending}
+                data-testid="button-restore-selected"
+              >
+                <Undo2 className="h-4 w-4 mr-2" />
+                선택 항목 복원
+              </Button>
+            )}
+          </div>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="flex-1 p-6 overflow-auto" data-testid="main-content">
+
+        {/* Project Members Section - matching list page */}
+        <div className="mb-6">
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <h3 className="text-lg font-semibold">프로젝트 참여자</h3>
+                  <div className="flex items-center gap-2">
+                    {(() => {
+                      // Show all system users in project participants for real-time updates
+                      // This ensures new users appear immediately when they join the system
+                      const uniqueMembers = (users as SafeUser[]) || [];
+                      
+                      return uniqueMembers.map(member => (
+                        <div key={member.id} className="flex items-center gap-2" data-testid={`member-${member.id}`}>
+                          <Avatar className="h-8 w-8">
+                            <AvatarFallback className="bg-primary text-primary-foreground text-sm">
+                              {member.initials}
+                            </AvatarFallback>
+                          </Avatar>
+                        </div>
+                      ));
+                    })()}
+                  </div>
+                </div>
+                <Badge variant="secondary" data-testid="text-archive-count">
+                  {totalArchivedCount}개 보관됨
+                </Badge>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
       {/* Table Header */}
       <div className="bg-muted/30 p-3 rounded-t-lg border">
@@ -839,6 +870,8 @@ export default function Archive() {
           )}
         </CardContent>
       </Card>
+
+      </main>
     </div>
   );
 }
