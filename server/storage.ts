@@ -1,7 +1,7 @@
 import { type User, type InsertUser, type Task, type InsertTask, type Activity, type InsertActivity, type TaskWithAssignees, type ActivityWithDetails, type Project, type InsertProject, type ProjectWithOwners, type UserWithStats, type SafeUser, type SafeUserWithStats, type SafeTaskWithAssignees, type SafeActivityWithDetails, type Meeting, type InsertMeeting, type MeetingComment, type InsertMeetingComment, type MeetingAttachment, type InsertMeetingAttachment, type MeetingCommentWithAuthor, type MeetingWithDetails, type Goal, type InsertGoal, type GoalWithTasks, type ProjectWithDetails, type Attachment, type InsertAttachment, type Comment, type InsertComment, type CommentWithAuthor, type Invitation, type InsertInvitation, users, projects, goals, tasks, activities, meetings, meetingComments, meetingAttachments, attachments, comments, invitations } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { drizzle } from "drizzle-orm/neon-http";
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, sql, asc } from "drizzle-orm";
 import { neon } from "@neondatabase/serverless";
 
 export interface IStorage {
@@ -1764,7 +1764,7 @@ export class DrizzleStorage implements IStorage {
 
   // Project methods
   async getAllProjects(): Promise<ProjectWithOwners[]> {
-    const projectResults = await this.db.select().from(projects);
+    const projectResults = await this.db.select().from(projects).orderBy(projects.createdAt, projects.id);
     
     const projectsWithOwners = await Promise.all(
       projectResults.map(async (project) => {
@@ -1783,17 +1783,17 @@ export class DrizzleStorage implements IStorage {
   }
 
   async getAllProjectsWithDetails(): Promise<ProjectWithDetails[]> {
-    const projectResults = await this.db.select().from(projects);
+    const projectResults = await this.db.select().from(projects).orderBy(projects.createdAt, projects.id);
     
     const projectsWithDetails = await Promise.all(
       projectResults.map(async (project) => {
         // Get goals for this project
-        const projectGoals = await this.db.select().from(goals).where(eq(goals.projectId, project.id));
+        const projectGoals = await this.db.select().from(goals).where(eq(goals.projectId, project.id)).orderBy(goals.createdAt, goals.id);
         
         // Get goals with their tasks
         const goalsWithTasks = await Promise.all(
           projectGoals.map(async (goal) => {
-            const goalTasks = await this.db.select().from(tasks).where(eq(tasks.goalId, goal.id));
+            const goalTasks = await this.db.select().from(tasks).where(eq(tasks.goalId, goal.id)).orderBy(tasks.createdAt, tasks.id);
             
             const tasksWithAssignees = await Promise.all(
               goalTasks.map(async (task) => {
@@ -1877,11 +1877,11 @@ export class DrizzleStorage implements IStorage {
 
   // Goal methods
   async getAllGoals(): Promise<GoalWithTasks[]> {
-    const goalResults = await this.db.select().from(goals);
+    const goalResults = await this.db.select().from(goals).orderBy(goals.createdAt, goals.id);
     
     const goalsWithTasks = await Promise.all(
       goalResults.map(async (goal) => {
-        const goalTasks = await this.db.select().from(tasks).where(eq(tasks.goalId, goal.id));
+        const goalTasks = await this.db.select().from(tasks).where(eq(tasks.goalId, goal.id)).orderBy(tasks.createdAt, tasks.id);
         
         const tasksWithAssignees = await Promise.all(
           goalTasks.map(async (task) => {
@@ -1911,7 +1911,7 @@ export class DrizzleStorage implements IStorage {
     if (!result[0]) return undefined;
     
     const goal = result[0];
-    const goalTasks = await this.db.select().from(tasks).where(eq(tasks.goalId, goal.id));
+    const goalTasks = await this.db.select().from(tasks).where(eq(tasks.goalId, goal.id)).orderBy(tasks.createdAt, tasks.id);
     
     const tasksWithAssignees = await Promise.all(
       goalTasks.map(async (task) => {
@@ -1964,11 +1964,11 @@ export class DrizzleStorage implements IStorage {
   }
 
   async getGoalsByProject(projectId: string): Promise<GoalWithTasks[]> {
-    const goalResults = await this.db.select().from(goals).where(eq(goals.projectId, projectId));
+    const goalResults = await this.db.select().from(goals).where(eq(goals.projectId, projectId)).orderBy(goals.createdAt, goals.id);
     
     const goalsWithTasks = await Promise.all(
       goalResults.map(async (goal) => {
-        const goalTasks = await this.db.select().from(tasks).where(eq(tasks.goalId, goal.id));
+        const goalTasks = await this.db.select().from(tasks).where(eq(tasks.goalId, goal.id)).orderBy(tasks.createdAt, tasks.id);
         
         const tasksWithAssignees = await Promise.all(
           goalTasks.map(async (task) => {
@@ -1995,7 +1995,7 @@ export class DrizzleStorage implements IStorage {
 
   // Task methods
   async getAllTasks(): Promise<SafeTaskWithAssignees[]> {
-    const taskResults = await this.db.select().from(tasks);
+    const taskResults = await this.db.select().from(tasks).orderBy(tasks.createdAt, tasks.id);
     
     const tasksWithAssignees = await Promise.all(
       taskResults.map(async (task) => {
@@ -2075,7 +2075,7 @@ export class DrizzleStorage implements IStorage {
   }
 
   async getTasksByProject(projectId: string): Promise<SafeTaskWithAssignees[]> {
-    const taskResults = await this.db.select().from(tasks).where(eq(tasks.projectId, projectId));
+    const taskResults = await this.db.select().from(tasks).where(eq(tasks.projectId, projectId)).orderBy(tasks.createdAt, tasks.id);
     
     const tasksWithAssignees = await Promise.all(
       taskResults.map(async (task) => {
@@ -2094,7 +2094,7 @@ export class DrizzleStorage implements IStorage {
   }
 
   async getTasksByGoal(goalId: string): Promise<SafeTaskWithAssignees[]> {
-    const taskResults = await this.db.select().from(tasks).where(eq(tasks.goalId, goalId));
+    const taskResults = await this.db.select().from(tasks).where(eq(tasks.goalId, goalId)).orderBy(tasks.createdAt, tasks.id);
     
     const tasksWithAssignees = await Promise.all(
       taskResults.map(async (task) => {
