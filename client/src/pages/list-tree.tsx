@@ -2244,7 +2244,7 @@ export default function ListTree() {
                 if (selectedProjectIds.length === 0) {
                   toast({
                     title: "보관 제한",
-                    description: "프로젝트 기준으로 이동이 가능합니다.",
+                    description: "프로젝트 단위로 이동해 주세요.",
                     variant: "destructive",
                   });
                   return;
@@ -2263,6 +2263,9 @@ export default function ListTree() {
                   for (const projectId of selectedProjectIds) {
                     await archiveProjectMutation.mutateAsync(projectId);
                   }
+                  
+                  // Force immediate data refresh to ensure archived projects disappear from list
+                  await queryClient.refetchQueries({ queryKey: ["/api/projects"] });
                   
                   toast({
                     title: "보관 완료",
