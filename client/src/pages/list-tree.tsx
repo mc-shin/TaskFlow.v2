@@ -1266,18 +1266,10 @@ export default function ListTree() {
           if (!project) return '진행전';
           
           if (project.goals && project.goals.length > 0) {
-            // 프로젝트 하위 목표들 진행도 합 / 프로젝트 하위 목표들 수로 계산
-            const goalProgressSum = project.goals.reduce((sum: number, goal: any) => {
-              const goalTasks = goal.tasks || [];
-              const goalProgress = goalTasks.length > 0 
-                ? goalTasks.reduce((taskSum: number, task: any) => taskSum + (task.progress || 0), 0) / goalTasks.length
-                : 0;
-              return sum + goalProgress;
-            }, 0);
-            const averageProgress = goalProgressSum / project.goals.length;
-            
-            if (averageProgress === 100) return '완료';
-            if (averageProgress > 0) return '진행중';
+            const allCompleted = project.goals.every((goal: any) => goal.progressPercentage === 100);
+            const anyStarted = project.goals.some((goal: any) => goal.progressPercentage > 0);
+            if (allCompleted) return '완료';
+            if (anyStarted) return '진행중';
             return '진행전';
           }
           
@@ -1300,12 +1292,14 @@ export default function ListTree() {
               const goal = project.goals.find((g: any) => g.id === itemId);
               if (goal) {
                 if (goal.tasks && goal.tasks.length > 0) {
-                  // 목표 하위 작업들 진행도 합 / 목표 하위 작업들 수로 계산
-                  const taskProgressSum = goal.tasks.reduce((sum: number, task: any) => sum + (task.progress || 0), 0);
-                  const averageProgress = taskProgressSum / goal.tasks.length;
-                  
-                  if (averageProgress === 100) return '완료';
-                  if (averageProgress > 0) return '진행중';
+                  const allCompleted = goal.tasks.every((task: any) => 
+                    task.progress === 100 || task.status === '완료'
+                  );
+                  const anyStarted = goal.tasks.some((task: any) => 
+                    (task.progress !== null && task.progress > 0) || task.status === '진행중'
+                  );
+                  if (allCompleted) return '완료';
+                  if (anyStarted) return '진행중';
                   return '진행전';
                 }
                 return '진행전';
