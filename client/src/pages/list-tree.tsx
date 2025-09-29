@@ -1900,7 +1900,7 @@ export default function ListTree() {
           <Button 
             variant="default"
             className="bg-purple-600 hover:bg-purple-700 text-white"
-            onClick={() => setLocation('/archive')}
+            onClick={() => setLocation('/workspace/app/archive')}
             data-testid="button-archive-page"
           >
             <Archive className="w-4 h-4 mr-2" />
