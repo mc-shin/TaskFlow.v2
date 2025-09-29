@@ -24,8 +24,11 @@ import { parse } from "date-fns";
 import { mapPriorityToLabel, getPriorityBadgeVariant } from "@/lib/priority-utils";
 
 export default function ListTree() {
+  const [cacheKey, setCacheKey] = useState(Date.now());
+  
   const { data: projects, isLoading, error } = useQuery({
-    queryKey: ["/api/projects"],
+    queryKey: ["/api/projects", { t: cacheKey }],
+    queryFn: () => fetch(`/api/projects?t=${cacheKey}`).then(res => res.json()),
     refetchInterval: 10000, // 실시간 업데이트를 위해 10초마다 자동 갱신
     staleTime: 0, // 즉시 stale 상태로 만들어 항상 새로운 데이터 요청
     refetchOnWindowFocus: true, // 창 포커스 시에도 갱신
@@ -111,12 +114,17 @@ export default function ListTree() {
   // Local state to track completed items
   const [completedItems, setCompletedItems] = useState<Set<string>>(new Set());
 
-  // Load workspace name from localStorage
+  // Load workspace name from localStorage and force cache refresh
   useEffect(() => {
     const storedWorkspaceName = localStorage.getItem("workspaceName");
     if (storedWorkspaceName) {
       setWorkspaceName(storedWorkspaceName);
     }
+    
+    // Force cache refresh on page load to ensure latest data
+    queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/goals"] });
+    setCacheKey(Date.now());
     
     // Listen for workspace name updates
     const handleWorkspaceNameUpdate = () => {
@@ -1236,14 +1244,15 @@ export default function ListTree() {
   };
 
   const renderEditableStatus = (itemId: string, type: 'project' | 'goal' | 'task', status: string, progress?: number) => {
-    // Check if this item was marked as completed locally
+    // Check if this item was marked as completed locally (only for interactive behavior)
     const isLocallyCompleted = completedItems.has(itemId);
     
-    // For status display, prioritize local completion state over database status
+    // For status display, use database status primarily 
     // "이슈" 상태는 progress와 독립적으로 표시
-    const displayStatus = isLocallyCompleted ? '완료' : 
-                         status === '이슈' ? '이슈' :
-                         (progress !== undefined ? getStatusFromProgress(progress) : status);
+    // For goals and projects, prioritize manual status over calculated progress-based status
+    const displayStatus = status === '이슈' ? '이슈' :
+                         (type === 'task' && progress !== undefined) ? getStatusFromProgress(progress) :
+                         status;
                          
     
     // For projects and goals, make status clickable to complete (except for "이슈" status)
@@ -1377,6 +1386,32 @@ export default function ListTree() {
                   status: calculatedStatus
                 } 
               });
+              
+              // 목표 취소 시 상위 프로젝트의 상태도 재계산하여 업데이트
+              const parentProject = (projects as ProjectWithDetails[])?.find(p => 
+                p.goals?.some(g => g.id === itemId)
+              );
+              
+              if (parentProject) {
+                // 프로젝트가 완료 상태였다면 재계산된 상태로 업데이트
+                if (parentProject.status === '완료' || completedItems.has(parentProject.id)) {
+                  const projectCalculatedStatus = getCalculatedStatus(parentProject.id, 'project', true);
+                  
+                  // 프로젝트 로컬 완료 상태도 제거
+                  setCompletedItems(prev => {
+                    const newSet = new Set(prev);
+                    newSet.delete(parentProject.id);
+                    return newSet;
+                  });
+                  
+                  await updateProjectMutation.mutateAsync({ 
+                    id: parentProject.id, 
+                    updates: { 
+                      status: projectCalculatedStatus
+                    } 
+                  });
+                }
+              }
               
               toast({
                 title: "목표 완료 취소",
@@ -2017,7 +2052,7 @@ export default function ListTree() {
                         {renderEditableLabel(project.id, 'project', project.labels || [])}
                       </div>
                       <div className="col-span-1">
-                        {renderEditableStatus(project.id, 'project', project.status || '', project.progressPercentage || 0)}
+                        {renderEditableStatus(project.id, 'project', project.status || '')}
                       </div>
                       <div className="col-span-2">
                         {(() => {
@@ -2101,7 +2136,7 @@ export default function ListTree() {
                                 {renderEditableLabel(goal.id, 'goal', goal.labels || [])}
                               </div>
                               <div className="col-span-1">
-                                {renderEditableStatus(goal.id, 'goal', goal.status || '', goal.progressPercentage || 0)}
+                                {renderEditableStatus(goal.id, 'goal', goal.status || '')}
                               </div>
                               <div className="col-span-2">
                                 {(() => {

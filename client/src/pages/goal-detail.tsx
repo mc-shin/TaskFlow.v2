@@ -70,14 +70,48 @@ export default function GoalDetail() {
     mutationFn: async (updates: Partial<GoalWithTasks>) => {
       return await apiRequest("PUT", `/api/goals/${goalId}`, updates);
     },
-    onSuccess: (data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+    onSuccess: async (data, variables) => {
+      // 목표 상태가 '완료'에서 다른 상태로 변경된 경우, 상위 프로젝트 상태도 재계산
+      if (goal?.status === '완료' && variables.status && variables.status !== '완료' && parentProject) {
+        // 상위 프로젝트도 '완료' 상태였다면 재계산하여 업데이트
+        if (parentProject.status === '완료') {
+          // 프로젝트의 다른 목표들이 모두 완료되었는지 확인
+          const otherGoalsAllComplete = parentProject.goals?.filter(g => g.id !== goalId).every(g => 
+            g.progressPercentage === 100 || g.status === '완료'
+          );
+          
+          // 현재 취소하는 목표를 제외하고는 모든 목표가 완료되어 있다면, 프로젝트를 '진행중'으로 변경
+          if (otherGoalsAllComplete) {
+            try {
+              await apiRequest("PUT", `/api/projects/${parentProject.id}`, { status: '진행중' });
+              toast({
+                title: "프로젝트 상태 업데이트",
+                description: "목표 변경으로 인해 프로젝트 상태가 '진행중'으로 변경되었습니다.",
+              });
+            } catch (error) {
+              console.error('프로젝트 상태 업데이트 실패:', error);
+            }
+          }
+        }
+      }
+      
+      // 강력한 캐시 갱신으로 확실한 데이터 동기화
+      await queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/goals"] });
+      
+      // 모든 캐시를 완전히 초기화
+      await queryClient.clear();
       setIsEditing(false);
       setEditedGoal({});
       toast({
         title: "목표 수정 완료",
         description: "목표가 성공적으로 수정되었습니다.",
       });
+      
+      // 페이지 새로고침으로 데이터 동기화 강제 실행
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
       
       // "이슈" 상태로 변경된 경우 추가 안내 토스트
       if (variables.status === '이슈' && goal?.status !== '이슈') {
