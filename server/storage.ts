@@ -749,6 +749,7 @@ export class MemStorage implements IStorage {
       status: insertProject.status || null,
       labels: insertProject.labels || [],
       ownerIds: insertProject.ownerIds || [],
+      isArchived: false,
       createdBy: createdBy || null,
       lastUpdatedBy: createdBy || null,
       createdAt: now,
@@ -932,6 +933,7 @@ export class MemStorage implements IStorage {
       status: insertGoal.status || null,
       labels: insertGoal.labels || [],
       assigneeIds: insertGoal.assigneeIds || [],
+      isArchived: false,
       createdBy: createdBy || null,
       lastUpdatedBy: createdBy || null,
       createdAt: now,
@@ -1087,6 +1089,7 @@ export class MemStorage implements IStorage {
       assigneeIds: insertTask.assigneeIds || [],
       projectId: finalProjectId,
       goalId: insertTask.goalId || null,
+      isArchived: false,
       createdBy: createdBy || null,
       lastUpdatedBy: createdBy || null,
       createdAt: now,
@@ -1576,7 +1579,7 @@ export class MemStorage implements IStorage {
     const project = this.projects.get(id);
     if (!project) return undefined;
     
-    const updatedProject = { ...project, isArchived: true, lastUpdatedBy, updatedAt: new Date() };
+    const updatedProject = { ...project, isArchived: true, lastUpdatedBy: lastUpdatedBy || null, updatedAt: new Date() };
     this.projects.set(id, updatedProject);
     return updatedProject;
   }
@@ -1585,7 +1588,7 @@ export class MemStorage implements IStorage {
     const project = this.projects.get(id);
     if (!project) return undefined;
     
-    const updatedProject = { ...project, isArchived: false, lastUpdatedBy, updatedAt: new Date() };
+    const updatedProject = { ...project, isArchived: false, lastUpdatedBy: lastUpdatedBy || null, updatedAt: new Date() };
     this.projects.set(id, updatedProject);
     return updatedProject;
   }
@@ -1594,7 +1597,7 @@ export class MemStorage implements IStorage {
     const goal = this.goals.get(id);
     if (!goal) return undefined;
     
-    const updatedGoal = { ...goal, isArchived: true, lastUpdatedBy, updatedAt: new Date() };
+    const updatedGoal = { ...goal, isArchived: true, lastUpdatedBy: lastUpdatedBy || null, updatedAt: new Date() };
     this.goals.set(id, updatedGoal);
     return updatedGoal;
   }
@@ -1603,7 +1606,7 @@ export class MemStorage implements IStorage {
     const goal = this.goals.get(id);
     if (!goal) return undefined;
     
-    const updatedGoal = { ...goal, isArchived: false, lastUpdatedBy, updatedAt: new Date() };
+    const updatedGoal = { ...goal, isArchived: false, lastUpdatedBy: lastUpdatedBy || null, updatedAt: new Date() };
     this.goals.set(id, updatedGoal);
     return updatedGoal;
   }
@@ -1612,7 +1615,7 @@ export class MemStorage implements IStorage {
     const task = this.tasks.get(id);
     if (!task) return undefined;
     
-    const updatedTask = { ...task, isArchived: true, lastUpdatedBy, updatedAt: new Date() };
+    const updatedTask = { ...task, isArchived: true, lastUpdatedBy: lastUpdatedBy || null, updatedAt: new Date() };
     this.tasks.set(id, updatedTask);
     return updatedTask;
   }
@@ -1621,7 +1624,7 @@ export class MemStorage implements IStorage {
     const task = this.tasks.get(id);
     if (!task) return undefined;
     
-    const updatedTask = { ...task, isArchived: false, lastUpdatedBy, updatedAt: new Date() };
+    const updatedTask = { ...task, isArchived: false, lastUpdatedBy: lastUpdatedBy || null, updatedAt: new Date() };
     this.tasks.set(id, updatedTask);
     return updatedTask;
   }
