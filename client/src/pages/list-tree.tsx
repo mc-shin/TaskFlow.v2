@@ -1236,9 +1236,13 @@ export default function ListTree() {
   };
 
   const renderEditableStatus = (itemId: string, type: 'project' | 'goal' | 'task', status: string, progress?: number) => {
-    // For status display, use database status directly
+    // Check if this item was marked as completed locally
+    const isLocallyCompleted = completedItems.has(itemId);
+    
+    // For status display, prioritize local completion state over database status
     // "이슈" 상태는 progress와 독립적으로 표시
-    const displayStatus = status === '이슈' ? '이슈' :
+    const displayStatus = isLocallyCompleted ? '완료' : 
+                         status === '이슈' ? '이슈' :
                          (progress !== undefined ? getStatusFromProgress(progress) : status);
                          
     
@@ -1246,13 +1250,13 @@ export default function ListTree() {
     if ((type === 'project' || type === 'goal') && displayStatus !== '이슈') {
       // Check if auto completion is allowed (all child items are 100% complete)
       const autoCompleteAllowed = canAutoComplete(itemId, type);
-      // Check if the item is completed based on database status
-      const isCompleted = status === '완료';
+      // Check if the item is actually completed (either in database or locally)
+      const isActuallyCompleted = status === '완료' || isLocallyCompleted;
       
       // Enable completion button if auto-completion is allowed OR if already completed
-      const isCompleteButtonEnabled = autoCompleteAllowed || isCompleted;
-      // Use database status for display
-      const isAlreadyCompleted = isCompleted;
+      const isCompleteButtonEnabled = autoCompleteAllowed || isActuallyCompleted;
+      // Consider both database and local completion state for button display
+      const isAlreadyCompleted = isActuallyCompleted;
       // Function to calculate what the status should be based on child progress
       const getCalculatedStatus = (itemId: string, type: 'project' | 'goal'): string => {
         if (!projects || !Array.isArray(projects)) return '진행전';
@@ -1308,17 +1312,47 @@ export default function ListTree() {
       };
 
       const handleCompleteClick = async () => {
-        // Check if it's already completed based on database status
-        const isCompleted = status === '완료';
-        
-        // Allow click if auto-completion is allowed OR if already completed
-        if (!autoCompleteAllowed && !isCompleted) {
+        // Allow click if auto-completion is allowed OR if already completed locally
+        if (!autoCompleteAllowed && !isLocallyCompleted) {
           return; // Not allowed to complete
         }
         
         try {
-          if (isCompleted) {
-            // This is a cancel operation - revert to calculated status
+          if (isActuallyCompleted) {
+            // This is a cancel operation - revert to calculated status and remove child items
+            setCompletedItems(prev => {
+              const newSet = new Set(prev);
+              newSet.delete(itemId);
+              
+              // Remove child items as well
+              if (type === 'project') {
+                // For project cancellation, remove all goals and tasks
+                const project = (projects as ProjectWithDetails[])?.find(p => p.id === itemId);
+                if (project?.goals) {
+                  project.goals.forEach(goal => {
+                    newSet.delete(goal.id);
+                    if (goal.tasks) {
+                      goal.tasks.forEach(task => newSet.delete(task.id));
+                    }
+                  });
+                }
+                if (project?.tasks) {
+                  project.tasks.forEach(task => newSet.delete(task.id));
+                }
+              } else if (type === 'goal') {
+                // For goal cancellation, remove only tasks under this goal
+                const project = (projects as ProjectWithDetails[])?.find(p => 
+                  p.goals?.some(g => g.id === itemId)
+                );
+                const goal = project?.goals?.find(g => g.id === itemId);
+                if (goal?.tasks) {
+                  goal.tasks.forEach(task => newSet.delete(task.id));
+                }
+              }
+              
+              return newSet;
+            });
+            
             const calculatedStatus = getCalculatedStatus(itemId, type);
             
             if (type === 'project') {
@@ -1348,6 +1382,8 @@ export default function ListTree() {
             }
           } else {
             // This is a complete operation
+            setCompletedItems(prev => new Set(Array.from(prev).concat(itemId)));
+            
             if (type === 'project') {
               await updateProjectMutation.mutateAsync({ 
                 id: itemId, 
@@ -1381,6 +1417,17 @@ export default function ListTree() {
           
         } catch (error) {
           console.error('Status update failed:', error);
+          
+          // Revert local state if the update failed
+          if (displayStatus === '완료' || isLocallyCompleted) {
+            setCompletedItems(prev => new Set(Array.from(prev).concat(itemId)));
+          } else {
+            setCompletedItems(prev => {
+              const newSet = new Set(prev);
+              newSet.delete(itemId);
+              return newSet;
+            });
+          }
           
           toast({
             title: "상태 변경 실패",

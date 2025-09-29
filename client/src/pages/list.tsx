@@ -177,25 +177,47 @@ export default function List() {
     // Don't allow interaction with '이슈' status
     if (currentStatus === '이슈') return;
     
+    const isLocallyCompleted = completedItems.has(itemId);
     const autoCompleteAllowed = canAutoComplete(itemId, type);
-    const isCompleted = currentStatus === '완료';
+    const isActuallyCompleted = currentStatus === '완료' || isLocallyCompleted;
     
     console.log('🔍 Status check:', { 
+      isLocallyCompleted, 
       autoCompleteAllowed, 
-      isCompleted,
-      currentStatus
+      isActuallyCompleted,
+      currentStatus,
+      completedItemsSize: completedItems.size,
+      completedItemsHasItem: completedItems.has(itemId)
     });
     
     // Enable completion button if auto-completion is allowed OR if already completed
-    if (!autoCompleteAllowed && !isCompleted) {
+    if (!autoCompleteAllowed && !isLocallyCompleted) {
       console.log('❌ Not allowed to complete - returning early');
       return; // Not allowed to complete
     }
     
     try {
-      if (isCompleted) {
+      if (isActuallyCompleted) {
         console.log('🚫 CANCEL operation triggered');
         // This is a cancel operation - revert to calculated status
+        setCompletedItems(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(itemId);
+          
+          // Remove child items as well for cancellation
+          if (type === 'project') {
+            // For project cancellation, remove all goals
+            const project = (projects as ProjectWithDetails[])?.find(p => p.id === itemId);
+            if (project?.goals) {
+              project.goals.forEach(goal => {
+                newSet.delete(goal.id);
+              });
+            }
+          }
+          
+          return newSet;
+        });
+        
         const calculatedStatus = getCalculatedStatus(itemId, type);
         console.log('📊 Calculated status for cancel:', calculatedStatus);
         
@@ -223,6 +245,8 @@ export default function List() {
       } else {
         console.log('✅ COMPLETE operation triggered');
         // This is a complete operation
+        setCompletedItems(prev => new Set(Array.from(prev).concat(itemId)));
+        
         if (type === 'project') {
           await updateProjectMutation.mutateAsync({ 
             id: itemId, 
@@ -257,27 +281,20 @@ export default function List() {
 
   // Render interactive status badge for projects and goals
   const renderInteractiveStatus = (itemId: string, type: 'project' | 'goal', status: string) => {
+    const isLocallyCompleted = completedItems.has(itemId);
+    const displayStatus = isLocallyCompleted ? '완료' : status;
     const autoCompleteAllowed = canAutoComplete(itemId, type);
-    const isCompleted = status === '완료';
-    const isClickable = status !== '이슈' && (autoCompleteAllowed || isCompleted);
-    
-    console.log('🎨 renderInteractiveStatus:', { 
-      itemId, 
-      type, 
-      status, 
-      autoCompleteAllowed, 
-      isCompleted,
-      isClickable
-    });
+    const isActuallyCompleted = status === '완료' || isLocallyCompleted;
+    const isClickable = displayStatus !== '이슈' && (autoCompleteAllowed || isActuallyCompleted);
     
     return (
       <Badge 
-        variant={getStatusBadgeVariant(status || "진행전")} 
+        variant={getStatusBadgeVariant(displayStatus || "진행전")} 
         className={`text-xs ${isClickable ? 'cursor-pointer hover:opacity-80' : ''}`}
         data-testid={`badge-${type}-status-${itemId}`}
-        onClick={isClickable ? () => handleStatusClick(itemId, type, status || '진행전') : undefined}
+        onClick={isClickable ? () => handleStatusClick(itemId, type, displayStatus || '진행전') : undefined}
       >
-        {status || "진행전"}
+        {displayStatus || "진행전"}
       </Badge>
     );
   };
