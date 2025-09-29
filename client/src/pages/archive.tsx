@@ -288,15 +288,6 @@ export default function Archive() {
             <p className="text-sm text-muted-foreground" data-testid="header-subtitle">보관된 프로젝트, 목표, 작업을 관리합니다</p>
           </div>
           <div className="flex items-center space-x-4">
-            <Button 
-              variant="default"
-              className="bg-blue-600 hover:bg-blue-700 text-white"
-              onClick={() => setLocation('/workspace/app/list')}
-              data-testid="button-list-page"
-            >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              리스트로 돌아가기
-            </Button>
             {selectedItems.size > 0 && (
               <Button
                 onClick={restoreSelectedItems}
@@ -307,6 +298,15 @@ export default function Archive() {
                 선택 항목 복원
               </Button>
             )}
+            <Button 
+              variant="default"
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+              onClick={() => setLocation('/workspace/app/list')}
+              data-testid="button-list-page"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              리스트로 돌아가기
+            </Button>
           </div>
         </div>
       </header>
