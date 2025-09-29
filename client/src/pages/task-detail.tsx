@@ -46,7 +46,8 @@ export default function TaskDetail() {
   });
 
   const { data: users } = useQuery({
-    queryKey: ["/api/users"],
+    queryKey: ["/api/users", { workspace: true }],
+    queryFn: () => fetch('/api/users?workspace=true').then(res => res.json()),
   });
 
   // Calculate parentProject ID for useQuery
@@ -94,9 +95,24 @@ export default function TaskDetail() {
       return await apiRequest("PUT", `/api/tasks/${taskId}`, updates);
     },
     onSuccess: (data, variables) => {
+      // Comprehensive cache invalidation for better synchronization
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/users", { workspace: true }] });
+      
+      // Additional predicate-based invalidation for related data
+      queryClient.invalidateQueries({ 
+        predicate: (query) => {
+          const key = query.queryKey[0] as string;
+          return key?.startsWith('/api/projects') || 
+                 key?.startsWith('/api/tasks') || 
+                 key?.startsWith('/api/users') ||
+                 key?.startsWith('/api/stats');
+        }
+      });
+      
       setIsEditing(false);
       setEditedTask({});
       toast({
@@ -841,75 +857,84 @@ export default function TaskDetail() {
                   <div className="space-y-3">
                     <p className="text-sm font-medium">담당자 선택</p>
                     <div className="space-y-2 max-h-48 overflow-y-auto">
-                      {Array.isArray(users) ? (users as SafeUser[]).filter((user) => {
-                        // Filter to only show users who have accepted invitations to this project
-                        if (!Array.isArray(acceptedInvitations)) {
-                          // If no accepted invitations data, show no users
-                          return false;
-                        }
-                        const acceptedEmails = (acceptedInvitations as any[])
-                          .filter(inv => inv.status === 'accepted')
-                          .map(inv => inv.inviteeEmail);
-                        return acceptedEmails.includes(user.email);
-                      }).map((user) => {
-                        const currentAssigneeIds = editedTask.assigneeIds ?? task.assigneeIds ?? [];
-                        const isSelected = currentAssigneeIds.includes(user.id);
-                        
-                        return (
-                          <div key={user.id} className="flex items-center space-x-2">
-                            <Checkbox
-                              id={`task-assignee-${user.id}`}
-                              checked={isSelected}
-                              onCheckedChange={(checked) => {
-                                const currentIds = editedTask.assigneeIds ?? task.assigneeIds ?? [];
-                                let newIds: string[];
-                                
-                                if (checked) {
-                                  newIds = [...currentIds, user.id];
-                                } else {
-                                  newIds = currentIds.filter(id => id !== user.id);
-                                }
-                                
-                                setEditedTask(prev => ({ ...prev, assigneeIds: newIds }));
-                              }}
-                              data-testid={`checkbox-task-assignee-${user.id}`}
-                            />
-                            <label
-                              htmlFor={`task-assignee-${user.id}`}
-                              className="flex items-center gap-2 cursor-pointer flex-1 p-2 rounded hover:bg-muted/50"
-                            >
-                              <Avatar className="w-6 h-6">
-                                <AvatarFallback className="text-xs">
-                                  {user.initials}
-                                </AvatarFallback>
-                              </Avatar>
-                              <span className="text-sm">{user.name}</span>
-                            </label>
-                          </div>
-                        );
-                      }) : null}
+                      {Array.isArray(users) && (users as SafeUser[]).length > 0 ? (
+                        (users as SafeUser[]).map((user) => {
+                          const currentAssigneeIds = editedTask.assigneeIds ?? task.assigneeIds ?? [];
+                          const isSelected = currentAssigneeIds.includes(user.id);
+                          
+                          return (
+                            <div key={user.id} className="flex items-center space-x-2">
+                              <Checkbox
+                                id={`task-assignee-${user.id}`}
+                                checked={isSelected}
+                                onCheckedChange={(checked) => {
+                                  const currentIds = editedTask.assigneeIds ?? task.assigneeIds ?? [];
+                                  let newIds: string[];
+                                  
+                                  if (checked) {
+                                    newIds = [...currentIds, user.id];
+                                  } else {
+                                    newIds = currentIds.filter(id => id !== user.id);
+                                  }
+                                  
+                                  setEditedTask(prev => ({ ...prev, assigneeIds: newIds }));
+                                }}
+                                data-testid={`checkbox-task-assignee-${user.id}`}
+                              />
+                              <label
+                                htmlFor={`task-assignee-${user.id}`}
+                                className="flex items-center gap-2 cursor-pointer flex-1 p-2 rounded hover:bg-muted/50"
+                              >
+                                <Avatar className="w-6 h-6">
+                                  <AvatarFallback className="text-xs">
+                                    {user.initials}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <span className="text-sm">{user.name}</span>
+                              </label>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <p className="text-muted-foreground">선택 가능한 담당자가 없습니다.</p>
+                      )}
                     </div>
                   </div>
                 ) : (
-                  task.assignees && task.assignees.length > 0 ? (
-                    <div className="space-y-2">
-                      {task.assignees.map((assignee, index) => (
-                        <div key={assignee.id} className="flex items-center gap-3">
-                          <Avatar>
-                            <AvatarFallback className="bg-primary text-primary-foreground">
-                              {assignee.initials}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <p className="font-medium" data-testid={`text-assignee-name-${index}`}>{assignee.name}</p>
-                            <p className="text-sm text-muted-foreground">@{assignee.username}</p>
+                  (() => {
+                    // Filter assignees to only show accepted project members (same as list page)
+                    const filteredAssignees = task.assignees?.filter(assignee => {
+                      if (!Array.isArray(acceptedInvitations)) {
+                        // If no accepted invitations data, show all assignees as fallback
+                        console.log('No acceptedInvitations data for display, showing all assignees');
+                        return true;
+                      }
+                      const acceptedEmails = (acceptedInvitations as any[])
+                        .filter(inv => inv.status === 'accepted')
+                        .map(inv => inv.inviteeEmail);
+                      return acceptedEmails.includes(assignee.email);
+                    }) || [];
+
+                    return filteredAssignees.length > 0 ? (
+                      <div className="space-y-2">
+                        {filteredAssignees.map((assignee, index) => (
+                          <div key={assignee.id} className="flex items-center gap-3">
+                            <Avatar>
+                              <AvatarFallback className="bg-primary text-primary-foreground">
+                                {assignee.initials}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <p className="font-medium" data-testid={`text-assignee-name-${index}`}>{assignee.name}</p>
+                              <p className="text-sm text-muted-foreground">@{assignee.username}</p>
+                            </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-muted-foreground">담당자가 지정되지 않았습니다.</p>
-                  )
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-muted-foreground">담당자가 지정되지 않았습니다.</p>
+                    );
+                  })()
                 )}
               </CardContent>
             </Card>
