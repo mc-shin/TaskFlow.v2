@@ -535,9 +535,6 @@ export default function ProjectDetail() {
                     >
                       {calculatedStatus}
                     </Badge>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      진행도 {averageProgress}% → {calculatedStatus}
-                    </p>
                   </div>
                 </div>
 

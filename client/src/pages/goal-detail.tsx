@@ -557,9 +557,6 @@ export default function GoalDetail() {
                     >
                       {calculatedStatus}
                     </Badge>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      진행도 {averageGoalProgress}% → {calculatedStatus}
-                    </p>
                   </div>
                 </div>
 
