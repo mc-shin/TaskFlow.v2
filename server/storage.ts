@@ -505,9 +505,14 @@ export class MemStorage implements IStorage {
       });
     }
     
-    return projectsWithOwner.sort((a, b) => 
-      new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime()
-    );
+    return projectsWithOwner.sort((a, b) => {
+      const aTime = new Date(a.createdAt!).getTime();
+      const bTime = new Date(b.createdAt!).getTime();
+      if (aTime !== bTime) {
+        return aTime - bTime; // Sort by createdAt ascending (oldest first)
+      }
+      return a.id.localeCompare(b.id); // Stable secondary sort by id
+    });
   }
 
   async getAllProjectsWithDetails(): Promise<ProjectWithDetails[]> {
@@ -633,9 +638,14 @@ export class MemStorage implements IStorage {
       });
     }
     
-    return projectsWithDetails.sort((a, b) => 
-      new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime()
-    );
+    return projectsWithDetails.sort((a, b) => {
+      const aTime = new Date(a.createdAt!).getTime();
+      const bTime = new Date(b.createdAt!).getTime();
+      if (aTime !== bTime) {
+        return aTime - bTime; // Sort by createdAt ascending (oldest first)
+      }
+      return a.id.localeCompare(b.id); // Stable secondary sort by id
+    });
   }
 
   async getProject(id: string): Promise<ProjectWithOwners | undefined> {
@@ -830,9 +840,14 @@ export class MemStorage implements IStorage {
       });
     }
     
-    return goalsWithTasks.sort((a, b) => 
-      new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime()
-    );
+    return goalsWithTasks.sort((a, b) => {
+      const aTime = new Date(a.createdAt!).getTime();
+      const bTime = new Date(b.createdAt!).getTime();
+      if (aTime !== bTime) {
+        return aTime - bTime; // Sort by createdAt ascending (oldest first)
+      }
+      return a.id.localeCompare(b.id); // Stable secondary sort by id
+    });
   }
 
   async getGoal(id: string): Promise<GoalWithTasks | undefined> {
@@ -964,9 +979,14 @@ export class MemStorage implements IStorage {
       tasksWithAssignees.push({ ...task, assignees });
     }
     
-    return tasksWithAssignees.sort((a, b) => 
-      new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime()
-    );
+    return tasksWithAssignees.sort((a, b) => {
+      const aTime = new Date(a.createdAt!).getTime();
+      const bTime = new Date(b.createdAt!).getTime();
+      if (aTime !== bTime) {
+        return aTime - bTime; // Sort by createdAt ascending (oldest first)
+      }
+      return a.id.localeCompare(b.id); // Stable secondary sort by id
+    });
   }
 
   async getTask(id: string): Promise<SafeTaskWithAssignees | undefined> {
