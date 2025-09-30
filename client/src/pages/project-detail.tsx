@@ -795,10 +795,8 @@ export default function ProjectDetail() {
             <Card>
               <CardHeader>
                 <CardTitle>담당자 ({(() => {
-                  // 워크스페이스 멤버 전체 (기본 멤버 + 초대 수락한 멤버) 표시
-                  const workspaceUserIds = (users as SafeUser[])?.map(u => u.id) || [];
-                  const filteredOwners = project.owners?.filter(owner => workspaceUserIds.includes(owner.id)) || [];
-                  return filteredOwners.length;
+                  const ownerIds = project.ownerIds || [];
+                  return ownerIds.length;
                 })()}명)</CardTitle>
               </CardHeader>
               <CardContent>
@@ -864,7 +862,6 @@ export default function ProjectDetail() {
                             </Avatar>
                             <div>
                               <p className="font-medium" data-testid={`text-owner-name-${index}`}>{owner.name}</p>
-                              <p className="text-sm text-muted-foreground">@{owner.username}</p>
                             </div>
                           </div>
                         ))}

@@ -749,18 +749,6 @@ export default function GoalDetail() {
                                   >
                                     {task.status}
                                   </Badge>
-                                  {task.assignees && task.assignees.length > 0 && (
-                                    <div className="flex items-center gap-1">
-                                      <Avatar className="h-4 w-4">
-                                        <AvatarFallback className="text-xs">
-                                          {task.assignees[0].initials}
-                                        </AvatarFallback>
-                                      </Avatar>
-                                      <span className="text-xs text-muted-foreground">
-                                        {task.assignees[0].name}
-                                      </span>
-                                    </div>
-                                  )}
                                 </div>
                               </div>
                             </div>
@@ -827,7 +815,10 @@ export default function GoalDetail() {
             {/* Assignees */}
             <Card>
               <CardHeader>
-                <CardTitle>담당자 ({goal.assignees?.length || 0}명)</CardTitle>
+                <CardTitle>담당자 ({(() => {
+                  const assigneeIds = goal?.assigneeIds || [];
+                  return assigneeIds.length;
+                })()}명)</CardTitle>
               </CardHeader>
               <CardContent>
                 {isEditing ? (
@@ -892,7 +883,6 @@ export default function GoalDetail() {
                             </Avatar>
                             <div>
                               <p className="font-medium" data-testid={`text-assignee-name-${index}`}>{assignee.name}</p>
-                              <p className="text-sm text-muted-foreground">@{assignee.username}</p>
                             </div>
                           </div>
                         ))}

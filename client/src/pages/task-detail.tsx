@@ -850,7 +850,10 @@ export default function TaskDetail() {
             {/* Assignees */}
             <Card>
               <CardHeader>
-                <CardTitle>담당자 ({task.assignees?.length || 0}명)</CardTitle>
+                <CardTitle>담당자 ({(() => {
+                  const assigneeIds = task?.assigneeIds || [];
+                  return assigneeIds.length;
+                })()}명)</CardTitle>
               </CardHeader>
               <CardContent>
                 {isEditing ? (
@@ -919,7 +922,6 @@ export default function TaskDetail() {
                             </Avatar>
                             <div>
                               <p className="font-medium" data-testid={`text-assignee-name-${index}`}>{assignee.name}</p>
-                              <p className="text-sm text-muted-foreground">@{assignee.username}</p>
                             </div>
                           </div>
                         ))}
