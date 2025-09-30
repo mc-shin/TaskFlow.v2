@@ -71,6 +71,9 @@ export default function Admin() {
     refetchInterval: 10000,
   });
 
+  // Get current user email for permission checking
+  const currentUserEmail = localStorage.getItem('userEmail') || '';
+
   // 초대 폼
   const inviteForm = useForm<InviteForm>({
     resolver: zodResolver(inviteSchema),
@@ -83,7 +86,9 @@ export default function Admin() {
   // 사용자 삭제 뮤테이션
   const deleteUserMutation = useMutation({
     mutationFn: async (userId: string) => {
-      return apiRequest('DELETE', `/api/users/${userId}`, {});
+      return apiRequest('DELETE', `/api/users/${userId}`, {}, {
+        'X-User-Email': currentUserEmail
+      });
     },
     onSuccess: () => {
       // 명시적으로 모든 사용자 관련 쿼리들을 무효화
@@ -568,8 +573,8 @@ export default function Admin() {
                             />
                           </div>
                           
-                          {/* 삭제 버튼 - admin 사용자는 삭제 불가 */}
-                          {user.role !== "관리자" && (
+                          {/* 삭제 버튼 - admin@qubicom.co.kr는 모든 사용자 삭제 가능, 다른 관리자는 팀원만 삭제 가능 */}
+                          {(user.role !== "관리자" || currentUserEmail === "admin@qubicom.co.kr") && (
                             <div className="pt-3 border-t">
                               <AlertDialog>
                                 <AlertDialogTrigger asChild>

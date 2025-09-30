@@ -136,7 +136,9 @@ export default function ListTree() {
   // 멤버 삭제 mutation (관리자 페이지와 동일한 로직)
   const deleteUserMutation = useMutation({
     mutationFn: async (userId: string) => {
-      return apiRequest('DELETE', `/api/users/${userId}`, {});
+      return apiRequest('DELETE', `/api/users/${userId}`, {}, {
+        'X-User-Email': currentUserEmail
+      });
     },
     onSuccess: () => {
       // 명시적으로 모든 사용자 관련 쿼리들을 무효화
@@ -2539,7 +2541,7 @@ export default function ListTree() {
                               <Badge variant="outline" className="text-xs border-slate-600 text-slate-300">
                                 {user.role}
                               </Badge>
-                              {user.role !== '관리자' && isCurrentUserAdmin && ( // 관리자만 멤버 삭제 가능
+                              {(user.role !== '관리자' || currentUserEmail === 'admin@qubicom.co.kr') && isCurrentUserAdmin && ( // admin@qubicom.co.kr는 모든 사용자 삭제 가능, 다른 관리자는 팀원만 삭제 가능
                                 <AlertDialog>
                                   <AlertDialogTrigger asChild>
                                     <Button

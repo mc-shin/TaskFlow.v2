@@ -440,6 +440,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/users/:id", async (req, res) => {
     try {
       const userId = req.params.id;
+      const requestingUserEmail = req.headers['x-user-email'] as string;
+      
+      // Verify requesting user exists in database
+      let isTestAdmin = false;
+      if (requestingUserEmail) {
+        try {
+          const requestingUser = await storage.getUserByEmail(requestingUserEmail);
+          if (requestingUser && requestingUser.email === 'admin@qubicom.co.kr') {
+            isTestAdmin = true;
+          }
+        } catch (error) {
+          console.error('Failed to verify requesting user:', error);
+        }
+      }
+      
+      // Get user to delete
+      const userToDelete = await storage.getUser(userId);
+      if (!userToDelete) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Check permission: admin@qubicom.co.kr can delete anyone, others can only delete team members
+      if (userToDelete.role === '관리자' && !isTestAdmin) {
+        return res.status(403).json({ message: "관리자 계정은 삭제할 수 없습니다." });
+      }
+      
       const deleted = await storage.deleteUser(userId);
       if (!deleted) {
         return res.status(404).json({ message: "User not found" });
