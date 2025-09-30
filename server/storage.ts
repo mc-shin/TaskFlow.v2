@@ -134,6 +134,13 @@ export class MemStorage implements IStorage {
     const totalProgress = tasks.reduce((sum, task) => sum + this.getTaskProgress(task), 0);
     return totalProgress / tasks.length;
   }
+
+  // Helper function to determine status from progress percentage (for archive page)
+  private getStatusFromProgress(progress: number): string {
+    if (progress === 0) return '진행전';
+    if (progress === 100) return '완료';
+    return '진행중';
+  }
   
   // Backfill progress values for existing tasks that might not have proper progress set
   private backfillTaskProgress(): void {
@@ -1664,8 +1671,12 @@ export class MemStorage implements IStorage {
         progressPercentage = Math.round(goalProgressSum / projectGoals.length);
       }
 
+      // Calculate status from progress for archive page
+      const calculatedStatus = this.getStatusFromProgress(progressPercentage);
+
       projectsWithDetails.push({
         ...project,
+        status: calculatedStatus,
         owners: ownerUsers,
         totalTasks,
         completedTasks,
@@ -1713,8 +1724,12 @@ export class MemStorage implements IStorage {
         ? Math.round(this.calculateAverageProgress(goalTasks))
         : 0;
 
+      // Calculate status from progress for archive page
+      const calculatedStatus = this.getStatusFromProgress(progressPercentage);
+
       goalsWithTasks.push({
         ...goal,
+        status: calculatedStatus,
         tasks: tasksWithAssignees,
         assignees: assigneeUsers,
         totalTasks,
@@ -1737,8 +1752,14 @@ export class MemStorage implements IStorage {
         assigneeUsers = await this.getUsersByIds(assigneeIds);
       }
 
+      // Calculate progress and status for archive page
+      const taskProgress = this.getTaskProgress(task);
+      const calculatedStatus = this.getStatusFromProgress(taskProgress);
+
       tasksWithAssignees.push({
         ...task,
+        progress: taskProgress,
+        status: calculatedStatus,
         assignees: assigneeUsers
       });
     }
