@@ -56,9 +56,9 @@ export default function Meeting() {
     queryKey: ['/api/meetings'],
   });
 
-  // Fetch users for participant avatars
+  // Fetch users for participant avatars (workspace members only)
   const { data: users = [] } = useQuery<SafeUser[]>({
-    queryKey: ['/api/users'],
+    queryKey: ['/api/users?workspace=true'],
   });
 
   // Get current week dates
