@@ -28,7 +28,7 @@ export default function Landing() {
       <section className="py-20 px-4">
         <div className="container mx-auto text-center max-w-4xl">
           <Badge variant="secondary" className="mb-6" data-testid="badge-version">
-            v1.0 - 팀 협업의 새로운 시작
+            v2.0 - 팀 협업의 새로운 시작
           </Badge>
           <h1 className="text-4xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent">
             효율적인 프로젝트 관리와<br />
