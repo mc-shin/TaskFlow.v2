@@ -874,25 +874,33 @@ export default function GoalDetail() {
                     </div>
                   </div>
                 ) : (
-                  assignees && assignees.length > 0 ? (
-                    <div className="space-y-2">
-                      {assignees.map((assignee, index) => (
-                        <div key={assignee.id} className="flex items-center gap-3">
-                          <Avatar>
-                            <AvatarFallback className="bg-primary text-primary-foreground">
-                              {assignee.initials}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <p className="font-medium" data-testid={`text-assignee-name-${index}`}>{assignee.name}</p>
-                            <p className="text-sm text-muted-foreground">@{assignee.username}</p>
+                  (() => {
+                    // assigneeIds를 기반으로 users에서 담당자 정보 가져오기
+                    const assigneeIds = goal?.assigneeIds || [];
+                    const assignees = assigneeIds
+                      .map(id => (users as SafeUser[])?.find(u => u.id === id))
+                      .filter(Boolean) as SafeUser[];
+                    
+                    return assignees.length > 0 ? (
+                      <div className="space-y-2">
+                        {assignees.map((assignee, index) => (
+                          <div key={assignee.id} className="flex items-center gap-3">
+                            <Avatar>
+                              <AvatarFallback className="bg-primary text-primary-foreground">
+                                {assignee.initials}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <p className="font-medium" data-testid={`text-assignee-name-${index}`}>{assignee.name}</p>
+                              <p className="text-sm text-muted-foreground">@{assignee.username}</p>
+                            </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-muted-foreground">담당자가 지정되지 않았습니다.</p>
-                  )
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-muted-foreground">담당자가 지정되지 않았습니다.</p>
+                    );
+                  })()
                 )}
               </CardContent>
             </Card>

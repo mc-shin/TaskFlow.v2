@@ -902,22 +902,15 @@ export default function TaskDetail() {
                   </div>
                 ) : (
                   (() => {
-                    // Filter assignees to only show accepted project members (same as list page)
-                    const filteredAssignees = task.assignees?.filter(assignee => {
-                      if (!Array.isArray(acceptedInvitations)) {
-                        // If no accepted invitations data, show all assignees as fallback
-                        console.log('No acceptedInvitations data for display, showing all assignees');
-                        return true;
-                      }
-                      const acceptedEmails = (acceptedInvitations as any[])
-                        .filter(inv => inv.status === 'accepted')
-                        .map(inv => inv.inviteeEmail);
-                      return acceptedEmails.includes(assignee.email);
-                    }) || [];
+                    // assigneeIds를 기반으로 users에서 담당자 정보 가져오기
+                    const assigneeIds = task?.assigneeIds || [];
+                    const assignees = assigneeIds
+                      .map(id => (users as SafeUser[])?.find(u => u.id === id))
+                      .filter(Boolean) as SafeUser[];
 
-                    return filteredAssignees.length > 0 ? (
+                    return assignees.length > 0 ? (
                       <div className="space-y-2">
-                        {filteredAssignees.map((assignee, index) => (
+                        {assignees.map((assignee, index) => (
                           <div key={assignee.id} className="flex items-center gap-3">
                             <Avatar>
                               <AvatarFallback className="bg-primary text-primary-foreground">

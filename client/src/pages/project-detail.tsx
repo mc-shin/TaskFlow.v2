@@ -847,13 +847,15 @@ export default function ProjectDetail() {
                   </div>
                 ) : (
                   (() => {
-                    // 워크스페이스 멤버 전체 (기본 멤버 + 초대 수락한 멤버) 표시
-                    const workspaceUserIds = (users as SafeUser[])?.map(u => u.id) || [];
-                    const filteredOwners = project.owners?.filter(owner => workspaceUserIds.includes(owner.id)) || [];
+                    // ownerIds를 기반으로 users에서 담당자 정보 가져오기
+                    const ownerIds = project.ownerIds || [];
+                    const owners = ownerIds
+                      .map(id => (users as SafeUser[])?.find(u => u.id === id))
+                      .filter(Boolean) as SafeUser[];
                     
-                    return filteredOwners.length > 0 ? (
+                    return owners.length > 0 ? (
                       <div className="space-y-2">
-                        {filteredOwners.map((owner, index) => (
+                        {owners.map((owner, index) => (
                           <div key={owner.id} className="flex items-center gap-3">
                             <Avatar>
                               <AvatarFallback className="bg-primary text-primary-foreground">
