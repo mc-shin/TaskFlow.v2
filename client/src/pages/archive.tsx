@@ -99,13 +99,85 @@ export default function Archive() {
 
   const toggleItemSelection = (itemId: string) => {
     setSelectedItems(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(itemId)) {
-        newSet.delete(itemId);
+      const newSelected = new Set(prev);
+      
+      // Helper function to find all child items of a project or goal
+      const getChildItems = (parentId: string, parentType: 'project' | 'goal'): string[] => {
+        const childIds: string[] = [];
+        
+        if (parentType === 'project') {
+          // Find all goals and tasks under this project
+          const project = archivedProjects?.find(p => p.id === parentId);
+          if (project?.goals) {
+            project.goals.forEach((goal: any) => {
+              childIds.push(goal.id);
+              if (goal.tasks) {
+                goal.tasks.forEach((task: any) => {
+                  childIds.push(task.id);
+                });
+              }
+            });
+          }
+        } else if (parentType === 'goal') {
+          // Find all tasks under this goal
+          archivedProjects?.forEach(project => {
+            const goal = project.goals?.find((g: any) => g.id === parentId);
+            if (goal?.tasks) {
+              goal.tasks.forEach((task: any) => {
+                childIds.push(task.id);
+              });
+            }
+          });
+        }
+        
+        return childIds;
+      };
+      
+      // Determine the type of the selected item
+      let itemType: 'project' | 'goal' | 'task' = 'task';
+      const isProject = archivedProjects?.some(p => p.id === itemId);
+      if (isProject) {
+        itemType = 'project';
       } else {
-        newSet.add(itemId);
+        // Check if it's a goal
+        const isGoal = archivedProjects?.some(p => 
+          p.goals?.some((g: any) => g.id === itemId)
+        );
+        if (isGoal) {
+          itemType = 'goal';
+        }
       }
-      return newSet;
+      
+      // For parent items (project/goal), check if they should be considered "selected" 
+      // either directly or because all their children are selected
+      let isCurrentlySelected = newSelected.has(itemId);
+      if (!isCurrentlySelected && (itemType === 'project' || itemType === 'goal')) {
+        const childIds = getChildItems(itemId, itemType);
+        // Consider parent selected if all children are selected
+        if (childIds.length > 0) {
+          isCurrentlySelected = childIds.every(childId => newSelected.has(childId));
+        }
+      }
+      
+      if (isCurrentlySelected) {
+        // Deselecting: remove the item and all its children
+        newSelected.delete(itemId);
+        
+        if (itemType === 'project' || itemType === 'goal') {
+          const childIds = getChildItems(itemId, itemType);
+          childIds.forEach(childId => newSelected.delete(childId));
+        }
+      } else {
+        // Selecting: add the item and all its children
+        newSelected.add(itemId);
+        
+        if (itemType === 'project' || itemType === 'goal') {
+          const childIds = getChildItems(itemId, itemType);
+          childIds.forEach(childId => newSelected.add(childId));
+        }
+      }
+      
+      return newSelected;
     });
   };
 
@@ -373,17 +445,6 @@ export default function Archive() {
                         <Badge variant="outline" className="text-xs">
                           {project.code}
                         </Badge>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => unarchiveProjectMutation.mutate(project.id)}
-                          disabled={unarchiveProjectMutation.isPending}
-                          className="ml-2"
-                          data-testid={`button-restore-project-${project.id}`}
-                        >
-                          <Undo2 className="h-4 w-4 mr-1" />
-                          복원
-                        </Button>
                       </div>
                       <div className="col-span-1">
                         <span className={getDDayColorClass(project.deadline)}>
@@ -477,17 +538,6 @@ export default function Archive() {
                                 <span className="font-medium" data-testid={`text-goal-title-${goal.id}`}>
                                   {goal.title}
                                 </span>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => unarchiveGoalMutation.mutate(goal.id)}
-                                  disabled={unarchiveGoalMutation.isPending}
-                                  className="ml-2"
-                                  data-testid={`button-restore-goal-${goal.id}`}
-                                >
-                                  <Undo2 className="h-4 w-4 mr-1" />
-                                  복원
-                                </Button>
                               </div>
                               <div className="col-span-1">
                                 <span className={getDDayColorClass(goal.deadline)}>
@@ -567,17 +617,6 @@ export default function Archive() {
                                       <span className="font-medium" data-testid={`text-task-title-${task.id}`}>
                                         {task.title}
                                       </span>
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => unarchiveTaskMutation.mutate(task.id)}
-                                        disabled={unarchiveTaskMutation.isPending}
-                                        className="ml-2"
-                                        data-testid={`button-restore-task-${task.id}`}
-                                      >
-                                        <Undo2 className="h-4 w-4 mr-1" />
-                                        복원
-                                      </Button>
                                     </div>
                                     <div className="col-span-1">
                                       <span className={getDDayColorClass(task.deadline)}>
