@@ -56,6 +56,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/tasks/:id", async (req, res) => {
     try {
+      // Get the original task to track changes
+      const originalTask = await storage.getTask(req.params.id);
+      if (!originalTask) {
+        return res.status(404).json({ message: "Task not found" });
+      }
+      
       // For updates, use partial validation but check labels separately
       const taskData = insertTaskSchema.partial().parse(req.body);
       if (taskData.labels && taskData.labels.length > 2) {
@@ -68,6 +74,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!task) {
         return res.status(404).json({ message: "Task not found" });
       }
+      
+      // Create activity for status change
+      if (currentUser && task.status !== originalTask.status) {
+        await storage.createActivity({
+          userId: currentUser,
+          taskId: task.id,
+          description: `작업 "${task.title}"의 상태를 "${originalTask.status}"에서 "${task.status}"(으)로 변경했습니다.`,
+        });
+      }
+      
       res.json(task);
     } catch (error) {
       if (error instanceof z.ZodError) {
