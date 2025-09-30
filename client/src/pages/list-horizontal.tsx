@@ -487,7 +487,7 @@ export default function ListHorizontal() {
         <PopoverContent className="w-64 p-3" align="start">
           <div className="space-y-2">
             <h4 className="font-medium text-sm">
-              {item.type === 'project' ? '소유자' : '담당자'} 선택
+              담당자 선택
             </h4>
             <div className="space-y-1 max-h-48 overflow-y-auto">
               {(users as SafeUser[])?.map(user => {

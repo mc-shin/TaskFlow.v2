@@ -131,7 +131,7 @@ export function CalendarWidget() {
         </div>
       </CardHeader>
       
-      <CardContent className="p-4">
+      <CardContent className="px-4 pt-4 pb-0">
         {isLoading && (
           <div className="flex items-center justify-center p-8">
             <div className="text-sm text-muted-foreground">달력 데이터를 불러오는 중...</div>
@@ -183,7 +183,7 @@ export function CalendarWidget() {
         
         {/* Selected Date Event - 미팅이 있을 때만 표시 */}
         {selectedDateMeetings.length > 0 && (
-          <div className="mt-6 pt-4 border-t border-border space-y-2" data-testid="selected-date-events">
+          <div className="mt-6 pt-4 pb-4 border-t border-border space-y-2" data-testid="selected-date-events">
             {selectedDateMeetings.map((meeting) => (
               <div key={meeting.id} className="p-3 bg-muted rounded-lg" data-testid={`selected-date-event-${meeting.id}`}>
                 <div className="flex items-center space-x-2 text-xs text-muted-foreground" data-testid={`text-selected-date-${meeting.id}`}>
@@ -214,7 +214,7 @@ export function CalendarWidget() {
         
         {/* 미팅이 없는 날에 대한 메시지 */}
         {selectedDateMeetings.length === 0 && !isLoading && (
-          <div className="mt-6 pt-4 border-t border-border p-3 bg-muted/50 rounded-lg text-center" data-testid="no-events-message">
+          <div className="mt-6 pt-4 pb-4 border-t border-border p-3 bg-muted/50 rounded-lg text-center" data-testid="no-events-message">
             <div className="text-xs text-muted-foreground">
               {year}.{String(month + 1).padStart(2, '0')}.{String(selectedDate).padStart(2, '0')}
             </div>

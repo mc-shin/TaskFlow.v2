@@ -1106,7 +1106,7 @@ export default function ListTree() {
         <PopoverContent className="w-64 p-3" align="start">
           <div className="space-y-2">
             <h4 className="font-medium text-sm">
-              {type === 'project' ? '소유자' : '담당자'} 선택
+              담당자 선택
             </h4>
             <div className="space-y-1 max-h-48 overflow-y-auto">
               {/* 초대 대기중 표시 제거 - 실제 담당자만 표시 */}

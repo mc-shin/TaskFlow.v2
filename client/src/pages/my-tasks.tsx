@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Edit, Trash2, Search, Filter, Users } from "lucide-react";
+import { Plus, Edit, Trash2, Search, Filter } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { TaskModal } from "@/components/task-modal";
@@ -144,8 +144,7 @@ export default function MyTasks() {
             onClick={() => setLocation("/workspace/app/team")}
             data-testid="button-go-to-team"
           >
-            <Users className="h-4 w-4 mr-2" />
-            팀 페이지
+            ← 목록으로
           </Button>
         </header>
 
@@ -181,8 +180,7 @@ export default function MyTasks() {
           onClick={() => setLocation("/workspace/app/team")}
           data-testid="button-go-to-team"
         >
-          <Users className="h-4 w-4 mr-2" />
-          팀 페이지
+          ← 목록으로
         </Button>
       </header>
 
