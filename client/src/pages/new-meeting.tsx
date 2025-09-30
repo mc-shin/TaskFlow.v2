@@ -232,29 +232,6 @@ export default function NewMeeting() {
                       )}
                     />
 
-                    {/* 미팅 유형 */}
-                    <FormField
-                      control={form.control}
-                      name="type"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>미팅 유형</FormLabel>
-                          <FormControl>
-                            <Select value={field.value} onValueChange={field.onChange}>
-                              <SelectTrigger data-testid="select-type">
-                                <SelectValue placeholder="미팅 유형을 선택하세요" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="standup">스탠드업</SelectItem>
-                                <SelectItem value="other">기타</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
                     {/* 내용 */}
                     <FormField
                       control={form.control}
