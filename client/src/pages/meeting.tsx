@@ -85,13 +85,21 @@ export default function Meeting() {
     const targetDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
     const [hour] = timeSlot.split(':').map(Number);
     
+    // Calculate slot start and end times in milliseconds
+    const slotStartTime = new Date(targetDate);
+    slotStartTime.setHours(hour, 0, 0, 0);
+    const slotEndTime = new Date(slotStartTime.getTime() + 60 * 60 * 1000);
+    
     return meetings.filter(meeting => {
       const meetingStart = new Date(meeting.startAt);
+      const meetingEnd = meeting.endAt ? new Date(meeting.endAt) : new Date(meetingStart.getTime() + 60 * 60 * 1000); // Default 1 hour
       const meetingDate = new Date(meetingStart.getFullYear(), meetingStart.getMonth(), meetingStart.getDate());
-      const meetingHour = meetingStart.getHours();
       
-      // Check if meeting is on the same date and within the hour slot
-      return targetDate.getTime() === meetingDate.getTime() && meetingHour === hour;
+      // Check if meeting is on the same date
+      if (targetDate.getTime() !== meetingDate.getTime()) return false;
+      
+      // Check if meeting overlaps with this hour slot using timestamps
+      return meetingStart.getTime() < slotEndTime.getTime() && meetingEnd.getTime() > slotStartTime.getTime();
     });
   };
 
@@ -288,13 +296,20 @@ export default function Meeting() {
                       >
                         {slotMeetings.map((meeting) => {
                           const meetingStart = new Date(meeting.startAt);
-                          const meetingEnd = meeting.endAt ? new Date(meeting.endAt) : null;
-                          const startMinutes = meetingStart.getMinutes();
-                          const duration = meetingEnd ? (meetingEnd.getTime() - meetingStart.getTime()) / (1000 * 60) : 60; // duration in minutes, default 1 hour if no end time
+                          const meetingEnd = meeting.endAt ? new Date(meeting.endAt) : new Date(meetingStart.getTime() + 60 * 60 * 1000); // Default 1 hour
                           
-                          // Calculate position within the hour slot
-                          const topOffset = (startMinutes / 60) * 100; // percentage from top of hour
-                          const height = Math.min((duration / 60) * 100, 100 - topOffset); // percentage height, max to end of hour
+                          // Calculate start and end times for this slot
+                          const slotStartTime = new Date(date);
+                          slotStartTime.setHours(parseInt(timeSlot.split(':')[0]), 0, 0, 0);
+                          const slotEndTime = new Date(slotStartTime.getTime() + 60 * 60 * 1000);
+                          
+                          // Calculate overlap with this slot
+                          const overlapStart = Math.max(meetingStart.getTime(), slotStartTime.getTime());
+                          const overlapEnd = Math.min(meetingEnd.getTime(), slotEndTime.getTime());
+                          
+                          // Calculate position and height as percentage of slot
+                          const topOffset = ((overlapStart - slotStartTime.getTime()) / (60 * 60 * 1000)) * 100;
+                          const height = ((overlapEnd - overlapStart) / (60 * 60 * 1000)) * 100;
                           
                           return (
                             <div
