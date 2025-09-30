@@ -2916,8 +2916,12 @@ export class DrizzleStorage implements IStorage {
         ? Math.round(this.calculateAverageProgress(goalTasks))
         : 0;
 
+      // Calculate status from progress for archive page
+      const calculatedStatus = this.getStatusFromProgress(progressPercentage);
+
       goalsWithTasks.push({
         ...goal,
+        status: calculatedStatus,
         tasks: tasksWithAssignees,
         assignees: assigneeUsers,
         totalTasks,
