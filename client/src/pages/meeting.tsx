@@ -209,6 +209,55 @@ export default function Meeting() {
           </div>
         </header>
 
+        {/* Today's Meetings Section */}
+        <div className="px-6 py-4 bg-card border-b border-border">
+          <h2 className="text-lg font-semibold mb-4" data-testid="text-todays-meetings">
+            오늘의 미팅
+          </h2>
+          
+          {isLoading ? (
+            <div className="flex space-x-3">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="h-16 w-48 bg-muted rounded animate-pulse" />
+              ))}
+            </div>
+          ) : todaysMeetings.length > 0 ? (
+            <div className="flex space-x-3 overflow-x-auto">
+              {todaysMeetings.map((meeting) => (
+                <Card 
+                  key={meeting.id} 
+                  className="p-3 hover:bg-accent cursor-pointer transition-colors min-w-48 flex-shrink-0"
+                  data-testid={`card-today-meeting-${meeting.id}`}
+                  onClick={() => setLocation(`/workspace/app/meeting/${meeting.id}`)}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="font-medium text-sm truncate" data-testid={`text-meeting-title-${meeting.id}`}>
+                      {meeting.title}
+                    </h3>
+                    <div className={`w-3 h-3 rounded-full ${getMeetingColor(meeting.title)}`} />
+                  </div>
+                  <div className="flex items-center text-xs text-muted-foreground">
+                    <Clock className="w-3 h-3 mr-1" />
+                    {new Date(meeting.startAt).toLocaleTimeString('ko-KR', { 
+                      hour: '2-digit', 
+                      minute: '2-digit' 
+                    })}
+                    {meeting.location && (
+                      <>
+                        <span className="mx-2">•</span>
+                        <MapPin className="w-3 h-3 mr-1" />
+                        {meeting.location}
+                      </>
+                    )}
+                  </div>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <p className="text-muted-foreground text-sm">오늘 예정된 미팅이 없습니다.</p>
+          )}
+        </div>
+
         {/* Weekly Calendar Grid */}
         <main className="flex-1 p-6 overflow-auto" data-testid="main-content">
           {/* Calendar Week Navigation */}
@@ -343,55 +392,6 @@ export default function Meeting() {
                 </div>
               ))}
             </div>
-          </div>
-
-          {/* Today's Meetings Section */}
-          <div className="mt-6 pt-6 border-t border-border">
-            <h2 className="text-lg font-semibold mb-4" data-testid="text-todays-meetings">
-              오늘의 미팅
-            </h2>
-            
-            {isLoading ? (
-              <div className="flex space-x-3">
-                {[1, 2, 3].map(i => (
-                  <div key={i} className="h-16 w-48 bg-muted rounded animate-pulse" />
-                ))}
-              </div>
-            ) : todaysMeetings.length > 0 ? (
-              <div className="flex space-x-3 overflow-x-auto">
-                {todaysMeetings.map((meeting) => (
-                  <Card 
-                    key={meeting.id} 
-                    className="p-3 hover:bg-accent cursor-pointer transition-colors min-w-48 flex-shrink-0"
-                    data-testid={`card-today-meeting-${meeting.id}`}
-                    onClick={() => setLocation(`/workspace/app/meeting/${meeting.id}`)}
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <h3 className="font-medium text-sm truncate" data-testid={`text-meeting-title-${meeting.id}`}>
-                        {meeting.title}
-                      </h3>
-                      <div className={`w-3 h-3 rounded-full ${getMeetingColor(meeting.title)}`} />
-                    </div>
-                    <div className="flex items-center text-xs text-muted-foreground">
-                      <Clock className="w-3 h-3 mr-1" />
-                      {new Date(meeting.startAt).toLocaleTimeString('ko-KR', { 
-                        hour: '2-digit', 
-                        minute: '2-digit' 
-                      })}
-                      {meeting.location && (
-                        <>
-                          <span className="mx-2">•</span>
-                          <MapPin className="w-3 h-3 mr-1" />
-                          {meeting.location}
-                        </>
-                      )}
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            ) : (
-              <p className="text-muted-foreground text-sm">오늘 예정된 미팅이 없습니다.</p>
-            )}
           </div>
         </main>
       </div>
