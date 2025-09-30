@@ -182,7 +182,6 @@ export default function Admin() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          inviterName: currentUser.name,
           inviterEmail: currentUser.email,
           inviteeEmail: data.email,
           role: data.role,

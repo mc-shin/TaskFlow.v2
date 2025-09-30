@@ -2420,7 +2420,6 @@ export default function ListTree() {
                       
                       // 워크스페이스 기반 초대 생성 (프로젝트 ID 없이)
                       const invitationData = {
-                        inviterName: currentUser.name,
                         inviterEmail: currentUser.email,
                         inviteeEmail: inviteUsername,
                         role: inviteRole,
