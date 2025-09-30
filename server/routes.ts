@@ -35,6 +35,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const users = await storage.getAllUsers();
       const currentUser = users.length > 0 ? users[0].id : undefined;
       const task = await storage.createTask(taskData, currentUser);
+      
+      // Create activity for task creation
+      if (currentUser) {
+        await storage.createActivity({
+          userId: currentUser,
+          taskId: task.id,
+          description: `작업 "${task.title}"을 생성했습니다.`,
+        });
+      }
+      
       res.status(201).json(task);
     } catch (error) {
       if (error instanceof z.ZodError) {

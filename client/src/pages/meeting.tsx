@@ -80,26 +80,17 @@ export default function Meeting() {
     return slots;
   }, []);
 
-  // Get meetings for a specific date and time slot
+  // Get meetings for a specific date and time slot (only meetings that START in this slot)
   const getMeetingsForSlot = (date: Date, timeSlot: string) => {
     const targetDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
     const [hour] = timeSlot.split(':').map(Number);
     
-    // Calculate slot start and end times in milliseconds
-    const slotStartTime = new Date(targetDate);
-    slotStartTime.setHours(hour, 0, 0, 0);
-    const slotEndTime = new Date(slotStartTime.getTime() + 60 * 60 * 1000);
-    
     return meetings.filter(meeting => {
       const meetingStart = new Date(meeting.startAt);
-      const meetingEnd = meeting.endAt ? new Date(meeting.endAt) : new Date(meetingStart.getTime() + 60 * 60 * 1000); // Default 1 hour
       const meetingDate = new Date(meetingStart.getFullYear(), meetingStart.getMonth(), meetingStart.getDate());
       
-      // Check if meeting is on the same date
-      if (targetDate.getTime() !== meetingDate.getTime()) return false;
-      
-      // Check if meeting overlaps with this hour slot using timestamps
-      return meetingStart.getTime() < slotEndTime.getTime() && meetingEnd.getTime() > slotStartTime.getTime();
+      // Check if meeting is on the same date and starts in this hour slot
+      return targetDate.getTime() === meetingDate.getTime() && meetingStart.getHours() === hour;
     });
   };
 
@@ -347,30 +338,28 @@ export default function Meeting() {
                           const meetingStart = new Date(meeting.startAt);
                           const meetingEnd = meeting.endAt ? new Date(meeting.endAt) : new Date(meetingStart.getTime() + 60 * 60 * 1000); // Default 1 hour
                           
-                          // Calculate start and end times for this slot
-                          const slotStartTime = new Date(date);
-                          slotStartTime.setHours(parseInt(timeSlot.split(':')[0]), 0, 0, 0);
-                          const slotEndTime = new Date(slotStartTime.getTime() + 60 * 60 * 1000);
+                          // Calculate start time within the hour slot
+                          const startMinutes = meetingStart.getMinutes();
+                          const topOffset = (startMinutes / 60) * 100; // percentage from top of hour
                           
-                          // Calculate overlap with this slot
-                          const overlapStart = Math.max(meetingStart.getTime(), slotStartTime.getTime());
-                          const overlapEnd = Math.min(meetingEnd.getTime(), slotEndTime.getTime());
+                          // Calculate total duration in hours
+                          const durationMs = meetingEnd.getTime() - meetingStart.getTime();
+                          const durationHours = durationMs / (60 * 60 * 1000);
                           
-                          // Calculate position and height as percentage of slot
-                          const topOffset = ((overlapStart - slotStartTime.getTime()) / (60 * 60 * 1000)) * 100;
-                          const height = ((overlapEnd - overlapStart) / (60 * 60 * 1000)) * 100;
+                          // Calculate height in pixels (60px per hour slot)
+                          const heightPx = durationHours * 60;
                           
                           return (
                             <div
                               key={meeting.id}
                               className={`
                                 absolute left-1 right-1 rounded p-1 text-white text-xs font-medium
-                                cursor-pointer hover:opacity-80 transition-opacity
+                                cursor-pointer hover:opacity-80 transition-opacity z-10
                                 ${getMeetingColor(meeting.title)}
                               `}
                               style={{
                                 top: `${topOffset}%`,
-                                height: `${height}%`,
+                                height: `${heightPx}px`,
                                 minHeight: '30px' // Ensure minimum visibility for 2 lines
                               }}
                               data-testid={`meeting-block-${meeting.id}`}
