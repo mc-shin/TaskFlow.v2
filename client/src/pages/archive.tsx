@@ -490,7 +490,7 @@ export default function Archive() {
                         </div>
                       </div>
                       <div className="col-span-1">
-                        <span className="text-sm text-muted-foreground">중간</span>
+                        <span className="text-sm text-muted-foreground">-</span>
                       </div>
                     </div>
                   </div>
@@ -583,7 +583,7 @@ export default function Archive() {
                                 </div>
                               </div>
                               <div className="col-span-1">
-                                <span className="text-sm text-muted-foreground">중간</span>
+                                <span className="text-sm text-muted-foreground">-</span>
                               </div>
                             </div>
                           </div>
