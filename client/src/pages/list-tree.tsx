@@ -2520,7 +2520,6 @@ export default function ListTree() {
                   return (
                     <>
                       {filteredUsers.map((user) => {
-                        const originalIndex = allUsers.findIndex(originalUser => originalUser.id === user.id);
                         return (
                           <div key={user.id} className="flex items-center justify-between p-2 hover:bg-slate-700 rounded" data-testid={`member-row-${user.id}`}>
                             <div className="flex items-center gap-3">
@@ -2533,9 +2532,9 @@ export default function ListTree() {
                             </div>
                             <div className="flex items-center gap-2">
                               <Badge variant="outline" className="text-xs border-slate-600 text-slate-300">
-                                {originalIndex === 0 ? '관리자' : '팀원'}
+                                {user.role}
                               </Badge>
-                              {originalIndex !== 0 && ( // 관리자는 삭제할 수 없음
+                              {user.role !== '관리자' && ( // 관리자는 삭제할 수 없음
                                 <AlertDialog>
                                   <AlertDialogTrigger asChild>
                                     <Button
