@@ -366,6 +366,10 @@ export function WorkspacePage() {
     if (!userEmail) return;
 
     try {
+      // 초대 정보에서 role 가져오기
+      const invitation = invitations.find(inv => inv.id === invitationId);
+      const invitationRole = invitation?.role || '팀원'; // 기본값은 팀원
+      
       // 현재 로그인된 사용자의 실제 username 가져오기 (워크스페이스 멤버만)
       const response = await fetch('/api/users?workspace=true');
       const users = await response.json();
@@ -465,6 +469,7 @@ export function WorkspacePage() {
                     password: generateRandomPassword(), // 강력한 임의 비밀번호
                     name: localStorage.getItem("userName") || userEmail.split('@')[0], // 가입시 입력한 이름 우선 사용
                     initials: (localStorage.getItem("userName") || userEmail).charAt(0).toUpperCase(), // 이름의 첫 글자를 이니셜로 사용
+                    role: invitationRole, // 초대 시 지정된 권한 적용
                   })
                 });
                 

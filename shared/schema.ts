@@ -133,6 +133,7 @@ export const invitations = pgTable("invitations", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   inviterEmail: text("inviter_email").notNull(),
   inviteeEmail: text("invitee_email").notNull(),
+  role: text("role").notNull().default("팀원"), // "관리자" | "팀원"
   status: text("status").notNull().default("pending"), // 'pending' | 'accepted' | 'declined'
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
