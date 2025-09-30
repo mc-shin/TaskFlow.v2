@@ -2413,19 +2413,26 @@ export default function ListTree() {
                         currentUser = allUsers[0];
                       }
                       
-                      // 메인 프로젝트 찾기 (초대는 메인 프로젝트에 대한 것)
+                      // 현재 사용자가 없으면 에러 처리
+                      if (!currentUser) {
+                        throw new Error('사용자 정보를 찾을 수 없습니다');
+                      }
+                      
+                      // 현재 사용자가 소유한 프로젝트 찾기
                       const projectsResponse = await fetch('/api/projects');
                       const allProjects = await projectsResponse.json();
-                      const mainProject = allProjects.find((p: any) => p.name === '메인 프로젝트');
+                      const userProject = allProjects.find((p: any) => 
+                        p.ownerIds && p.ownerIds.includes(currentUser.id)
+                      );
                       
-                      // 메인 프로젝트가 없으면 에러 처리
-                      if (!mainProject) {
-                        throw new Error('메인 프로젝트를 찾을 수 없습니다');
+                      // 사용자의 프로젝트가 없으면 에러 처리
+                      if (!userProject) {
+                        throw new Error('초대를 보낼 수 있는 프로젝트가 없습니다');
                       }
                       
                       // 백엔드에 초대 생성 API 호출 (중요: DB에 저장해야 수락 시 작동함)
                       const invitationData = {
-                        projectId: mainProject.id,
+                        projectId: userProject.id,
                         inviterEmail: currentUser.email,
                         inviteeEmail: inviteUsername
                       };
@@ -2448,7 +2455,7 @@ export default function ListTree() {
                       const invitations = JSON.parse(localStorage.getItem('invitations') || '[]');
                       const localInvitation = {
                         ...newInvitation,
-                        projectName: mainProject?.name || '메인 프로젝트',
+                        projectName: userProject.name,
                         inviterName: currentUser.name,
                         inviteeName: existingUser ? existingUser.name : inviteUsername,
                         createdAt: new Date().toISOString()
