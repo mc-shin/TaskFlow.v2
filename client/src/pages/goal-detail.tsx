@@ -101,23 +101,16 @@ export default function GoalDetail() {
         }
       }
       
-      // 강력한 캐시 갱신으로 확실한 데이터 동기화
+      // 캐시 갱신으로 데이터 동기화
       await queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
       await queryClient.invalidateQueries({ queryKey: ["/api/goals"] });
       
-      // 모든 캐시를 완전히 초기화
-      await queryClient.clear();
       setIsEditing(false);
       setEditedGoal({});
       toast({
         title: "목표 수정 완료",
         description: "목표가 성공적으로 수정되었습니다.",
       });
-      
-      // 페이지 새로고침으로 데이터 동기화 강제 실행
-      setTimeout(() => {
-        window.location.reload();
-      }, 1000);
       
       // "이슈" 상태로 변경된 경우 추가 안내 토스트
       if (variables.status === '이슈' && goal?.status !== '이슈') {

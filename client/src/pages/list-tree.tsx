@@ -1087,15 +1087,15 @@ export default function ListTree() {
             {assignees.length > 0 ? (
               <div className="flex items-center gap-1 truncate">
                 {/* Current members only - 초대 대기중인 사용자는 담당자에서 제외 */}
-                {assignees.slice(0, 4).map((assignee, index) => (
+                {assignees.slice(0, 3).map((assignee, index) => (
                   <Avatar key={assignee.id} className="w-6 h-6 flex-shrink-0" style={{ zIndex: assignees.length - index }}>
                     <AvatarFallback className="text-xs bg-primary text-primary-foreground border border-white">
                       {assignee.name.charAt(0)}
                     </AvatarFallback>
                   </Avatar>
                 ))}
-                {assignees.length > 4 && (
-                  <span className="text-xs text-muted-foreground ml-1">+{assignees.length - 4}</span>
+                {assignees.length > 3 && (
+                  <span className="text-xs text-muted-foreground ml-1">+{assignees.length - 3}</span>
                 )}
               </div>
             ) : (
