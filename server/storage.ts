@@ -137,8 +137,8 @@ export class MemStorage implements IStorage {
 
   // Helper function to determine status from progress percentage (for archive page)
   private getStatusFromProgress(progress: number): string {
-    if (progress === 0) return '진행전';
-    if (progress === 100) return '완료';
+    if (progress <= 0) return '진행전';
+    if (progress >= 100) return '완료';
     return '진행중';
   }
   
@@ -1824,8 +1824,8 @@ export class DrizzleStorage implements IStorage {
 
   // Helper function to determine status from progress percentage (for archive page)
   private getStatusFromProgress(progress: number): string {
-    if (progress === 0) return '진행전';
-    if (progress === 100) return '완료';
+    if (progress <= 0) return '진행전';
+    if (progress >= 100) return '완료';
     return '진행중';
   }
 
