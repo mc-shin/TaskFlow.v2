@@ -2166,7 +2166,15 @@ export class DrizzleStorage implements IStorage {
   }
 
   async deleteGoal(id: string): Promise<boolean> {
-    // Delete associated tasks first
+    // Get all tasks associated with this goal
+    const goalTasks = await this.db.select().from(tasks).where(eq(tasks.goalId, id));
+    
+    // Delete activities for each task
+    for (const task of goalTasks) {
+      await this.db.delete(activities).where(eq(activities.taskId, task.id));
+    }
+    
+    // Delete associated tasks
     await this.db.delete(tasks).where(eq(tasks.goalId, id));
     
     // Delete goal
@@ -2268,6 +2276,10 @@ export class DrizzleStorage implements IStorage {
   }
 
   async deleteTask(id: string): Promise<boolean> {
+    // Delete related activities first
+    await this.db.delete(activities).where(eq(activities.taskId, id));
+    
+    // Delete the task
     const result = await this.db.delete(tasks).where(eq(tasks.id, id));
     return true;
   }

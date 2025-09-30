@@ -95,31 +95,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/tasks/:id", async (req, res) => {
     try {
-      // Get the task before deleting
-      const task = await storage.getTask(req.params.id);
-      if (!task) {
-        return res.status(404).json({ message: "Task not found" });
-      }
-      
-      // Get first user as default
-      const users = await storage.getAllUsers();
-      const currentUser = users.length > 0 ? users[0].id : undefined;
-      
-      // Create activity for task deletion
-      if (currentUser) {
-        await storage.createActivity({
-          userId: currentUser,
-          taskId: task.id,
-          description: `작업 "${task.title}"을 삭제했습니다.`,
-        });
-      }
-      
       const deleted = await storage.deleteTask(req.params.id);
       if (!deleted) {
         return res.status(404).json({ message: "Task not found" });
       }
       res.status(204).send();
     } catch (error) {
+      console.error('Error deleting task:', error);
       res.status(500).json({ message: "Failed to delete task" });
     }
   });
@@ -220,24 +202,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/projects/:id", async (req, res) => {
     try {
-      // Get the project before deleting
-      const project = await storage.getProject(req.params.id);
-      if (!project) {
-        return res.status(404).json({ message: "Project not found" });
-      }
-      
-      // Get first user as default
-      const users = await storage.getAllUsers();
-      const currentUser = users.length > 0 ? users[0].id : undefined;
-      
-      // Create activity for project deletion
-      if (currentUser) {
-        await storage.createActivity({
-          userId: currentUser,
-          description: `프로젝트 "${project.name}"를 삭제했습니다.`,
-        });
-      }
-      
       const deleted = await storage.deleteProject(req.params.id);
       if (!deleted) {
         return res.status(404).json({ message: "Project not found" });
@@ -358,30 +322,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/goals/:id", async (req, res) => {
     try {
-      // Get the goal before deleting
-      const goal = await storage.getGoal(req.params.id);
-      if (!goal) {
-        return res.status(404).json({ message: "Goal not found" });
-      }
-      
-      // Get first user as default
-      const users = await storage.getAllUsers();
-      const currentUser = users.length > 0 ? users[0].id : undefined;
-      
-      // Create activity for goal deletion
-      if (currentUser) {
-        await storage.createActivity({
-          userId: currentUser,
-          description: `목표 "${goal.title}"를 삭제했습니다.`,
-        });
-      }
-      
       const deleted = await storage.deleteGoal(req.params.id);
       if (!deleted) {
         return res.status(404).json({ message: "Goal not found" });
       }
       res.status(204).send();
     } catch (error) {
+      console.error('Error deleting goal:', error);
       if (error instanceof Error && error.message.includes("목표에 작업이 있어")) {
         return res.status(409).json({ message: error.message });
       }
