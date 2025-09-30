@@ -508,6 +508,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.patch("/api/users/:id/role", async (req, res) => {
+    try {
+      const { role } = req.body;
+      if (!role || !['관리자', '팀원'].includes(role)) {
+        return res.status(400).json({ message: "Valid role is required (관리자, 팀원)" });
+      }
+      
+      const user = await storage.updateUserRole(req.params.id, role);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      // 비밀번호는 제외하고 반환
+      const { password, ...safeUser } = user;
+      res.json(safeUser);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update user role" });
+    }
+  });
+
   // Activity routes
   app.get("/api/activities", async (req, res) => {
     try {

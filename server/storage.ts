@@ -16,6 +16,7 @@ export interface IStorage {
   getAllUsersWithStats(): Promise<SafeUserWithStats[]>;
   getAllSafeUsers(): Promise<SafeUser[]>;
   updateUserLastLogin(id: string): Promise<void>;
+  updateUserRole(id: string, role: string): Promise<User | undefined>;
   getWorkspaceMembers(): Promise<SafeUser[]>;
   getDefaultWorkspaceMembers(): Promise<SafeUser[]>;
   getWorkspaceUsersWithStats(): Promise<SafeUserWithStats[]>;
@@ -459,6 +460,16 @@ export class MemStorage implements IStorage {
       user.lastLoginAt = new Date();
       this.users.set(id, user);
     }
+  }
+
+  async updateUserRole(id: string, role: string): Promise<User | undefined> {
+    const user = this.users.get(id);
+    if (user) {
+      user.role = role;
+      this.users.set(id, user);
+      return user;
+    }
+    return undefined;
   }
 
   // Project methods
@@ -1847,6 +1858,14 @@ export class DrizzleStorage implements IStorage {
     await this.db.update(users)
       .set({ lastLoginAt: new Date() })
       .where(eq(users.id, id));
+  }
+
+  async updateUserRole(id: string, role: string): Promise<User | undefined> {
+    const result = await this.db.update(users)
+      .set({ role })
+      .where(eq(users.id, id))
+      .returning();
+    return result[0];
   }
 
   async getWorkspaceMembers(): Promise<SafeUser[]> {

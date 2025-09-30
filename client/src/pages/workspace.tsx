@@ -437,6 +437,20 @@ export function WorkspacePage() {
           
           if (currentUser) {
             inviteeUserId = currentUser.id;
+            
+            // 기존 사용자의 role 업데이트
+            try {
+              await fetch(`/api/users/${currentUser.id}/role`, {
+                method: 'PATCH',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ role: invitationRole })
+              });
+              console.log('기존 사용자 role 업데이트 완료:', invitationRole);
+            } catch (error) {
+              console.error('기존 사용자 role 업데이트 실패:', error);
+            }
           } else {
             // 신규 사용자의 경우 이메일로 사용자 조회 시도
             try {
