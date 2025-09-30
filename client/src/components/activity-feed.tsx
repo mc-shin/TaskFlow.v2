@@ -5,7 +5,7 @@ import { Edit, CheckCircle, Clock } from "lucide-react";
 import type { ActivityWithDetails } from "@shared/schema";
 
 export function ActivityFeed() {
-  const { data: activities, isLoading } = useQuery({
+  const { data: activities, isLoading } = useQuery<ActivityWithDetails[]>({
     queryKey: ["/api/activities"],
     refetchInterval: 10000,
   });
@@ -21,8 +21,8 @@ export function ActivityFeed() {
     return "bg-primary";
   };
 
-  const formatTimeAgo = (dateString: string) => {
-    const date = new Date(dateString);
+  const formatTimeAgo = (dateInput: string | Date) => {
+    const date = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
     const now = new Date();
     const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
     
