@@ -94,7 +94,7 @@ export function TaskTable({ onEditTask }: TaskTableProps) {
     }
   };
 
-  const formatDeadlineWithDday = (deadline: string) => {
+  const getDdayBadge = (deadline: string) => {
     const deadlineDate = new Date(deadline);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -103,14 +103,12 @@ export function TaskTable({ onEditTask }: TaskTableProps) {
     const diffTime = deadlineDate.getTime() - today.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     
-    const dateStr = new Date(deadline).toLocaleDateString('ko-KR');
-    
     if (diffDays < 0) {
-      return `${dateStr} (D+${Math.abs(diffDays)})`;
+      return <Badge className="bg-blue-500 text-white hover:bg-blue-600">D-+{Math.abs(diffDays)}</Badge>;
     } else if (diffDays === 0) {
-      return `${dateStr} (D-Day)`;
+      return <Badge className="bg-orange-500 text-white hover:bg-orange-600">D-Day</Badge>;
     } else {
-      return `${dateStr} (D-${diffDays})`;
+      return <Badge className="bg-blue-500 text-white hover:bg-blue-600">D-{diffDays}</Badge>;
     }
   };
 
@@ -179,8 +177,13 @@ export function TaskTable({ onEditTask }: TaskTableProps) {
                       </span>
                     </div>
                   </td>
-                  <td className="p-4 text-muted-foreground" data-testid={`text-task-deadline-${task.id}`}>
-                    {task.deadline ? formatDeadlineWithDday(task.deadline) : '-'}
+                  <td className="p-4" data-testid={`text-task-deadline-${task.id}`}>
+                    <div className="flex items-center gap-2">
+                      <span className="text-muted-foreground">
+                        {task.deadline ? new Date(task.deadline).toLocaleDateString('ko-KR') : '-'}
+                      </span>
+                      {task.deadline && getDdayBadge(task.deadline)}
+                    </div>
                   </td>
                   <td className="p-4" data-testid={`badge-task-status-${task.id}`}>
                     {getStatusBadge(task.status)}

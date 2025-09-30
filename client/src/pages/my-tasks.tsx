@@ -71,22 +71,40 @@ export default function MyTasks() {
     setIsTaskModalOpen(true);
   };
 
-  const getStatusBadge = (status: string, deadline?: string) => {
-    if (!deadline) return <Badge variant="secondary">기한 없음</Badge>;
-    
+  const getStatusBadgeVariant = (status: string) => {
+    switch (status) {
+      case "진행전":
+        return "secondary" as const;
+      case "진행중":
+        return "default" as const;
+      case "완료":
+        return "success" as const;
+      case "이슈":
+        return "issue" as const;
+      default:
+        return "outline" as const;
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+    return <Badge variant={getStatusBadgeVariant(status)}>{status}</Badge>;
+  };
+
+  const getDdayBadge = (deadline: string) => {
     const deadlineDate = new Date(deadline);
     const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    deadlineDate.setHours(0, 0, 0, 0);
+    
     const diffTime = deadlineDate.getTime() - today.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     
     if (diffDays < 0) {
-      return <Badge variant="destructive">D+{Math.abs(diffDays)}</Badge>;
+      return <Badge className="bg-blue-500 text-white hover:bg-blue-600">D-+{Math.abs(diffDays)}</Badge>;
     } else if (diffDays === 0) {
-      return <Badge className="bg-yellow-500 text-white">D-Day</Badge>;
-    } else if (diffDays <= 3) {
-      return <Badge className="bg-orange-500 text-white">D-{diffDays}</Badge>;
+      return <Badge className="bg-orange-500 text-white hover:bg-orange-600">D-Day</Badge>;
     } else {
-      return <Badge className="bg-green-500 text-white">D-{diffDays}</Badge>;
+      return <Badge className="bg-blue-500 text-white hover:bg-blue-600">D-{diffDays}</Badge>;
     }
   };
 
@@ -206,8 +224,6 @@ export default function MyTasks() {
                 <thead>
                   <tr className="border-b border-border">
                     <th className="text-left p-4 text-sm font-medium text-muted-foreground">작업</th>
-                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">설명</th>
-                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">소요시간</th>
                     <th className="text-left p-4 text-sm font-medium text-muted-foreground">마감기한</th>
                     <th className="text-left p-4 text-sm font-medium text-muted-foreground">상태</th>
                     <th className="text-left p-4 text-sm font-medium text-muted-foreground">담당자</th>
@@ -229,19 +245,16 @@ export default function MyTasks() {
                           </span>
                         </div>
                       </td>
-                      <td className="p-4 text-muted-foreground max-w-xs" data-testid={`text-task-description-${task.id}`}>
-                        <div className="truncate">
-                          {task.description || '-'}
+                      <td className="p-4" data-testid={`text-task-deadline-${task.id}`}>
+                        <div className="flex items-center gap-2">
+                          <span className="text-muted-foreground">
+                            {task.deadline ? new Date(task.deadline).toLocaleDateString('ko-KR') : '-'}
+                          </span>
+                          {task.deadline && getDdayBadge(task.deadline)}
                         </div>
                       </td>
-                      <td className="p-4 text-muted-foreground" data-testid={`text-task-duration-${task.id}`}>
-                        {task.duration || 0}시간
-                      </td>
-                      <td className="p-4 text-muted-foreground" data-testid={`text-task-deadline-${task.id}`}>
-                        {task.deadline ? new Date(task.deadline).toLocaleDateString('ko-KR') : '-'}
-                      </td>
                       <td className="p-4" data-testid={`badge-task-status-${task.id}`}>
-                        {getStatusBadge(task.status, task.deadline)}
+                        {getStatusBadge(task.status)}
                       </td>
                       <td className="p-4">
                         {task.assignees && task.assignees.length > 0 && (
@@ -283,10 +296,10 @@ export default function MyTasks() {
                   
                   {(!filteredTasks || filteredTasks.length === 0) && (
                     <tr>
-                      <td colSpan={7} className="p-8 text-center text-muted-foreground" data-testid="text-empty-tasks">
+                      <td colSpan={5} className="p-8 text-center text-muted-foreground" data-testid="text-empty-tasks">
                         {searchTerm || statusFilter !== "all" 
                           ? "검색 조건에 맞는 작업이 없습니다." 
-                          : "작업이 없습니다. 새 작업을 생성해보세요."
+                          : "작업이 없습니다."
                         }
                       </td>
                     </tr>
