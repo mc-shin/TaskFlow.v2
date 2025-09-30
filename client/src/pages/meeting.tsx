@@ -1,12 +1,9 @@
 import { useState, useMemo, useEffect } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Calendar, Clock, Users, Video, Plus, MapPin, Square } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { RealtimeClock } from "@/components/realtime-clock";
@@ -14,8 +11,6 @@ import type { Meeting, SafeUser } from "@shared/schema";
 
 export default function Meeting() {
   const [selectedWeek, setSelectedWeek] = useState(0); // 0 = this week, 1 = next week, etc.
-  const [participantDialogOpen, setParticipantDialogOpen] = useState(false);
-  const [selectedMeetingId, setSelectedMeetingId] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [, setLocation] = useLocation();
 
@@ -153,55 +148,6 @@ export default function Meeting() {
 
   const currentTimeLine = getCurrentTimeLine();
 
-  // Mutations for participant management
-  const addParticipantMutation = useMutation({
-    mutationFn: ({ meetingId, userId }: { meetingId: string; userId: string }) => {
-      console.log('Adding participant API call:', { meetingId, userId });
-      return apiRequest('POST', `/api/meetings/${meetingId}/attendees`, { userId });
-    },
-    onSuccess: (data) => {
-      console.log('Add participant success:', data);
-      queryClient.invalidateQueries({ queryKey: ['/api/meetings'] });
-    },
-    onError: (error) => {
-      console.error('Add participant error:', error);
-    }
-  });
-
-  const removeParticipantMutation = useMutation({
-    mutationFn: ({ meetingId, userId }: { meetingId: string; userId: string }) => {
-      console.log('Removing participant API call:', { meetingId, userId });
-      return apiRequest('DELETE', `/api/meetings/${meetingId}/attendees/${userId}`);
-    },
-    onSuccess: (data) => {
-      console.log('Remove participant success:', data);
-      queryClient.invalidateQueries({ queryKey: ['/api/meetings'] });
-    },
-    onError: (error) => {
-      console.error('Remove participant error:', error);
-    }
-  });
-
-  // Get selected meeting
-  const selectedMeeting = selectedMeetingId ? meetings.find(m => m.id === selectedMeetingId) : null;
-
-  // Handle participant toggle
-  const handleParticipantToggle = (userId: string, isCurrentlyAttending: boolean) => {
-    console.log('Toggling participant:', { userId, isCurrentlyAttending, selectedMeetingId });
-    if (!selectedMeetingId) {
-      console.log('No meeting selected');
-      return;
-    }
-    
-    if (isCurrentlyAttending) {
-      console.log('Removing participant');
-      removeParticipantMutation.mutate({ meetingId: selectedMeetingId, userId });
-    } else {
-      console.log('Adding participant');
-      addParticipantMutation.mutate({ meetingId: selectedMeetingId, userId });
-    }
-  };
-
   return (
     <div className="flex h-full">
       {/* Main Content */}
@@ -229,93 +175,6 @@ export default function Meeting() {
                     </AvatarFallback>
                   </Avatar>
                 ))}
-                <Dialog open={participantDialogOpen} onOpenChange={setParticipantDialogOpen}>
-                  <DialogTrigger asChild>
-                    <Button 
-                      size="sm" 
-                      variant="outline" 
-                      className="w-8 h-8 rounded-full p-0"
-                      data-testid="button-add-participant"
-                      onClick={() => {
-                        // For demo purposes, select the first meeting if any exists
-                        const firstMeeting = meetings[0];
-                        if (firstMeeting) {
-                          setSelectedMeetingId(firstMeeting.id);
-                        }
-                      }}
-                    >
-                      <Plus className="w-4 h-4" />
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-md" data-testid="dialog-participant-management">
-                    <DialogHeader>
-                      <DialogTitle>참여자 관리</DialogTitle>
-                    </DialogHeader>
-                    
-                    {selectedMeeting ? (
-                      <div className="space-y-4">
-                        <div>
-                          <h3 className="font-medium mb-2">{selectedMeeting.title}</h3>
-                          <p className="text-sm text-muted-foreground">
-                            {new Date(selectedMeeting.startAt).toLocaleDateString('ko-KR', {
-                              month: 'long',
-                              day: 'numeric',
-                              hour: '2-digit',
-                              minute: '2-digit'
-                            })}
-                          </p>
-                        </div>
-                        
-                        <div className="space-y-3 max-h-60 overflow-y-auto">
-                          {users.map((user) => {
-                            const isAttending = selectedMeeting.attendeeIds.includes(user.id);
-                            return (
-                              <div 
-                                key={user.id} 
-                                className="flex items-center justify-between p-2 rounded border"
-                                data-testid={`participant-item-${user.id}`}
-                              >
-                                <div className="flex items-center space-x-3">
-                                  <Avatar className="w-8 h-8">
-                                    <AvatarFallback className="text-xs bg-primary text-primary-foreground">
-                                      {user.initials}
-                                    </AvatarFallback>
-                                  </Avatar>
-                                  <div>
-                                    <div className="font-medium text-sm">{user.name}</div>
-                                    <div className="text-xs text-muted-foreground">@{user.username}</div>
-                                  </div>
-                                </div>
-                                
-                                <Checkbox
-                                  checked={isAttending}
-                                  onCheckedChange={() => handleParticipantToggle(user.id, isAttending)}
-                                  disabled={addParticipantMutation.isPending || removeParticipantMutation.isPending}
-                                  data-testid={`checkbox-participant-${user.id}`}
-                                />
-                              </div>
-                            );
-                          })}
-                        </div>
-                        
-                        <div className="flex justify-end space-x-2 pt-4 border-t">
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => setParticipantDialogOpen(false)}
-                            data-testid="button-cancel-participants"
-                          >
-                            완료
-                          </Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="text-center py-8">
-                        <p className="text-muted-foreground">선택된 미팅이 없습니다.</p>
-                      </div>
-                    )}
-                  </DialogContent>
-                </Dialog>
               </div>
             </div>
             

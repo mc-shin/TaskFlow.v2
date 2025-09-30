@@ -60,9 +60,9 @@ export default function NewMeeting() {
     }
   };
 
-  // 사용자 목록 가져오기
+  // 사용자 목록 가져오기 (workspace members only)
   const { data: users = [] } = useQuery<SafeUser[]>({
-    queryKey: ['/api/users'],
+    queryKey: ['/api/users?workspace=true'],
   });
 
   // 폼 설정
