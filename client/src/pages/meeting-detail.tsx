@@ -375,9 +375,8 @@ export default function MeetingDetail() {
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <Button
-                      variant="outline"
+                      variant="destructive"
                       size="sm"
-                      className="text-destructive hover:bg-destructive hover:text-destructive-foreground"
                       data-testid="button-delete"
                     >
                       <Trash2 className="w-4 h-4 mr-2" />
@@ -419,7 +418,7 @@ export default function MeetingDetail() {
                   {updateMeetingMutation.isPending ? "저장 중..." : "저장"}
                 </Button>
                 <Button
-                  variant="outline"
+                  variant="secondary"
                   size="sm"
                   onClick={() => {
                     setIsEditing(false);
@@ -566,15 +565,12 @@ export default function MeetingDetail() {
                                       {user.initials}
                                     </AvatarFallback>
                                   </Avatar>
-                                  <div>
-                                    <label
-                                      htmlFor={`user-${user.id}`}
-                                      className="text-sm font-medium cursor-pointer"
-                                    >
-                                      {user.name}
-                                    </label>
-                                    <div className="text-xs text-muted-foreground">@{user.username}</div>
-                                  </div>
+                                  <label
+                                    htmlFor={`user-${user.id}`}
+                                    className="text-sm font-medium cursor-pointer"
+                                  >
+                                    {user.name}
+                                  </label>
                                 </div>
                               ))}
                             </div>
@@ -666,10 +662,7 @@ export default function MeetingDetail() {
                             {user.initials}
                           </AvatarFallback>
                         </Avatar>
-                        <div>
-                          <div className="font-medium">{user.name}</div>
-                          <div className="text-sm text-muted-foreground">@{user.username}</div>
-                        </div>
+                        <div className="font-medium">{user.name}</div>
                       </div>
                     ))}
                   </div>

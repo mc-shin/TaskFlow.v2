@@ -175,6 +175,13 @@ export default function Meeting() {
                     </AvatarFallback>
                   </Avatar>
                 ))}
+                {users.length > 5 && (
+                  <Avatar className="w-8 h-8 border-2 border-background">
+                    <AvatarFallback className="text-xs bg-secondary text-secondary-foreground">
+                      +{users.length - 5}
+                    </AvatarFallback>
+                  </Avatar>
+                )}
               </div>
             </div>
             
