@@ -2944,8 +2944,14 @@ export class DrizzleStorage implements IStorage {
         assigneeUsers = await this.getUsersByIds(assigneeIds);
       }
 
+      // Calculate progress and status for archive page
+      const taskProgress = this.getTaskProgress(task);
+      const calculatedStatus = this.getStatusFromProgress(taskProgress);
+
       tasksWithAssignees.push({
         ...task,
+        progress: taskProgress,
+        status: calculatedStatus,
         assignees: assigneeUsers
       });
     }
