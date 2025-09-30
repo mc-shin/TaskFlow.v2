@@ -108,3 +108,9 @@ The application is designed as a monorepo with shared schemas between client and
 - **Status Editing Restrictions**: Implemented controlled editing behavior where "이슈" status can only be modified in detail pages. List page interactions for tasks redirect to detail pages when attempting to change status to "이슈".
 - **Consistent Badge Styling**: Added orange "issue" variant to Badge component ensuring visual consistency across all views when displaying "이슈" status.
 - **Data Synchronization**: Ensured proper status synchronization between detail pages and list views through TanStack Query cache invalidation, maintaining data consistency across navigation contexts.
+
+### Member Invitation System Improvements (September 30, 2025)
+- **Database Schema Compliance**: Fixed invitation payload validation by removing the `inviterName` field from invitation data sent from list-tree.tsx and admin.tsx. Invitations now only include `inviterEmail`, `inviteeEmail`, `role`, and `status` fields, matching the actual database schema exactly.
+- **Database-Based Role Display**: Corrected member list role display in the list page invitation modal. Previously, roles were determined by array index position (first user = admin, rest = team members), causing incorrect role badges regardless of database values. Now displays `user.role` directly from the database, ensuring accurate representation of admin ("관리자") and team member ("팀원") roles.
+- **Admin Protection**: Updated delete button logic to use database role field (`user.role !== '관리자'`) instead of array index, preventing accidental deletion of users with admin privileges.
+- **Role Assignment**: Verified that workspace-based invitations correctly save the selected role ("관리자" or "팀원") to the database when sending invites.
