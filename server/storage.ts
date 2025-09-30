@@ -1822,6 +1822,13 @@ export class DrizzleStorage implements IStorage {
     return totalProgress / tasks.length;
   }
 
+  // Helper function to determine status from progress percentage (for archive page)
+  private getStatusFromProgress(progress: number): string {
+    if (progress === 0) return '진행전';
+    if (progress === 100) return '완료';
+    return '진행중';
+  }
+
   // User methods
   async getUser(id: string): Promise<User | undefined> {
     const result = await this.db.select().from(users).where(eq(users.id, id)).limit(1);
