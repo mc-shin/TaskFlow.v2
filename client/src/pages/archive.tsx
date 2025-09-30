@@ -266,50 +266,30 @@ export default function Archive() {
       return;
     }
 
+    // Find projects in the selected items
+    const selectedProjects = Array.from(selectedItems).filter(itemId => {
+      return archivedProjects?.some((p: any) => p.id === itemId);
+    });
+
+    // Validate that at least one project is selected
+    if (selectedProjects.length === 0) {
+      toast({
+        title: "프로젝트 단위로 이동해 주세요.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Restore projects only (child goals and tasks will be restored automatically)
     try {
-      for (const itemId of Array.from(selectedItems)) {
-        // Find the item in the hierarchical structure
-        let found = false;
-        
-        // Check if it's a project
-        const project = archivedProjects?.find((p: any) => p.id === itemId);
-        if (project) {
-          await unarchiveProjectMutation.mutateAsync(itemId);
-          found = true;
-        }
-        
-        if (!found) {
-          // Check if it's a goal within any project
-          for (const proj of archivedProjects || []) {
-            const goal = proj.goals?.find((g: any) => g.id === itemId);
-            if (goal) {
-              await unarchiveGoalMutation.mutateAsync(itemId);
-              found = true;
-              break;
-            }
-          }
-        }
-        
-        if (!found) {
-          // Check if it's a task within any goal
-          for (const proj of archivedProjects || []) {
-            for (const goal of proj.goals || []) {
-              const task = goal.tasks?.find((t: any) => t.id === itemId);
-              if (task) {
-                await unarchiveTaskMutation.mutateAsync(itemId);
-                found = true;
-                break;
-              }
-            }
-            if (found) break;
-          }
-        }
+      for (const projectId of selectedProjects) {
+        await unarchiveProjectMutation.mutateAsync(projectId);
       }
 
       setSelectedItems(new Set());
       toast({
         title: "복원 완료",
-        description: `${selectedItems.size}개 항목이 성공적으로 복원되었습니다.`,
+        description: `${selectedProjects.length}개 프로젝트가 성공적으로 복원되었습니다.`,
       });
     } catch (error) {
       console.error('Error restoring items:', error);
