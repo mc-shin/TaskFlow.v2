@@ -2418,13 +2418,16 @@ export default function ListTree() {
                       const allProjects = await projectsResponse.json();
                       const mainProject = allProjects.find((p: any) => p.name === '메인 프로젝트');
                       
+                      // 메인 프로젝트가 없으면 에러 처리
+                      if (!mainProject) {
+                        throw new Error('메인 프로젝트를 찾을 수 없습니다');
+                      }
+                      
                       // 백엔드에 초대 생성 API 호출 (중요: DB에 저장해야 수락 시 작동함)
                       const invitationData = {
-                        projectId: mainProject?.id || null,
+                        projectId: mainProject.id,
                         inviterEmail: currentUser.email,
-                        inviteeEmail: inviteUsername,
-                        inviteeUsername: existingUser ? existingUser.username : inviteUsername.split('@')[0], // 신규 사용자는 이메일의 앞부분을 username으로 사용
-                        role: inviteRole
+                        inviteeEmail: inviteUsername
                       };
                       
                       const response = await fetch('/api/invitations', {
