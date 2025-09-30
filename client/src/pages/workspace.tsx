@@ -489,6 +489,9 @@ export function WorkspacePage() {
           // 워크스페이스 멤버로 초대 수락 완료
           if (inviteeUserId) {
             console.log('워크스페이스 멤버로 초대 수락 완료');
+            // localStorage에 userId 저장 (사이드바에서 currentUser를 가져올 때 사용)
+            localStorage.setItem('userId', inviteeUserId);
+            console.log('userId 저장 완료:', inviteeUserId);
           }
           
           // 실시간 반영을 위해 관련 캐시 무조건 무효화 (데이터베이스 기준)
