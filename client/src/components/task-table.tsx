@@ -156,10 +156,10 @@ export function TaskTable({ onEditTask }: TaskTableProps) {
             <thead>
               <tr className="border-b border-border">
                 <th className="text-left p-4 text-sm font-medium text-muted-foreground">작업</th>
-                <th className="text-left p-4 text-sm font-medium text-muted-foreground">마감기한</th>
-                <th className="text-left p-4 text-sm font-medium text-muted-foreground">상태</th>
-                <th className="text-left p-4 text-sm font-medium text-muted-foreground">담당자</th>
-                <th className="text-left p-4 text-sm font-medium text-muted-foreground">작업</th>
+                <th className="text-left p-4 text-sm font-medium text-muted-foreground w-[220px]">마감기한</th>
+                <th className="text-left p-4 text-sm font-medium text-muted-foreground w-[100px]">상태</th>
+                <th className="text-left p-4 text-sm font-medium text-muted-foreground w-[150px]">담당자</th>
+                <th className="text-left p-4 text-sm font-medium text-muted-foreground w-[100px]">작업</th>
               </tr>
             </thead>
             <tbody>
@@ -177,7 +177,7 @@ export function TaskTable({ onEditTask }: TaskTableProps) {
                       </span>
                     </div>
                   </td>
-                  <td className="p-4" data-testid={`text-task-deadline-${task.id}`}>
+                  <td className="p-4 w-[220px]" data-testid={`text-task-deadline-${task.id}`}>
                     <div className="flex items-center gap-2">
                       <span className="text-muted-foreground">
                         {task.deadline ? new Date(task.deadline).toLocaleDateString('ko-KR') : '-'}
@@ -185,10 +185,10 @@ export function TaskTable({ onEditTask }: TaskTableProps) {
                       {task.deadline && getDdayBadge(task.deadline)}
                     </div>
                   </td>
-                  <td className="p-4" data-testid={`badge-task-status-${task.id}`}>
+                  <td className="p-4 w-[100px]" data-testid={`badge-task-status-${task.id}`}>
                     {getStatusBadge(task.status)}
                   </td>
-                  <td className="p-4">
+                  <td className="p-4 w-[150px]">
                     {task.assignees && task.assignees.length > 0 && (
                       <div className="flex items-center space-x-2">
                         <Avatar className="w-6 h-6">
@@ -202,7 +202,7 @@ export function TaskTable({ onEditTask }: TaskTableProps) {
                       </div>
                     )}
                   </td>
-                  <td className="p-4">
+                  <td className="p-4 w-[100px]">
                     <div className="flex space-x-2">
                       <Button 
                         variant="ghost" 
