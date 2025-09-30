@@ -394,11 +394,6 @@ export class MemStorage implements IStorage {
       return false;
     }
     
-    // 관리자 사용자 삭제 방지
-    if (user.role === "관리자") {
-      throw new Error("관리자 계정은 삭제할 수 없습니다.");
-    }
-    
     // 모든 프로젝트에서 해당 사용자를 ownerIds에서 제거
     const projects = Array.from(this.projects.values());
     for (const project of projects) {
@@ -1859,11 +1854,6 @@ export class DrizzleStorage implements IStorage {
     const user = await this.getUser(id);
     if (!user) {
       return false;
-    }
-    
-    // Prevent deletion of admin users
-    if (user.role === "관리자") {
-      throw new Error("관리자 계정은 삭제할 수 없습니다.");
     }
     
     // Remove user from all project ownerIds
