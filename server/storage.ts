@@ -2067,7 +2067,22 @@ export class DrizzleStorage implements IStorage {
   }
 
   async deleteProject(id: string): Promise<boolean> {
-    // Delete associated goals and tasks first
+    // Delete associated invitations first
+    await this.db.delete(invitations).where(eq(invitations.projectId, id));
+    
+    // Delete associated attachments
+    await this.db.delete(attachments).where(and(
+      eq(attachments.entityType, 'project'),
+      eq(attachments.entityId, id)
+    ));
+    
+    // Delete associated comments
+    await this.db.delete(comments).where(and(
+      eq(comments.entityType, 'project'),
+      eq(comments.entityId, id)
+    ));
+    
+    // Delete associated goals and tasks
     const projectGoals = await this.db.select().from(goals).where(eq(goals.projectId, id));
     
     for (const goal of projectGoals) {
