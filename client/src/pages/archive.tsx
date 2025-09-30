@@ -253,7 +253,7 @@ export default function Archive() {
 
   // Function to derive status from progress (from list-tree.tsx)
   const getStatusFromProgress = (progress: number): string => {
-    if (progress === 0) return '진행전';
+    if (progress <= 0) return '진행전';
     if (progress >= 100) return '완료';
     return '진행중';
   };
