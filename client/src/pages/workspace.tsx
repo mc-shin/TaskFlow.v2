@@ -458,6 +458,20 @@ export function WorkspacePage() {
               if (userResponse.ok) {
                 const userData = await userResponse.json();
                 inviteeUserId = userData.id;
+                
+                // 기존 사용자의 role 업데이트 (hardcoded mapping에 없는 사용자)
+                try {
+                  await fetch(`/api/users/${userData.id}/role`, {
+                    method: 'PATCH',
+                    headers: {
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ role: invitationRole })
+                  });
+                  console.log('기존 사용자 role 업데이트 완료:', invitationRole);
+                } catch (error) {
+                  console.error('기존 사용자 role 업데이트 실패:', error);
+                }
               } else if (userResponse.status === 404) {
                 // 신규 사용자이므로 백엔드에 생성
                 console.log('신규 사용자 생성 중...');

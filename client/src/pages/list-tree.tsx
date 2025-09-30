@@ -126,6 +126,11 @@ export default function ListTree() {
     refetchOnWindowFocus: true, // 창 포커스 시에도 갱신
   });
 
+  // Get current user's role to check if they can delete members
+  const currentUserEmail = localStorage.getItem('userEmail') || '';
+  const currentUser = (users as SafeUser[] | undefined)?.find(u => u.email === currentUserEmail);
+  const isCurrentUserAdmin = currentUser?.role === '관리자';
+
   const queryClient = useQueryClient();
 
   // 멤버 삭제 mutation (관리자 페이지와 동일한 로직)
@@ -2534,7 +2539,7 @@ export default function ListTree() {
                               <Badge variant="outline" className="text-xs border-slate-600 text-slate-300">
                                 {user.role}
                               </Badge>
-                              {user.role !== '관리자' && ( // 관리자는 삭제할 수 없음
+                              {user.role !== '관리자' && isCurrentUserAdmin && ( // 관리자만 멤버 삭제 가능
                                 <AlertDialog>
                                   <AlertDialogTrigger asChild>
                                     <Button
