@@ -573,8 +573,8 @@ export default function Admin() {
                             />
                           </div>
                           
-                          {/* 삭제 버튼 - admin@qubicom.co.kr는 모든 사용자 삭제 가능, 다른 관리자는 팀원만 삭제 가능 */}
-                          {(user.role !== "관리자" || currentUserEmail === "admin@qubicom.co.kr") && (
+                          {/* 삭제 버튼 - admin@qubicom.co.kr 본인은 삭제 불가, 다른 사용자는 권한에 따라 삭제 가능 */}
+                          {user.email !== 'admin@qubicom.co.kr' && (user.role !== "관리자" || currentUserEmail === "admin@qubicom.co.kr") && (
                             <div className="pt-3 border-t">
                               <AlertDialog>
                                 <AlertDialogTrigger asChild>

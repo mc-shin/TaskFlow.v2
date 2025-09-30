@@ -2541,7 +2541,7 @@ export default function ListTree() {
                               <Badge variant="outline" className="text-xs border-slate-600 text-slate-300">
                                 {user.role}
                               </Badge>
-                              {(user.role !== '관리자' || currentUserEmail === 'admin@qubicom.co.kr') && isCurrentUserAdmin && ( // admin@qubicom.co.kr는 모든 사용자 삭제 가능, 다른 관리자는 팀원만 삭제 가능
+                              {user.email !== 'admin@qubicom.co.kr' && (user.role !== '관리자' || currentUserEmail === 'admin@qubicom.co.kr') && isCurrentUserAdmin && ( // admin@qubicom.co.kr 본인은 삭제 불가
                                 <AlertDialog>
                                   <AlertDialogTrigger asChild>
                                     <Button
