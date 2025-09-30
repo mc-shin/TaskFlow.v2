@@ -251,6 +251,13 @@ export default function Archive() {
     }
   };
 
+  // Function to derive status from progress (from list-tree.tsx)
+  const getStatusFromProgress = (progress: number): string => {
+    if (progress === 0) return '진행전';
+    if (progress >= 100) return '완료';
+    return '진행중';
+  };
+
   const getUserById = (userId: string): SafeUser | undefined => {
     return (users as SafeUser[])?.find(user => user.id === userId);
   };
@@ -642,8 +649,8 @@ export default function Archive() {
                                       )}
                                     </div>
                                     <div className="col-span-1">
-                                      <Badge variant={getStatusBadgeVariant(task.status)}>
-                                        {task.status}
+                                      <Badge variant={getStatusBadgeVariant(task.status === '이슈' ? '이슈' : getStatusFromProgress(task.progress || 0))}>
+                                        {task.status === '이슈' ? '이슈' : getStatusFromProgress(task.progress || 0)}
                                       </Badge>
                                     </div>
                                     <div className="col-span-2">
