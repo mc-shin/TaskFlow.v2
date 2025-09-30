@@ -852,7 +852,7 @@ export default function ProjectDetail() {
                       .filter(Boolean) as SafeUser[];
                     
                     return owners.length > 0 ? (
-                      <div className="space-y-2">
+                      <div className="space-y-2 max-h-[150px] overflow-y-auto">
                         {owners.map((owner, index) => (
                           <div key={owner.id} className="flex items-center gap-3">
                             <Avatar>

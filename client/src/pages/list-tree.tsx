@@ -1104,11 +1104,33 @@ export default function ListTree() {
           </div>
         </PopoverTrigger>
         <PopoverContent className="w-64 p-3" align="start">
-          <div className="space-y-2">
-            <h4 className="font-medium text-sm">
-              {type === 'project' ? '소유자' : '담당자'} 선택
-            </h4>
-            <div className="space-y-1 max-h-48 overflow-y-auto">
+          <div className="space-y-3">
+            {/* 현재 선택된 담당자 표시 */}
+            {assignees.length > 0 && (
+              <div className="pb-2 border-b">
+                <h4 className="font-medium text-sm mb-2">
+                  현재 {type === 'project' ? '소유자' : '담당자'}
+                </h4>
+                <div className="space-y-1 max-h-[120px] overflow-y-auto">
+                  {assignees.map((assignee) => (
+                    <div key={assignee.id} className="flex items-center gap-2 text-sm">
+                      <Avatar className="w-6 h-6">
+                        <AvatarFallback className="text-xs bg-primary text-primary-foreground">
+                          {assignee.name.charAt(0)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span>{assignee.name}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            <div>
+              <h4 className="font-medium text-sm mb-2">
+                {type === 'project' ? '소유자' : '담당자'} 선택
+              </h4>
+              <div className="space-y-1 max-h-48 overflow-y-auto">
               {/* 초대 대기중 표시 제거 - 실제 담당자만 표시 */}
               
               {/* Current users - 모든 사용자 표시하여 다중 선택 가능 */}
@@ -1164,6 +1186,7 @@ export default function ListTree() {
                 );
               })}
             </div>
+          </div>
           </div>
         </PopoverContent>
       </Popover>

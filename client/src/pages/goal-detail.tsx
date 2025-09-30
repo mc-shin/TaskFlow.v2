@@ -866,7 +866,7 @@ export default function GoalDetail() {
                       .filter(Boolean) as SafeUser[];
                     
                     return assignees.length > 0 ? (
-                      <div className="space-y-2">
+                      <div className="space-y-2 max-h-[150px] overflow-y-auto">
                         {assignees.map((assignee, index) => (
                           <div key={assignee.id} className="flex items-center gap-3">
                             <Avatar>
