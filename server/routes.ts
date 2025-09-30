@@ -157,7 +157,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       res.status(204).send();
     } catch (error) {
-      res.status(500).json({ message: "Failed to delete project" });
+      console.error("[ERROR] Failed to delete project:", error);
+      res.status(500).json({ message: "Failed to delete project", error: error instanceof Error ? error.message : String(error) });
     }
   });
 
