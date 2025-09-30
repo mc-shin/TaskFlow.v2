@@ -2418,23 +2418,13 @@ export default function ListTree() {
                         throw new Error('사용자 정보를 찾을 수 없습니다');
                       }
                       
-                      // 현재 사용자가 소유한 프로젝트 찾기
-                      const projectsResponse = await fetch('/api/projects');
-                      const allProjects = await projectsResponse.json();
-                      const userProject = allProjects.find((p: any) => 
-                        p.ownerIds && p.ownerIds.includes(currentUser.id)
-                      );
-                      
-                      // 사용자의 프로젝트가 없으면 에러 처리
-                      if (!userProject) {
-                        throw new Error('초대를 보낼 수 있는 프로젝트가 없습니다');
-                      }
-                      
-                      // 백엔드에 초대 생성 API 호출 (중요: DB에 저장해야 수락 시 작동함)
+                      // 워크스페이스 기반 초대 생성 (프로젝트 ID 없이)
                       const invitationData = {
-                        projectId: userProject.id,
+                        inviterName: currentUser.name,
                         inviterEmail: currentUser.email,
-                        inviteeEmail: inviteUsername
+                        inviteeEmail: inviteUsername,
+                        role: inviteRole,
+                        status: 'pending'
                       };
                       
                       const response = await fetch('/api/invitations', {
@@ -2455,7 +2445,6 @@ export default function ListTree() {
                       const invitations = JSON.parse(localStorage.getItem('invitations') || '[]');
                       const localInvitation = {
                         ...newInvitation,
-                        projectName: userProject.name,
                         inviterName: currentUser.name,
                         inviteeName: existingUser ? existingUser.name : inviteUsername,
                         createdAt: new Date().toISOString()

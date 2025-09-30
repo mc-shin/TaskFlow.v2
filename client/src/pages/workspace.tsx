@@ -425,91 +425,85 @@ export function WorkspacePage() {
         description: action === 'accept' ? "워크스페이스에 참여했습니다." : "초대를 거절했습니다.",
       });
 
-      // 초대를 수락한 경우 프로젝트 멤버로 추가 및 신규 사용자 플래그 클리어
+      // 초대를 수락한 경우 워크스페이스 멤버로 추가 및 신규 사용자 플래그 클리어
       if (action === 'accept') {
-        // 수락한 초대 정보에서 프로젝트 ID 가져오기
-        const acceptedInvitation = receivedInvitations.find((inv: any) => inv.id === invitationId);
-        
-        if (acceptedInvitation && acceptedInvitation.projectId) {
-          try {
-            // 현재 프로젝트 정보 가져오기
-            const projectResponse = await fetch(`/api/projects`);
-            const projects = await projectResponse.json();
-            const targetProject = projects.find((p: any) => p.id === acceptedInvitation.projectId);
-            
-            if (targetProject) {
-              // 현재 사용자 ID 가져오기
-              let inviteeUserId = null;
-              
-              if (currentUser) {
-                inviteeUserId = currentUser.id;
-              } else {
-                // 신규 사용자의 경우 이메일로 사용자 조회 시도
-                try {
-                  const userResponse = await fetch(`/api/users/by-email/${encodeURIComponent(userEmail)}`);
-                  if (userResponse.ok) {
-                    const userData = await userResponse.json();
-                    inviteeUserId = userData.id;
-                  } else if (userResponse.status === 404) {
-                    // 신규 사용자이므로 백엔드에 생성
-                    console.log('신규 사용자 생성 중...');
-                    
-                    // 강력한 임의 비밀번호 생성 (초대 기반 계정이므로 사용자가 나중에 변경)
-                    const generateRandomPassword = () => {
-                      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
-                      let result = '';
-                      for (let i = 0; i < 16; i++) {
-                        result += chars.charAt(Math.floor(Math.random() * chars.length));
-                      }
-                      return result;
-                    };
-                    
-                    const createUserResponse = await fetch('/api/users', {
-                      method: 'POST',
-                      headers: {
-                        'Content-Type': 'application/json',
-                      },
-                      body: JSON.stringify({
-                        username: userEmail.split('@')[0], // 이메일의 앞부분을 username으로 사용
-                        email: userEmail,
-                        password: generateRandomPassword(), // 강력한 임의 비밀번호
-                        name: localStorage.getItem("userName") || userEmail.split('@')[0], // 가입시 입력한 이름 우선 사용
-                        initials: (localStorage.getItem("userName") || userEmail).charAt(0).toUpperCase(), // 이름의 첫 글자를 이니셜로 사용
-                      })
-                    });
-                    
-                    if (createUserResponse.ok) {
-                      const newUser = await createUserResponse.json();
-                      inviteeUserId = newUser.id;
-                      console.log('신규 사용자 생성 완료:', newUser);
-                    } else {
-                      console.error('신규 사용자 생성 실패');
-                    }
+        try {
+          // 현재 사용자 ID 가져오기
+          let inviteeUserId = null;
+          
+          if (currentUser) {
+            inviteeUserId = currentUser.id;
+          } else {
+            // 신규 사용자의 경우 이메일로 사용자 조회 시도
+            try {
+              const userResponse = await fetch(`/api/users/by-email/${encodeURIComponent(userEmail)}`);
+              if (userResponse.ok) {
+                const userData = await userResponse.json();
+                inviteeUserId = userData.id;
+              } else if (userResponse.status === 404) {
+                // 신규 사용자이므로 백엔드에 생성
+                console.log('신규 사용자 생성 중...');
+                
+                // 강력한 임의 비밀번호 생성 (초대 기반 계정이므로 사용자가 나중에 변경)
+                const generateRandomPassword = () => {
+                  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
+                  let result = '';
+                  for (let i = 0; i < 16; i++) {
+                    result += chars.charAt(Math.floor(Math.random() * chars.length));
                   }
-                } catch (error) {
-                  console.error('사용자 조회/생성 중 오류:', error);
+                  return result;
+                };
+                
+                const createUserResponse = await fetch('/api/users', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    username: userEmail.split('@')[0], // 이메일의 앞부분을 username으로 사용
+                    email: userEmail,
+                    password: generateRandomPassword(), // 강력한 임의 비밀번호
+                    name: localStorage.getItem("userName") || userEmail.split('@')[0], // 가입시 입력한 이름 우선 사용
+                    initials: (localStorage.getItem("userName") || userEmail).charAt(0).toUpperCase(), // 이름의 첫 글자를 이니셜로 사용
+                  })
+                });
+                
+                if (createUserResponse.ok) {
+                  const newUser = await createUserResponse.json();
+                  inviteeUserId = newUser.id;
+                  console.log('신규 사용자 생성 완료:', newUser);
+                } else {
+                  console.error('신규 사용자 생성 실패');
                 }
               }
-              
-              // 초대 수락 시 워크스페이스 멤버로만 추가 (프로젝트 소유자로는 추가하지 않음)
-              if (inviteeUserId) {
-                console.log('워크스페이스 멤버로 초대 수락 완료');
-                
-                // 실시간 반영을 위해 관련 캐시 무효화
-                queryClient.invalidateQueries({ queryKey: ["/api/users"] });
-                queryClient.invalidateQueries({ queryKey: ["/api/users", { workspace: true }] });
-                queryClient.invalidateQueries({ queryKey: ["/api/users/with-stats"] });
-                queryClient.invalidateQueries({ queryKey: ["/api/users/with-stats", { workspace: true }] });
-                
-                toast({
-                  title: "워크스페이스 참여 완료",
-                  description: `${workspaceName} 워크스페이스에 참여했습니다.`,
-                });
-              }
+            } catch (error) {
+              console.error('사용자 조회/생성 중 오류:', error);
             }
-          } catch (error) {
-            console.error('프로젝트 멤버 추가 중 오류:', error);
           }
+          
+          // 워크스페이스 멤버로 초대 수락 완료
+          if (inviteeUserId) {
+            console.log('워크스페이스 멤버로 초대 수락 완료');
+          }
+          
+          // 실시간 반영을 위해 관련 캐시 무조건 무효화 (데이터베이스 기준)
+          console.log('초대 수락 후 캐시 무효화 시작');
+          queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+          queryClient.invalidateQueries({ queryKey: ["/api/users", { workspace: true }] });
+          queryClient.invalidateQueries({ queryKey: ["/api/users/with-stats"] });
+          queryClient.invalidateQueries({ queryKey: ["/api/users/with-stats", { workspace: true }] });
+          
+          // 쿼리를 즉시 다시 가져오기 (refetch)
+          await queryClient.refetchQueries({ queryKey: ["/api/users", { workspace: true }] });
+          await queryClient.refetchQueries({ queryKey: ["/api/users/with-stats", { workspace: true }] });
+          console.log('초대 수락 후 캐시 무효화 및 refetch 완료');
+          
+          toast({
+            title: "워크스페이스 참여 완료",
+            description: `${workspaceName} 워크스페이스에 참여했습니다.`,
+          });
+        } catch (error) {
+          console.error('워크스페이스 멤버 추가 중 오류:', error);
         }
         
         // 초대 수락 기록 저장 (새로고침 후에도 유지)
