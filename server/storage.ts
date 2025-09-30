@@ -4,6 +4,18 @@ import { drizzle } from "drizzle-orm/neon-http";
 import { and, eq, inArray, sql, asc } from "drizzle-orm";
 import { neon } from "@neondatabase/serverless";
 
+// Helper function to get task progress with status fallback
+function getTaskProgress(task: Task): number {
+  if (task.progress !== null && task.progress !== undefined) {
+    return task.progress;
+  }
+  // Fallback to status-based progress (matching frontend logic)
+  if (task.status === '진행전') return 0;
+  if (task.status === '완료') return 100;
+  if (task.status === '이슈') return 50;
+  return 50; // '진행중'
+}
+
 export interface IStorage {
   // User methods
   getUser(id: string): Promise<User | undefined>;
@@ -1624,6 +1636,14 @@ export class MemStorage implements IStorage {
       const projectGoals = Array.from(this.goals.values()).filter(g => g.projectId === project.id);
       const projectTasks = Array.from(this.tasks.values()).filter(t => t.projectId === project.id);
 
+      // Calculate each goal's progress (average of task progress with status fallback)
+      const goalProgresses = projectGoals.map(goal => {
+        const goalTasks = Array.from(this.tasks.values()).filter(t => t.goalId === goal.id);
+        if (goalTasks.length === 0) return 0;
+        return Math.round(goalTasks.reduce((sum, task) => sum + getTaskProgress(task), 0) / goalTasks.length);
+      });
+
+      // Calculate counts for display
       const goalTaskCounts = projectGoals.map(goal => {
         return Array.from(this.tasks.values()).filter(t => t.goalId === goal.id).length;
       });
@@ -1638,7 +1658,14 @@ export class MemStorage implements IStorage {
           ).length;
         }).reduce((sum, count) => sum + count, 0);
 
-      const progressPercentage = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+      // Calculate project progress as average of goal progress (matching list page logic)
+      // If no goals, fall back to direct task progress
+      let progressPercentage = 0;
+      if (goalProgresses.length > 0) {
+        progressPercentage = Math.round(goalProgresses.reduce((sum, progress) => sum + progress, 0) / goalProgresses.length);
+      } else if (projectTasks.length > 0) {
+        progressPercentage = Math.round(projectTasks.reduce((sum, task) => sum + getTaskProgress(task), 0) / projectTasks.length);
+      }
 
       projectsWithDetails.push({
         ...project,
@@ -1684,7 +1711,9 @@ export class MemStorage implements IStorage {
       const completedTasks = goalTasks.filter(task => 
         task.status === '완료' || (task.progress !== null && task.progress >= 100)
       ).length;
-      const progressPercentage = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+      const progressPercentage = totalTasks > 0 
+        ? Math.round(goalTasks.reduce((sum, task) => sum + getTaskProgress(task), 0) / totalTasks)
+        : 0;
 
       goalsWithTasks.push({
         ...goal,
@@ -2711,12 +2740,14 @@ export class DrizzleStorage implements IStorage {
               ? await this.getUsersByIds(goal.assigneeIds)
               : [];
             
-            // Calculate goal progress - consider both status and progress field
+            // Calculate goal progress - average of task progress values with status fallback (matching list page logic)
             const totalTasks = tasksWithAssignees.length;
             const completedTasks = tasksWithAssignees.filter(task => 
               task.status === '완료' || (task.progress !== null && task.progress >= 100)
             ).length;
-            const progressPercentage = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+            const progressPercentage = totalTasks > 0 
+              ? Math.round(tasksWithAssignees.reduce((sum, task) => sum + getTaskProgress(task), 0) / totalTasks)
+              : 0;
             
             return {
               ...goal,
@@ -2734,7 +2765,7 @@ export class DrizzleStorage implements IStorage {
           ? await this.getUsersByIds(project.ownerIds)
           : [];
         
-        // Calculate project progress
+        // Calculate project progress - average of goal progress values (matching list page logic)
         const totalGoalTasks = goalsWithTasks.reduce((sum, goal) => sum + goal.totalTasks, 0);
         const completedGoalTasks = goalsWithTasks.reduce((sum, goal) => sum + goal.completedTasks, 0);
         
@@ -2762,7 +2793,15 @@ export class DrizzleStorage implements IStorage {
         
         const totalTasks = totalGoalTasks + totalDirectTasks;
         const completedTasks = completedGoalTasks + completedDirectTasks;
-        const progressPercentage = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+        
+        // Calculate progress as average of goal progress (matching list page logic)
+        // If no goals, fall back to direct task progress
+        let progressPercentage = 0;
+        if (goalsWithTasks.length > 0) {
+          progressPercentage = Math.round(goalsWithTasks.reduce((sum, goal) => sum + goal.progressPercentage, 0) / goalsWithTasks.length);
+        } else if (directProjectTasksWithAssignees.length > 0) {
+          progressPercentage = Math.round(directProjectTasksWithAssignees.reduce((sum, task) => sum + getTaskProgress(task), 0) / directProjectTasksWithAssignees.length);
+        }
         
         return {
           ...project,
@@ -2811,7 +2850,9 @@ export class DrizzleStorage implements IStorage {
       const completedTasks = goalTasks.filter(task => 
         task.status === '완료' || (task.progress !== null && task.progress >= 100)
       ).length;
-      const progressPercentage = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+      const progressPercentage = totalTasks > 0 
+        ? Math.round(goalTasks.reduce((sum, task) => sum + getTaskProgress(task), 0) / totalTasks)
+        : 0;
 
       goalsWithTasks.push({
         ...goal,
