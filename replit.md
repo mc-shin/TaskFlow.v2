@@ -116,3 +116,13 @@ The application is designed as a monorepo with shared schemas between client and
 - **Team Member Deletion Restrictions**: Implemented role-based access control for member deletion in list page. Only administrators can see and use the delete member button. Team members ("팀원") cannot delete other members from the workspace.
 - **Role Assignment Fix**: Fixed critical bug where users not in hardcoded mapping (admin, hyejin, hyejung, chamin) weren't getting their roles updated when accepting invitations. Now all users receive the correct role ("관리자" or "팀원") from the invitation when they accept it, regardless of whether they're in the hardcoded mapping or not.
 - **Role Update Implementation**: Enhanced workspace.tsx invitation acceptance flow to call PATCH `/api/users/:id/role` endpoint for both mapped and unmapped existing users, ensuring role changes are properly saved to the database.
+
+### Archive Progress Consistency and Data Integrity (September 30, 2025)
+- **Progress Calculation Alignment**: Unified progress calculation logic between list and archive pages to ensure data consistency across page transitions. Archive page now calculates progress identically to list page: project progress = average of goal progress values, goal progress = average of task progress values.
+- **Priority Display Consistency**: Fixed archive page priority display to match list page behavior. Projects and goals now show "-" for priority (as they don't have priority fields), while tasks display their actual priority values.
+- **Smart Progress Fallback**: Implemented intelligent progress calculation helpers in both MemStorage and DrizzleStorage that handle legacy data gracefully:
+  - When progress field is null/undefined, derives value from status ("완료"=100%, "진행전"=0%, "진행중"=50%)
+  - When progress and status mismatch (e.g., status="완료" but progress<100), trusts status for data integrity
+  - Preserves intentional progress values including 0% for in-progress tasks
+- **Database Compatibility**: Ensured backward compatibility with existing tasks that have progress=0 or missing progress fields, automatically calculating correct values based on status during archive operations.
+- **Dual Storage Support**: Applied consistent progress logic to both in-memory (MemStorage) and database-backed (DrizzleStorage) implementations, ensuring identical behavior across development and production environments.
