@@ -1629,9 +1629,13 @@ export class MemStorage implements IStorage {
       });
 
       const totalTasks = projectTasks.length + goalTaskCounts.reduce((sum, count) => sum + count, 0);
-      const completedTasks = projectTasks.filter(task => task.status === '완료').length +
+      const completedTasks = projectTasks.filter(task => 
+        task.status === '완료' || (task.progress !== null && task.progress >= 100)
+      ).length +
         projectGoals.map(goal => {
-          return Array.from(this.tasks.values()).filter(t => t.goalId === goal.id && t.status === '완료').length;
+          return Array.from(this.tasks.values()).filter(t => 
+            t.goalId === goal.id && (t.status === '완료' || (t.progress !== null && t.progress >= 100))
+          ).length;
         }).reduce((sum, count) => sum + count, 0);
 
       const progressPercentage = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
@@ -1677,7 +1681,9 @@ export class MemStorage implements IStorage {
       }
 
       const totalTasks = goalTasks.length;
-      const completedTasks = goalTasks.filter(task => task.status === '완료').length;
+      const completedTasks = goalTasks.filter(task => 
+        task.status === '완료' || (task.progress !== null && task.progress >= 100)
+      ).length;
       const progressPercentage = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
       goalsWithTasks.push({
@@ -2705,9 +2711,11 @@ export class DrizzleStorage implements IStorage {
               ? await this.getUsersByIds(goal.assigneeIds)
               : [];
             
-            // Calculate goal progress
+            // Calculate goal progress - consider both status and progress field
             const totalTasks = tasksWithAssignees.length;
-            const completedTasks = tasksWithAssignees.filter(task => task.status === '완료').length;
+            const completedTasks = tasksWithAssignees.filter(task => 
+              task.status === '완료' || (task.progress !== null && task.progress >= 100)
+            ).length;
             const progressPercentage = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
             
             return {
@@ -2748,7 +2756,9 @@ export class DrizzleStorage implements IStorage {
         );
         
         const totalDirectTasks = directProjectTasksWithAssignees.length;
-        const completedDirectTasks = directProjectTasksWithAssignees.filter(task => task.status === '완료').length;
+        const completedDirectTasks = directProjectTasksWithAssignees.filter(task => 
+          task.status === '완료' || (task.progress !== null && task.progress >= 100)
+        ).length;
         
         const totalTasks = totalGoalTasks + totalDirectTasks;
         const completedTasks = completedGoalTasks + completedDirectTasks;
@@ -2798,7 +2808,9 @@ export class DrizzleStorage implements IStorage {
       }
 
       const totalTasks = goalTasks.length;
-      const completedTasks = goalTasks.filter(task => task.status === '완료').length;
+      const completedTasks = goalTasks.filter(task => 
+        task.status === '완료' || (task.progress !== null && task.progress >= 100)
+      ).length;
       const progressPercentage = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
       goalsWithTasks.push({
