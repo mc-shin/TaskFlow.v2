@@ -83,9 +83,9 @@ export default function MeetingDetail() {
     enabled: !!id
   });
 
-  // 사용자 목록 조회
+  // 사용자 목록 조회 (워크스페이스 멤버만)
   const { data: users = [] } = useQuery<SafeUser[]>({
-    queryKey: ['/api/users']
+    queryKey: ['/api/users?workspace=true']
   });
 
   // 댓글 목록 조회
@@ -410,6 +410,15 @@ export default function MeetingDetail() {
             {isEditing && (
               <>
                 <Button
+                  size="sm"
+                  onClick={form.handleSubmit(onSubmit)}
+                  disabled={updateMeetingMutation.isPending}
+                  data-testid="button-save"
+                >
+                  <Save className="w-4 h-4 mr-2" />
+                  {updateMeetingMutation.isPending ? "저장 중..." : "저장"}
+                </Button>
+                <Button
                   variant="outline"
                   size="sm"
                   onClick={() => {
@@ -421,15 +430,6 @@ export default function MeetingDetail() {
                 >
                   <X className="w-4 h-4 mr-2" />
                   취소
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={form.handleSubmit(onSubmit)}
-                  disabled={updateMeetingMutation.isPending}
-                  data-testid="button-save"
-                >
-                  <Save className="w-4 h-4 mr-2" />
-                  {updateMeetingMutation.isPending ? "저장 중..." : "저장"}
                 </Button>
               </>
             )}
@@ -449,43 +449,19 @@ export default function MeetingDetail() {
                   <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                       {/* 기본 정보 */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <FormField
-                          control={form.control}
-                          name="title"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>제목 *</FormLabel>
-                              <FormControl>
-                                <Input placeholder="미팅 제목을 입력하세요" {...field} data-testid="input-title" />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={form.control}
-                          name="type"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>미팅 유형 *</FormLabel>
-                              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                <FormControl>
-                                  <SelectTrigger data-testid="select-type">
-                                    <SelectValue placeholder="미팅 유형을 선택하세요" />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  <SelectItem value="스탠드업">스탠드업</SelectItem>
-                                  <SelectItem value="기타">기타</SelectItem>
-                                </SelectContent>
-                              </Select>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
+                      <FormField
+                        control={form.control}
+                        name="title"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>제목 *</FormLabel>
+                            <FormControl>
+                              <Input placeholder="미팅 제목을 입력하세요" {...field} data-testid="input-title" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
 
                       <FormField
                         control={form.control}
@@ -617,17 +593,9 @@ export default function MeetingDetail() {
               {/* 기본 정보 */}
               <Card>
                 <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-2xl" data-testid="text-meeting-title">
-                      {meeting.title}
-                    </CardTitle>
-                    <Badge 
-                      variant={meeting.type === "스탠드업" ? "default" : "secondary"}
-                      data-testid="badge-meeting-type"
-                    >
-                      {meeting.type}
-                    </Badge>
-                  </div>
+                  <CardTitle className="text-2xl" data-testid="text-meeting-title">
+                    {meeting.title}
+                  </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {/* 날짜 및 시간 */}
