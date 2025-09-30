@@ -6,15 +6,17 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Edit, Trash2, Search, Filter } from "lucide-react";
+import { Plus, Edit, Trash2, Search, Filter, Users } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { TaskModal } from "@/components/task-modal";
+import { useLocation } from "wouter";
 import type { TaskWithAssignees } from "@shared/schema";
 
 export default function MyTasks() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [, setLocation] = useLocation();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
@@ -138,6 +140,13 @@ export default function MyTasks() {
               모든 작업을 관리하고 추적하세요
             </p>
           </div>
+          <Button 
+            onClick={() => setLocation("/workspace/app/team")}
+            data-testid="button-go-to-team"
+          >
+            <Users className="h-4 w-4 mr-2" />
+            팀 페이지
+          </Button>
         </header>
 
         {/* Loading Content */}
@@ -168,6 +177,13 @@ export default function MyTasks() {
             모든 작업을 관리하고 추적하세요
           </p>
         </div>
+        <Button 
+          onClick={() => setLocation("/workspace/app/team")}
+          data-testid="button-go-to-team"
+        >
+          <Users className="h-4 w-4 mr-2" />
+          팀 페이지
+        </Button>
       </header>
 
       {/* Main Content */}
@@ -224,10 +240,10 @@ export default function MyTasks() {
                 <thead>
                   <tr className="border-b border-border">
                     <th className="text-left p-4 text-sm font-medium text-muted-foreground">작업</th>
-                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">마감기한</th>
-                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">상태</th>
-                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">담당자</th>
-                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">작업</th>
+                    <th className="text-left p-4 text-sm font-medium text-muted-foreground w-[220px]">마감기한</th>
+                    <th className="text-left p-4 text-sm font-medium text-muted-foreground w-[100px]">상태</th>
+                    <th className="text-left p-4 text-sm font-medium text-muted-foreground w-[150px]">담당자</th>
+                    <th className="text-left p-4 text-sm font-medium text-muted-foreground w-[100px]">작업</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -245,7 +261,7 @@ export default function MyTasks() {
                           </span>
                         </div>
                       </td>
-                      <td className="p-4" data-testid={`text-task-deadline-${task.id}`}>
+                      <td className="p-4 w-[220px]" data-testid={`text-task-deadline-${task.id}`}>
                         <div className="flex items-center gap-2">
                           <span className="text-muted-foreground">
                             {task.deadline ? new Date(task.deadline).toLocaleDateString('ko-KR') : '-'}
@@ -253,10 +269,10 @@ export default function MyTasks() {
                           {task.deadline && getDdayBadge(task.deadline)}
                         </div>
                       </td>
-                      <td className="p-4" data-testid={`badge-task-status-${task.id}`}>
+                      <td className="p-4 w-[100px]" data-testid={`badge-task-status-${task.id}`}>
                         {getStatusBadge(task.status)}
                       </td>
-                      <td className="p-4">
+                      <td className="p-4 w-[150px]">
                         {task.assignees && task.assignees.length > 0 && (
                           <div className="flex items-center space-x-2">
                             <Avatar className="w-6 h-6">
@@ -270,7 +286,7 @@ export default function MyTasks() {
                           </div>
                         )}
                       </td>
-                      <td className="p-4">
+                      <td className="p-4 w-[100px]">
                         <div className="flex space-x-2">
                           <Button 
                             variant="ghost" 
