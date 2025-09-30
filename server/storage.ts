@@ -82,11 +82,9 @@ export interface IStorage {
 
   // Invitation methods
   createInvitation(invitation: InsertInvitation): Promise<Invitation>;
-  getInvitationsByProject(projectId: string): Promise<Invitation[]>;
   getInvitationsByEmail(email: string): Promise<Invitation[]>;
   updateInvitationStatus(id: string, status: string): Promise<Invitation | undefined>;
   deleteInvitation(id: string): Promise<boolean>;
-  getProjectMemberIds(projectId: string): Promise<string[]>; // 초대받은 사용자 ID 목록
   
   // Archive methods
   archiveProject(id: string, lastUpdatedBy?: string): Promise<Project | undefined>;
@@ -1439,10 +1437,6 @@ export class MemStorage implements IStorage {
     return invitation;
   }
 
-  async getInvitationsByProject(projectId: string): Promise<Invitation[]> {
-    return Array.from(this.invitations.values()).filter(invitation => invitation.projectId === projectId);
-  }
-
   async getInvitationsByEmail(email: string): Promise<Invitation[]> {
     return Array.from(this.invitations.values()).filter(invitation => invitation.inviteeEmail === email);
   }
@@ -1459,31 +1453,6 @@ export class MemStorage implements IStorage {
 
   async deleteInvitation(id: string): Promise<boolean> {
     return this.invitations.delete(id);
-  }
-
-  async getProjectMemberIds(projectId: string): Promise<string[]> {
-    // 프로젝트 owner들의 ID 목록을 반환
-    const project = this.projects.get(projectId);
-    if (!project) return [];
-    
-    // 현재 프로젝트의 ownerIds와 초대를 수락한 사용자들을 포함
-    const ownerIds = project.ownerIds || [];
-    
-    // 초대를 수락한 사용자들의 이메일을 찾아서 해당 사용자 ID로 변환
-    const acceptedInvitations = Array.from(this.invitations.values())
-      .filter(inv => inv.projectId === projectId && inv.status === 'accepted');
-    
-    const invitedUserIds: string[] = [];
-    for (const invitation of acceptedInvitations) {
-      const user = Array.from(this.users.values()).find(u => u.email === invitation.inviteeEmail);
-      if (user) {
-        invitedUserIds.push(user.id);
-      }
-    }
-    
-    // 중복 제거하여 반환
-    const allIds = ownerIds.concat(invitedUserIds);
-    return Array.from(new Set(allIds));
   }
 
   async getWorkspaceMembers(): Promise<SafeUser[]> {
@@ -2067,9 +2036,6 @@ export class DrizzleStorage implements IStorage {
   }
 
   async deleteProject(id: string): Promise<boolean> {
-    // Delete associated invitations (project invitations, NOT workspace members)
-    await this.db.delete(invitations).where(eq(invitations.projectId, id));
-    
     // Delete associated attachments
     await this.db.delete(attachments).where(and(
       eq(attachments.entityType, 'project'),
@@ -2577,10 +2543,6 @@ export class DrizzleStorage implements IStorage {
     return result[0];
   }
 
-  async getInvitationsByProject(projectId: string): Promise<Invitation[]> {
-    return await this.db.select().from(invitations).where(eq(invitations.projectId, projectId));
-  }
-
   async getInvitationsByEmail(email: string): Promise<Invitation[]> {
     return await this.db.select().from(invitations).where(eq(invitations.inviteeEmail, email));
   }
@@ -2600,28 +2562,6 @@ export class DrizzleStorage implements IStorage {
   async deleteInvitation(id: string): Promise<boolean> {
     const result = await this.db.delete(invitations).where(eq(invitations.id, id));
     return true;
-  }
-
-  async getProjectMemberIds(projectId: string): Promise<string[]> {
-    const acceptedInvitations = await this.db.select()
-      .from(invitations)
-      .where(
-        and(
-          eq(invitations.projectId, projectId),
-          eq(invitations.status, 'accepted')
-        )
-      );
-    
-    // Get users by email from accepted invitations
-    const memberIds: string[] = [];
-    for (const invitation of acceptedInvitations) {
-      const user = await this.getUserByEmail(invitation.inviteeEmail);
-      if (user) {
-        memberIds.push(user.id);
-      }
-    }
-    
-    return memberIds;
   }
 
   // Archive methods

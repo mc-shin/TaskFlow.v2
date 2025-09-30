@@ -131,7 +131,6 @@ export const comments = pgTable("comments", {
 
 export const invitations = pgTable("invitations", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  projectId: varchar("project_id").references(() => projects.id), // 워크스페이스 기반 초대를 위해 선택적
   inviterEmail: text("inviter_email").notNull(),
   inviteeEmail: text("invitee_email").notNull(),
   status: text("status").notNull().default("pending"), // 'pending' | 'accepted' | 'declined'
