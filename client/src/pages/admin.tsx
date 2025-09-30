@@ -175,27 +175,13 @@ export default function Admin() {
         localStorage.setItem("userName", "관리자");
       }
 
-      // 메인 프로젝트 찾기
-      const projectsResponse = await fetch('/api/projects');
-      if (!projectsResponse.ok) {
-        throw new Error("프로젝트 정보를 가져올 수 없습니다.");
-      }
-      const projects = await projectsResponse.json();
-      const mainProject = projects.find((p: any) => p.name === '메인 프로젝트');
-      
-      if (!mainProject) {
-        throw new Error("메인 프로젝트를 찾을 수 없습니다.");
-      }
-
-      // 초대 생성
+      // 워크스페이스 기반 초대 생성 (projectId 없이)
       const invitationResponse = await fetch('/api/invitations', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          projectId: mainProject.id,
-          projectName: mainProject.name,
           inviterName: currentUser.name,
           inviterEmail: currentUser.email,
           inviteeEmail: data.email,
