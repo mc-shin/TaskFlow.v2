@@ -95,6 +95,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/tasks/:id", async (req, res) => {
     try {
+      // Get the task before deleting
+      const task = await storage.getTask(req.params.id);
+      if (!task) {
+        return res.status(404).json({ message: "Task not found" });
+      }
+      
+      // Get first user as default
+      const users = await storage.getAllUsers();
+      const currentUser = users.length > 0 ? users[0].id : undefined;
+      
+      // Create activity for task deletion
+      if (currentUser) {
+        await storage.createActivity({
+          userId: currentUser,
+          taskId: task.id,
+          description: `작업 "${task.title}"을 삭제했습니다.`,
+        });
+      }
+      
       const deleted = await storage.deleteTask(req.params.id);
       if (!deleted) {
         return res.status(404).json({ message: "Task not found" });
@@ -143,6 +162,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const users = await storage.getAllUsers();
       const currentUser = users.length > 0 ? users[0].id : undefined;
       const project = await storage.createProject(projectData, currentUser);
+      
+      // Create activity for project creation
+      if (currentUser) {
+        await storage.createActivity({
+          userId: currentUser,
+          description: `프로젝트 "${project.name}"를 생성했습니다.`,
+        });
+      }
+      
       res.status(201).json(project);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -154,6 +182,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/projects/:id", async (req, res) => {
     try {
+      // Get the original project to track changes
+      const originalProject = await storage.getProject(req.params.id);
+      if (!originalProject) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+      
       // For updates, use partial validation but check labels separately
       const projectData = insertProjectSchema.partial().parse(req.body);
       if (projectData.labels && projectData.labels.length > 2) {
@@ -166,6 +200,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!project) {
         return res.status(404).json({ message: "Project not found" });
       }
+      
+      // Create activity for status change
+      if (currentUser && project.status !== originalProject.status) {
+        await storage.createActivity({
+          userId: currentUser,
+          description: `프로젝트 "${project.name}"의 상태를 "${originalProject.status}"에서 "${project.status}"(으)로 변경했습니다.`,
+        });
+      }
+      
       res.json(project);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -177,6 +220,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/projects/:id", async (req, res) => {
     try {
+      // Get the project before deleting
+      const project = await storage.getProject(req.params.id);
+      if (!project) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+      
+      // Get first user as default
+      const users = await storage.getAllUsers();
+      const currentUser = users.length > 0 ? users[0].id : undefined;
+      
+      // Create activity for project deletion
+      if (currentUser) {
+        await storage.createActivity({
+          userId: currentUser,
+          description: `프로젝트 "${project.name}"를 삭제했습니다.`,
+        });
+      }
+      
       const deleted = await storage.deleteProject(req.params.id);
       if (!deleted) {
         return res.status(404).json({ message: "Project not found" });
@@ -235,6 +296,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const users = await storage.getAllUsers();
       const currentUser = users.length > 0 ? users[0].id : undefined;
       const goal = await storage.createGoal(goalData, currentUser);
+      
+      // Create activity for goal creation
+      if (currentUser) {
+        await storage.createActivity({
+          userId: currentUser,
+          description: `목표 "${goal.title}"를 생성했습니다.`,
+        });
+      }
+      
       res.status(201).json(goal);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -247,6 +317,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/goals/:id", async (req, res) => {
     try {
       console.log(`[DEBUG] PUT /api/goals/${req.params.id} - Request body:`, JSON.stringify(req.body, null, 2));
+      
+      // Get the original goal to track changes
+      const originalGoal = await storage.getGoal(req.params.id);
+      if (!originalGoal) {
+        return res.status(404).json({ message: "Goal not found" });
+      }
+      
       // For updates, use partial validation but check labels separately
       const goalData = insertGoalSchema.partial().parse(req.body);
       if (goalData.labels && goalData.labels.length > 2) {
@@ -260,6 +337,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!goal) {
         return res.status(404).json({ message: "Goal not found" });
       }
+      
+      // Create activity for status change
+      if (currentUser && goal.status !== originalGoal.status) {
+        await storage.createActivity({
+          userId: currentUser,
+          description: `목표 "${goal.title}"의 상태를 "${originalGoal.status}"에서 "${goal.status}"(으)로 변경했습니다.`,
+        });
+      }
+      
       res.json(goal);
     } catch (error) {
       console.log(`[ERROR] PUT /api/goals/${req.params.id} - Error:`, error);
@@ -272,6 +358,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete("/api/goals/:id", async (req, res) => {
     try {
+      // Get the goal before deleting
+      const goal = await storage.getGoal(req.params.id);
+      if (!goal) {
+        return res.status(404).json({ message: "Goal not found" });
+      }
+      
+      // Get first user as default
+      const users = await storage.getAllUsers();
+      const currentUser = users.length > 0 ? users[0].id : undefined;
+      
+      // Create activity for goal deletion
+      if (currentUser) {
+        await storage.createActivity({
+          userId: currentUser,
+          description: `목표 "${goal.title}"를 삭제했습니다.`,
+        });
+      }
+      
       const deleted = await storage.deleteGoal(req.params.id);
       if (!deleted) {
         return res.status(404).json({ message: "Goal not found" });

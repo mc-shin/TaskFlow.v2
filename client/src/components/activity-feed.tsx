@@ -7,7 +7,7 @@ import type { ActivityWithDetails } from "@shared/schema";
 export function ActivityFeed() {
   const { data: activities, isLoading } = useQuery<ActivityWithDetails[]>({
     queryKey: ["/api/activities"],
-    refetchInterval: 10000,
+    refetchInterval: 3000,
   });
 
   const getActivityIcon = (description: string) => {
@@ -62,7 +62,7 @@ export function ActivityFeed() {
       <CardHeader className="border-b border-border">
         <h3 className="text-lg font-semibold" data-testid="text-activity-title">최근 활동</h3>
       </CardHeader>
-      <CardContent className="p-4 space-y-3">
+      <CardContent className="p-4 space-y-3 max-h-[500px] overflow-y-auto">
         {activities?.map((activity: ActivityWithDetails) => (
           <div 
             key={activity.id} 

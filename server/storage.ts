@@ -1173,9 +1173,10 @@ export class MemStorage implements IStorage {
       activitiesWithDetails.push({ ...activity, user, task });
     }
     
-    return activitiesWithDetails.sort((a, b) => 
-      new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime()
-    );
+    return activitiesWithDetails
+      .sort((a, b) => 
+        new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime()
+      );
   }
 
   async createActivity(insertActivity: InsertActivity): Promise<Activity> {
@@ -2311,7 +2312,7 @@ export class DrizzleStorage implements IStorage {
 
   // Activity methods
   async getAllActivities(): Promise<SafeActivityWithDetails[]> {
-    const activityResults = await this.db.select().from(activities);
+    const activityResults = await this.db.select().from(activities).orderBy(sql`${activities.createdAt} DESC`);
     
     const activitiesWithDetails = await Promise.all(
       activityResults.map(async (activity) => {
