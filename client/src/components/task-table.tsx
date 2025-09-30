@@ -86,11 +86,31 @@ export function TaskTable({ onEditTask }: TaskTableProps) {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "실행대기": return "bg-green-500";
-      case "이슈함": return "bg-blue-500";
-      case "사업팀": return "bg-yellow-500";
-      case "인력팀": return "bg-purple-500";
+      case "진행전": return "bg-gray-500";
+      case "진행중": return "bg-blue-500";
+      case "완료": return "bg-green-500";
+      case "이슈": return "bg-orange-500";
       default: return "bg-gray-500";
+    }
+  };
+
+  const formatDeadlineWithDday = (deadline: string) => {
+    const deadlineDate = new Date(deadline);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    deadlineDate.setHours(0, 0, 0, 0);
+    
+    const diffTime = deadlineDate.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    const dateStr = new Date(deadline).toLocaleDateString('ko-KR');
+    
+    if (diffDays < 0) {
+      return `${dateStr} (D+${Math.abs(diffDays)})`;
+    } else if (diffDays === 0) {
+      return `${dateStr} (D-Day)`;
+    } else {
+      return `${dateStr} (D-${diffDays})`;
     }
   };
 
@@ -160,7 +180,7 @@ export function TaskTable({ onEditTask }: TaskTableProps) {
                     </div>
                   </td>
                   <td className="p-4 text-muted-foreground" data-testid={`text-task-deadline-${task.id}`}>
-                    {task.deadline ? new Date(task.deadline).toLocaleDateString('ko-KR') : '-'}
+                    {task.deadline ? formatDeadlineWithDday(task.deadline) : '-'}
                   </td>
                   <td className="p-4" data-testid={`badge-task-status-${task.id}`}>
                     {getStatusBadge(task.status)}

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,7 @@ import { Plus, Edit, Trash2, Search, Filter } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { TaskModal } from "@/components/task-modal";
-import type { TaskWithAssignee } from "@shared/schema";
+import type { TaskWithAssignees } from "@shared/schema";
 
 export default function MyTasks() {
   const { toast } = useToast();
@@ -23,6 +23,16 @@ export default function MyTasks() {
   const { data: tasks, isLoading } = useQuery({
     queryKey: ["/api/tasks"],
   });
+
+  // Filter tasks to show only current user's tasks
+  const myTasks = useMemo(() => {
+    const currentUserId = localStorage.getItem("userId");
+    if (!currentUserId || !tasks) return [];
+    
+    return (tasks as TaskWithAssignees[]).filter(task => 
+      task.assignees && task.assignees.some(assignee => assignee.id === currentUserId)
+    );
+  }, [tasks]);
 
   const deleteTaskMutation = useMutation({
     mutationFn: async (taskId: string) => {
@@ -82,17 +92,16 @@ export default function MyTasks() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "실행대기": return "bg-green-500";
-      case "이슈함": return "bg-blue-500";
-      case "사업팀": return "bg-yellow-500";
-      case "인력팀": return "bg-purple-500";
-      case "완료": return "bg-gray-500";
+      case "진행전": return "bg-gray-500";
+      case "진행중": return "bg-blue-500";
+      case "완료": return "bg-green-500";
+      case "이슈": return "bg-orange-500";
       default: return "bg-gray-500";
     }
   };
 
   // 필터링된 작업 목록
-  const filteredTasks = (tasks as TaskWithAssignee[] || []).filter((task: TaskWithAssignee) => {
+  const filteredTasks = myTasks.filter((task: TaskWithAssignees) => {
     const matchesSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === "all" || task.status === statusFilter;
     return matchesSearch && matchesStatus;
@@ -141,13 +150,6 @@ export default function MyTasks() {
             모든 작업을 관리하고 추적하세요
           </p>
         </div>
-        <Button 
-          onClick={handleCreateTask}
-          data-testid="button-create-task"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          새 작업
-        </Button>
       </header>
 
       {/* Main Content */}
@@ -177,11 +179,10 @@ export default function MyTasks() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">모든 상태</SelectItem>
-                    <SelectItem value="실행대기">실행대기</SelectItem>
-                    <SelectItem value="이슈함">이슈함</SelectItem>
-                    <SelectItem value="사업팀">사업팀</SelectItem>
-                    <SelectItem value="인력팀">인력팀</SelectItem>
+                    <SelectItem value="진행전">진행전</SelectItem>
+                    <SelectItem value="진행중">진행중</SelectItem>
                     <SelectItem value="완료">완료</SelectItem>
+                    <SelectItem value="이슈">이슈</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -214,7 +215,7 @@ export default function MyTasks() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredTasks?.map((task: TaskWithAssignee) => (
+                  {filteredTasks?.map((task: TaskWithAssignees) => (
                     <tr 
                       key={task.id}
                       className="task-row border-b border-border hover:bg-accent/50 transition-colors"
@@ -243,15 +244,15 @@ export default function MyTasks() {
                         {getStatusBadge(task.status, task.deadline)}
                       </td>
                       <td className="p-4">
-                        {task.assignee && (
+                        {task.assignees && task.assignees.length > 0 && (
                           <div className="flex items-center space-x-2">
                             <Avatar className="w-6 h-6">
                               <AvatarFallback className="text-xs bg-primary text-primary-foreground">
-                                {task.assignee.initials}
+                                {task.assignees[0].initials}
                               </AvatarFallback>
                             </Avatar>
                             <span className="text-sm" data-testid={`text-assignee-${task.id}`}>
-                              {task.assignee.name || ''}
+                              {task.assignees[0].name || ''}
                             </span>
                           </div>
                         )}
