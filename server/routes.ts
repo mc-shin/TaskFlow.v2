@@ -461,6 +461,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "User not found" });
       }
       
+      // Prevent admin@qubicom.co.kr from deleting themselves
+      if (userToDelete.email === 'admin@qubicom.co.kr') {
+        return res.status(403).json({ message: "테스트 관리자 계정은 삭제할 수 없습니다." });
+      }
+      
       // Check permission: admin@qubicom.co.kr can delete anyone, others can only delete team members
       if (userToDelete.role === '관리자' && !isTestAdmin) {
         return res.status(403).json({ message: "관리자 계정은 삭제할 수 없습니다." });
