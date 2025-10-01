@@ -771,31 +771,21 @@ export default function TaskDetail() {
                               value={(editedTask.progress ?? task.progress ?? 0).toString()}
                               onValueChange={(value) => {
                                 const progressValue = parseInt(value);
-                                const currentStatus = editedTask.status ?? task.status;
+                                let finalStatus: string;
                                 
-                                // "이슈" 상태는 진행률 변경으로 덮어쓰지 않음
-                                if (currentStatus === '이슈') {
-                                  setEditedTask(prev => ({ 
-                                    ...prev, 
-                                    progress: progressValue
-                                  }));
+                                if (progressValue === 0) {
+                                  finalStatus = '진행전';
+                                } else if (progressValue === 100) {
+                                  finalStatus = '완료';
                                 } else {
-                                  let finalStatus: string;
-                                  
-                                  if (progressValue === 0) {
-                                    finalStatus = '진행전';
-                                  } else if (progressValue === 100) {
-                                    finalStatus = '완료';
-                                  } else {
-                                    finalStatus = '진행중';
-                                  }
-                                  
-                                  setEditedTask(prev => ({ 
-                                    ...prev, 
-                                    progress: progressValue, 
-                                    status: finalStatus 
-                                  }));
+                                  finalStatus = '진행중';
                                 }
+                                
+                                setEditedTask(prev => ({ 
+                                  ...prev, 
+                                  progress: progressValue, 
+                                  status: finalStatus 
+                                }));
                               }}
                             >
                               <SelectTrigger className="h-12 bg-background border-border text-foreground" data-testid="select-task-progress">
@@ -819,9 +809,7 @@ export default function TaskDetail() {
                       })()}
                     </div>
                     <div className="text-sm text-muted-foreground">
-                      {(editedTask.status ?? task.status) === '이슈' 
-                        ? '이슈 상태에서는 진행도만 변경되고 상태는 유지됩니다' 
-                        : '진행도에 따라 상태가 자동으로 설정됩니다'}
+                      진행도에 따라 상태가 자동으로 설정됩니다
                     </div>
                   </div>
                 ) : (
