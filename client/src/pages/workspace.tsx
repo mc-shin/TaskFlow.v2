@@ -36,7 +36,7 @@ export function WorkspacePage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSettingsLoading, setIsSettingsLoading] = useState(false);
   const [userName, setUserName] = useState("사용자");
-  const [workspaceName, setWorkspaceName] = useState("하이더");
+  const [workspaceName, setWorkspaceName] = useState("TaskFlow");
   const [workspaceDescription, setWorkspaceDescription] = useState("주요 업무 관리 워크스페이스");
   const [invitations, setInvitations] = useState<any[]>([]);
   const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
@@ -688,7 +688,7 @@ export function WorkspacePage() {
                     <FormLabel>워크스페이스 이름</FormLabel>
                     <FormControl>
                       <Input
-                        placeholder="예: 하이더"
+                        placeholder="예: TaskFlow"
                         {...field}
                         data-testid="input-settings-workspace-name"
                       />
