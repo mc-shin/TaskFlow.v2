@@ -53,14 +53,22 @@ async function importData(targetDbUrl: string, data: MigrationData) {
 
   // Users
   for (const user of data.users) {
+    // username이 null이면 email에서 생성
+    const username = user.username || user.email.split('@')[0];
+    // initials가 null이면 name의 첫 글자 사용
+    const initials = user.initials || user.name.substring(0, 1);
+    
     await sql`
-      INSERT INTO users (id, email, password, name, role)
-      VALUES (${user.id}, ${user.email}, ${user.password}, ${user.name}, ${user.role})
+      INSERT INTO users (id, username, email, password, name, initials, role, last_login_at)
+      VALUES (${user.id}, ${username}, ${user.email}, ${user.password}, ${user.name}, ${initials}, ${user.role}, ${user.lastLoginAt || user.last_login_at})
       ON CONFLICT (id) DO UPDATE SET
+        username = EXCLUDED.username,
         email = EXCLUDED.email,
         password = EXCLUDED.password,
         name = EXCLUDED.name,
-        role = EXCLUDED.role
+        initials = EXCLUDED.initials,
+        role = EXCLUDED.role,
+        last_login_at = EXCLUDED.last_login_at
     `;
   }
   console.log(`   ✓ Users: ${data.users.length}개 삽입`);
@@ -68,14 +76,30 @@ async function importData(targetDbUrl: string, data: MigrationData) {
   // Projects
   for (const project of data.projects) {
     await sql`
-      INSERT INTO projects (id, name, description, status, progress, "userId")
-      VALUES (${project.id}, ${project.name}, ${project.description}, ${project.status}, ${project.progress}, ${project.userId})
+      INSERT INTO projects (
+        id, name, code, description, deadline, status, labels, owner_ids, 
+        is_archived, created_by, last_updated_by, created_at, updated_at
+      )
+      VALUES (
+        ${project.id}, ${project.name}, ${project.code || 'PROJ-' + project.id.substring(0, 4)}, 
+        ${project.description}, ${project.deadline}, ${project.status}, 
+        ${project.labels || project.label || []}, ${project.ownerIds || project.owner_ids || []}, 
+        ${project.isArchived || project.is_archived || false},
+        ${project.createdBy || project.created_by}, ${project.lastUpdatedBy || project.last_updated_by}, 
+        ${project.createdAt || project.created_at}, ${project.updatedAt || project.updated_at}
+      )
       ON CONFLICT (id) DO UPDATE SET
         name = EXCLUDED.name,
+        code = EXCLUDED.code,
         description = EXCLUDED.description,
+        deadline = EXCLUDED.deadline,
         status = EXCLUDED.status,
-        progress = EXCLUDED.progress,
-        "userId" = EXCLUDED."userId"
+        labels = EXCLUDED.labels,
+        owner_ids = EXCLUDED.owner_ids,
+        is_archived = EXCLUDED.is_archived,
+        created_by = EXCLUDED.created_by,
+        last_updated_by = EXCLUDED.last_updated_by,
+        updated_at = EXCLUDED.updated_at
     `;
   }
   console.log(`   ✓ Projects: ${data.projects.length}개 삽입`);
@@ -83,14 +107,29 @@ async function importData(targetDbUrl: string, data: MigrationData) {
   // Goals
   for (const goal of data.goals) {
     await sql`
-      INSERT INTO goals (id, name, description, status, progress, "projectId")
-      VALUES (${goal.id}, ${goal.name}, ${goal.description}, ${goal.status}, ${goal.progress}, ${goal.projectId})
+      INSERT INTO goals (
+        id, title, description, deadline, status, labels, assignee_ids, 
+        project_id, is_archived, created_by, last_updated_by, created_at, updated_at
+      )
+      VALUES (
+        ${goal.id}, ${goal.title || goal.name}, ${goal.description}, ${goal.deadline}, 
+        ${goal.status}, ${goal.labels || goal.label || []}, ${goal.assigneeIds || goal.assignee_ids || []},
+        ${goal.projectId || goal.project_id}, ${goal.isArchived || goal.is_archived || false}, 
+        ${goal.createdBy || goal.created_by}, ${goal.lastUpdatedBy || goal.last_updated_by}, 
+        ${goal.createdAt || goal.created_at}, ${goal.updatedAt || goal.updated_at}
+      )
       ON CONFLICT (id) DO UPDATE SET
-        name = EXCLUDED.name,
+        title = EXCLUDED.title,
         description = EXCLUDED.description,
+        deadline = EXCLUDED.deadline,
         status = EXCLUDED.status,
-        progress = EXCLUDED.progress,
-        "projectId" = EXCLUDED."projectId"
+        labels = EXCLUDED.labels,
+        assignee_ids = EXCLUDED.assignee_ids,
+        project_id = EXCLUDED.project_id,
+        is_archived = EXCLUDED.is_archived,
+        created_by = EXCLUDED.created_by,
+        last_updated_by = EXCLUDED.last_updated_by,
+        updated_at = EXCLUDED.updated_at
     `;
   }
   console.log(`   ✓ Goals: ${data.goals.length}개 삽입`);
@@ -98,27 +137,35 @@ async function importData(targetDbUrl: string, data: MigrationData) {
   // Tasks
   for (const task of data.tasks) {
     await sql`
-      INSERT INTO tasks (id, title, description, status, priority, progress, "assignee", "dueDate", "goalId")
+      INSERT INTO tasks (
+        id, title, description, status, priority, labels, deadline, duration, progress,
+        assignee_ids, goal_id, project_id, is_archived, created_by, last_updated_by, 
+        created_at, updated_at
+      )
       VALUES (
-        ${task.id}, 
-        ${task.title}, 
-        ${task.description}, 
-        ${task.status}, 
-        ${task.priority}, 
-        ${task.progress}, 
-        ${task.assignee}, 
-        ${task.dueDate}, 
-        ${task.goalId}
+        ${task.id}, ${task.title}, ${task.description}, ${task.status}, ${task.priority}, 
+        ${task.labels || task.label || []}, ${task.deadline || task.dueDate}, ${task.duration || 0}, 
+        ${task.progress || 0}, ${task.assigneeIds || task.assignee_ids || (task.assignee ? [task.assignee] : [])}, 
+        ${task.goalId || task.goal_id}, ${task.projectId || task.project_id}, ${task.isArchived || task.is_archived || false}, 
+        ${task.createdBy || task.created_by}, ${task.lastUpdatedBy || task.last_updated_by}, 
+        ${task.createdAt || task.created_at}, ${task.updatedAt || task.updated_at}
       )
       ON CONFLICT (id) DO UPDATE SET
         title = EXCLUDED.title,
         description = EXCLUDED.description,
         status = EXCLUDED.status,
         priority = EXCLUDED.priority,
+        labels = EXCLUDED.labels,
+        deadline = EXCLUDED.deadline,
+        duration = EXCLUDED.duration,
         progress = EXCLUDED.progress,
-        assignee = EXCLUDED.assignee,
-        "dueDate" = EXCLUDED."dueDate",
-        "goalId" = EXCLUDED."goalId"
+        assignee_ids = EXCLUDED.assignee_ids,
+        goal_id = EXCLUDED.goal_id,
+        project_id = EXCLUDED.project_id,
+        is_archived = EXCLUDED.is_archived,
+        created_by = EXCLUDED.created_by,
+        last_updated_by = EXCLUDED.last_updated_by,
+        updated_at = EXCLUDED.updated_at
     `;
   }
   console.log(`   ✓ Tasks: ${data.tasks.length}개 삽입`);
@@ -126,14 +173,16 @@ async function importData(targetDbUrl: string, data: MigrationData) {
   // Activities
   for (const activity of data.activities) {
     await sql`
-      INSERT INTO activities (id, type, description, "userId", "taskId", "createdAt")
-      VALUES (${activity.id}, ${activity.type}, ${activity.description}, ${activity.userId}, ${activity.taskId}, ${activity.createdAt})
+      INSERT INTO activities (id, description, user_id, task_id, created_at)
+      VALUES (
+        ${activity.id}, ${activity.description}, 
+        ${activity.userId || activity.user_id}, ${activity.taskId || activity.task_id}, 
+        ${activity.createdAt || activity.created_at}
+      )
       ON CONFLICT (id) DO UPDATE SET
-        type = EXCLUDED.type,
         description = EXCLUDED.description,
-        "userId" = EXCLUDED."userId",
-        "taskId" = EXCLUDED."taskId",
-        "createdAt" = EXCLUDED."createdAt"
+        user_id = EXCLUDED.user_id,
+        task_id = EXCLUDED.task_id
     `;
   }
   console.log(`   ✓ Activities: ${data.activities.length}개 삽입`);
@@ -142,24 +191,26 @@ async function importData(targetDbUrl: string, data: MigrationData) {
   for (const meeting of data.meetings) {
     await sql`
       INSERT INTO meetings (
-        id, title, description, "startTime", "endTime", 
-        attendees, location, "attachmentUrls", "createdBy"
+        id, title, description, start_at, end_at, type, location, 
+        attendee_ids, created_at, updated_at
       )
       VALUES (
         ${meeting.id}, ${meeting.title}, ${meeting.description}, 
-        ${meeting.startTime}, ${meeting.endTime},
-        ${meeting.attendees}, ${meeting.location}, 
-        ${meeting.attachmentUrls}, ${meeting.createdBy}
+        ${meeting.startAt || meeting.start_at || meeting.startTime}, 
+        ${meeting.endAt || meeting.end_at || meeting.endTime},
+        ${meeting.type || 'standup'}, ${meeting.location},
+        ${meeting.attendeeIds || meeting.attendee_ids || meeting.attendees || []},
+        ${meeting.createdAt || meeting.created_at}, ${meeting.updatedAt || meeting.updated_at}
       )
       ON CONFLICT (id) DO UPDATE SET
         title = EXCLUDED.title,
         description = EXCLUDED.description,
-        "startTime" = EXCLUDED."startTime",
-        "endTime" = EXCLUDED."endTime",
-        attendees = EXCLUDED.attendees,
+        start_at = EXCLUDED.start_at,
+        end_at = EXCLUDED.end_at,
+        type = EXCLUDED.type,
         location = EXCLUDED.location,
-        "attachmentUrls" = EXCLUDED."attachmentUrls",
-        "createdBy" = EXCLUDED."createdBy"
+        attendee_ids = EXCLUDED.attendee_ids,
+        updated_at = EXCLUDED.updated_at
     `;
   }
   console.log(`   ✓ Meetings: ${data.meetings.length}개 삽입`);
@@ -167,13 +218,23 @@ async function importData(targetDbUrl: string, data: MigrationData) {
   // Invitations
   for (const invitation of data.invitations) {
     await sql`
-      INSERT INTO invitations (id, "inviterEmail", "inviteeEmail", role, status)
-      VALUES (${invitation.id}, ${invitation.inviterEmail}, ${invitation.inviteeEmail}, ${invitation.role}, ${invitation.status})
+      INSERT INTO invitations (
+        id, inviter_email, invitee_email, role, status, created_at, updated_at
+      )
+      VALUES (
+        ${invitation.id}, 
+        ${invitation.inviterEmail || invitation.inviter_email}, 
+        ${invitation.inviteeEmail || invitation.invitee_email}, 
+        ${invitation.role}, ${invitation.status}, 
+        ${invitation.createdAt || invitation.created_at}, 
+        ${invitation.updatedAt || invitation.updated_at}
+      )
       ON CONFLICT (id) DO UPDATE SET
-        "inviterEmail" = EXCLUDED."inviterEmail",
-        "inviteeEmail" = EXCLUDED."inviteeEmail",
+        inviter_email = EXCLUDED.inviter_email,
+        invitee_email = EXCLUDED.invitee_email,
         role = EXCLUDED.role,
-        status = EXCLUDED.status
+        status = EXCLUDED.status,
+        updated_at = EXCLUDED.updated_at
     `;
   }
   console.log(`   ✓ Invitations: ${data.invitations.length}개 삽입`);
