@@ -14,6 +14,13 @@ export async function apiRequest(
   customHeaders?: Record<string, string>,
 ): Promise<Response> {
   const headers: Record<string, string> = data ? { "Content-Type": "application/json" } : {};
+  
+  // 현재 로그인한 사용자 이메일을 헤더에 추가
+  const userEmail = localStorage.getItem("userEmail");
+  if (userEmail) {
+    headers["X-User-Email"] = userEmail;
+  }
+  
   if (customHeaders) {
     Object.assign(headers, customHeaders);
   }
@@ -35,8 +42,16 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
+    // 현재 로그인한 사용자 이메일을 헤더에 추가
+    const headers: Record<string, string> = {};
+    const userEmail = localStorage.getItem("userEmail");
+    if (userEmail) {
+      headers["X-User-Email"] = userEmail;
+    }
+    
     const res = await fetch(queryKey.join("/") as string, {
       credentials: "include",
+      headers,
     });
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {
