@@ -766,13 +766,10 @@ export default function TaskDetail() {
                       {(() => {
                         const isIssueStatus = (editedTask.status ?? task.status) === '이슈';
                         return (
-                          <div className={`space-y-3 ${isIssueStatus ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                          <div className="space-y-3">
                             <Select 
                               value={(editedTask.progress ?? task.progress ?? 0).toString()}
-                              disabled={isIssueStatus}
                               onValueChange={(value) => {
-                                if (isIssueStatus) return; // 이슈 상태에서는 변경 불가
-                                
                                 const progressValue = parseInt(value);
                                 const currentStatus = editedTask.status ?? task.status;
                                 
@@ -823,7 +820,7 @@ export default function TaskDetail() {
                     </div>
                     <div className="text-sm text-muted-foreground">
                       {(editedTask.status ?? task.status) === '이슈' 
-                        ? '이슈 상태에서는 진행도를 변경할 수 없습니다' 
+                        ? '이슈 상태에서는 진행도만 변경되고 상태는 유지됩니다' 
                         : '진행도에 따라 상태가 자동으로 설정됩니다'}
                     </div>
                   </div>
