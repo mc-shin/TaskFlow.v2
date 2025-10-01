@@ -31,9 +31,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/tasks", async (req, res) => {
     try {
       const taskData = insertTaskWithValidationSchema.parse(req.body);
-      // Get first user as default creator if no session management
-      const users = await storage.getAllUsers();
-      const currentUser = users.length > 0 ? users[0].id : undefined;
+      // Get current user from X-User-Email header
+      const userEmail = req.headers['x-user-email'] as string;
+      let currentUser: string | undefined;
+      if (userEmail) {
+        const user = await storage.getUserByEmail(userEmail);
+        currentUser = user?.id;
+      }
       const task = await storage.createTask(taskData, currentUser);
       
       // Create activity for task creation
@@ -67,9 +71,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (taskData.labels && taskData.labels.length > 2) {
         return res.status(400).json({ message: "작업은 최대 2개의 라벨만 가질 수 있습니다." });
       }
-      // Get first user as default editor if no session management
-      const users = await storage.getAllUsers();
-      const currentUser = users.length > 0 ? users[0].id : undefined;
+      // Get current user from X-User-Email header
+      const userEmail = req.headers['x-user-email'] as string;
+      let currentUser: string | undefined;
+      if (userEmail) {
+        const user = await storage.getUserByEmail(userEmail);
+        currentUser = user?.id;
+      }
       const task = await storage.updateTask(req.params.id, taskData, currentUser);
       if (!task) {
         return res.status(404).json({ message: "Task not found" });
@@ -140,9 +148,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/projects", async (req, res) => {
     try {
       const projectData = insertProjectWithValidationSchema.parse(req.body);
-      // Get first user as default creator if no session management
-      const users = await storage.getAllUsers();
-      const currentUser = users.length > 0 ? users[0].id : undefined;
+      // Get current user from X-User-Email header
+      const userEmail = req.headers['x-user-email'] as string;
+      let currentUser: string | undefined;
+      if (userEmail) {
+        const user = await storage.getUserByEmail(userEmail);
+        currentUser = user?.id;
+      }
       const project = await storage.createProject(projectData, currentUser);
       
       // Create activity for project creation
@@ -175,9 +187,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (projectData.labels && projectData.labels.length > 2) {
         return res.status(400).json({ message: "프로젝트는 최대 2개의 라벨만 가질 수 있습니다." });
       }
-      // Get first user as default editor if no session management
-      const users = await storage.getAllUsers();
-      const currentUser = users.length > 0 ? users[0].id : undefined;
+      // Get current user from X-User-Email header
+      const userEmail = req.headers['x-user-email'] as string;
+      let currentUser: string | undefined;
+      if (userEmail) {
+        const user = await storage.getUserByEmail(userEmail);
+        currentUser = user?.id;
+      }
       const project = await storage.updateProject(req.params.id, projectData, currentUser);
       if (!project) {
         return res.status(404).json({ message: "Project not found" });
@@ -256,9 +272,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/goals", async (req, res) => {
     try {
       const goalData = insertGoalWithValidationSchema.parse(req.body);
-      // Get first user as default creator if no session management
-      const users = await storage.getAllUsers();
-      const currentUser = users.length > 0 ? users[0].id : undefined;
+      // Get current user from X-User-Email header
+      const userEmail = req.headers['x-user-email'] as string;
+      let currentUser: string | undefined;
+      if (userEmail) {
+        const user = await storage.getUserByEmail(userEmail);
+        currentUser = user?.id;
+      }
       const goal = await storage.createGoal(goalData, currentUser);
       
       // Create activity for goal creation
@@ -293,9 +313,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (goalData.labels && goalData.labels.length > 2) {
         return res.status(400).json({ message: "목표는 최대 2개의 라벨만 가질 수 있습니다." });
       }
-      // Get first user as default editor if no session management
-      const users = await storage.getAllUsers();
-      const currentUser = users.length > 0 ? users[0].id : undefined;
+      // Get current user from X-User-Email header
+      const userEmail = req.headers['x-user-email'] as string;
+      let currentUser: string | undefined;
+      if (userEmail) {
+        const user = await storage.getUserByEmail(userEmail);
+        currentUser = user?.id;
+      }
       const goal = await storage.updateGoal(req.params.id, goalData, currentUser);
       console.log(`[DEBUG] PUT /api/goals/${req.params.id} - Updated goal:`, JSON.stringify(goal, null, 2));
       if (!goal) {
