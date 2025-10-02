@@ -680,6 +680,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // 입력 데이터 검증
       const commentInput = insertMeetingCommentSchema.omit({ meetingId: true }).parse(req.body);
       
+      // X-User-Email 헤더에서 실제 사용자 이메일 읽기
+      const userEmail = req.headers['x-user-email'] as string | undefined;
+      
+      if (userEmail) {
+        // 이메일로 실제 사용자 찾기
+        const actualUser = await storage.getUserByEmail(userEmail);
+        if (actualUser) {
+          // 실제 사용자의 ID로 덮어쓰기
+          commentInput.authorId = actualUser.id;
+        }
+      }
+      
       // 작성자 검증
       const author = await storage.getUser(commentInput.authorId);
       if (!author) {
@@ -928,20 +940,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // X-User-Email 헤더에서 실제 사용자 이메일 읽기
       const userEmail = req.headers['x-user-email'] as string | undefined;
-      console.log('[댓글 작성] X-User-Email 헤더:', userEmail);
-      console.log('[댓글 작성] 프론트엔드에서 보낸 authorId:', commentData.authorId);
       
       if (userEmail) {
         // 이메일로 실제 사용자 찾기
         const actualUser = await storage.getUserByEmail(userEmail);
-        console.log('[댓글 작성] 이메일로 찾은 사용자:', actualUser ? `${actualUser.name} (${actualUser.email})` : 'null');
         if (actualUser) {
           // 실제 사용자의 ID로 덮어쓰기
           commentData.authorId = actualUser.id;
-          console.log('[댓글 작성] authorId를 덮어씀:', actualUser.id);
         }
-      } else {
-        console.log('[댓글 작성] X-User-Email 헤더가 없습니다!');
       }
       
       const comment = await storage.createComment(commentData);
