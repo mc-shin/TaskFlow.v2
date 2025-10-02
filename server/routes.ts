@@ -718,6 +718,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.put("/api/meetings/:meetingId/comments/:commentId", async (req, res) => {
+    try {
+      // 미팅 존재 검증
+      const meeting = await storage.getMeeting(req.params.meetingId);
+      if (!meeting) {
+        return res.status(404).json({ message: "Meeting not found" });
+      }
+      
+      // 댓글 조회 및 소유권 검증
+      const comments = await storage.getMeetingComments(req.params.meetingId);
+      const comment = comments.find(c => c.id === req.params.commentId);
+      
+      if (!comment) {
+        return res.status(404).json({ message: "Comment not found" });
+      }
+      
+      // 미팅 ID 검증
+      if (comment.meetingId !== req.params.meetingId) {
+        return res.status(400).json({ message: "Comment does not belong to this meeting" });
+      }
+      
+      // X-User-Email 헤더에서 실제 사용자 이메일 읽기
+      const userEmail = req.headers['x-user-email'] as string | undefined;
+      if (!userEmail) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      // 이메일로 실제 사용자 찾기
+      const actualUser = await storage.getUserByEmail(userEmail);
+      if (!actualUser) {
+        return res.status(401).json({ message: "User not found" });
+      }
+      
+      // 작성자 권한 검증
+      if (comment.authorId !== actualUser.id) {
+        return res.status(403).json({ message: "You can only edit your own comments" });
+      }
+      
+      // 댓글 내용 검증
+      if (!req.body.content || !req.body.content.trim()) {
+        return res.status(400).json({ message: "Comment content is required" });
+      }
+      
+      const updated = await storage.updateMeetingComment(req.params.commentId, req.body.content.trim());
+      if (!updated) {
+        return res.status(404).json({ message: "Comment not found" });
+      }
+      res.json(updated);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update comment" });
+    }
+  });
+
   app.delete("/api/meetings/:meetingId/comments/:commentId", async (req, res) => {
     try {
       // 미팅 존재 검증
@@ -739,10 +792,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Comment does not belong to this meeting" });
       }
       
-      // TODO: 실제 애플리케이션에서는 현재 로그인된 사용자 ID를 검증해야 함
-      // 임시로 authorId를 요청 본문에서 받는다고 가정
-      const requesterId = req.body?.requesterId;
-      if (!requesterId || comment.authorId !== requesterId) {
+      // X-User-Email 헤더에서 실제 사용자 이메일 읽기
+      const userEmail = req.headers['x-user-email'] as string | undefined;
+      if (!userEmail) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      // 이메일로 실제 사용자 찾기
+      const actualUser = await storage.getUserByEmail(userEmail);
+      if (!actualUser) {
+        return res.status(401).json({ message: "User not found" });
+      }
+      
+      // 작성자 권한 검증
+      if (comment.authorId !== actualUser.id) {
         return res.status(403).json({ message: "You can only delete your own comments" });
       }
       

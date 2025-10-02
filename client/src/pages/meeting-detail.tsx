@@ -42,6 +42,7 @@ export default function MeetingDetail() {
   const [selectedParticipants, setSelectedParticipants] = useState<string[]>([]);
   const [newComment, setNewComment] = useState("");
   const [currentUser, setCurrentUser] = useState<SafeUser | null>(null);
+  const [editingComment, setEditingComment] = useState<{ id: string; content: string } | null>(null);
 
   // 첨부파일 다운로드 핸들러
   const handleDownloadAttachment = async (attachment: MeetingAttachment) => {
@@ -138,15 +139,40 @@ export default function MeetingDetail() {
     }
   });
 
+  // 댓글 수정 뮤테이션
+  const updateCommentMutation = useMutation({
+    mutationFn: ({ commentId, content }: { commentId: string; content: string }) => {
+      if (!currentUser) {
+        throw new Error("로그인이 필요합니다.");
+      }
+      return apiRequest('PUT', `/api/meetings/${id}/comments/${commentId}`, {
+        content
+      });
+    },
+    onSuccess: () => {
+      setEditingComment(null);
+      queryClient.invalidateQueries({ queryKey: ['/api/meetings', id, 'comments'] });
+      toast({
+        title: "댓글 수정 완료",
+        description: "댓글이 성공적으로 수정되었습니다."
+      });
+    },
+    onError: () => {
+      toast({
+        title: "댓글 수정 실패",
+        description: "댓글 수정에 실패했습니다.",
+        variant: "destructive"
+      });
+    }
+  });
+
   // 댓글 삭제 뮤테이션
   const deleteCommentMutation = useMutation({
     mutationFn: (commentId: string) => {
       if (!currentUser) {
         throw new Error("로그인이 필요합니다.");
       }
-      return apiRequest('DELETE', `/api/meetings/${id}/comments/${commentId}`, {
-        requesterId: currentUser.id
-      });
+      return apiRequest('DELETE', `/api/meetings/${id}/comments/${commentId}`, {});
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/meetings', id, 'comments'] });
@@ -771,18 +797,66 @@ export default function MeetingDetail() {
                                 </span>
                               </div>
                               {currentUser?.id === comment.authorId && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => deleteCommentMutation.mutate(comment.id)}
-                                  disabled={deleteCommentMutation.isPending}
-                                  data-testid={`button-delete-comment-${comment.id}`}
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
+                                <div className="flex items-center gap-1">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setEditingComment({ id: comment.id, content: comment.content })}
+                                    data-testid={`button-edit-comment-${comment.id}`}
+                                  >
+                                    <Edit className="w-4 h-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => deleteCommentMutation.mutate(comment.id)}
+                                    disabled={deleteCommentMutation.isPending}
+                                    data-testid={`button-delete-comment-${comment.id}`}
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </div>
                               )}
                             </div>
-                            <p className="text-sm text-foreground">{comment.content}</p>
+                            {editingComment?.id === comment.id ? (
+                              <div className="space-y-2">
+                                <Textarea
+                                  value={editingComment.content}
+                                  onChange={(e) => setEditingComment({ ...editingComment, content: e.target.value })}
+                                  rows={3}
+                                  data-testid={`textarea-edit-comment-${comment.id}`}
+                                />
+                                <div className="flex justify-end gap-2">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setEditingComment(null)}
+                                    data-testid={`button-cancel-edit-comment-${comment.id}`}
+                                  >
+                                    <X className="w-3 h-3 mr-1" />
+                                    취소
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    onClick={() => {
+                                      if (editingComment.content.trim()) {
+                                        updateCommentMutation.mutate({
+                                          commentId: comment.id,
+                                          content: editingComment.content.trim()
+                                        });
+                                      }
+                                    }}
+                                    disabled={!editingComment.content.trim() || updateCommentMutation.isPending}
+                                    data-testid={`button-save-edit-comment-${comment.id}`}
+                                  >
+                                    <Save className="w-3 h-3 mr-1" />
+                                    {updateCommentMutation.isPending ? "저장 중..." : "저장"}
+                                  </Button>
+                                </div>
+                              </div>
+                            ) : (
+                              <p className="text-sm text-foreground">{comment.content}</p>
+                            )}
                           </div>
                         </div>
                       ))

@@ -63,6 +63,7 @@ export interface IStorage {
   // Meeting Comment methods
   getMeetingComments(meetingId: string): Promise<MeetingCommentWithAuthor[]>;
   createMeetingComment(comment: InsertMeetingComment): Promise<MeetingComment>;
+  updateMeetingComment(id: string, content: string): Promise<MeetingComment | undefined>;
   deleteMeetingComment(id: string): Promise<boolean>;
   
   // Meeting Attachment methods
@@ -1348,6 +1349,19 @@ export class MemStorage implements IStorage {
     return comment;
   }
 
+  async updateMeetingComment(id: string, content: string): Promise<MeetingComment | undefined> {
+    const comment = this.meetingComments.get(id);
+    if (!comment) return undefined;
+    
+    const updatedComment = {
+      ...comment,
+      content,
+      updatedAt: new Date()
+    };
+    this.meetingComments.set(id, updatedComment);
+    return updatedComment;
+  }
+
   async deleteMeetingComment(id: string): Promise<boolean> {
     return this.meetingComments.delete(id);
   }
@@ -2577,6 +2591,16 @@ export class DrizzleStorage implements IStorage {
 
   async createMeetingComment(insertComment: InsertMeetingComment): Promise<MeetingComment> {
     const result = await this.db.insert(meetingComments).values(insertComment).returning();
+    return result[0];
+  }
+
+  async updateMeetingComment(id: string, content: string): Promise<MeetingComment | undefined> {
+    const result = await this.db
+      .update(meetingComments)
+      .set({ content, updatedAt: new Date() })
+      .where(eq(meetingComments.id, id))
+      .returning();
+    
     return result[0];
   }
 
