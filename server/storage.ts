@@ -2551,9 +2551,23 @@ export class DrizzleStorage implements IStorage {
       commentResults.map(async (comment) => {
         const author = await this.getUser(comment.authorId);
         
+        if (!author) {
+          throw new Error(`Author not found for comment ${comment.id}`);
+        }
+        
+        const safeAuthor: SafeUser = {
+          id: author.id,
+          username: author.username,
+          email: author.email,
+          name: author.name,
+          initials: author.initials,
+          role: author.role,
+          lastLoginAt: author.lastLoginAt
+        };
+        
         return {
           ...comment,
-          author: author ? { ...author, password: undefined } : undefined
+          author: safeAuthor
         };
       })
     );
