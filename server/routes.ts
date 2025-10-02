@@ -925,6 +925,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/comments", async (req, res) => {
     try {
       const commentData = insertCommentSchema.parse(req.body);
+      
+      // X-User-Email 헤더에서 실제 사용자 이메일 읽기
+      const userEmail = req.headers['x-user-email'] as string | undefined;
+      
+      if (userEmail) {
+        // 이메일로 실제 사용자 찾기
+        const actualUser = await storage.getUserByEmail(userEmail);
+        if (actualUser) {
+          // 실제 사용자의 ID로 덮어쓰기
+          commentData.authorId = actualUser.id;
+        }
+      }
+      
       const comment = await storage.createComment(commentData);
       res.status(201).json(comment);
     } catch (error) {

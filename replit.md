@@ -126,3 +126,7 @@ The application is designed as a monorepo with shared schemas between client and
   - Preserves intentional progress values including 0% for in-progress tasks
 - **Database Compatibility**: Ensured backward compatibility with existing tasks that have progress=0 or missing progress fields, automatically calculating correct values based on status during archive operations.
 - **Dual Storage Support**: Applied consistent progress logic to both in-memory (MemStorage) and database-backed (DrizzleStorage) implementations, ensuring identical behavior across development and production environments.
+
+### Task Progress and Comment Attribution Improvements (October 02, 2025)
+- **Issue Status Progress Editing**: Modified task detail page to allow progress editing in "이슈" status. When progress is modified, status automatically updates based on progress value (0%=진행전, 1-99%=진행중, 100%=완료), providing consistent behavior across all status types.
+- **Comment User Attribution**: Fixed comment attribution system to properly identify actual users. Modified POST /api/comments endpoint in server/routes.ts to read X-User-Email header (already sent by queryClient.ts) and identify the real user via getUserByEmail(), then use that user's ID as authorId. This ensures comments display the correct author name instead of defaulting to test users, matching the pattern previously implemented for activity feed attribution.
