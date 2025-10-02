@@ -124,3 +124,11 @@
 ::-webkit-scrollbar-thumb:hover {
   background: hsl(217, 91%, 60%);
 }
+
+/* Date and time input picker icons - make them visible in dark mode */
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  filter: invert(1) brightness(1.2);
+  cursor: pointer;
+}
