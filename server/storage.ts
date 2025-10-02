@@ -2559,7 +2559,8 @@ export class DrizzleStorage implements IStorage {
   async getMeetingComments(meetingId: string): Promise<MeetingCommentWithAuthor[]> {
     const commentResults = await this.db.select()
       .from(meetingComments)
-      .where(eq(meetingComments.meetingId, meetingId));
+      .where(eq(meetingComments.meetingId, meetingId))
+      .orderBy(asc(meetingComments.createdAt));
     
     const commentsWithAuthor = await Promise.all(
       commentResults.map(async (comment) => {
@@ -2655,7 +2656,8 @@ export class DrizzleStorage implements IStorage {
           eq(comments.entityType, entityType),
           eq(comments.entityId, entityId)
         )
-      );
+      )
+      .orderBy(asc(comments.createdAt));
     
     const commentsWithAuthor = await Promise.all(
       commentResults.map(async (comment) => {
