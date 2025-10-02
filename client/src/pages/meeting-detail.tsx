@@ -776,35 +776,28 @@ export default function MeetingDetail() {
                   </div>
 
                   {/* 댓글 작성 */}
-                  <div className="flex space-x-3 pt-4 border-t">
-                    <Avatar className="w-8 h-8">
-                      <AvatarFallback className="bg-primary text-primary-foreground text-sm">
-                        {users[0]?.initials || '나'}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 space-y-3">
-                      <Textarea
-                        placeholder="댓글을 작성하세요..."
-                        value={newComment}
-                        onChange={(e) => setNewComment(e.target.value)}
-                        rows={3}
-                        data-testid="textarea-new-comment"
-                      />
-                      <div className="flex justify-end">
-                        <Button
-                          onClick={() => {
-                            if (newComment.trim()) {
-                              createCommentMutation.mutate(newComment.trim());
-                            }
-                          }}
-                          disabled={!newComment.trim() || createCommentMutation.isPending}
-                          size="sm"
-                          data-testid="button-submit-comment"
-                        >
-                          <Send className="w-4 h-4 mr-2" />
-                          {createCommentMutation.isPending ? "작성 중..." : "댓글 작성"}
-                        </Button>
-                      </div>
+                  <div className="pt-4 border-t space-y-3">
+                    <Textarea
+                      placeholder="댓글을 작성하세요..."
+                      value={newComment}
+                      onChange={(e) => setNewComment(e.target.value)}
+                      rows={3}
+                      data-testid="textarea-new-comment"
+                    />
+                    <div className="flex justify-end">
+                      <Button
+                        onClick={() => {
+                          if (newComment.trim()) {
+                            createCommentMutation.mutate(newComment.trim());
+                          }
+                        }}
+                        disabled={!newComment.trim() || createCommentMutation.isPending}
+                        size="sm"
+                        data-testid="button-submit-comment"
+                      >
+                        <Send className="w-4 h-4 mr-2" />
+                        {createCommentMutation.isPending ? "작성 중..." : "댓글 작성"}
+                      </Button>
                     </div>
                   </div>
                 </CardContent>
