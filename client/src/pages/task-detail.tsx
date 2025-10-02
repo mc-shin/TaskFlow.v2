@@ -11,7 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { ArrowLeft, Edit, Save, X, Circle, Target, FolderOpen, Calendar, User, Clock, Trash2, Tag, Paperclip, Download } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useLocation, useRoute } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { ObjectUploader } from "@/components/ObjectUploader";
@@ -40,6 +40,7 @@ export default function TaskDetail() {
   const [editedTask, setEditedTask] = useState<Partial<SafeTaskWithAssignees>>({});
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [attachedFiles, setAttachedFiles] = useState<Array<{ uploadURL: string; name: string; objectPath: string }>>([]);
+  const [currentUser, setCurrentUser] = useState<SafeUser | null>(null);
 
   const { data: projects, isLoading } = useQuery({
     queryKey: ["/api/projects"],
@@ -49,6 +50,15 @@ export default function TaskDetail() {
     queryKey: ["/api/users", { workspace: true }],
     queryFn: () => fetch('/api/users?workspace=true').then(res => res.json()),
   });
+
+  // 현재 로그인한 사용자 식별
+  useEffect(() => {
+    const userEmail = localStorage.getItem("userEmail");
+    if (userEmail && users) {
+      const user = (users as SafeUser[]).find(u => u.email === userEmail);
+      setCurrentUser(user || null);
+    }
+  }, [users]);
 
   // Calculate parentProject ID for useQuery
   const parentProjectId = useMemo(() => {
@@ -747,7 +757,7 @@ export default function TaskDetail() {
             <Comments 
               entityType="task" 
               entityId={taskId || ""} 
-              currentUser={(users as SafeUser[])?.[0]}
+              currentUser={currentUser || undefined}
             />
           </div>
 

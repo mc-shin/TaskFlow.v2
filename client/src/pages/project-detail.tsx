@@ -49,6 +49,7 @@ export default function ProjectDetail() {
   });
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [attachedFiles, setAttachedFiles] = useState<Array<{ id?: string; uploadURL: string; name: string; objectPath: string }>>([]);
+  const [currentUser, setCurrentUser] = useState<SafeUser | null>(null);
 
   const { data: projects, isLoading } = useQuery({
     queryKey: ["/api/projects"],
@@ -58,6 +59,15 @@ export default function ProjectDetail() {
   const { data: users } = useQuery({
     queryKey: ["/api/users", { workspace: true }],
   });
+
+  // 현재 로그인한 사용자 식별
+  useEffect(() => {
+    const userEmail = localStorage.getItem("userEmail");
+    if (userEmail && users) {
+      const user = (users as SafeUser[]).find(u => u.email === userEmail);
+      setCurrentUser(user || null);
+    }
+  }, [users]);
 
 
   const { data: attachments } = useQuery({
@@ -761,7 +771,7 @@ export default function ProjectDetail() {
             <Comments 
               entityType="project" 
               entityId={projectId || ""} 
-              currentUser={(users as SafeUser[])?.[0]}
+              currentUser={currentUser || undefined}
             />
           </div>
 

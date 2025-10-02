@@ -11,7 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { ArrowLeft, Edit, Save, X, Target, Circle, FolderOpen, Plus, Trash2, Tag, Paperclip, Download, Clock, User } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation, useRoute } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { ObjectUploader } from "@/components/ObjectUploader";
@@ -49,6 +49,7 @@ export default function GoalDetail() {
   });
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [attachedFiles, setAttachedFiles] = useState<Array<{ id?: string; uploadURL: string; name: string; objectPath?: string }>>([]);
+  const [currentUser, setCurrentUser] = useState<SafeUser | null>(null);
 
   const { data: projects, isLoading } = useQuery({
     queryKey: ["/api/projects"],
@@ -58,6 +59,15 @@ export default function GoalDetail() {
   const { data: users } = useQuery({
     queryKey: ["/api/users", { workspace: true }],
   });
+
+  // 현재 로그인한 사용자 식별
+  useEffect(() => {
+    const userEmail = localStorage.getItem("userEmail");
+    if (userEmail && users) {
+      const user = (users as SafeUser[]).find(u => u.email === userEmail);
+      setCurrentUser(user || null);
+    }
+  }, [users]);
 
   // Find the goal and its parent project
   let goal: GoalWithTasks | undefined;
@@ -775,7 +785,7 @@ export default function GoalDetail() {
             <Comments 
               entityType="goal" 
               entityId={goalId || ""} 
-              currentUser={(users as SafeUser[])?.[0]}
+              currentUser={currentUser || undefined}
             />
           </div>
 

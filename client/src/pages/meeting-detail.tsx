@@ -41,6 +41,7 @@ export default function MeetingDetail() {
   const [isEditing, setIsEditing] = useState(false);
   const [selectedParticipants, setSelectedParticipants] = useState<string[]>([]);
   const [newComment, setNewComment] = useState("");
+  const [currentUser, setCurrentUser] = useState<SafeUser | null>(null);
 
   // 첨부파일 다운로드 핸들러
   const handleDownloadAttachment = async (attachment: MeetingAttachment) => {
@@ -88,6 +89,15 @@ export default function MeetingDetail() {
     queryKey: ['/api/users?workspace=true']
   });
 
+  // 현재 로그인한 사용자 식별
+  useEffect(() => {
+    const userEmail = localStorage.getItem("userEmail");
+    if (userEmail && users.length > 0) {
+      const user = users.find(u => u.email === userEmail);
+      setCurrentUser(user || null);
+    }
+  }, [users]);
+
   // 댓글 목록 조회
   const { data: comments = [], refetch: refetchComments } = useQuery<MeetingCommentWithAuthor[]>({
     queryKey: ['/api/meetings', id, 'comments'],
@@ -103,7 +113,9 @@ export default function MeetingDetail() {
   // 댓글 생성 뮤테이션
   const createCommentMutation = useMutation({
     mutationFn: (content: string) => {
-      const currentUser = users[0]; // 현재 로그인된 사용자 (임시로 첫 번째 사용자 사용)
+      if (!currentUser) {
+        throw new Error("로그인이 필요합니다.");
+      }
       return apiRequest('POST', `/api/meetings/${id}/comments`, {
         content,
         authorId: currentUser.id
@@ -129,7 +141,9 @@ export default function MeetingDetail() {
   // 댓글 삭제 뮤테이션
   const deleteCommentMutation = useMutation({
     mutationFn: (commentId: string) => {
-      const currentUser = users[0]; // 현재 로그인된 사용자 (임시로 첫 번째 사용자 사용)
+      if (!currentUser) {
+        throw new Error("로그인이 필요합니다.");
+      }
       return apiRequest('DELETE', `/api/meetings/${id}/comments/${commentId}`, {
         requesterId: currentUser.id
       });
@@ -756,7 +770,7 @@ export default function MeetingDetail() {
                                   }) : '방금 전'}
                                 </span>
                               </div>
-                              {users[0]?.id === comment.authorId && (
+                              {currentUser?.id === comment.authorId && (
                                 <Button
                                   variant="ghost"
                                   size="sm"
