@@ -794,6 +794,9 @@ export default function MeetingDetail() {
                                     hour: '2-digit',
                                     minute: '2-digit'
                                   }) : '방금 전'}
+                                  {comment.updatedAt && comment.createdAt && 
+                                   new Date(comment.updatedAt).getTime() !== new Date(comment.createdAt).getTime() && 
+                                   ' (수정됨)'}
                                 </span>
                               </div>
                               {currentUser?.id === comment.authorId && (
@@ -806,15 +809,37 @@ export default function MeetingDetail() {
                                   >
                                     <Edit className="w-4 h-4" />
                                   </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => deleteCommentMutation.mutate(comment.id)}
-                                    disabled={deleteCommentMutation.isPending}
-                                    data-testid={`button-delete-comment-${comment.id}`}
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </Button>
+                                  <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        disabled={deleteCommentMutation.isPending}
+                                        data-testid={`button-delete-comment-${comment.id}`}
+                                      >
+                                        <Trash2 className="w-4 h-4" />
+                                      </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                      <AlertDialogHeader>
+                                        <AlertDialogTitle>댓글 삭제</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                          이 댓글을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.
+                                        </AlertDialogDescription>
+                                      </AlertDialogHeader>
+                                      <AlertDialogFooter>
+                                        <AlertDialogCancel data-testid={`button-cancel-delete-comment-${comment.id}`}>취소</AlertDialogCancel>
+                                        <AlertDialogAction
+                                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                          onClick={() => deleteCommentMutation.mutate(comment.id)}
+                                          disabled={deleteCommentMutation.isPending}
+                                          data-testid={`button-confirm-delete-comment-${comment.id}`}
+                                        >
+                                          {deleteCommentMutation.isPending ? "삭제 중..." : "삭제"}
+                                        </AlertDialogAction>
+                                      </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                  </AlertDialog>
                                 </div>
                               )}
                             </div>
