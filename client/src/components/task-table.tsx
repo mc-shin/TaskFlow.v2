@@ -8,7 +8,25 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { useMemo } from "react";
-import type { TaskWithAssignees } from "@shared/schema";
+// import type { TaskWithAssignees } from "@shared/schema";
+
+// ⭐⭐⭐ Assuming this type structure, which includes a list of users with id, name, and initials
+type Assignee = {
+  id: string;
+  name: string;
+  initials: string;
+};
+
+// Simplified TaskWithAssignees type for mock data context
+type TaskWithAssignees = {
+  id: string;
+  title: string;
+  status: "진행전" | "진행중" | "완료" | "이슈";
+  deadline: string | null;
+  assignees: Assignee[];
+};
+
+// ⭐⭐⭐ 끝
 
 interface TaskTableProps {
   onEditTask: (task: TaskWithAssignees) => void;
@@ -23,18 +41,73 @@ export function TaskTable({ onEditTask }: TaskTableProps) {
     setLocation("/workspace/app/my-tasks");
   };
 
-  const { data: tasks, isLoading } = useQuery({
-    queryKey: ["/api/tasks"],
-    refetchInterval: 10000,
-  });
+  // ⭐⭐⭐ --- MOCK DATA INJECTION ---
+  const MOCK_USER_ID = "user-me-123";
+
+  const mockTasks: TaskWithAssignees[] = [
+    {
+      id: "task-001",
+      title: "대시보드 UI 컴포넌트 통합",
+      status: "진행중",
+      deadline: "2025-11-05T00:00:00Z", // D-13
+      assignees: [{ id: MOCK_USER_ID, name: "김민준", initials: "K" }],
+    },
+    {
+      id: "task-002",
+      title: "백엔드 API 성능 테스트 보고서 작성",
+      status: "진행전",
+      deadline: "2025-10-22T00:00:00Z", // D-Day (Today)
+      assignees: [
+        { id: MOCK_USER_ID, name: "김민준", initials: "K" },
+        { id: "user-2", name: "박지수", initials: "P" },
+      ],
+    },
+    {
+      id: "task-003",
+      title: "긴급! 고객 피드백 반영 버그 수정",
+      status: "이슈",
+      deadline: "2025-10-18T00:00:00Z", // D+4 (Overdue)
+      assignees: [{ id: MOCK_USER_ID, name: "김민준", initials: "K" }],
+    },
+    {
+      id: "task-004",
+      title: "분기별 목표 설정 회의 자료 준비",
+      status: "완료",
+      deadline: "2025-12-31T00:00:00Z",
+      assignees: [{ id: MOCK_USER_ID, name: "김민준", initials: "K" }],
+    },
+    {
+      id: "task-005",
+      title: "프론트엔드 빌드 최적화 작업",
+      status: "진행중",
+      deadline: "2025-10-30T00:00:00Z",
+      assignees: [{ id: "user-other-999", name: "최수정", initials: "C" }], // Not assigned to MOCK_USER_ID
+    },
+  ];
+
+  const tasks = mockTasks;
+  const isLoading = false;
+
+  // ⭐⭐⭐ 끝
+
+  // const { data: tasks, isLoading } = useQuery({
+  //   queryKey: ["/api/tasks"],
+  //   refetchInterval: 10000,
+  // }); 나중에 다시 살리기
 
   // Filter tasks to show only current user's tasks
   const myTasks = useMemo(() => {
-    const currentUserId = localStorage.getItem("userId");
+    // ⭐⭐⭐
+    const currentUserId = MOCK_USER_ID;
+    // ⭐⭐⭐ 끝
+
+    // const currentUserId = localStorage.getItem("userId");
     if (!currentUserId || !tasks) return [];
-    
-    return (tasks as TaskWithAssignees[]).filter(task => 
-      task.assignees && task.assignees.some(assignee => assignee.id === currentUserId)
+
+    return (tasks as TaskWithAssignees[]).filter(
+      (task) =>
+        task.assignees &&
+        task.assignees.some((assignee) => assignee.id === currentUserId)
     );
   }, [tasks]);
 
@@ -86,11 +159,16 @@ export function TaskTable({ onEditTask }: TaskTableProps) {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "진행전": return "bg-gray-500";
-      case "진행중": return "bg-blue-500";
-      case "완료": return "bg-green-500";
-      case "이슈": return "bg-orange-500";
-      default: return "bg-gray-500";
+      case "진행전":
+        return "bg-gray-500";
+      case "진행중":
+        return "bg-blue-500";
+      case "완료":
+        return "bg-green-500";
+      case "이슈":
+        return "bg-orange-500";
+      default:
+        return "bg-gray-500";
     }
   };
 
@@ -99,16 +177,28 @@ export function TaskTable({ onEditTask }: TaskTableProps) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     deadlineDate.setHours(0, 0, 0, 0);
-    
+
     const diffTime = deadlineDate.getTime() - today.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
+
     if (diffDays < 0) {
-      return <Badge className="bg-blue-500 text-white hover:bg-blue-600">D-+{Math.abs(diffDays)}</Badge>;
+      return (
+        <Badge className="bg-blue-500 text-white hover:bg-blue-600">
+          D-+{Math.abs(diffDays)}
+        </Badge>
+      );
     } else if (diffDays === 0) {
-      return <Badge className="bg-orange-500 text-white hover:bg-orange-600">D-Day</Badge>;
+      return (
+        <Badge className="bg-orange-500 text-white hover:bg-orange-600">
+          D-Day
+        </Badge>
+      );
     } else {
-      return <Badge className="bg-blue-500 text-white hover:bg-blue-600">D-{diffDays}</Badge>;
+      return (
+        <Badge className="bg-blue-500 text-white hover:bg-blue-600">
+          D-{diffDays}
+        </Badge>
+      );
     }
   };
 
@@ -127,7 +217,10 @@ export function TaskTable({ onEditTask }: TaskTableProps) {
         <CardContent>
           <div className="space-y-4">
             {[...Array(3)].map((_, i) => (
-              <div key={i} className="h-16 bg-muted animate-pulse rounded"></div>
+              <div
+                key={i}
+                className="h-16 bg-muted animate-pulse rounded"
+              ></div>
             ))}
           </div>
         </CardContent>
@@ -139,53 +232,77 @@ export function TaskTable({ onEditTask }: TaskTableProps) {
     <Card data-testid="task-table">
       <CardHeader className="border-b border-border">
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold" data-testid="text-task-title">내 작업</h3>
-          <Button 
-            onClick={handleViewMore}
-            data-testid="button-view-more"
-          >
+          <h3 className="text-lg font-semibold" data-testid="text-task-title">
+            내 작업
+          </h3>
+          <Button onClick={handleViewMore} data-testid="button-view-more">
             <MoreHorizontal className="h-4 w-4 mr-2" />
             더보기
           </Button>
         </div>
       </CardHeader>
-      
+
       <CardContent className="p-0">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="border-b border-border">
-                <th className="text-left p-4 text-sm font-medium text-muted-foreground">작업</th>
-                <th className="text-left p-4 text-sm font-medium text-muted-foreground w-[220px]">마감기한</th>
-                <th className="text-left p-4 text-sm font-medium text-muted-foreground w-[100px]">상태</th>
-                <th className="text-left p-4 text-sm font-medium text-muted-foreground w-[150px]">담당자</th>
-                <th className="text-left p-4 text-sm font-medium text-muted-foreground w-[100px]">작업</th>
+                <th className="text-left p-4 text-sm font-medium text-muted-foreground">
+                  작업
+                </th>
+                <th className="text-left p-4 text-sm font-medium text-muted-foreground w-[220px]">
+                  마감기한
+                </th>
+                <th className="text-left p-4 text-sm font-medium text-muted-foreground w-[100px]">
+                  상태
+                </th>
+                <th className="text-left p-4 text-sm font-medium text-muted-foreground w-[150px]">
+                  담당자
+                </th>
+                <th className="text-left p-4 text-sm font-medium text-muted-foreground w-[100px]">
+                  작업
+                </th>
               </tr>
             </thead>
             <tbody>
               {myTasks.map((task: TaskWithAssignees) => (
-                <tr 
+                <tr
                   key={task.id}
                   className="task-row border-b border-border hover:bg-accent/50 transition-colors"
                   data-testid={`row-task-${task.id}`}
                 >
                   <td className="p-4">
                     <div className="flex items-center space-x-3">
-                      <div className={`w-2 h-2 ${getStatusColor(task.status)} rounded-full`}></div>
-                      <span className="font-medium" data-testid={`text-task-title-${task.id}`}>
+                      <div
+                        className={`w-2 h-2 ${getStatusColor(
+                          task.status
+                        )} rounded-full`}
+                      ></div>
+                      <span
+                        className="font-medium"
+                        data-testid={`text-task-title-${task.id}`}
+                      >
                         {task.title}
                       </span>
                     </div>
                   </td>
-                  <td className="p-4 w-[220px]" data-testid={`text-task-deadline-${task.id}`}>
+                  <td
+                    className="p-4 w-[220px]"
+                    data-testid={`text-task-deadline-${task.id}`}
+                  >
                     <div className="flex items-center gap-2">
                       <span className="text-muted-foreground">
-                        {task.deadline ? new Date(task.deadline).toLocaleDateString('ko-KR') : '-'}
+                        {task.deadline
+                          ? new Date(task.deadline).toLocaleDateString("ko-KR")
+                          : "-"}
                       </span>
                       {task.deadline && getDdayBadge(task.deadline)}
                     </div>
                   </td>
-                  <td className="p-4 w-[100px]" data-testid={`badge-task-status-${task.id}`}>
+                  <td
+                    className="p-4 w-[100px]"
+                    data-testid={`badge-task-status-${task.id}`}
+                  >
                     {getStatusBadge(task.status)}
                   </td>
                   <td className="p-4 w-[150px]">
@@ -196,24 +313,27 @@ export function TaskTable({ onEditTask }: TaskTableProps) {
                             {task.assignees[0].initials}
                           </AvatarFallback>
                         </Avatar>
-                        <span className="text-sm" data-testid={`text-assignee-${task.id}`}>
-                          {task.assignees[0].name || ''}
+                        <span
+                          className="text-sm"
+                          data-testid={`text-assignee-${task.id}`}
+                        >
+                          {task.assignees[0].name || ""}
                         </span>
                       </div>
                     )}
                   </td>
                   <td className="p-4 w-[100px]">
                     <div className="flex space-x-2">
-                      <Button 
-                        variant="ghost" 
+                      <Button
+                        variant="ghost"
                         size="icon"
                         onClick={() => onEditTask(task)}
                         data-testid={`button-edit-${task.id}`}
                       >
                         <Edit className="h-4 w-4" />
                       </Button>
-                      <Button 
-                        variant="ghost" 
+                      <Button
+                        variant="ghost"
                         size="icon"
                         onClick={() => handleDeleteTask(task.id)}
                         disabled={deleteTaskMutation.isPending}
@@ -225,10 +345,14 @@ export function TaskTable({ onEditTask }: TaskTableProps) {
                   </td>
                 </tr>
               ))}
-              
+
               {myTasks.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="p-8 text-center text-muted-foreground" data-testid="text-empty-tasks">
+                  <td
+                    colSpan={5}
+                    className="p-8 text-center text-muted-foreground"
+                    data-testid="text-empty-tasks"
+                  >
                     나에게 할당된 작업이 없습니다.
                   </td>
                 </tr>

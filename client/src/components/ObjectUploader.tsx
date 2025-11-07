@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
+import api from "@/api/api-index";
 
 interface ObjectUploaderProps {
   maxNumberOfFiles?: number;
@@ -10,7 +11,9 @@ interface ObjectUploaderProps {
     url: string;
     objectPath?: string;
   }>;
-  onComplete?: (result: { successful: Array<{ uploadURL: string; name: string; objectPath: string }> }) => void;
+  onComplete?: (result: {
+    successful: Array<{ uploadURL: string; name: string; objectPath: string }>;
+  }) => void;
   buttonClassName?: string;
   children: ReactNode;
 }
@@ -18,7 +21,7 @@ interface ObjectUploaderProps {
 /**
  * A file upload component that renders as a button and provides a modal interface for
  * file management.
- * 
+ *
  * Features:
  * - Renders as a customizable button that opens a file upload modal
  * - Provides a modal interface for:
@@ -26,10 +29,10 @@ interface ObjectUploaderProps {
  *   - File preview
  *   - Upload progress tracking
  *   - Upload status display
- * 
+ *
  * The component uses Uppy under the hood to handle all file upload functionality.
  * All file management features are automatically handled by the Uppy dashboard modal.
- * 
+ *
  * @param props - Component props
  * @param props.maxNumberOfFiles - Maximum number of files allowed to be uploaded
  *   (default: 1)
@@ -59,13 +62,17 @@ export function ObjectUploader({
     if (!files || files.length === 0) return;
 
     setIsUploading(true);
-    const successful: Array<{ uploadURL: string; name: string; objectPath: string }> = [];
+    const successful: Array<{
+      uploadURL: string;
+      name: string;
+      objectPath: string;
+    }> = [];
 
     try {
       const fileArray = Array.from(files);
       for (let i = 0; i < Math.min(fileArray.length, maxNumberOfFiles); i++) {
         const file = fileArray[i];
-        
+
         if (file.size > maxFileSize) {
           console.warn(`File ${file.name} is too large (${file.size} bytes)`);
           continue;
@@ -73,36 +80,47 @@ export function ObjectUploader({
 
         const uploadParams = await onGetUploadParameters();
         const { url, objectPath } = uploadParams;
-        
-        const response = await fetch(url, {
-          method: 'PUT',
-          body: file,
+
+        // const response = await fetch(url, {
+        //   method: 'PUT',
+        //   body: file,
+        //   headers: {
+        //     'Content-Type': file.type || 'application/octet-stream',
+        //   },
+        // });
+
+        // 🚩 [3] fetch 코드를 Axios로 교체
+        // url은 이미 절대 경로(Presigned URL)이므로 baseURL은 무시됩니다.
+        // ----------------------------------------------------
+        const response = await api.put(url, file, {
+          // Axios 기본 Content-Type: application/json을 파일 타입으로 덮어씁니다.
           headers: {
-            'Content-Type': file.type || 'application/octet-stream',
+            "Content-Type": file.type || "application/octet-stream",
           },
         });
+        //////////////////
 
-        if (response.ok) {
-          successful.push({
-            uploadURL: url.split('?')[0], // Remove query parameters to get clean URL
-            name: file.name,
-            objectPath: objectPath || url.split('?')[0], // Use objectPath if available, fallback to clean URL
-          });
-        }
+        successful.push({
+          uploadURL: url.split("?")[0], // Remove query parameters to get clean URL
+          name: file.name,
+          objectPath: objectPath || url.split("?")[0], // Use objectPath if available, fallback to clean URL
+        });
       }
 
       onComplete?.({ successful });
     } catch (error) {
-      console.error('Upload failed:', error);
+      console.error("Upload failed:", error);
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) {
-        fileInputRef.current.value = '';
+        fileInputRef.current.value = "";
       }
     }
   };
 
-  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const files = event.target.files;
     if (files) {
       await processFiles(files);
@@ -132,7 +150,6 @@ export function ObjectUploader({
     }
   };
 
-
   return (
     <div>
       <input
@@ -140,15 +157,15 @@ export function ObjectUploader({
         type="file"
         multiple={maxNumberOfFiles > 1}
         onChange={handleFileSelect}
-        style={{ display: 'none' }}
+        style={{ display: "none" }}
         accept="*/*"
       />
       <div
         className={`cursor-pointer transition-colors ${
-          isDragOver 
-            ? 'border-primary bg-primary/5' 
-            : 'border-muted hover:border-primary'
-        } ${buttonClassName || ''}`}
+          isDragOver
+            ? "border-primary bg-primary/5"
+            : "border-muted hover:border-primary"
+        } ${buttonClassName || ""}`}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}

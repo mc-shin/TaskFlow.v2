@@ -63,10 +63,10 @@ export default function MyTasks() {
     }
   };
 
-  const handleCreateTask = () => {
-    setEditingTask(null);
-    setIsTaskModalOpen(true);
-  };
+  // const handleCreateTask = () => {
+  //   setEditingTask(null);
+  //   setIsTaskModalOpen(true);
+  // };
 
   const handleEditTask = (task: any) => {
     setEditingTask(task);

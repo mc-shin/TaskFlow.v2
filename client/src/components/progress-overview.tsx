@@ -1,8 +1,26 @@
 import { useQuery } from "@tanstack/react-query";
 
+// 1. Stats 객체의 타입을 정의합니다.
+interface StatsData {
+  total: number;
+  completed: number;
+}
+
 export function ProgressOverview() {
-  const { data: stats, isLoading } = useQuery({
+  const { data: stats, isLoading } = useQuery<StatsData>({
     queryKey: ["/api/stats"],
+    // ⭐⭐⭐ [수정]: API 호출 대신 임의의 데이터를 반환하는 쿼리 함수를 추가합니다.
+    queryFn: async () => {
+        // 실제 API 호출 대신 사용할 임의의 데이터 객체입니다.
+        const dummyData: StatsData = {
+            total: 20,    // 전체 항목 수
+            completed: 15, // 완료된 항목 수
+        };
+        // 비동기처럼 보이게 하기 위해 약간의 딜레이를 추가할 수도 있습니다 (선택 사항)
+        // await new Promise(resolve => setTimeout(resolve, 500));
+        return dummyData;
+    },
+    // ⭐⭐⭐ 끝
     refetchInterval: 10000,
   });
 
@@ -29,12 +47,17 @@ export function ProgressOverview() {
   return (
     <div className="mb-8" data-testid="progress-overview">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold" data-testid="text-total-title">전체</h2>
-        <span className="text-sm text-muted-foreground" data-testid="text-progress-ratio">
+        <h2 className="text-lg font-semibold" data-testid="text-total-title">
+          전체
+        </h2>
+        <span
+          className="text-sm text-muted-foreground"
+          data-testid="text-progress-ratio"
+        >
           {completed}/{total}
         </span>
       </div>
-      
+
       <div className="flex items-center space-x-8">
         {/* Circular Progress */}
         <div className="relative w-24 h-24" data-testid="chart-progress">
@@ -60,7 +83,10 @@ export function ProgressOverview() {
             />
           </svg>
           <div className="absolute inset-0 flex items-center justify-center">
-            <span className="text-lg font-bold" data-testid="text-progress-center">
+            <span
+              className="text-lg font-bold"
+              data-testid="text-progress-center"
+            >
               {completed}/{total}
             </span>
           </div>

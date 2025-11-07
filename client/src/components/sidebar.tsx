@@ -9,7 +9,7 @@ export function Sidebar() {
   const [expandedSections, setExpandedSections] = useState<string[]>(['dashboard', 'work-management', 'meeting']);
   const [location, setLocation] = useLocation();
   const [currentUser, setCurrentUser] = useState<SafeUser | null>(null);
-  const [workspaceName, setWorkspaceName] = useState("하이더");
+  const [workspaceName, setWorkspaceName] = useState("Nes");
 
   // Get current user information
   const { data: users } = useQuery({

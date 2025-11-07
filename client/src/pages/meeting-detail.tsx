@@ -6,31 +6,84 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Calendar, Clock, Users, MapPin, Edit, Trash2, ArrowLeft, Save, X, MessageSquare, Send, Paperclip, Download } from "lucide-react";
+import {
+  Calendar,
+  Clock,
+  Users,
+  MapPin,
+  Edit,
+  Trash2,
+  ArrowLeft,
+  Save,
+  X,
+  MessageSquare,
+  Send,
+  Paperclip,
+  Download,
+} from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
-import type { Meeting, SafeUser, MeetingCommentWithAuthor, MeetingAttachment } from "@shared/schema";
+import type {
+  Meeting,
+  SafeUser,
+  MeetingCommentWithAuthor,
+  MeetingAttachment,
+} from "@shared/schema";
 import { insertMeetingSchema } from "@shared/schema";
+import api from "@/api/api-index";
 
 // 편집용 스키마
-const editMeetingSchema = insertMeetingSchema.omit({
-  startAt: true,
-  endAt: true
-}).extend({
-  date: z.string().min(1, "날짜를 선택해주세요"),
-  startTime: z.string().min(1, "시작 시간을 선택해주세요"),
-  endTime: z.string().optional(),
-  attendeeIds: z.array(z.string()).min(1, "최소 한 명의 참여자를 선택해주세요")
-});
+const editMeetingSchema = insertMeetingSchema
+  .omit({
+    startAt: true,
+    endAt: true,
+  })
+  .extend({
+    date: z.string().min(1, "날짜를 선택해주세요"),
+    startTime: z.string().min(1, "시작 시간을 선택해주세요"),
+    endTime: z.string().optional(),
+    attendeeIds: z
+      .array(z.string())
+      .min(1, "최소 한 명의 참여자를 선택해주세요"),
+  });
 
 type EditMeetingForm = z.infer<typeof editMeetingSchema>;
 
@@ -39,76 +92,122 @@ export default function MeetingDetail() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
-  const [selectedParticipants, setSelectedParticipants] = useState<string[]>([]);
+  const [selectedParticipants, setSelectedParticipants] = useState<string[]>(
+    []
+  );
   const [newComment, setNewComment] = useState("");
   const [currentUser, setCurrentUser] = useState<SafeUser | null>(null);
-  const [editingComment, setEditingComment] = useState<{ id: string; content: string } | null>(null);
+  const [editingComment, setEditingComment] = useState<{
+    id: string;
+    content: string;
+  } | null>(null);
 
   // 첨부파일 다운로드 핸들러
+  // const handleDownloadAttachment = async (attachment: MeetingAttachment) => {
+  //   try {
+  //     // fetch를 직접 사용하여 파일 다운로드
+  //     const response = await fetch(`/objects/${encodeURI(attachment.filePath)}`);
+
+  //     if (response.ok) {
+  //       // 브라우저의 다운로드 기능 사용
+  //       const blob = await response.blob();
+  //       const url = window.URL.createObjectURL(blob);
+  //       const a = document.createElement('a');
+  //       a.href = url;
+  //       a.download = attachment.fileName;
+  //       document.body.appendChild(a);
+  //       a.click();
+  //       window.URL.revokeObjectURL(url);
+  //       document.body.removeChild(a);
+
+  //       toast({
+  //         title: "다운로드 완료",
+  //         description: `${attachment.fileName} 파일이 다운로드되었습니다.`
+  //       });
+  //     } else {
+  //       throw new Error('다운로드 실패');
+  //     }
+  //   } catch (error) {
+  //     console.error('Download error:', error);
+  //     toast({
+  //       title: "다운로드 실패",
+  //       description: "파일 다운로드 중 오류가 발생했습니다.",
+  //       variant: "destructive"
+  //     });
+  //   }
+  // };
+
+  ////////////////////////////////
   const handleDownloadAttachment = async (attachment: MeetingAttachment) => {
     try {
-      // fetch를 직접 사용하여 파일 다운로드
-      const response = await fetch(`/objects/${encodeURI(attachment.filePath)}`);
-      
-      if (response.ok) {
-        // 브라우저의 다운로드 기능 사용
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = attachment.fileName;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-        
-        toast({
-          title: "다운로드 완료",
-          description: `${attachment.fileName} 파일이 다운로드되었습니다.`
-        });
-      } else {
-        throw new Error('다운로드 실패');
-      }
+      // 🚩 [수정] Axios를 사용하여 파일 다운로드
+      // responseType: 'blob'을 설정하여 바이너리 데이터를 받습니다.
+      const response = await api.get(`/objects/${attachment.filePath}`, {
+        responseType: "blob", // 응답을 Blob 형태로 받도록 설정
+      });
+      // -----------------------------------------------------------------
+
+      // Axios는 2xx 응답만 throw 없이 반환하며, 응답 데이터(Blob)는 response.data에 있습니다.
+      const blob = response.data; // response.data는 이미 Blob 객체입니다.
+
+      // 브라우저의 다운로드 기능 사용
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = attachment.fileName;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      toast({
+        title: "다운로드 완료",
+        description: `${attachment.fileName} 파일이 다운로드되었습니다.`,
+      });
     } catch (error) {
-      console.error('Download error:', error);
+      // Axios는 비-2xx 상태 코드를 자동으로 catch 블록으로 보냅니다.
+      console.error("Download error:", error);
       toast({
         title: "다운로드 실패",
         description: "파일 다운로드 중 오류가 발생했습니다.",
-        variant: "destructive"
+        variant: "destructive",
       });
     }
   };
+  ////////////////////////////////
 
   // 미팅 정보 조회
   const { data: meeting, isLoading: meetingLoading } = useQuery<Meeting>({
-    queryKey: ['/api/meetings', id],
-    enabled: !!id
+    queryKey: ["/api/meetings", id],
+    enabled: !!id,
   });
 
   // 사용자 목록 조회 (워크스페이스 멤버만)
   const { data: users = [] } = useQuery<SafeUser[]>({
-    queryKey: ['/api/users?workspace=true']
+    queryKey: ["/api/users?workspace=true"],
   });
 
   // 현재 로그인한 사용자 식별
   useEffect(() => {
     const userEmail = localStorage.getItem("userEmail");
     if (userEmail && users.length > 0) {
-      const user = users.find(u => u.email === userEmail);
+      const user = users.find((u) => u.email === userEmail);
       setCurrentUser(user || null);
     }
   }, [users]);
 
   // 댓글 목록 조회
-  const { data: comments = [], refetch: refetchComments } = useQuery<MeetingCommentWithAuthor[]>({
-    queryKey: ['/api/meetings', id, 'comments'],
-    enabled: !!id
+  const { data: comments = [], refetch: refetchComments } = useQuery<
+    MeetingCommentWithAuthor[]
+  >({
+    queryKey: ["/api/meetings", id, "comments"],
+    enabled: !!id,
   });
 
   // 첨부파일 목록 조회
   const { data: attachments = [] } = useQuery<MeetingAttachment[]>({
-    queryKey: ['/api/meetings', id, 'attachments'],
-    enabled: !!id
+    queryKey: ["/api/meetings", id, "attachments"],
+    enabled: !!id,
   });
 
   // 댓글 생성 뮤테이션
@@ -117,53 +216,63 @@ export default function MeetingDetail() {
       if (!currentUser) {
         throw new Error("로그인이 필요합니다.");
       }
-      return apiRequest('POST', `/api/meetings/${id}/comments`, {
+      return apiRequest("POST", `/api/meetings/${id}/comments`, {
         content,
-        authorId: currentUser.id
+        authorId: currentUser.id,
       });
     },
     onSuccess: () => {
       setNewComment("");
-      queryClient.invalidateQueries({ queryKey: ['/api/meetings', id, 'comments'] });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/meetings", id, "comments"],
+      });
       toast({
         title: "댓글 작성 완료",
-        description: "댓글이 성공적으로 작성되었습니다."
+        description: "댓글이 성공적으로 작성되었습니다.",
       });
     },
     onError: () => {
       toast({
         title: "댓글 작성 실패",
         description: "댓글 작성에 실패했습니다.",
-        variant: "destructive"
+        variant: "destructive",
       });
-    }
+    },
   });
 
   // 댓글 수정 뮤테이션
   const updateCommentMutation = useMutation({
-    mutationFn: ({ commentId, content }: { commentId: string; content: string }) => {
+    mutationFn: ({
+      commentId,
+      content,
+    }: {
+      commentId: string;
+      content: string;
+    }) => {
       if (!currentUser) {
         throw new Error("로그인이 필요합니다.");
       }
-      return apiRequest('PUT', `/api/meetings/${id}/comments/${commentId}`, {
-        content
+      return apiRequest("PUT", `/api/meetings/${id}/comments/${commentId}`, {
+        content,
       });
     },
     onSuccess: () => {
       setEditingComment(null);
-      queryClient.invalidateQueries({ queryKey: ['/api/meetings', id, 'comments'] });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/meetings", id, "comments"],
+      });
       toast({
         title: "댓글 수정 완료",
-        description: "댓글이 성공적으로 수정되었습니다."
+        description: "댓글이 성공적으로 수정되었습니다.",
       });
     },
     onError: () => {
       toast({
         title: "댓글 수정 실패",
         description: "댓글 수정에 실패했습니다.",
-        variant: "destructive"
+        variant: "destructive",
       });
-    }
+    },
   });
 
   // 댓글 삭제 뮤테이션
@@ -172,22 +281,28 @@ export default function MeetingDetail() {
       if (!currentUser) {
         throw new Error("로그인이 필요합니다.");
       }
-      return apiRequest('DELETE', `/api/meetings/${id}/comments/${commentId}`, {});
+      return apiRequest(
+        "DELETE",
+        `/api/meetings/${id}/comments/${commentId}`,
+        {}
+      );
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/meetings', id, 'comments'] });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/meetings", id, "comments"],
+      });
       toast({
         title: "댓글 삭제 완료",
-        description: "댓글이 성공적으로 삭제되었습니다."
+        description: "댓글이 성공적으로 삭제되었습니다.",
       });
     },
     onError: () => {
       toast({
         title: "댓글 삭제 실패",
         description: "댓글 삭제에 실패했습니다.",
-        variant: "destructive"
+        variant: "destructive",
       });
-    }
+    },
   });
 
   // 폼 초기화
@@ -201,8 +316,8 @@ export default function MeetingDetail() {
       date: "",
       startTime: "",
       endTime: "",
-      attendeeIds: []
-    }
+      attendeeIds: [],
+    },
   });
 
   // 미팅 데이터로 폼 초기화
@@ -210,96 +325,96 @@ export default function MeetingDetail() {
     if (meeting) {
       const startDate = new Date(meeting.startAt);
       const endDate = meeting.endAt ? new Date(meeting.endAt) : null;
-      
+
       form.reset({
         title: meeting.title,
         type: meeting.type,
         description: meeting.description || "",
         location: meeting.location || "",
-        date: startDate.toISOString().split('T')[0],
+        date: startDate.toISOString().split("T")[0],
         startTime: startDate.toTimeString().slice(0, 5),
         endTime: endDate ? endDate.toTimeString().slice(0, 5) : "",
-        attendeeIds: meeting.attendeeIds
+        attendeeIds: meeting.attendeeIds,
       });
-      
+
       setSelectedParticipants(meeting.attendeeIds);
     }
   }, [meeting, form]);
 
   // 미팅 수정 뮤테이션
   const updateMeetingMutation = useMutation({
-    mutationFn: (data: any) => apiRequest('PATCH', `/api/meetings/${id}`, data),
+    mutationFn: (data: any) => apiRequest("PATCH", `/api/meetings/${id}`, data),
     onSuccess: (data) => {
-      console.log('Meeting updated successfully:', data);
+      console.log("Meeting updated successfully:", data);
       toast({
         title: "미팅이 수정되었습니다",
-        description: "미팅 정보가 성공적으로 업데이트되었습니다."
+        description: "미팅 정보가 성공적으로 업데이트되었습니다.",
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/meetings'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/meetings', id] });
+      queryClient.invalidateQueries({ queryKey: ["/api/meetings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/meetings", id] });
       setIsEditing(false);
     },
     onError: (error) => {
-      console.error('Meeting update error:', error);
+      console.error("Meeting update error:", error);
       toast({
         title: "수정 실패",
         description: "미팅 수정 중 오류가 발생했습니다.",
-        variant: "destructive"
+        variant: "destructive",
       });
-    }
+    },
   });
 
   // 미팅 삭제 뮤테이션
   const deleteMeetingMutation = useMutation({
-    mutationFn: () => apiRequest('DELETE', `/api/meetings/${id}`),
+    mutationFn: () => apiRequest("DELETE", `/api/meetings/${id}`),
     onSuccess: () => {
       toast({
         title: "미팅이 삭제되었습니다",
-        description: "미팅이 성공적으로 삭제되었습니다."
+        description: "미팅이 성공적으로 삭제되었습니다.",
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/meetings'] });
-      setLocation('/workspace/app/meeting');
+      queryClient.invalidateQueries({ queryKey: ["/api/meetings"] });
+      setLocation("/workspace/app/meeting");
     },
     onError: (error) => {
-      console.error('Meeting delete error:', error);
+      console.error("Meeting delete error:", error);
       toast({
         title: "삭제 실패",
         description: "미팅 삭제 중 오류가 발생했습니다.",
-        variant: "destructive"
+        variant: "destructive",
       });
-    }
+    },
   });
 
   // 참여자 토글
   const handleParticipantToggle = (userId: string) => {
-    setSelectedParticipants(prev => {
+    setSelectedParticipants((prev) => {
       const newSelection = prev.includes(userId)
-        ? prev.filter(id => id !== userId)
+        ? prev.filter((id) => id !== userId)
         : [...prev, userId];
-      
-      form.setValue('attendeeIds', newSelection);
+
+      form.setValue("attendeeIds", newSelection);
       return newSelection;
     });
   };
 
   // 폼 제출
   const onSubmit = (data: EditMeetingForm) => {
-    console.log('=== 미팅 수정 시작 ===');
-    console.log('Form data:', data);
+    console.log("=== 미팅 수정 시작 ===");
+    console.log("Form data:", data);
 
     // 날짜와 시간을 ISO 문자열로 변환
     const startDateTime = new Date(`${data.date}T${data.startTime}`);
     let endDateTime: Date | null = null;
-    
+
     if (data.endTime) {
       endDateTime = new Date(`${data.date}T${data.endTime}`);
-      
+
       // 종료 시간이 있을 때만 시간 검증
       if (endDateTime <= startDateTime) {
         toast({
           title: "시간 오류",
           description: "종료 시간은 시작 시간보다 늦어야 합니다.",
-          variant: "destructive"
+          variant: "destructive",
         });
         return;
       }
@@ -312,10 +427,10 @@ export default function MeetingDetail() {
       location: data.location,
       startAt: startDateTime.toISOString(),
       endAt: endDateTime ? endDateTime.toISOString() : null,
-      attendeeIds: selectedParticipants
+      attendeeIds: selectedParticipants,
     };
 
-    console.log('Meeting update data:', meetingData);
+    console.log("Meeting update data:", meetingData);
     updateMeetingMutation.mutate(meetingData);
   };
 
@@ -328,7 +443,7 @@ export default function MeetingDetail() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setLocation('/workspace/app/meeting')}
+                onClick={() => setLocation("/workspace/app/meeting")}
                 data-testid="button-back"
               >
                 <ArrowLeft className="w-4 h-4 mr-2" />
@@ -340,7 +455,9 @@ export default function MeetingDetail() {
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-              <p className="text-muted-foreground">미팅 정보를 불러오는 중...</p>
+              <p className="text-muted-foreground">
+                미팅 정보를 불러오는 중...
+              </p>
             </div>
           </div>
         </div>
@@ -357,7 +474,7 @@ export default function MeetingDetail() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setLocation('/workspace/app/meeting')}
+                onClick={() => setLocation("/workspace/app/meeting")}
                 data-testid="button-back"
               >
                 <ArrowLeft className="w-4 h-4 mr-2" />
@@ -377,8 +494,10 @@ export default function MeetingDetail() {
   }
 
   // 참여자 정보
-  const participants = users.filter(user => meeting.attendeeIds.includes(user.id));
-  
+  const participants = users.filter((user) =>
+    meeting.attendeeIds.includes(user.id)
+  );
+
   return (
     <div className="flex h-full">
       <div className="flex-1 flex flex-col">
@@ -388,7 +507,7 @@ export default function MeetingDetail() {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => setLocation('/workspace/app/meeting')}
+              onClick={() => setLocation("/workspace/app/meeting")}
               data-testid="button-back"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
@@ -398,7 +517,7 @@ export default function MeetingDetail() {
               미팅 상세
             </h1>
           </div>
-          
+
           <div className="flex items-center space-x-2">
             {!isEditing && (
               <>
@@ -411,7 +530,7 @@ export default function MeetingDetail() {
                   <Edit className="w-4 h-4 mr-2" />
                   편집
                 </Button>
-                
+
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <Button
@@ -427,25 +546,30 @@ export default function MeetingDetail() {
                     <AlertDialogHeader>
                       <AlertDialogTitle>미팅 삭제</AlertDialogTitle>
                       <AlertDialogDescription>
-                        정말로 이 미팅을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.
+                        정말로 이 미팅을 삭제하시겠습니까? 이 작업은 되돌릴 수
+                        없습니다.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                      <AlertDialogCancel data-testid="button-cancel-delete">취소</AlertDialogCancel>
+                      <AlertDialogCancel data-testid="button-cancel-delete">
+                        취소
+                      </AlertDialogCancel>
                       <AlertDialogAction
                         className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                         onClick={() => deleteMeetingMutation.mutate()}
                         disabled={deleteMeetingMutation.isPending}
                         data-testid="button-confirm-delete"
                       >
-                        {deleteMeetingMutation.isPending ? "삭제 중..." : "삭제"}
+                        {deleteMeetingMutation.isPending
+                          ? "삭제 중..."
+                          : "삭제"}
                       </AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
               </>
             )}
-            
+
             {isEditing && (
               <>
                 <Button
@@ -486,7 +610,10 @@ export default function MeetingDetail() {
                 </CardHeader>
                 <CardContent>
                   <Form {...form}>
-                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                    <form
+                      onSubmit={form.handleSubmit(onSubmit)}
+                      className="space-y-6"
+                    >
                       {/* 기본 정보 */}
                       <FormField
                         control={form.control}
@@ -495,7 +622,11 @@ export default function MeetingDetail() {
                           <FormItem>
                             <FormLabel>제목 *</FormLabel>
                             <FormControl>
-                              <Input placeholder="미팅 제목을 입력하세요" {...field} data-testid="input-title" />
+                              <Input
+                                placeholder="미팅 제목을 입력하세요"
+                                {...field}
+                                data-testid="input-title"
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -529,7 +660,12 @@ export default function MeetingDetail() {
                           <FormItem>
                             <FormLabel>위치</FormLabel>
                             <FormControl>
-                              <Input placeholder="미팅 위치를 입력하세요" {...field} value={field.value || ""} data-testid="input-location" />
+                              <Input
+                                placeholder="미팅 위치를 입력하세요"
+                                {...field}
+                                value={field.value || ""}
+                                data-testid="input-location"
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -545,7 +681,11 @@ export default function MeetingDetail() {
                             <FormItem>
                               <FormLabel>날짜 *</FormLabel>
                               <FormControl>
-                                <Input type="date" {...field} data-testid="input-date" />
+                                <Input
+                                  type="date"
+                                  {...field}
+                                  data-testid="input-date"
+                                />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -559,7 +699,11 @@ export default function MeetingDetail() {
                             <FormItem>
                               <FormLabel>시작 시간 *</FormLabel>
                               <FormControl>
-                                <Input type="time" {...field} data-testid="input-start-time" />
+                                <Input
+                                  type="time"
+                                  {...field}
+                                  data-testid="input-start-time"
+                                />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -573,7 +717,11 @@ export default function MeetingDetail() {
                             <FormItem>
                               <FormLabel>종료 시간 (선택사항)</FormLabel>
                               <FormControl>
-                                <Input type="time" {...field} data-testid="input-end-time" />
+                                <Input
+                                  type="time"
+                                  {...field}
+                                  data-testid="input-end-time"
+                                />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -596,8 +744,12 @@ export default function MeetingDetail() {
                                 >
                                   <Checkbox
                                     id={`user-${user.id}`}
-                                    checked={selectedParticipants.includes(user.id)}
-                                    onCheckedChange={() => handleParticipantToggle(user.id)}
+                                    checked={selectedParticipants.includes(
+                                      user.id
+                                    )}
+                                    onCheckedChange={() =>
+                                      handleParticipantToggle(user.id)
+                                    }
                                     data-testid={`checkbox-user-${user.username}`}
                                   />
                                   <Avatar className="w-8 h-8">
@@ -629,7 +781,10 @@ export default function MeetingDetail() {
               {/* 기본 정보 */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-2xl" data-testid="text-meeting-title">
+                  <CardTitle
+                    className="text-2xl"
+                    data-testid="text-meeting-title"
+                  >
                     {meeting.title}
                   </CardTitle>
                 </CardHeader>
@@ -639,24 +794,30 @@ export default function MeetingDetail() {
                     <div className="flex items-center space-x-2">
                       <Calendar className="w-4 h-4" />
                       <span data-testid="text-meeting-date">
-                        {new Date(meeting.startAt).toLocaleDateString('ko-KR', {
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric',
-                          weekday: 'long'
+                        {new Date(meeting.startAt).toLocaleDateString("ko-KR", {
+                          year: "numeric",
+                          month: "long",
+                          day: "numeric",
+                          weekday: "long",
                         })}
                       </span>
                     </div>
                     <div className="flex items-center space-x-2">
                       <Clock className="w-4 h-4" />
                       <span data-testid="text-meeting-time">
-                        {new Date(meeting.startAt).toLocaleTimeString('ko-KR', {
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })}{meeting.endAt ? ` - ${new Date(meeting.endAt).toLocaleTimeString('ko-KR', {
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })}` : ''}
+                        {new Date(meeting.startAt).toLocaleTimeString("ko-KR", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                        {meeting.endAt
+                          ? ` - ${new Date(meeting.endAt).toLocaleTimeString(
+                              "ko-KR",
+                              {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              }
+                            )}`
+                          : ""}
                       </span>
                     </div>
                   </div>
@@ -665,7 +826,9 @@ export default function MeetingDetail() {
                   {meeting.location && (
                     <div className="flex items-center space-x-2 text-muted-foreground">
                       <MapPin className="w-4 h-4" />
-                      <span data-testid="text-meeting-location">{meeting.location}</span>
+                      <span data-testid="text-meeting-location">
+                        {meeting.location}
+                      </span>
                     </div>
                   )}
 
@@ -673,7 +836,10 @@ export default function MeetingDetail() {
                   {meeting.description && (
                     <div className="pt-4 border-t">
                       <h4 className="font-medium mb-2">내용</h4>
-                      <p className="text-muted-foreground whitespace-pre-wrap" data-testid="text-meeting-description">
+                      <p
+                        className="text-muted-foreground whitespace-pre-wrap"
+                        data-testid="text-meeting-description"
+                      >
                         {meeting.description}
                       </p>
                     </div>
@@ -721,7 +887,9 @@ export default function MeetingDetail() {
                   <CardContent>
                     <div className="space-y-3">
                       {attachments.map((attachment) => {
-                        const uploaderUser = users.find(u => u.id === attachment.uploadedBy);
+                        const uploaderUser = users.find(
+                          (u) => u.id === attachment.uploadedBy
+                        );
                         return (
                           <div
                             key={attachment.id}
@@ -731,18 +899,29 @@ export default function MeetingDetail() {
                             <div className="flex items-center space-x-3">
                               <Paperclip className="w-4 h-4 text-muted-foreground" />
                               <div>
-                                <div className="font-medium">{attachment.fileName}</div>
+                                <div className="font-medium">
+                                  {attachment.fileName}
+                                </div>
                                 <div className="text-sm text-muted-foreground">
-                                  {attachment.fileSize && `${Math.round(attachment.fileSize / 1024)} KB`}
-                                  {uploaderUser && ` • ${uploaderUser.name}이 업로드`}
-                                  {attachment.createdAt && ` • ${new Date(attachment.createdAt).toLocaleDateString('ko-KR')}`}
+                                  {attachment.fileSize &&
+                                    `${Math.round(
+                                      attachment.fileSize / 1024
+                                    )} KB`}
+                                  {uploaderUser &&
+                                    ` • ${uploaderUser.name}이 업로드`}
+                                  {attachment.createdAt &&
+                                    ` • ${new Date(
+                                      attachment.createdAt
+                                    ).toLocaleDateString("ko-KR")}`}
                                 </div>
                               </div>
                             </div>
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => handleDownloadAttachment(attachment)}
+                              onClick={() =>
+                                handleDownloadAttachment(attachment)
+                              }
                               data-testid={`button-download-${attachment.id}`}
                             >
                               <Download className="w-4 h-4 mr-2" />
@@ -786,17 +965,25 @@ export default function MeetingDetail() {
                           <div className="flex-1 space-y-1">
                             <div className="flex items-center justify-between">
                               <div className="flex items-center space-x-2">
-                                <span className="font-medium text-sm">{comment.author.name}</span>
+                                <span className="font-medium text-sm">
+                                  {comment.author.name}
+                                </span>
                                 <span className="text-xs text-muted-foreground">
-                                  {comment.createdAt ? new Date(comment.createdAt).toLocaleDateString('ko-KR', {
-                                    month: 'short',
-                                    day: 'numeric',
-                                    hour: '2-digit',
-                                    minute: '2-digit'
-                                  }) : '방금 전'}
-                                  {comment.updatedAt && comment.createdAt && 
-                                   new Date(comment.updatedAt).getTime() !== new Date(comment.createdAt).getTime() && 
-                                   ' (수정됨)'}
+                                  {comment.createdAt
+                                    ? new Date(
+                                        comment.createdAt
+                                      ).toLocaleDateString("ko-KR", {
+                                        month: "short",
+                                        day: "numeric",
+                                        hour: "2-digit",
+                                        minute: "2-digit",
+                                      })
+                                    : "방금 전"}
+                                  {comment.updatedAt &&
+                                    comment.createdAt &&
+                                    new Date(comment.updatedAt).getTime() !==
+                                      new Date(comment.createdAt).getTime() &&
+                                    " (수정됨)"}
                                 </span>
                               </div>
                               {currentUser?.id === comment.authorId && (
@@ -804,7 +991,12 @@ export default function MeetingDetail() {
                                   <Button
                                     variant="ghost"
                                     size="sm"
-                                    onClick={() => setEditingComment({ id: comment.id, content: comment.content })}
+                                    onClick={() =>
+                                      setEditingComment({
+                                        id: comment.id,
+                                        content: comment.content,
+                                      })
+                                    }
                                     data-testid={`button-edit-comment-${comment.id}`}
                                   >
                                     <Edit className="w-4 h-4" />
@@ -814,7 +1006,9 @@ export default function MeetingDetail() {
                                       <Button
                                         variant="ghost"
                                         size="sm"
-                                        disabled={deleteCommentMutation.isPending}
+                                        disabled={
+                                          deleteCommentMutation.isPending
+                                        }
                                         data-testid={`button-delete-comment-${comment.id}`}
                                       >
                                         <Trash2 className="w-4 h-4" />
@@ -822,20 +1016,35 @@ export default function MeetingDetail() {
                                     </AlertDialogTrigger>
                                     <AlertDialogContent>
                                       <AlertDialogHeader>
-                                        <AlertDialogTitle>댓글 삭제</AlertDialogTitle>
+                                        <AlertDialogTitle>
+                                          댓글 삭제
+                                        </AlertDialogTitle>
                                         <AlertDialogDescription>
-                                          이 댓글을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.
+                                          이 댓글을 삭제하시겠습니까? 이 작업은
+                                          되돌릴 수 없습니다.
                                         </AlertDialogDescription>
                                       </AlertDialogHeader>
                                       <AlertDialogFooter>
-                                        <AlertDialogCancel data-testid={`button-cancel-delete-comment-${comment.id}`}>취소</AlertDialogCancel>
+                                        <AlertDialogCancel
+                                          data-testid={`button-cancel-delete-comment-${comment.id}`}
+                                        >
+                                          취소
+                                        </AlertDialogCancel>
                                         <AlertDialogAction
                                           className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                          onClick={() => deleteCommentMutation.mutate(comment.id)}
-                                          disabled={deleteCommentMutation.isPending}
+                                          onClick={() =>
+                                            deleteCommentMutation.mutate(
+                                              comment.id
+                                            )
+                                          }
+                                          disabled={
+                                            deleteCommentMutation.isPending
+                                          }
                                           data-testid={`button-confirm-delete-comment-${comment.id}`}
                                         >
-                                          {deleteCommentMutation.isPending ? "삭제 중..." : "삭제"}
+                                          {deleteCommentMutation.isPending
+                                            ? "삭제 중..."
+                                            : "삭제"}
                                         </AlertDialogAction>
                                       </AlertDialogFooter>
                                     </AlertDialogContent>
@@ -847,7 +1056,12 @@ export default function MeetingDetail() {
                               <div className="space-y-2">
                                 <Textarea
                                   value={editingComment.content}
-                                  onChange={(e) => setEditingComment({ ...editingComment, content: e.target.value })}
+                                  onChange={(e) =>
+                                    setEditingComment({
+                                      ...editingComment,
+                                      content: e.target.value,
+                                    })
+                                  }
                                   rows={3}
                                   data-testid={`textarea-edit-comment-${comment.id}`}
                                 />
@@ -867,20 +1081,28 @@ export default function MeetingDetail() {
                                       if (editingComment.content.trim()) {
                                         updateCommentMutation.mutate({
                                           commentId: comment.id,
-                                          content: editingComment.content.trim()
+                                          content:
+                                            editingComment.content.trim(),
                                         });
                                       }
                                     }}
-                                    disabled={!editingComment.content.trim() || updateCommentMutation.isPending}
+                                    disabled={
+                                      !editingComment.content.trim() ||
+                                      updateCommentMutation.isPending
+                                    }
                                     data-testid={`button-save-edit-comment-${comment.id}`}
                                   >
                                     <Save className="w-3 h-3 mr-1" />
-                                    {updateCommentMutation.isPending ? "저장 중..." : "저장"}
+                                    {updateCommentMutation.isPending
+                                      ? "저장 중..."
+                                      : "저장"}
                                   </Button>
                                 </div>
                               </div>
                             ) : (
-                              <p className="text-sm text-foreground">{comment.content}</p>
+                              <p className="text-sm text-foreground">
+                                {comment.content}
+                              </p>
                             )}
                           </div>
                         </div>
@@ -904,12 +1126,16 @@ export default function MeetingDetail() {
                             createCommentMutation.mutate(newComment.trim());
                           }
                         }}
-                        disabled={!newComment.trim() || createCommentMutation.isPending}
+                        disabled={
+                          !newComment.trim() || createCommentMutation.isPending
+                        }
                         size="sm"
                         data-testid="button-submit-comment"
                       >
                         <Send className="w-4 h-4 mr-2" />
-                        {createCommentMutation.isPending ? "작성 중..." : "댓글 작성"}
+                        {createCommentMutation.isPending
+                          ? "작성 중..."
+                          : "댓글 작성"}
                       </Button>
                     </div>
                   </div>

@@ -2,17 +2,36 @@ import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { Checkbox } from "@/components/ui/checkbox";
-import { insertTaskSchema, type TaskWithAssignees } from "@shared/schema";
+import { insertTaskSchema, User, type TaskWithAssignees } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
+import api from "@/api/api-index";
 
 const taskFormSchema = insertTaskSchema.extend({
   deadline: z.string().optional(),
@@ -29,14 +48,45 @@ interface TaskModalProps {
   goalTitle?: string;
 }
 
-export function TaskModal({ isOpen, onClose, editingTask, goalId, goalTitle }: TaskModalProps) {
+export function TaskModal({
+  isOpen,
+  onClose,
+  editingTask,
+  goalId,
+  goalTitle,
+}: TaskModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // const { data: users } = useQuery({
+  //   queryKey: ["/api/users", { workspace: true }],
+  //   queryFn: () => fetch('/api/users?workspace=true').then(res => res.json()),
+  // });
+
+  ///////////////
   const { data: users } = useQuery({
+    // 쿼리 키는 변경 없습니다. (키 값의 객체 형태는 Axios params와 일치)
     queryKey: ["/api/users", { workspace: true }],
-    queryFn: () => fetch('/api/users?workspace=true').then(res => res.json()),
+
+    queryFn: async () => {
+      // 🚩 [2] fetch 코드를 Axios로 교체
+      // -----------------------------------------------------------------
+      const response = await api.get("/api/users", {
+        // 쿼리 파라미터 (?workspace=true)를 params 객체로 전달합니다.
+        // Axios가 이를 안전하게 URL로 인코딩해줍니다.
+        params: {
+          workspace: true,
+        },
+      });
+
+      // [3] Axios는 응답 데이터(JSON 파싱 완료)를 response.data에 담습니다.
+      // 또한, HTTP 4xx/5xx 에러는 자동으로 throw 하므로, .then(res => res.json())을
+      // 사용할 필요가 없습니다.
+      return response.data as User[];
+      // -----------------------------------------------------------------
+    },
   });
+  ////////////
 
   const form = useForm<TaskFormData>({
     resolver: zodResolver(taskFormSchema),
@@ -97,8 +147,10 @@ export function TaskModal({ isOpen, onClose, editingTask, goalId, goalTitle }: T
       queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
       queryClient.invalidateQueries({ queryKey: ["/api/activities"] });
       // 프로젝트별 목표 데이터도 무효화
-      queryClient.invalidateQueries({ 
-        predicate: (query) => query.queryKey[0] === "/api/projects" && query.queryKey[2] === "goals" 
+      queryClient.invalidateQueries({
+        predicate: (query) =>
+          query.queryKey[0] === "/api/projects" &&
+          query.queryKey[2] === "goals",
       });
       toast({
         title: "작업 생성 완료",
@@ -121,7 +173,11 @@ export function TaskModal({ isOpen, onClose, editingTask, goalId, goalTitle }: T
         ...data,
         assigneeIds: data.assigneeIds || [],
       };
-      const response = await apiRequest("PUT", `/api/tasks/${editingTask?.id}`, taskData);
+      const response = await apiRequest(
+        "PUT",
+        `/api/tasks/${editingTask?.id}`,
+        taskData
+      );
       return response.json();
     },
     onSuccess: () => {
@@ -131,8 +187,10 @@ export function TaskModal({ isOpen, onClose, editingTask, goalId, goalTitle }: T
       queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
       queryClient.invalidateQueries({ queryKey: ["/api/activities"] });
       // 프로젝트별 목표 데이터도 무효화
-      queryClient.invalidateQueries({ 
-        predicate: (query) => query.queryKey[0] === "/api/projects" && query.queryKey[2] === "goals" 
+      queryClient.invalidateQueries({
+        predicate: (query) =>
+          query.queryKey[0] === "/api/projects" &&
+          query.queryKey[2] === "goals",
       });
       toast({
         title: "작업 수정 완료",
@@ -161,9 +219,9 @@ export function TaskModal({ isOpen, onClose, editingTask, goalId, goalTitle }: T
         autoStatus = "완료";
       }
     }
-    
+
     const updatedData = { ...data, status: autoStatus };
-    
+
     if (editingTask) {
       updateTaskMutation.mutate(updatedData);
     } else {
@@ -171,19 +229,27 @@ export function TaskModal({ isOpen, onClose, editingTask, goalId, goalTitle }: T
     }
   };
 
-  const isLoading = createTaskMutation.isPending || updateTaskMutation.isPending;
+  const isLoading =
+    createTaskMutation.isPending || updateTaskMutation.isPending;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="modal-backdrop bg-card border border-border" data-testid="task-modal">
+      <DialogContent
+        className="modal-backdrop bg-card border border-border"
+        data-testid="task-modal"
+      >
         <DialogHeader>
           <DialogTitle data-testid="text-modal-title">
             {editingTask ? "작업 수정" : "새 작업 생성"}
           </DialogTitle>
         </DialogHeader>
-        
+
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" data-testid="form-task">
+          <form
+            onSubmit={form.handleSubmit(onSubmit)}
+            className="space-y-4"
+            data-testid="form-task"
+          >
             <FormField
               control={form.control}
               name="title"
@@ -191,8 +257,8 @@ export function TaskModal({ isOpen, onClose, editingTask, goalId, goalTitle }: T
                 <FormItem>
                   <FormLabel>작업명</FormLabel>
                   <FormControl>
-                    <Input 
-                      placeholder="작업명을 입력하세요" 
+                    <Input
+                      placeholder="작업명을 입력하세요"
                       {...field}
                       data-testid="input-task-title"
                     />
@@ -201,7 +267,7 @@ export function TaskModal({ isOpen, onClose, editingTask, goalId, goalTitle }: T
                 </FormItem>
               )}
             />
-            
+
             <FormField
               control={form.control}
               name="description"
@@ -209,8 +275,8 @@ export function TaskModal({ isOpen, onClose, editingTask, goalId, goalTitle }: T
                 <FormItem>
                   <FormLabel>설명</FormLabel>
                   <FormControl>
-                    <Textarea 
-                      placeholder="작업 설명을 입력하세요" 
+                    <Textarea
+                      placeholder="작업 설명을 입력하세요"
                       className="resize-none"
                       {...field}
                       value={field.value || ""}
@@ -221,7 +287,7 @@ export function TaskModal({ isOpen, onClose, editingTask, goalId, goalTitle }: T
                 </FormItem>
               )}
             />
-            
+
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -230,8 +296,8 @@ export function TaskModal({ isOpen, onClose, editingTask, goalId, goalTitle }: T
                   <FormItem>
                     <FormLabel>마감기한</FormLabel>
                     <FormControl>
-                      <Input 
-                        type="date" 
+                      <Input
+                        type="date"
                         {...field}
                         data-testid="input-task-deadline"
                       />
@@ -240,29 +306,29 @@ export function TaskModal({ isOpen, onClose, editingTask, goalId, goalTitle }: T
                   </FormItem>
                 )}
               />
-              
+
               <FormField
                 control={form.control}
                 name="progress"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>진행도</FormLabel>
-                    <Select 
+                    <Select
                       value={field.value?.toString() || "0"}
                       onValueChange={(value) => {
                         const progressValue = parseInt(value);
                         let finalStatus: string;
-                        
+
                         if (progressValue === 0) {
-                          finalStatus = '진행전';
+                          finalStatus = "진행전";
                         } else if (progressValue === 100) {
-                          finalStatus = '완료';
+                          finalStatus = "완료";
                         } else {
-                          finalStatus = '진행중';
+                          finalStatus = "진행중";
                         }
-                        
+
                         field.onChange(progressValue);
-                        form.setValue('status', finalStatus);
+                        form.setValue("status", finalStatus);
                       }}
                     >
                       <FormControl>
@@ -271,11 +337,13 @@ export function TaskModal({ isOpen, onClose, editingTask, goalId, goalTitle }: T
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {Array.from({ length: 11 }, (_, i) => i * 10).map((option) => (
-                          <SelectItem key={option} value={option.toString()}>
-                            {option}%
-                          </SelectItem>
-                        ))}
+                        {Array.from({ length: 11 }, (_, i) => i * 10).map(
+                          (option) => (
+                            <SelectItem key={option} value={option.toString()}>
+                              {option}%
+                            </SelectItem>
+                          )
+                        )}
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -283,7 +351,7 @@ export function TaskModal({ isOpen, onClose, editingTask, goalId, goalTitle }: T
                 )}
               />
             </div>
-            
+
             <div className="grid grid-cols-1 gap-4">
               <FormField
                 control={form.control}
@@ -292,13 +360,13 @@ export function TaskModal({ isOpen, onClose, editingTask, goalId, goalTitle }: T
                   <FormItem>
                     <FormLabel>상태 (진행도에 따라 자동 설정)</FormLabel>
                     <div className="mt-1 p-2 bg-muted rounded text-sm">
-                      {field.value || '진행전'}
+                      {field.value || "진행전"}
                     </div>
                   </FormItem>
                 )}
               />
             </div>
-            
+
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -306,7 +374,10 @@ export function TaskModal({ isOpen, onClose, editingTask, goalId, goalTitle }: T
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>우선순위</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value || "4"}>
+                    <Select
+                      onValueChange={field.onChange}
+                      value={field.value || "4"}
+                    >
                       <FormControl>
                         <SelectTrigger data-testid="select-task-priority">
                           <SelectValue placeholder="우선순위를 선택하세요" />
@@ -332,50 +403,62 @@ export function TaskModal({ isOpen, onClose, editingTask, goalId, goalTitle }: T
                 <FormItem>
                   <FormLabel>담당자 (다중 선택 가능)</FormLabel>
                   <div className="space-y-2 max-h-32 overflow-y-auto border rounded-md p-3 bg-background">
-                    {Array.isArray(users) ? users.map((user: any) => (
-                      <div key={user.id} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`assignee-${user.id}`}
-                          checked={field.value?.includes(user.id) || false}
-                          onCheckedChange={(checked) => {
-                            const currentValue = field.value || [];
-                            if (checked) {
-                              field.onChange([...currentValue, user.id]);
-                            } else {
-                              field.onChange(currentValue.filter((id: string) => id !== user.id));
-                            }
-                          }}
-                          data-testid={`checkbox-assignee-${user.id}`}
-                        />
-                        <label 
-                          htmlFor={`assignee-${user.id}`}
-                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-                        >
-                          {user.name}
-                        </label>
-                      </div>
-                    )) : null}
-                    {!Array.isArray(users) || users.length === 0 && (
-                      <p className="text-sm text-muted-foreground">담당자를 로드하는 중...</p>
-                    )}
+                    {Array.isArray(users)
+                      ? users.map((user: any) => (
+                          <div
+                            key={user.id}
+                            className="flex items-center space-x-2"
+                          >
+                            <Checkbox
+                              id={`assignee-${user.id}`}
+                              checked={field.value?.includes(user.id) || false}
+                              onCheckedChange={(checked) => {
+                                const currentValue = field.value || [];
+                                if (checked) {
+                                  field.onChange([...currentValue, user.id]);
+                                } else {
+                                  field.onChange(
+                                    currentValue.filter(
+                                      (id: string) => id !== user.id
+                                    )
+                                  );
+                                }
+                              }}
+                              data-testid={`checkbox-assignee-${user.id}`}
+                            />
+                            <label
+                              htmlFor={`assignee-${user.id}`}
+                              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                            >
+                              {user.name}
+                            </label>
+                          </div>
+                        ))
+                      : null}
+                    {!Array.isArray(users) ||
+                      (users.length === 0 && (
+                        <p className="text-sm text-muted-foreground">
+                          담당자를 로드하는 중...
+                        </p>
+                      ))}
                   </div>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            
+
             <div className="flex space-x-3 pt-4">
-              <Button 
-                type="submit" 
+              <Button
+                type="submit"
                 className="flex-1"
                 disabled={isLoading}
                 data-testid="button-save-task"
               >
                 {isLoading ? "저장 중..." : "저장"}
               </Button>
-              <Button 
-                type="button" 
-                variant="secondary" 
+              <Button
+                type="button"
+                variant="secondary"
                 className="flex-1"
                 onClick={onClose}
                 data-testid="button-cancel-task"

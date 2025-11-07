@@ -4,11 +4,22 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { MessageSquare, Edit, Save, X, Trash2, User } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import type { CommentWithAuthor, SafeUser } from "@shared/schema";
+import api from "@/api/api-index";
 
 interface CommentsProps {
   entityType: "project" | "goal" | "task";
@@ -20,15 +31,40 @@ export function Comments({ entityType, entityId, currentUser }: CommentsProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [newComment, setNewComment] = useState("");
-  const [editingComment, setEditingComment] = useState<{ id: string; content: string } | null>(null);
+  const [editingComment, setEditingComment] = useState<{
+    id: string;
+    content: string;
+  } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // const { data: comments, isLoading } = useQuery({
+  //   queryKey: ["/api/comments", entityType, entityId],
+  //   queryFn: async () => {
+  //     const response = await fetch(`/api/comments?entityType=${entityType}&entityId=${entityId}`);
+  //     if (!response.ok) throw new Error("Failed to fetch comments");
+  //     return response.json() as Promise<CommentWithAuthor[]>;
+  //   },
+  // });
+
+  // fetch -> axios로 변경
   const { data: comments, isLoading } = useQuery({
+    // 쿼리 키는 변경 없습니다.
     queryKey: ["/api/comments", entityType, entityId],
+
     queryFn: async () => {
-      const response = await fetch(`/api/comments?entityType=${entityType}&entityId=${entityId}`);
-      if (!response.ok) throw new Error("Failed to fetch comments");
-      return response.json() as Promise<CommentWithAuthor[]>;
+      // 1. api.get() 사용: baseURL이 자동으로 적용됩니다.
+      // 2. 쿼리 파라미터는 Axios가 자동으로 인코딩합니다 (params 객체 사용).
+      const response = await api.get("/api/comments", {
+        params: {
+          entityType: entityType,
+          entityId: entityId,
+        },
+      });
+
+      // 3. Axios는 status 2xx가 아니면 자동으로 에러를 throw 하므로,
+      //    response.ok 체크가 필요 없습니다.
+      // 4. 응답 데이터는 response.data에 JSON 파싱된 상태로 들어 있습니다.
+      return response.data as CommentWithAuthor[];
     },
   });
 
@@ -43,7 +79,9 @@ export function Comments({ entityType, entityId, currentUser }: CommentsProps) {
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/comments", entityType, entityId] });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/comments", entityType, entityId],
+      });
       setNewComment("");
       setIsSubmitting(false);
       toast({
@@ -66,7 +104,9 @@ export function Comments({ entityType, entityId, currentUser }: CommentsProps) {
       return await apiRequest("PUT", `/api/comments/${id}`, { content });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/comments", entityType, entityId] });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/comments", entityType, entityId],
+      });
       setEditingComment(null);
       toast({
         title: "댓글 수정 완료",
@@ -87,7 +127,9 @@ export function Comments({ entityType, entityId, currentUser }: CommentsProps) {
       return await apiRequest("DELETE", `/api/comments/${id}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/comments", entityType, entityId] });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/comments", entityType, entityId],
+      });
       toast({
         title: "댓글 삭제 완료",
         description: "댓글이 성공적으로 삭제되었습니다.",
@@ -124,10 +166,10 @@ export function Comments({ entityType, entityId, currentUser }: CommentsProps) {
   const formatDate = (dateString: string | Date) => {
     const date = new Date(dateString);
     const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    const hour = String(date.getHours()).padStart(2, '0');
-    const minute = String(date.getMinutes()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    const hour = String(date.getHours()).padStart(2, "0");
+    const minute = String(date.getMinutes()).padStart(2, "0");
     return `${year}년 ${month}월 ${day}일 ${hour}:${minute}`;
   };
 
@@ -167,8 +209,8 @@ export function Comments({ entityType, entityId, currentUser }: CommentsProps) {
               data-testid="textarea-new-comment"
             />
             <div className="flex justify-end">
-              <Button 
-                onClick={handleSubmitComment} 
+              <Button
+                onClick={handleSubmitComment}
                 disabled={!newComment.trim() || isSubmitting}
                 data-testid="button-submit-comment"
               >
@@ -180,106 +222,130 @@ export function Comments({ entityType, entityId, currentUser }: CommentsProps) {
 
         {/* Comments List */}
         <div className="space-y-4">
-          {comments && comments.length > 0 && comments.map((comment) => (
-            <div key={comment.id} className="border rounded-lg p-4 space-y-3" data-testid={`comment-${comment.id}`}>
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-3">
-                  <Avatar>
-                    <AvatarFallback className="bg-primary text-primary-foreground">
-                      {comment.author.initials}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <p className="font-medium text-sm" data-testid={`text-comment-author-${comment.id}`}>
-                      {comment.author.name}
-                    </p>
-                    <p className="text-xs text-muted-foreground" data-testid={`text-comment-date-${comment.id}`}>
-                      {comment.createdAt && formatDate(comment.createdAt)}
-                      {comment.updatedAt && comment.createdAt && comment.updatedAt !== comment.createdAt && " (수정됨)"}
-                    </p>
+          {comments &&
+            comments.length > 0 &&
+            comments.map((comment) => (
+              <div
+                key={comment.id}
+                className="border rounded-lg p-4 space-y-3"
+                data-testid={`comment-${comment.id}`}
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    <Avatar>
+                      <AvatarFallback className="bg-primary text-primary-foreground">
+                        {comment.author.initials}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <p
+                        className="font-medium text-sm"
+                        data-testid={`text-comment-author-${comment.id}`}
+                      >
+                        {comment.author.name}
+                      </p>
+                      <p
+                        className="text-xs text-muted-foreground"
+                        data-testid={`text-comment-date-${comment.id}`}
+                      >
+                        {comment.createdAt && formatDate(comment.createdAt)}
+                        {comment.updatedAt &&
+                          comment.createdAt &&
+                          comment.updatedAt !== comment.createdAt &&
+                          " (수정됨)"}
+                      </p>
+                    </div>
                   </div>
-                </div>
-                
-                {/* Action buttons for comment author */}
-                {currentUser && currentUser.id === comment.authorId && (
-                  <div className="flex items-center gap-1">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleEditComment(comment)}
-                      data-testid={`button-edit-comment-${comment.id}`}
-                    >
-                      <Edit className="h-3 w-3" />
-                    </Button>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          data-testid={`button-delete-comment-${comment.id}`}
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>댓글 삭제</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            이 댓글을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>취소</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={() => handleDeleteComment(comment.id)}
-                            data-testid={`button-confirm-delete-comment-${comment.id}`}
+
+                  {/* Action buttons for comment author */}
+                  {currentUser && currentUser.id === comment.authorId && (
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleEditComment(comment)}
+                        data-testid={`button-edit-comment-${comment.id}`}
+                      >
+                        <Edit className="h-3 w-3" />
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            data-testid={`button-delete-comment-${comment.id}`}
                           >
-                            삭제
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>댓글 삭제</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              이 댓글을 삭제하시겠습니까? 이 작업은 되돌릴 수
+                              없습니다.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>취소</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => handleDeleteComment(comment.id)}
+                              data-testid={`button-confirm-delete-comment-${comment.id}`}
+                            >
+                              삭제
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  )}
+                </div>
+
+                {/* Comment Content */}
+                {editingComment && editingComment.id === comment.id ? (
+                  <div className="space-y-2">
+                    <Textarea
+                      value={editingComment.content}
+                      onChange={(e) =>
+                        setEditingComment({
+                          ...editingComment,
+                          content: e.target.value,
+                        })
+                      }
+                      className="min-h-[60px]"
+                      data-testid={`textarea-edit-comment-${comment.id}`}
+                    />
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setEditingComment(null)}
+                        data-testid={`button-cancel-edit-comment-${comment.id}`}
+                      >
+                        <X className="h-3 w-3 mr-1" />
+                        취소
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={handleSaveEdit}
+                        disabled={!editingComment.content.trim()}
+                        data-testid={`button-save-edit-comment-${comment.id}`}
+                      >
+                        <Save className="h-3 w-3 mr-1" />
+                        저장
+                      </Button>
+                    </div>
                   </div>
+                ) : (
+                  <p
+                    className="text-sm whitespace-pre-wrap"
+                    data-testid={`text-comment-content-${comment.id}`}
+                  >
+                    {comment.content}
+                  </p>
                 )}
               </div>
-
-              {/* Comment Content */}
-              {editingComment && editingComment.id === comment.id ? (
-                <div className="space-y-2">
-                  <Textarea
-                    value={editingComment.content}
-                    onChange={(e) => setEditingComment({ ...editingComment, content: e.target.value })}
-                    className="min-h-[60px]"
-                    data-testid={`textarea-edit-comment-${comment.id}`}
-                  />
-                  <div className="flex justify-end gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setEditingComment(null)}
-                      data-testid={`button-cancel-edit-comment-${comment.id}`}
-                    >
-                      <X className="h-3 w-3 mr-1" />
-                      취소
-                    </Button>
-                    <Button
-                      size="sm"
-                      onClick={handleSaveEdit}
-                      disabled={!editingComment.content.trim()}
-                      data-testid={`button-save-edit-comment-${comment.id}`}
-                    >
-                      <Save className="h-3 w-3 mr-1" />
-                      저장
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <p className="text-sm whitespace-pre-wrap" data-testid={`text-comment-content-${comment.id}`}>
-                  {comment.content}
-                </p>
-              )}
-            </div>
-          ))}
+            ))}
         </div>
       </CardContent>
     </Card>
