@@ -47,7 +47,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { useState, useEffect } from "react";
-import { useLocation, useRoute } from "wouter";
+import { useLocation, useParams, useRoute } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { ObjectUploader } from "@/components/ObjectUploader";
 import { apiRequest } from "@/lib/queryClient";
@@ -57,14 +57,20 @@ import { Comments } from "@/components/comments";
 import api from "@/api/api-index";
 
 export default function ProjectDetail() {
-  const [, params] = useRoute("/workspace/app/detail/project/:id");
+  // const { id: workspaceId } = useParams();
+  // const [, params] = useRoute(`workspaces/${workspaceId}/detail/project/:id`);
+  const { id: workspaceId, projectId } = useParams();
   const [, setLocation] = useLocation();
 
   // Helper function to get back URL based on where user came from
+  const urlParams = new URLSearchParams(window.location.search);
+  const currentFrom = urlParams.get("from");
   const getBackUrl = () => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const from = urlParams.get("from");
-    return from === "kanban" ? "/workspace/app/kanban" : "/workspace/app/list";
+    // const urlParams = new URLSearchParams(window.location.search);
+    // const from = urlParams.get("from");
+    if (currentFrom === "kanban") return `/workspace/${workspaceId}/kanban`;
+    if (currentFrom === "priority") return `/workspace/${workspaceId}/priority`;
+    return `/workspace/${workspaceId}/list`;
   };
 
   // Check if user came from list page to disable status editing
@@ -75,7 +81,8 @@ export default function ProjectDetail() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const projectId = params?.id;
+  // const projectId = params?.id;
+
   const [isEditing, setIsEditing] = useState(false);
   const [editedProject, setEditedProject] = useState<
     Partial<ProjectWithDetails>
@@ -95,13 +102,36 @@ export default function ProjectDetail() {
   >([]);
   const [currentUser, setCurrentUser] = useState<SafeUser | null>(null);
 
-  const { data: projects, isLoading } = useQuery({
-    queryKey: ["/api/projects"],
+  const {
+    data: projects,
+    isLoading,
+    error,
+  } = useQuery({
+    queryKey: ["/api/workspaces", workspaceId, "projects"],
+
+    queryFn: async () => {
+      const response = await api.get(`/api/workspaces/${workspaceId}/projects`);
+      return response.data;
+    },
+    enabled: !!workspaceId,
+
+    staleTime: 300000, // 5분
+    refetchOnWindowFocus: true,
   });
 
   // 워크스페이스 멤버 목록 (기본 멤버 + 초대 수락한 멤버)
   const { data: users } = useQuery({
-    queryKey: ["/api/users", { workspace: true }],
+    queryKey: ["workspace-members", workspaceId],
+
+    queryFn: async () => {
+      const response = await api.get(`/api/workspaces/${workspaceId}/users`);
+      return response.data;
+    },
+
+    enabled: !!workspaceId,
+
+    staleTime: 300000,
+    refetchOnWindowFocus: true,
   });
 
   // 현재 로그인한 사용자 식별
@@ -114,10 +144,23 @@ export default function ProjectDetail() {
   }, [users]);
 
   const { data: attachments } = useQuery({
-    queryKey: ["/api/attachments", "project", projectId],
-    enabled: !!projectId,
-  });
+    // queryKey: ["/api/attachments", "project", projectId],
+    // enabled: !!projectId,
+    queryKey: ["/api/attachments", workspaceId, "project", projectId],
 
+    queryFn: async () => {
+      // 2. 여기서 한 번 더 체크 (방어적 코드)
+      if (!projectId) return [];
+
+      const response = await api.get(
+        `/api/workspaces/${workspaceId}/attachments/project/${projectId}`
+      );
+      return response.data;
+    },
+
+    enabled: !!workspaceId && !!projectId,
+  });
+  console.log(attachments);
   const project = (projects as ProjectWithDetails[])?.find(
     (p) => p.id === projectId
   );
@@ -238,7 +281,7 @@ export default function ProjectDetail() {
         title: "프로젝트 삭제 완료",
         description: "프로젝트가 성공적으로 삭제되었습니다.",
       });
-      setLocation("/workspace/app/list");
+      setLocation(`/workspace/${workspaceId}/list`);
     },
     onError: () => {
       toast({
@@ -263,11 +306,13 @@ export default function ProjectDetail() {
   };
 
   const handleGoalClick = (goalId: string) => {
-    setLocation(`/workspace/app/detail/goal/${goalId}`);
+    // setLocation(`/workspace/${workspaceId}/detail/goal/${goalId}`);
+    const search = currentFrom ? `?from=${currentFrom}` : "";
+    setLocation(`/workspace/${workspaceId}/detail/goal/${goalId}${search}`);
   };
 
   const handleTaskClick = (taskId: string) => {
-    setLocation(`/workspace/app/detail/task/${taskId}`);
+    setLocation(`/workspace/${workspaceId}/detail/task/${taskId}`);
   };
 
   const calculateDDay = (deadline: string | null): string => {
@@ -779,54 +824,88 @@ export default function ProjectDetail() {
                       maxNumberOfFiles={5}
                       maxFileSize={52428800} // 50MB
                       // onGetUploadParameters={async () => {
-                      //   const response = await fetch('/api/objects/upload', {
-                      //     method: 'POST',
-                      //     headers: { 'Content-Type': 'application/json' }
-                      //   });
-                      //   const data = await response.json();
-                      //   return { method: 'PUT' as const, url: data.uploadURL, objectPath: data.objectPath };
+                      //   const response = await api.post(
+                      //     "/api/objects/upload",
+                      //     {}
+                      //   );
+                      //   const data = response.data;
+
+                      //   return {
+                      //     method: "PUT" as const,
+                      //     url: data.uploadURL,
+                      //     objectPath: data.objectPath,
+                      //   };
                       // }}
                       onGetUploadParameters={async () => {
-                        // 🚩 [수정] fetch 대신 api.post 사용
-                        // -----------------------------------------------------------------
-                        const response = await api.post("/api/objects/upload", {
-                          // POST 요청의 body가 없거나 필요하다면 여기에 포함합니다.
-                          // (현재 로직에서는 빈 객체를 보내지 않아도 Axios가 Content-Type을 잘 처리합니다)
-                        });
+                        // 1. 경로를 백엔드 라우터 규칙인 /api/workspaces/:workspaceId/objects/upload 에 맞춥니다.
+                        const response = await api.post(
+                          `/api/workspaces/${workspaceId}/objects/upload`,
+                          {}
+                        );
 
-                        // 🚩 [수정] await response.json() 제거.
-                        // Axios는 응답 데이터(JSON 파싱 완료)를 response.data에 담습니다.
                         const data = response.data;
-                        // -----------------------------------------------------------------
 
+                        // 2. 백엔드에서 생성해준 uploadURL과 objectPath를 반환합니다.
                         return {
                           method: "PUT" as const,
                           url: data.uploadURL,
                           objectPath: data.objectPath,
                         };
                       }}
+                      // onComplete={async (result) => {
+                      //   if (result.successful.length > 0) {
+                      //     // Save to database
+                      //     for (const file of result.successful) {
+                      //       await apiRequest("POST", "/api/attachments", {
+                      //         fileName: file.name,
+                      //         filePath: file.objectPath,
+                      //         entityType: "project",
+                      //         entityId: projectId,
+                      //       });
+                      //     }
+                      //     // Refresh attachments
+                      //     queryClient.invalidateQueries({
+                      //       queryKey: [
+                      //         "/api/attachments",
+                      //         "project",
+                      //         projectId,
+                      //       ],
+                      //     });
+                      //     toast({
+                      //       title: "파일 업로드 완료",
+                      //       description: `${result.successful.length}개의 파일이 업로드되었습니다.`,
+                      //     });
+                      //   }
+                      // }}
                       onComplete={async (result) => {
                         if (result.successful.length > 0) {
-                          // Save to database
                           for (const file of result.successful) {
-                            await apiRequest("POST", "/api/attachments", {
-                              fileName: file.name,
-                              filePath: file.objectPath,
-                              entityType: "project",
-                              entityId: projectId,
-                            });
+                            // 벡엔드 주소와 일치하도록 수정
+                            await apiRequest(
+                              "POST",
+                              `/api/workspaces/${workspaceId}/attachments`,
+                              {
+                                fileName: file.name,
+                                filePath: file.objectPath,
+                                entityType: "project",
+                                entityId: projectId,
+                              }
+                            );
                           }
-                          // Refresh attachments
+
+                          // 데이터 갱신을 위한 캐시 무효화 (조회 쿼리 키와 일치)
                           queryClient.invalidateQueries({
                             queryKey: [
                               "/api/attachments",
+                              workspaceId,
                               "project",
                               projectId,
                             ],
                           });
+
                           toast({
                             title: "파일 업로드 완료",
-                            description: `${result.successful.length}개의 파일이 업로드되었습니다.`,
+                            description: `${result.successful.length}개의 파일이 성공적으로 등록되었습니다.`,
                           });
                         }
                       }}
@@ -1377,6 +1456,7 @@ export default function ProjectDetail() {
         }
         projectId={goalModalState.projectId}
         projectTitle={goalModalState.projectTitle}
+        workspaceId={workspaceId as string}
       />
     </>
   );

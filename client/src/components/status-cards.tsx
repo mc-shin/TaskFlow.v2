@@ -1,10 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
+import { useParams } from "wouter";
 
 export function StatusCards() {
+  const { id: workspaceId } = useParams();
+
   const { data: stats, isLoading } = useQuery<{[key: string]: number}>({
-    queryKey: ["/api/stats"],
-    refetchInterval: 10000,
+    queryKey: [`/api/workspaces/${workspaceId}/stats`],
+    // refetchInterval: 10000,
   });
 
   if (isLoading || !stats) {

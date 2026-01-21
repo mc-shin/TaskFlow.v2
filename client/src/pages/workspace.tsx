@@ -2,8 +2,8 @@ import { useState, useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Link, useLocation } from "wouter";
-import { useQuery } from "@tanstack/react-query";
+import { Link, useLocation, useParams } from "wouter";
+import { useQueries, useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -40,11 +40,15 @@ import {
   Mail,
   Check,
   X,
+  Bell,
+  MailOpen,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
 import type { ProjectWithDetails } from "@shared/schema";
 import api from "@/api/api-index";
+import axios, { AxiosError } from "axios";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 const workspaceSchema = z.object({
   name: z.string().min(1, "워크스페이스 이름을 입력해주세요"),
@@ -74,141 +78,79 @@ export function WorkspacePage() {
   const [isAdminUser, setIsAdminUser] = useState(false);
   const [isNewUser, setIsNewUser] = useState(false);
   const [isUserInfoLoaded, setIsUserInfoLoaded] = useState(false);
+  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<number | null>(
+    null
+  );
   const { toast } = useToast();
 
-  // 실제 프로젝트 데이터 가져오기
-  const { data: projects } = useQuery({
-    queryKey: ["/api/projects"],
+  // 사용자 id 가져오기
+  const userEmail = localStorage.getItem("userEmail");
+  const { data: userId } = useQuery({
+    queryKey: ["users", "byEmail", userEmail],
 
-    // ⭐⭐⭐ [수정됨] 프로젝트 API 우회 및 타입 에러 해결: deadline을 string 또는 null로 변경 ⭐⭐⭐
-    queryFn: () =>
-      Promise.resolve([
-        {
-          id: "proj1",
-          name: "TaskFlow 프로젝트 A",
-          description: "메인 프로젝트 더미",
-          code: "TFA",
-          status: "진행 중",
-          deadline: null, // string | null 에 맞춤
-          labels: ["design"],
-          ownerIds: ["u1"], // string[] | null 에 맞춤
-          isArchived: false,
-          createdBy: "u1",
-          lastUpdatedBy: "u1",
-          // createdAt/updatedAt은 Date 객체여야 하지만, useMemo에서 string을 Date로 변환하고 있으므로
-          // useQuery의 반환 값은 Date 또는 string을 허용할 수 있습니다. 여기서는 안전하게 Date를 유지하고
-          // 만약 문제가 지속되면 string으로 변경할 수 있습니다. (현재 에러는 deadline에 집중됨)
-          createdAt: new Date("2025-05-01T00:00:00Z"),
-          updatedAt: new Date("2025-05-10T00:00:00Z"),
-        } as ProjectWithDetails, // 명시적으로 타입 지정
-        {
-          id: "proj2",
-          name: "백엔드 연동 작업",
-          description: "API 개발 더미",
-          code: "BEA",
-          status: "대기",
-          deadline: "2025-07-30", // string | null 에 맞춤 (ISO 8601 string으로 가정)
-          labels: ["backend"],
-          ownerIds: ["u2"],
-          isArchived: false,
-          createdBy: "u1",
-          lastUpdatedBy: "u2",
-          createdAt: new Date("2025-06-15T00:00:00Z"),
-          updatedAt: new Date("2025-06-20T00:00:00Z"),
-        } as ProjectWithDetails, // 명시적으로 타입 지정
-      ]),
-    // ⭐⭐⭐ [수정됨] 프로젝트 API 우회 및 타입 에러 해결 끝 ⭐⭐⭐
+    queryFn: async () => {
+      const encodedEmail = encodeURIComponent(userEmail as string);
+      const response = await api.get(`/api/users/by-email/${encodedEmail}`);
+
+      return response.data.id;
+    },
+    enabled: !!userEmail,
   });
 
-  // 실제 사용자 데이터 가져오기 (워크스페이스 멤버)
-  const { data: workspaceUsers } = useQuery({
-    queryKey: ["/api/users", { workspace: true }],
-    // ⭐⭐⭐ 수정: 로컬 테스트용 더미 멤버 목록을 반환 ⭐⭐⭐
+  // 이 쿼리는 모든 워크스페이스 목록을 가져옵니다.
+  const { data: userWorkspaces, isLoading: isLoadingWorkspaces } = useQuery({
+    queryKey: ["/api/users/workspaces", userId],
+
     queryFn: () =>
-      Promise.resolve([
-        { id: "u1", name: "관리자 (테스트)", email: "admin@qubicom.co.kr" },
-        { id: "u2", name: "팀원 A", email: "userA@qubicom.co.kr" },
-        { id: "u3", name: "팀원 B", email: "userB@qubicom.co.kr" },
-      ]),
-    // ⭐⭐⭐ 수정: 로컬 테스트용 더미 멤버 목록을 반환 끝 ⭐⭐⭐
-
-    // queryFn: () => fetch("/api/users?workspace=true").then((res) => res.json()),
-
-    ///////////////////
-    // queryFn: () =>
-    // // 🚩 [수정] fetch 대신 api.get 사용 및 .json() 대신 .data 접근
-    // // -----------------------------------------------------------------
-    // api.get("/api/users?workspace=true").then((res) => res.data),
-    ///////////////////
+      api.get(`/api/users/${userId}/workspaces`).then((res) => {
+        return Array.isArray(res.data) ? res.data : [];
+      }),
+    enabled: !!userId && isUserInfoLoaded,
   });
 
-  // 실제 데이터를 기반으로 워크스페이스 정보 생성 (메모화)
-  const workspaceData = useMemo(() => {
-    // 사용자 정보 로딩이 완료되지 않으면 빈 배열 반환
-    if (!isUserInfoLoaded) {
-      return [];
-    }
-
-    // 먼저 사용자 권한 체크 - 권한이 없으면 아예 빈 배열 반환
-    const hasAcceptedInvitation =
-      localStorage.getItem(
-        `hasAcceptedInvitation_${localStorage.getItem("userEmail")}`
-      ) === "true";
-
-    // 신규 사용자이고, admin도 아니고, 초대도 수락하지 않은 경우 빈 배열 반환
-    if (isNewUser && !isAdminUser && !hasAcceptedInvitation) {
-      return [];
-    }
-
-    // admin이 아니고 초대를 수락하지 않은 경우 빈 배열 반환
-    if (!isAdminUser && !hasAcceptedInvitation) {
-      return [];
-    }
-
-    if (
-      !projects ||
-      !workspaceUsers ||
-      !Array.isArray(projects) ||
-      !Array.isArray(workspaceUsers)
-    ) {
-      return [];
-    }
-
-    const projectList = projects as ProjectWithDetails[];
-    const memberCount = workspaceUsers.length;
-    const projectCount = projectList.length;
-
-    // 가장 오래된 프로젝트의 생성일 찾기
-    const oldestProject = projectList.reduce((oldest, current) => {
-      if (!oldest.createdAt || !current.createdAt) return oldest;
-      return new Date(current.createdAt) < new Date(oldest.createdAt)
-        ? current
-        : oldest;
-    }, projectList[0]);
-
-    const lastAccess = oldestProject?.createdAt
-      ? new Date(oldestProject.createdAt).toISOString().split("T")[0]
-      : "2025-09-26";
-
-    return [
-      {
-        id: "1",
-        name: workspaceName,
-        description: workspaceDescription,
-        memberCount,
-        projectCount,
-        lastAccess,
+  const combinedResults = useQueries({
+    queries: (userWorkspaces ?? []).map((workspace: any) => ({
+      queryKey: ["workspace-stats", workspace.id],
+      queryFn: async () => {
+        // 두 요청을 동시에 보냄 (Promise.all)
+        const [membersRes, projectsRes] = await Promise.all([
+          api.get(`/api/workspaces/${workspace.id}/members`),
+          api.get(`/api/workspaces/${workspace.id}/projects`),
+        ]);
+        return {
+          id: workspace.id,
+          memberCount: membersRes.data?.length ?? 0,
+          projectCount: projectsRes.data?.length ?? 0,
+        };
       },
-    ];
-  }, [
-    projects,
-    workspaceUsers,
-    workspaceName,
-    workspaceDescription,
-    isAdminUser,
-    isNewUser,
-    isUserInfoLoaded,
-  ]);
+      enabled: !!workspace.id,
+    })),
+  });
+
+  // 맵핑 로직 간소화
+  const statsMap = Object.fromEntries(
+    combinedResults.map((res) => [res.data?.id, res.data])
+  );
+
+  // 통합 로딩 상태 (결합된 쿼리 하나만 체크)
+  const isFullyLoading =
+    !userId ||
+    !isUserInfoLoaded ||
+    isLoadingWorkspaces ||
+    combinedResults.some((res) => res.isLoading) ||
+    userWorkspaces === undefined;
+
+  // const isLimitReached = (userWorkspaces?.length ?? 0) >= 3;
+  const isLimitReached = !isFullyLoading && (userWorkspaces?.length ?? 0) >= 3;
+
+  // 1. 현재 선택된 워크스페이스 객체 찾기
+  const currentWorkspace = userWorkspaces?.find(
+    (ws: any) => ws.id === selectedWorkspaceId
+  );
+
+  // 2. 현재 사용자가 이 워크스페이스의 생성자인지 확인
+  const isOwner =
+    currentWorkspace && userId && currentWorkspace.ownerId === userId;
 
   useEffect(() => {
     // localStorage에서 사용자 이름 및 워크스페이스 정보 가져오기
@@ -238,83 +180,54 @@ export function WorkspacePage() {
       }
 
       try {
-        // ⭐⭐⭐ USERS API 우회 (fetch 호출을 Promise.resolve로 대체) ⭐⭐⭐
-        const dummyUsers = [
-          {
-            id: "u1",
-            name: "테스트",
-            email: "admin@qubicom.co.kr",
-            username: "admin",
-          },
-          {
-            id: "u2",
-            name: "팀원 A",
-            email: "userA@qubicom.co.kr",
-            username: "usera",
-          },
-          // ... 다른 더미 사용자
-        ];
-        const users = dummyUsers; // response.json() 대신 더미 데이터 사용
-        // ⭐⭐⭐ USERS API 우회 (fetch 호출을 Promise.resolve로 대체) 코드 끝 ⭐⭐⭐
-
         // 현재 로그인된 사용자의 실제 정보 가져오기 (워크스페이스 멤버만)
-        // const response = await fetch("/api/users?workspace=true");
+        const response = await api.get("/api/users?workspace=true");
 
-        //////////////////////
-        // const response = await api.get("/api/users?workspace=true");
-        //////////////////////
-
-        // const users = await response.json();        // 서버 연결 후 살려야함.
+        const users = await response.data;
 
         // userEmail을 기반으로 실제 사용자 매핑
         let currentUser;
         const email = userEmail.toLowerCase();
 
-        // ⭐⭐⭐ 관리자 테스트 계정 여부 ⭐⭐⭐
-        const isAdminTestUser = email === "admin@qubicom.co.kr";
-        // ⭐⭐⭐ 관리자 테스트 계정 여부 끝 ⭐⭐⭐
-
         // 워크스페이스 멤버 목록에서 현재 이메일로 사용자 찾기
         currentUser = users.find((u: any) => u.email?.toLowerCase() === email);
 
-        // ⭐⭐⭐ [수정됨] admin@qubicom.co.kr 이면 권한 강제 부여 및 정보 업데이트 ⭐⭐⭐
-        if (isAdminTestUser) {
-          setIsAdminUser(true); // 관리자 권한 강제 부여
-          setIsNewUser(false); // 신규 사용자 아님
-          // 접근 권한 강제 부여 (workspaceData useMemo 로직 통과를 위함)
-          localStorage.setItem(`hasAcceptedInvitation_${userEmail}`, "true");
+        let isAdmin = false;
 
-          // currentUser가 없더라도 테스트 더미 정보로 강제 설정 (ensure currentUser is set)
-          if (!currentUser) {
-            currentUser = dummyUsers.find(
-              (u) => u.email === "admin@qubicom.co.kr"
+        if (currentUser) {
+          // 사용자 이름 저장 및 설정
+          setUserName(currentUser.name);
+          localStorage.setItem("userName", currentUser.name);
+
+          // [추가] 사용자의 워크스페이스 목록을 가져와 생성자(ownerId)인지 확인
+          try {
+            // ⚠️ API 호출 전 currentUser.id가 존재하는지 확인
+            if (!currentUser.id) {
+              throw new Error("currentUser ID is missing.");
+            }
+
+            const workspaceResponse = await api.get(
+              `/api/users/${currentUser.id}/workspaces`
             );
-          }
-        } else {
-          // 특정 사용자에 대한 관리자 권한 설정 (기존 로직 유지)
-          if (email.includes("admin")) {
-            setIsAdminUser(true);
-          }
-        }
-        // ⭐⭐⭐ [수정됨] 권한 강제 부여 끝 ⭐⭐⭐
+            const userWorkspaces = workspaceResponse.data;
 
-        // 특정 사용자에 대한 관리자 권한 설정
-        if (email.includes("admin") || email === "admin@qubicom.co.kr") {
-          setIsAdminUser(true);
-        }
+            const isOwner = userWorkspaces.some(
+              (ws: any) => ws.ownerId === currentUser.id
+            );
 
-        // 레거시 하드코딩된 매핑 (백업용)
-        if (!currentUser) {
-          if (email.includes("admin") || email === "admin@qubicom.co.kr") {
-            currentUser = users.find((u: any) => u.username === "admin");
-          } else if (email.includes("hyejin") || email === "1@qubicom.co.kr") {
-            currentUser = users.find((u: any) => u.username === "hyejin");
-          } else if (email.includes("hyejung") || email === "2@qubicom.co.kr") {
-            currentUser = users.find((u: any) => u.username === "hyejung");
-          } else if (email.includes("chamin") || email === "3@qubicom.co.kr") {
-            currentUser = users.find((u: any) => u.username === "chamin");
+            isAdmin = isOwner; // 관리자 상태 업데이트
+          } catch (workspaceError) {
+            console.error(
+              "사용자 워크스페이스 목록 가져오기 실패:",
+              workspaceError
+            );
+            // API 호출 실패 시 관리자 권한은 false로 유지 (isAdmin = false)
           }
         }
+
+        // 관리자 권한 최종 설정
+        setIsAdminUser(isAdmin);
+        ////////////
 
         // 신규가입자인지 확인 (백엔드에 등록되지 않은 사용자)
         // 단, 이전에 초대를 수락한 경우는 신규 사용자가 아님
@@ -337,53 +250,10 @@ export function WorkspacePage() {
         }
 
         // 서버에서 실제 초대 목록 가져오기 (동기화)
-        // try {
-        //   const serverInvitationsResponse = await fetch(
-        //     `/api/invitations/email/${encodeURIComponent(userEmail)}`
-        //   );
-        //   if (serverInvitationsResponse.ok) {
-        //     const serverInvitations = await serverInvitationsResponse.json();
-        //     // 서버에서 가져온 pending 초대만 사용
-        //     pendingInvitations = serverInvitations.filter(
-        //       (inv: any) => inv.status === "pending"
-        //     );
-
-        //     // localStorage와 동기화 (서버 데이터를 신뢰할 수 있는 소스로 사용)
-        //     localStorage.setItem(
-        //       `receivedInvitations_${userEmail}`,
-        //       JSON.stringify(serverInvitations)
-        //     );
-        //   } else {
-        //     // 서버에서 가져오기 실패 시 localStorage 백업 사용
-        //     console.warn(
-        //       "서버에서 초대 목록을 가져올 수 없습니다. localStorage 데이터를 사용합니다."
-        //     );
-        //     const receivedInvitations = JSON.parse(
-        //       localStorage.getItem(`receivedInvitations_${userEmail}`) || "[]"
-        //     );
-        //     pendingInvitations = receivedInvitations.filter(
-        //       (inv: any) => inv.status === "pending"
-        //     );
-        //   }
-        // } catch (error) {
-        //   console.error("초대 목록 동기화 오류:", error);
-        //   // 오류 시 localStorage 백업 사용
-        //   const receivedInvitations = JSON.parse(
-        //     localStorage.getItem(`receivedInvitations_${userEmail}`) || "[]"
-        //   );
-        //   pendingInvitations = receivedInvitations.filter(
-        //     (inv: any) => inv.status === "pending"
-        //   );
-        // }
-
-        //////////////////////////
         try {
-          // 🚩 [수정] fetch 대신 api.get 사용 (Axios는 4xx/5xx 에러를 throw 함)
-          // -----------------------------------------------------------------
           const serverInvitationsResponse = await api.get(
             `/api/invitations/email/${encodeURIComponent(userEmail)}`
           );
-          // -----------------------------------------------------------------
 
           // Axios는 응답 본문을 response.data에 JSON으로 자동 파싱합니다.
           const serverInvitations = serverInvitationsResponse.data;
@@ -398,24 +268,58 @@ export function WorkspacePage() {
             `receivedInvitations_${userEmail}`,
             JSON.stringify(serverInvitations)
           );
-        } catch (error) {
-          // Axios는 통신 실패(네트워크 오류)뿐만 아니라 4xx/5xx 응답 시에도 이 블록으로 이동합니다.
-          console.error("초대 목록 동기화 오류 또는 서버 접근 실패:", error);
+        } catch (error: unknown) {
+          // ⭐️ [수정] catch 블록의 error: unknown 타입을 안전하게 처리
+          let logMessage = "초대 목록 동기화 오류 또는 서버 접근 실패";
+
+          if (axios.isAxiosError(error)) {
+            const axiosError = error as AxiosError;
+
+            if (axiosError.response) {
+              // 서버에서 응답을 받았지만 2xx가 아닌 경우 (예: 404, 500)
+              logMessage += `: HTTP 오류 (${axiosError.response.status}).`;
+              // 서버 응답 본문에 메시지가 포함되어 있다면 추가 (선택 사항)
+              if (
+                axiosError.response.data &&
+                (axiosError.response.data as any).message
+              ) {
+                logMessage += ` 서버 메시지: ${
+                  (axiosError.response.data as any).message
+                }`;
+              }
+            } else if (axiosError.request) {
+              // 요청은 했지만 응답을 받지 못한 경우 (네트워크 오류, CORS)
+              logMessage += `: 서버 응답 없음 (네트워크 오류).`;
+            } else {
+              // 요청 설정 중 오류가 발생한 경우
+              logMessage += `: 요청 설정 오류 (${axiosError.message}).`;
+            }
+          } else if (error instanceof Error) {
+            logMessage += `: 일반 JS 오류 (${error.message}).`;
+          } else {
+            logMessage += `: 알 수 없는 오류.`;
+          }
+
+          // 에러 타입에 관계없이 상세 로그 출력
+          console.error(logMessage, error);
 
           // 서버에서 가져오기 실패/오류 시 localStorage 백업 사용
           console.warn(
             "서버에서 초대 목록을 가져올 수 없습니다. localStorage 데이터를 사용합니다."
           );
 
-          const receivedInvitations = JSON.parse(
-            localStorage.getItem(`receivedInvitations_${userEmail}`) || "[]"
+          const receivedInvitationsString = localStorage.getItem(
+            `receivedInvitations_${userEmail}`
           );
+
+          const receivedInvitations = receivedInvitationsString
+            ? JSON.parse(receivedInvitationsString)
+            : [];
 
           pendingInvitations = receivedInvitations.filter(
             (inv: any) => inv.status === "pending"
           );
         }
-        //////////////////////////
 
         // 신규 사용자이고 개별 초대 목록이 비어있다면 전역 목록에서 확인
         if (!currentUser && pendingInvitations.length === 0) {
@@ -500,12 +404,9 @@ export function WorkspacePage() {
 
     window.addEventListener("storage", handleStorageChange);
 
-    // 주기적으로 초대 체크 (10초마다)
-    const interval = setInterval(checkInvitations, 10000);
-
     return () => {
       window.removeEventListener("storage", handleStorageChange);
-      clearInterval(interval);
+      // clearInterval(interval);
     };
   }, []);
 
@@ -528,66 +429,113 @@ export function WorkspacePage() {
   const onSubmit = async (data: WorkspaceForm) => {
     setIsLoading(true);
     try {
-      // TODO: 실제 워크스페이스 생성 API 연동
-      console.log("Create workspace:", data);
+      const userEmail = localStorage.getItem("userEmail");
+      if (!userEmail) {
+        toast({
+          title: "오류",
+          description: "로그인 정보가 없습니다.",
+          variant: "destructive",
+        });
+        return;
+      }
 
-      // 워크스페이스 생성 후 app의 기본 형태로 이동
+      const finalData = {
+        ...data,
+        description: data.description?.trim() || "설명을 입력해주세요",
+      };
+
+      const response = await api.post("/api/workspaces", finalData, {
+        headers: {
+          "X-User-Email": userEmail,
+        },
+      });
+
+      const newWorkspace = response.data;
+
+      toast({
+        title: "워크스페이스 생성 완료",
+        description: "새로운 워크스페이스가 생성되었습니다.",
+      });
+
+      // 워크스페이스 생성 후 다이얼로그 닫기 및 초기화
       setIsCreateDialogOpen(false);
       form.reset();
-      setLocation("/workspace/app/team");
+
+      // 데이터 갱신을 위해 쿼리 무효화
+      await queryClient.invalidateQueries({
+        queryKey: ["/api/users/workspaces", userId],
+      });
+
+      // 생성 후 바로 이동
+      // handleWorkspaceSelect(newWorkspace.id);
     } catch (error) {
       console.error("Create workspace error:", error);
+
+      let serverMessage = "워크스페이스 생성 중 오류가 발생했습니다.";
+
+      // 🚨 Axios 에러인지 확인하여 안전하게 데이터 추출
+      if (axios.isAxiosError(error)) {
+        serverMessage = error.response?.data?.message || serverMessage;
+      }
+
+      toast({
+        title: "워크스페이스 생성 실패",
+        description: serverMessage,
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }
   };
 
   const onSettingsSubmit = async (data: WorkspaceSettingsForm) => {
+    if (!selectedWorkspaceId || !userId) return; // userId도 필요합니다.
+
     setIsSettingsLoading(true);
     try {
-      // localStorage에 워크스페이스 정보 저장
+      await api.put(`/api/workspaces/${selectedWorkspaceId}`, data);
+
+      await queryClient.invalidateQueries({
+        queryKey: ["/api/users/workspaces", userId],
+      });
+
+      // 3. UI 및 로컬 업데이트
       localStorage.setItem("workspaceName", data.name);
-      if (data.description) {
-        localStorage.setItem("workspaceDescription", data.description);
-      }
-
-      // 상태 업데이트
       setWorkspaceName(data.name);
-      setWorkspaceDescription(
-        data.description || "주요 업무 관리 워크스페이스"
-      );
-
-      // 사이드바 실시간 업데이트를 위한 이벤트 발생
       window.dispatchEvent(new Event("workspaceNameUpdated"));
 
-      // 다이얼로그 닫기
       setIsSettingsDialogOpen(false);
-
-      // 성공 토스트
-      toast({
-        title: "워크스페이스 설정 완료",
-        description: "워크스페이스 정보가 성공적으로 업데이트되었습니다.",
-      });
+      toast({ title: "워크스페이스 정보가 업데이트되었습니다." });
     } catch (error) {
-      console.error("Workspace settings update error:", error);
-      toast({
-        title: "설정 업데이트 실패",
-        description: "워크스페이스 설정 업데이트 중 오류가 발생했습니다.",
-        variant: "destructive",
-      });
+      console.error("Update error:", error);
     } finally {
       setIsSettingsLoading(false);
     }
   };
 
-  const handleWorkspaceSelect = (workspaceId: string) => {
-    // 첫 번째 워크스페이스는 기존 앱으로 이동
-    if (workspaceId === "1") {
-      setLocation("/workspace/app/team");
-    } else {
-      // 다른 워크스페이스는 임시로 알림
-      alert("해당 워크스페이스는 준비 중입니다.");
+  const handleWorkspaceSelect = (workspaceId: any) => {
+    if (!workspaceId) return;
+
+    // 1. 현재 목록(userWorkspaces)에서 선택된 워크스페이스 객체 찾기
+    const selectedWS = userWorkspaces?.find((ws) => ws.id === workspaceId);
+
+    // 2. 현재 로그인된 유저 ID와 ownerId 비교
+    // 🚨 중요: userId(useQuery 결과)를 신뢰하거나, currentUser.id를 사용
+    if (selectedWS && userId) {
+      const isAdmin = selectedWS.ownerId === userId;
+      setIsAdminUser(isAdmin);
+
+      // 이동 시 필요한 정보를 미리 세팅
+      localStorage.setItem("workspaceId", selectedWS.id);
+      localStorage.setItem("workspaceName", selectedWS.name);
+      localStorage.setItem(
+        "workspaceDescription",
+        selectedWS.description || ""
+      );
     }
+
+    const targetPath = `/workspace/${workspaceId}/team`;
+    setLocation(targetPath);
   };
 
   const handleLogout = () => {
@@ -600,6 +548,163 @@ export function WorkspacePage() {
     setLocation("/");
   };
 
+  // const handleInviteResponse = async (
+  //   invitationId: string,
+  //   action: "accept" | "decline"
+  // ) => {
+  //   const userEmail = localStorage.getItem("userEmail");
+  //   if (!userEmail) return;
+
+  //   try {
+  //     // 초대 정보에서 role 가져오기
+  //     const invitation = invitations.find((inv) => inv.id === invitationId);
+  //     const invitationRole = invitation?.role || "팀원"; // 기본값은 팀원
+
+  //     const response = await api.get("/api/users?workspace=true");
+
+  //     const users = response.data; // Axios는 응답 데이터(JSON 파싱 완료)를 response.data에 담습니다.
+
+  //     const currentUser = users.find(
+  //       (u: any) => u.email?.toLowerCase() === userEmail.toLowerCase()
+  //     );
+
+  //     const currentEmail = userEmail;
+
+  //     await api.put(`/api/invitations/${invitationId}`, {
+  //       // Axios는 두 번째 인수로 body 데이터를 객체 형태로 받습니다.
+  //       status: action === "accept" ? "accepted" : "declined",
+  //     });
+
+  //     // 받은 초대 목록 업데이트
+  //     const receivedInvitations = JSON.parse(
+  //       localStorage.getItem(`receivedInvitations_${currentEmail}`) || "[]"
+  //     );
+  //     const updatedInvitations = receivedInvitations.map((inv: any) =>
+  //       inv.id === invitationId
+  //         ? { ...inv, status: action === "accept" ? "accepted" : "declined" }
+  //         : inv
+  //     );
+  //     localStorage.setItem(
+  //       `receivedInvitations_${currentEmail}`,
+  //       JSON.stringify(updatedInvitations)
+  //     );
+
+  //     // 로컬 상태 업데이트
+  //     setInvitations((prev) => prev.filter((inv) => inv.id !== invitationId));
+
+  //     // 표시된 초대 목록에서도 제거 (중복 표시 방지)
+  //     const shownInvitationsKey = `shownInvitations_${currentEmail}`;
+  //     const shownInvitations = JSON.parse(
+  //       localStorage.getItem(shownInvitationsKey) || "[]"
+  //     );
+  //     const updatedShownInvitations = shownInvitations.filter(
+  //       (id: string) => id !== invitationId
+  //     );
+  //     localStorage.setItem(
+  //       shownInvitationsKey,
+  //       JSON.stringify(updatedShownInvitations)
+  //     );
+
+  //     // 초대를 수락한 경우 수락 플래그 설정
+  //     if (action === "accept") {
+  //       localStorage.setItem(`hasAcceptedInvitation_${currentEmail}`, "true");
+  //       setIsNewUser(false); // 더 이상 신규 사용자가 아님
+  //     }
+
+  //     toast({
+  //       title: action === "accept" ? "초대 수락" : "초대 거절",
+  //       description:
+  //         action === "accept"
+  //           ? "워크스페이스에 참여했습니다."
+  //           : "초대를 거절했습니다.",
+  //     });
+
+  //     // 초대를 수락한 경우 워크스페이스 멤버로 추가 및 신규 사용자 플래그 클리어
+  //     if (action === "accept") {
+  //       try {
+  //         // 현재 사용자 ID 가져오기
+  //         let inviteeUserId: string | null = null;
+
+  //         if (currentUser) {
+  //           inviteeUserId = currentUser.id;
+
+  //           // 기존 사용자의 role 업데이트
+  //           try {
+  //             await api.patch(`/api/users/${currentUser.id}/role`, {
+  //               role: invitationRole,
+  //             });
+  //           } catch (error) {
+  //             console.error("기존 사용자 role 업데이트 실패:", error);
+  //           }
+  //         } else {
+  //           // 신규 사용자의 경우 이메일로 사용자 조회 시도
+  //           try {
+  //             const userResponse = await api.get(
+  //               `/api/users/by-email/${encodeURIComponent(userEmail)}`
+  //             );
+
+  //             // Axios는 성공 시 (2xx) 여기까지 오며, 데이터는 .data에 있습니다.
+  //             const userData = userResponse.data;
+  //             inviteeUserId = userData.id;
+
+  //             // 기존 사용자의 role 업데이트 (hardcoded mapping에 없는 사용자)
+  //             try {
+  //               await api.patch(`/api/users/${userData.id}/role`, {
+  //                 role: invitationRole,
+  //               });
+  //             } catch (error) {
+  //               console.error("기존 사용자 role 업데이트 실패:", error);
+  //             }
+  //           } catch (error: any) {
+  //             // Axios는 404 에러 시 catch 블록으로 진입합니다.
+  //           }
+  //         }
+
+  //         // 워크스페이스 멤버로 초대 수락 완료
+  //         if (inviteeUserId) {
+  //           console.log("워크스페이스 멤버로 초대 수락 완료");
+  //         }
+
+  //         // 실시간 반영을 위해 관련 캐시 무조건 무효화 (데이터베이스 기준)
+  //         queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+  //         queryClient.invalidateQueries({
+  //           queryKey: ["/api/users", { workspace: true }],
+  //         });
+  //         queryClient.invalidateQueries({
+  //           queryKey: ["/api/users/with-stats"],
+  //         });
+  //         queryClient.invalidateQueries({
+  //           queryKey: ["/api/users/with-stats", { workspace: true }],
+  //         });
+
+  //         // 쿼리를 즉시 다시 가져오기 (refetch)
+  //         await queryClient.refetchQueries({
+  //           queryKey: ["/api/users", { workspace: true }],
+  //         });
+  //         await queryClient.refetchQueries({
+  //           queryKey: ["/api/users/with-stats", { workspace: true }],
+  //         });
+  //         toast({
+  //           title: "워크스페이스 참여 완료",
+  //           description: `${workspaceName} 워크스페이스에 참여했습니다.`,
+  //         });
+  //       } catch (error) {
+  //         console.error("최상위 워크스페이스 멤버 추가 중 오류:", error);
+  //       }
+
+  //       // 초대 수락 기록 저장 (새로고침 후에도 유지)
+  //       localStorage.setItem(`hasAcceptedInvitation_${userEmail}`, "true");
+  //       setIsNewUser(false);
+  //     }
+
+  //     // 모든 초대를 처리했다면 다이얼로그 닫기
+  //     if (invitations.length <= 1) {
+  //       setIsInviteDialogOpen(false);
+  //     }
+  //   } catch (error) {
+  //     console.error("초대 응답 처리 중 오류:", error);
+  //   }
+  // };
   const handleInviteResponse = async (
     invitationId: string,
     action: "accept" | "decline"
@@ -608,65 +713,25 @@ export function WorkspacePage() {
     if (!userEmail) return;
 
     try {
-      // 초대 정보에서 role 가져오기
+      // 1. 초대 정보 확인
       const invitation = invitations.find((inv) => inv.id === invitationId);
-      const invitationRole = invitation?.role || "팀원"; // 기본값은 팀원
+      const invitationRole = invitation?.role || "팀원";
 
-      // 현재 로그인된 사용자의 실제 username 가져오기 (워크스페이스 멤버만)
-      // const response = await fetch("/api/users?workspace=true");
-      // const users = await response.json();
-
-      ////////////////////////////
       const response = await api.get("/api/users?workspace=true");
-      const users = response.data; // Axios는 응답 데이터(JSON 파싱 완료)를 response.data에 담습니다.
-      ////////////////////////////
+      const users = response.data;
 
-      // userEmail을 기반으로 실제 사용자 매핑
-      let currentUser;
-      const email = userEmail.toLowerCase();
-      if (email.includes("admin") || email === "admin@qubicom.co.kr") {
-        currentUser = users.find((u: any) => u.username === "admin");
-      } else if (email.includes("hyejin") || email === "1@qubicom.co.kr") {
-        currentUser = users.find((u: any) => u.username === "hyejin");
-      } else if (email.includes("hyejung") || email === "2@qubicom.co.kr") {
-        currentUser = users.find((u: any) => u.username === "hyejung");
-      } else if (email.includes("chamin") || email === "3@qubicom.co.kr") {
-        currentUser = users.find((u: any) => u.username === "chamin");
-      }
-      // 신규가입자의 경우 currentUser는 undefined로 남겨둠
+      const currentUser = users.find(
+        (u: any) => u.email?.toLowerCase() === userEmail.toLowerCase()
+      );
 
-      // 모든 사용자에 대해 로그인한 이메일을 키로 사용 (일관성 유지)
       const currentEmail = userEmail;
 
-      // 백엔드에 초대 상태 업데이트 (중요: 이것이 없으면 워크스페이스 멤버로 포함되지 않음!)
-      // await fetch(`/api/invitations/${invitationId}`, {
-      //   method: "PUT",
-      //   headers: {
-      //     "Content-Type": "application/json",
-      //   },
-      //   body: JSON.stringify({
-      //     status: action === "accept" ? "accepted" : "declined",
-      //   }),
-      // });
-
-      /////////////////////////////
-      // 🚩 [수정] fetch 대신 api.put 사용
-      // -----------------------------------------------------------------
+      // 2. 초대 상태 변경 API 호출
       await api.put(`/api/invitations/${invitationId}`, {
-        // Axios는 두 번째 인수로 body 데이터를 객체 형태로 받습니다.
         status: action === "accept" ? "accepted" : "declined",
       });
-      // -----------------------------------------------------------------
 
-      /*
-      참고: 
-      1. Axios는 기본적으로 요청 본문(Body)을 JSON으로 직렬화(JSON.stringify)하며,
-      2. Content-Type: application/json 헤더를 자동으로 설정합니다.
-        따라서 위 두 설정은 명시적으로 작성할 필요가 없습니다.
-      */
-      /////////////////////////////
-
-      // 받은 초대 목록 업데이트
+      // 3. 로컬 스토리지 업데이트 (기존 로직 유지)
       const receivedInvitations = JSON.parse(
         localStorage.getItem(`receivedInvitations_${currentEmail}`) || "[]"
       );
@@ -680,10 +745,9 @@ export function WorkspacePage() {
         JSON.stringify(updatedInvitations)
       );
 
-      // 로컬 상태 업데이트
+      // 4. 로컬 UI 상태 업데이트
       setInvitations((prev) => prev.filter((inv) => inv.id !== invitationId));
 
-      // 표시된 초대 목록에서도 제거 (중복 표시 방지)
       const shownInvitationsKey = `shownInvitations_${currentEmail}`;
       const shownInvitations = JSON.parse(
         localStorage.getItem(shownInvitationsKey) || "[]"
@@ -696,295 +760,86 @@ export function WorkspacePage() {
         JSON.stringify(updatedShownInvitations)
       );
 
-      // 초대를 수락한 경우 수락 플래그 설정
+      // 5. 수락 시 처리 로직
       if (action === "accept") {
-        localStorage.setItem(`hasAcceptedInvitation_${currentEmail}`, "true");
-        setIsNewUser(false); // 더 이상 신규 사용자가 아님
-      }
-
-      toast({
-        title: action === "accept" ? "초대 수락" : "초대 거절",
-        description:
-          action === "accept"
-            ? "워크스페이스에 참여했습니다."
-            : "초대를 거절했습니다.",
-      });
-
-      // 초대를 수락한 경우 워크스페이스 멤버로 추가 및 신규 사용자 플래그 클리어
-      if (action === "accept") {
-        // try {
-        //   // 현재 사용자 ID 가져오기
-        //   let inviteeUserId = null;
-
-        //   if (currentUser) {
-        //     inviteeUserId = currentUser.id;
-
-        //     // 기존 사용자의 role 업데이트
-        //     try {
-        //       await fetch(`/api/users/${currentUser.id}/role`, {
-        //         method: "PATCH",
-        //         headers: {
-        //           "Content-Type": "application/json",
-        //         },
-        //         body: JSON.stringify({ role: invitationRole }),
-        //       });
-        //       console.log("기존 사용자 role 업데이트 완료:", invitationRole);
-        //     } catch (error) {
-        //       console.error("기존 사용자 role 업데이트 실패:", error);
-        //     }
-        //   } else {
-        //     // 신규 사용자의 경우 이메일로 사용자 조회 시도
-        //     try {
-        //       const userResponse = await fetch(
-        //         `/api/users/by-email/${encodeURIComponent(userEmail)}`
-        //       );
-        //       if (userResponse.ok) {
-        //         const userData = await userResponse.json();
-        //         inviteeUserId = userData.id;
-
-        //         // 기존 사용자의 role 업데이트 (hardcoded mapping에 없는 사용자)
-        //         try {
-        //           await fetch(`/api/users/${userData.id}/role`, {
-        //             method: "PATCH",
-        //             headers: {
-        //               "Content-Type": "application/json",
-        //             },
-        //             body: JSON.stringify({ role: invitationRole }),
-        //           });
-        //           console.log(
-        //             "기존 사용자 role 업데이트 완료:",
-        //             invitationRole
-        //           );
-        //         } catch (error) {
-        //           console.error("기존 사용자 role 업데이트 실패:", error);
-        //         }
-        //       } else if (userResponse.status === 404) {
-        //         // 신규 사용자이므로 백엔드에 생성
-        //         console.log("신규 사용자 생성 중...");
-
-        //         // 강력한 임의 비밀번호 생성 (초대 기반 계정이므로 사용자가 나중에 변경)
-        //         const generateRandomPassword = () => {
-        //           const chars =
-        //             "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
-        //           let result = "";
-        //           for (let i = 0; i < 16; i++) {
-        //             result += chars.charAt(
-        //               Math.floor(Math.random() * chars.length)
-        //             );
-        //           }
-        //           return result;
-        //         };
-
-        //         const createUserResponse = await fetch("/api/users", {
-        //           method: "POST",
-        //           headers: {
-        //             "Content-Type": "application/json",
-        //           },
-        //           body: JSON.stringify({
-        //             username: userEmail.split("@")[0], // 이메일의 앞부분을 username으로 사용
-        //             email: userEmail,
-        //             password: generateRandomPassword(), // 강력한 임의 비밀번호
-        //             name:
-        //               localStorage.getItem("userName") ||
-        //               userEmail.split("@")[0], // 가입시 입력한 이름 우선 사용
-        //             initials: (localStorage.getItem("userName") || userEmail)
-        //               .charAt(0)
-        //               .toUpperCase(), // 이름의 첫 글자를 이니셜로 사용
-        //             role: invitationRole, // 초대 시 지정된 권한 적용
-        //           }),
-        //         });
-
-        //         if (createUserResponse.ok) {
-        //           const newUser = await createUserResponse.json();
-        //           inviteeUserId = newUser.id;
-        //           console.log("신규 사용자 생성 완료:", newUser);
-        //         } else {
-        //           console.error("신규 사용자 생성 실패");
-        //         }
-        //       }
-        //     } catch (error) {
-        //       console.error("사용자 조회/생성 중 오류:", error);
-        //     }
-        //   }
-
-        //   // 워크스페이스 멤버로 초대 수락 완료
-        //   if (inviteeUserId) {
-        //     console.log("워크스페이스 멤버로 초대 수락 완료");
-        //   }
-
-        //   // 실시간 반영을 위해 관련 캐시 무조건 무효화 (데이터베이스 기준)
-        //   console.log("초대 수락 후 캐시 무효화 시작");
-        //   queryClient.invalidateQueries({ queryKey: ["/api/users"] });
-        //   queryClient.invalidateQueries({
-        //     queryKey: ["/api/users", { workspace: true }],
-        //   });
-        //   queryClient.invalidateQueries({
-        //     queryKey: ["/api/users/with-stats"],
-        //   });
-        //   queryClient.invalidateQueries({
-        //     queryKey: ["/api/users/with-stats", { workspace: true }],
-        //   });
-
-        //   // 쿼리를 즉시 다시 가져오기 (refetch)
-        //   await queryClient.refetchQueries({
-        //     queryKey: ["/api/users", { workspace: true }],
-        //   });
-        //   await queryClient.refetchQueries({
-        //     queryKey: ["/api/users/with-stats", { workspace: true }],
-        //   });
-        //   console.log("초대 수락 후 캐시 무효화 및 refetch 완료");
-
-        //   toast({
-        //     title: "워크스페이스 참여 완료",
-        //     description: `${workspaceName} 워크스페이스에 참여했습니다.`,
-        //   });
-        // } catch (error) {
-        //   console.error("워크스페이스 멤버 추가 중 오류:", error);
-        // }
-
-        ////////////////////////////////
         try {
-          // 현재 사용자 ID 가져오기
           let inviteeUserId: string | null = null;
+
+          const invitation = invitations.find((inv) => inv.id === invitationId);
+          const targetWorkspaceId = invitation?.workspaceId;
+
+          if (targetWorkspaceId) {
+            await queryClient.invalidateQueries({
+              queryKey: ["workspace-members", targetWorkspaceId],
+            });
+          }
 
           if (currentUser) {
             inviteeUserId = currentUser.id;
-
-            // 기존 사용자의 role 업데이트
-            try {
-              // 🚩 [수정] fetch 대신 api.patch 사용
-              // Axios는 body 데이터를 객체 형태로 받고, Content-Type 헤더를 자동으로 설정합니다.
-              // -----------------------------------------------------------------------------------
-              await api.patch(`/api/users/${currentUser.id}/role`, {
-                role: invitationRole,
-              });
-              // -----------------------------------------------------------------------------------
-              console.log("기존 사용자 role 업데이트 완료:", invitationRole);
-            } catch (error) {
-              console.error("기존 사용자 role 업데이트 실패:", error);
-            }
+            await api.patch(`/api/users/${currentUser.id}/role`, {
+              role: invitationRole,
+            });
           } else {
-            // 신규 사용자의 경우 이메일로 사용자 조회 시도
             try {
-              // 🚩 [수정 1] fetch 대신 api.get 사용.
-              // Axios는 JSON을 자동으로 파싱하여 response.data에 담습니다.
-              // -----------------------------------------------------------------------------------
               const userResponse = await api.get(
                 `/api/users/by-email/${encodeURIComponent(userEmail)}`
               );
-
-              // Axios는 성공 시 (2xx) 여기까지 오며, 데이터는 .data에 있습니다.
               const userData = userResponse.data;
               inviteeUserId = userData.id;
-
-              // 기존 사용자의 role 업데이트 (hardcoded mapping에 없는 사용자)
-              try {
-                // 🚩 [수정 2] fetch 대신 api.patch 사용
-                // -----------------------------------------------------------------------------------
-                await api.patch(`/api/users/${userData.id}/role`, {
-                  role: invitationRole,
-                });
-                // -----------------------------------------------------------------------------------
-                console.log("기존 사용자 role 업데이트 완료:", invitationRole);
-              } catch (error) {
-                console.error("기존 사용자 role 업데이트 실패:", error);
-              }
-
-              // -----------------------------------------------------------------------------------
-            } catch (error: any) {
-              // Axios는 404 에러 시 catch 블록으로 진입합니다.
-              if (error.response && error.response.status === 404) {
-                // 신규 사용자이므로 백엔드에 생성
-                console.log("신규 사용자 생성 중...");
-
-                // 강력한 임의 비밀번호 생성 (초대 기반 계정이므로 사용자가 나중에 변경)
-                const generateRandomPassword = () => {
-                  const chars =
-                    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
-                  let result = "";
-                  for (let i = 0; i < 16; i++) {
-                    result += chars.charAt(
-                      Math.floor(Math.random() * chars.length)
-                    );
-                  }
-                  return result;
-                };
-
-                try {
-                  // 🚩 [수정 3] fetch 대신 api.post 사용.
-                  // body 내용을 객체로 바로 전달하고 headers는 제거합니다.
-                  // -----------------------------------------------------------------------------------
-                  const createUserResponse = await api.post("/api/users", {
-                    username: userEmail.split("@")[0], // 이메일의 앞부분을 username으로 사용
-                    email: userEmail,
-                    password: generateRandomPassword(), // 강력한 임의 비밀번호
-                    name:
-                      localStorage.getItem("userName") ||
-                      userEmail.split("@")[0], // 가입시 입력한 이름 우선 사용
-                    initials: (localStorage.getItem("userName") || userEmail)
-                      .charAt(0)
-                      .toUpperCase(), // 이름의 첫 글자를 이니셜로 사용
-                    role: invitationRole, // 초대 시 지정된 권한 적용
-                  });
-                  // -----------------------------------------------------------------------------------
-
-                  // Axios는 성공 시 (2xx) 이 시점에서 에러를 던지지 않으며, 데이터는 .data에 있습니다.
-                  const newUser = createUserResponse.data;
-                  inviteeUserId = newUser.id;
-                  console.log("신규 사용자 생성 완료:", newUser);
-                } catch (postError) {
-                  // 신규 사용자 생성 실패 (4xx 또는 5xx 에러)
-                  console.error("신규 사용자 생성 실패", postError);
-                }
-              } else {
-                // 404가 아닌 다른 조회 오류는 re-throw
-                console.error("사용자 조회 중 404 외의 오류:", error);
-              }
-            }
+              await api.patch(`/api/users/${userData.id}/role`, {
+                role: invitationRole,
+              });
+            } catch (error) {}
           }
 
-          // 워크스페이스 멤버로 초대 수락 완료
+          // 🚩 [핵심 수정 부분] 실시간 반영을 위한 쿼리 무효화 섹션
+
+          // ① 워크스페이스 목록 무효화 (목록 자체를 새로 고침)
           if (inviteeUserId) {
-            console.log("워크스페이스 멤버로 초대 수락 완료");
+            await queryClient.invalidateQueries({
+              queryKey: ["/api/users/workspaces", inviteeUserId],
+            });
           }
 
-          // 실시간 반영을 위해 관련 캐시 무조건 무효화 (데이터베이스 기준)
-          console.log("초대 수락 후 캐시 무효화 시작");
-          queryClient.invalidateQueries({ queryKey: ["/api/users"] });
-          queryClient.invalidateQueries({
-            queryKey: ["/api/users", { workspace: true }],
-          });
-          queryClient.invalidateQueries({
-            queryKey: ["/api/users/with-stats"],
-          });
-          queryClient.invalidateQueries({
-            queryKey: ["/api/users/with-stats", { workspace: true }],
+          // ② ⭐ 워크스페이스 통계 전체 무효화 (ID를 모를 때 사용하는 광범위 무효화)
+          // exact: false를 설정하여 "workspace-stats"로 시작하는 모든 쿼리를 다시 가져오게 합니다.
+          await queryClient.invalidateQueries({
+            queryKey: ["workspace-stats"],
+            exact: false,
           });
 
-          // 쿼리를 즉시 다시 가져오기 (refetch)
-          await queryClient.refetchQueries({
-            queryKey: ["/api/users", { workspace: true }],
+          // ③ 기타 유저 관련 쿼리 무효화
+          queryClient.invalidateQueries({
+            queryKey: ["/api/users"],
+            exact: false,
           });
-          await queryClient.refetchQueries({
-            queryKey: ["/api/users/with-stats", { workspace: true }],
-          });
-          console.log("초대 수락 후 캐시 무효화 및 refetch 완료");
+
+          // ④ 활성화된 쿼리 즉시 리프레치 (사용자 경험 개선)
+          if (inviteeUserId) {
+            await queryClient.refetchQueries({
+              queryKey: ["/api/users/workspaces", inviteeUserId],
+              type: "active",
+            });
+          }
 
           toast({
             title: "워크스페이스 참여 완료",
             description: `${workspaceName} 워크스페이스에 참여했습니다.`,
           });
         } catch (error) {
-          console.error("최상위 워크스페이스 멤버 추가 중 오류:", error);
+          console.error("초대 수락 처리 중 오류:", error);
         }
-        ////////////////////////////////
 
-        // 초대 수락 기록 저장 (새로고침 후에도 유지)
         localStorage.setItem(`hasAcceptedInvitation_${userEmail}`, "true");
         setIsNewUser(false);
+      } else {
+        toast({
+          title: "초대 거절",
+          description: "초대를 거절했습니다.",
+        });
       }
 
-      // 모든 초대를 처리했다면 다이얼로그 닫기
+      // 6. 모든 초대를 처리했다면 다이얼로그 닫기
       if (invitations.length <= 1) {
         setIsInviteDialogOpen(false);
       }
@@ -993,14 +848,63 @@ export function WorkspacePage() {
     }
   };
 
-  // 사용자 정보 로딩 중일 때 로딩 화면 제거 (즉시 렌더링)
-  // if (!isUserInfoLoaded) {
-  //   return null; // 로딩 화면 제거됨
-  // }
+  const deleteWorkspaceMutation = useMutation({
+    mutationFn: (id: number | string) =>
+      api.delete(`/api/workspaces/${id}`, {
+        headers: {
+          "X-User-Email": localStorage.getItem("userEmail"), // 이메일 전달
+        },
+      }),
+    onSuccess: () => {
+      // 1. 성공 시 워크스페이스 목록 캐시 무효화 (UI 자동 갱신)
+      queryClient.invalidateQueries({ queryKey: ["/api/users/workspaces"] });
+
+      // 2. 다이얼로그 닫기
+      setIsSettingsDialogOpen(false);
+
+      // 3. 성공 토스트 알림
+      toast({
+        title: "삭제 완료",
+        description: "워크스페이스가 성공적으로 삭제되었습니다.",
+      });
+    },
+    onError: (error) => {
+      // 에러 메시지 추출 (Axios 에러 처리)
+      let errorMessage = "워크스페이스 삭제 중 오류가 발생했습니다.";
+      if (axios.isAxiosError(error)) {
+        errorMessage = error.response?.data?.message || errorMessage;
+      }
+
+      // 4. 실패 토스트 알림
+      toast({
+        title: "삭제 실패",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleDeleteWorkspace = () => {
+    if (!selectedWorkspaceId) {
+      toast({
+        title: "삭제 불가",
+        description: "삭제할 워크스페이스 선택 정보가 올바르지 않습니다.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const isConfirmed = confirm(
+      "정말로 이 워크스페이스를 삭제하시겠습니까? 이 작업은 되돌릴 수 없으며 모든 데이터가 삭제됩니다."
+    );
+
+    if (isConfirmed) {
+      deleteWorkspaceMutation.mutate(selectedWorkspaceId);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
       <header className="border-b border-border bg-card">
         <div className="max-w-6xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
@@ -1010,19 +914,45 @@ export function WorkspacePage() {
               </div>
               <h1 className="text-xl font-semibold">워크스페이스 관리</h1>
             </div>
-            <div className="flex items-center space-x-2">
-              <span className="text-sm text-muted-foreground">
-                {userName}님
-              </span>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleLogout}
-                data-testid="button-logout"
-              >
-                <LogOut className="h-4 w-4 mr-2" />
-                로그아웃
-              </Button>
+
+            <div className="flex items-center space-x-4">
+              {" "}
+              {/* 초대 보관함 버튼 */}
+              <div className="relative">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setIsInviteDialogOpen(true)} // 클릭 시 기존 초대 다이얼로그 열기
+                  className="relative text-muted-foreground"
+                  data-testid="button-inbox"
+                >
+                  <Bell className="h-5 w-5" />
+                  {/* 처리하지 않은 초대가 있을 때만 빨간 배지 표시 */}
+                  {invitations.length > 0 && (
+                    <span className="absolute top-1 right-1 flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                    </span>
+                  )}
+                </Button>
+              </div>
+              <div className="flex items-center space-x-2 border-l pl-4">
+                {" "}
+                {/* 구분을 위한 선 추가 */}
+                <span className="text-sm text-muted-foreground font-medium">
+                  {userName}님
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleLogout}
+                  data-testid="button-logout"
+                  className="text-muted-foreground"
+                >
+                  <LogOut className="h-4 w-4 mr-2" />
+                  로그아웃
+                </Button>
+              </div>
             </div>
           </div>
         </div>
@@ -1039,85 +969,125 @@ export function WorkspacePage() {
 
         {/* Workspace Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-          {isUserInfoLoaded &&
-            workspaceData.map((workspace) => (
-              <Card
-                key={workspace.id}
-                className="cursor-pointer hover:shadow-md transition-shadow"
-                onClick={() => handleWorkspaceSelect(workspace.id)}
-                data-testid={`card-workspace-${workspace.id}`}
-              >
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <CardTitle className="text-lg">
-                        {workspace.name}
-                      </CardTitle>
-                      <CardDescription className="mt-1">
-                        {workspace.description}
-                      </CardDescription>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        // 워크스페이스 설정 다이얼로그 열기
-                        settingsForm.reset({
-                          name: workspaceName,
-                          description: workspaceDescription,
-                        });
-                        setIsSettingsDialogOpen(true);
-                      }}
-                      data-testid="button-workspace-settings"
-                    >
-                      <Settings className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    <div className="flex items-center space-x-1 text-sm text-muted-foreground">
-                      <Users className="h-4 w-4" />
-                      <span>{workspace.memberCount}명</span>
-                    </div>
-                    <div className="flex items-center space-x-1 text-sm text-muted-foreground">
-                      <Calendar className="h-4 w-4" />
-                      <span>{workspace.projectCount}개 프로젝트</span>
-                    </div>
-                    <div className="text-right">
-                      <Badge variant="secondary" className="text-xs">
-                        {workspace.lastAccess}
-                      </Badge>
-                    </div>
-                  </div>
+          {isFullyLoading ? (
+            [...Array(4)].map((_, i) => (
+              <Card key={i} className="animate-pulse">
+                <CardContent className="p-4">
+                  <div className="h-48 bg-muted rounded"></div>
                 </CardContent>
               </Card>
-            ))}
+            ))
+          ) : (
+            <>
+              {isUserInfoLoaded &&
+                userWorkspaces?.map((workspace) => (
+                  <Card
+                    key={workspace.id}
+                    className="cursor-pointer hover:shadow-md transition-shadow"
+                    onClick={() => handleWorkspaceSelect(workspace.id)}
+                    data-testid={`card-workspace-${workspace.id}`}
+                  >
+                    <CardHeader>
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <CardTitle className="text-lg">
+                            {workspace.name}
+                          </CardTitle>
+                          <CardDescription className="mt-1">
+                            {workspace.description}
+                          </CardDescription>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedWorkspaceId(workspace.id);
+                            settingsForm.reset({
+                              name: workspace.name,
+                              description: workspace.description,
+                            });
+                            setIsSettingsDialogOpen(true);
+                          }}
+                          data-testid="button-workspace-settings"
+                        >
+                          <Settings className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        <div className="flex items-center space-x-1 text-sm text-muted-foreground">
+                          <Users className="h-4 w-4" />
+                          <span>
+                            {statsMap[workspace.id]
+                              ? `${statsMap[workspace.id].memberCount}`
+                              : 0}
+                            명
+                          </span>
+                        </div>
+                        <div className="flex items-center space-x-1 text-sm text-muted-foreground">
+                          <Calendar className="h-4 w-4" />
+                          <span>
+                            {statsMap[workspace.id]
+                              ? `${statsMap[workspace.id].projectCount}`
+                              : 0}
+                            개 프로젝트
+                          </span>
+                        </div>
+                        <div className="text-right">
+                          <Badge variant="secondary" className="text-xs">
+                            {workspace.createdAt.split("T")[0]}
+                          </Badge>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
 
-          {/* Create New Workspace Card */}
-          <Card
-            className="cursor-pointer hover:shadow-md transition-shadow border-dashed"
-            data-testid="card-create-workspace"
-            onClick={() => {
-              toast({
-                title: "준비중입니다",
-                description: "새 워크스페이스 기능은 곧 제공될 예정입니다.",
-              });
-            }}
-          >
-            <CardContent className="flex flex-col items-center justify-center h-full min-h-[200px] space-y-4">
-              <div className="w-12 h-12 bg-muted rounded-lg flex items-center justify-center">
-                <Plus className="h-6 w-6 text-muted-foreground" />
+              {/* Create New Workspace Card */}
+              <div>
+                {isUserInfoLoaded && userWorkspaces && isLimitReached ? (
+                  <Card className="flex items-center gap-3 h-full min-h-[200px] w-full flex-col justify-center bored rounded-lg">
+                    <CardContent className="flex flex-col items-center justify-center h-full min-h-[200px] space-y-4">
+                      <div className="w-12 h-12 rounded-lg flex items-center justify-center">
+                        <h3 className="text-3xl">ℹ️</h3>
+                      </div>
+                      <div className="text-center">
+                        <h3 className="font-medium">
+                          워크스페이스 생성 한도 도달
+                        </h3>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          생성 한도 초과 (최대 3개)
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  isUserInfoLoaded &&
+                  userWorkspaces && (
+                    <Card
+                      className="cursor-pointer hover:shadow-md transition-shadow border-dashed flex items-center gap-3 h-full min-h-[200px] w-full flex-col justify-center bored rounded-lg"
+                      data-testid="card-create-workspace"
+                      onClick={() => setIsCreateDialogOpen(true)}
+                    >
+                      <CardContent className="flex flex-col items-center justify-center h-full min-h-[200px] space-y-4">
+                        <div className="w-12 h-12 bg-muted rounded-lg flex items-center justify-center">
+                          <Plus className="h-6 w-6 text-muted-foreground" />
+                        </div>
+                        <div className="text-center">
+                          <h3 className="font-medium">새 워크스페이스</h3>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            새로운 워크스페이스를 생성하세요
+                          </p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )
+                )}
               </div>
-              <div className="text-center">
-                <h3 className="font-medium">새 워크스페이스</h3>
-                <p className="text-sm text-muted-foreground mt-1">
-                  새로운 워크스페이스를 생성하세요
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+            </>
+          )}
         </div>
       </main>
 
@@ -1193,11 +1163,34 @@ export function WorkspacePage() {
               </div>
             </form>
           </Form>
+          {isOwner && (
+            <div className="pt-6 mt-4 border-t border-destructive/20 bg-destructive/5 -mx-6 px-6 pb-2">
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <h4 className="text-sm font-medium text-red-500">
+                    워크스페이스 삭제
+                  </h4>
+                  <p className="text-xs text-muted-foreground">
+                    이 작업은 되돌릴 수 없습니다. 모든 데이터가 영구적으로
+                    삭제됩니다.
+                  </p>
+                </div>
+                <Button
+                  className="bg-red-500 hover:bg-red-600" // 호버 시 시각적 효과 추가
+                  disabled={deleteWorkspaceMutation.isPending}
+                  onClick={handleDeleteWorkspace}
+                  data-testid="button-delete-workspace"
+                >
+                  {deleteWorkspaceMutation.isPending ? "삭제 중..." : "삭제"}
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 
       {/* 초대 알림 다이얼로그 */}
-      <Dialog open={isInviteDialogOpen} onOpenChange={setIsInviteDialogOpen}>
+      {/* <Dialog open={isInviteDialogOpen} onOpenChange={setIsInviteDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -1265,6 +1258,161 @@ export function WorkspacePage() {
               <p className="text-muted-foreground">처리할 초대가 없습니다.</p>
             </div>
           )}
+        </DialogContent>
+      </Dialog> */}
+      <Dialog open={isInviteDialogOpen} onOpenChange={setIsInviteDialogOpen}>
+        <DialogContent className="max-w-md p-0 overflow-hidden">
+          <DialogHeader className="p-6 pb-2">
+            <DialogTitle className="flex items-center gap-2 text-xl">
+              <Mail className="h-5 w-5 text-primary" />
+              초대 보관함
+              {invitations.length > 0 && (
+                <Badge variant="secondary" className="ml-2 font-bold">
+                  {invitations.length}
+                </Badge>
+              )}
+            </DialogTitle>
+            <DialogDescription>
+              워크스페이스에 참여하여 협업을 시작하세요.
+            </DialogDescription>
+          </DialogHeader>
+
+          {/* 초대 리스트 영역: 최대 높이를 지정하고 초과 시 스크롤 */}
+          <div className="max-h-[400px] overflow-y-auto p-6 pt-2 space-y-4">
+            {invitations.length > 0 ? (
+              invitations.map((invitation) => (
+                <Card
+                  key={invitation.id}
+                  className="p-4 border-2 hover:border-primary/20 transition-all shadow-sm"
+                >
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        {/* 워크스페이스 이름 강조 */}
+                        <p className="font-bold text-base text-primary">
+                          {invitation.workspaceName || "초대받은 워크스페이스"}
+                        </p>
+
+                        {/* 발신자 정보: 이름(이메일) 형태 */}
+                        <p className="text-xs text-muted-foreground mt-1">
+                          <span className="font-medium text-foreground">
+                            {invitation.inviterName || "알 수 없는 사용자"}
+                          </span>
+                          <span className="ml-1">
+                            ({invitation.inviterEmail})
+                          </span>
+                        </p>
+                      </div>
+
+                      <Badge className="bg-blue-50 text-blue-700 hover:bg-blue-50 border-blue-200 text-[10px]">
+                        {invitation.role}
+                      </Badge>
+                    </div>
+
+                    {/* 액션 버튼 */}
+                    <div className="flex gap-2 pt-1">
+                      <Button
+                        size="sm"
+                        className="flex-1 bg-primary"
+                        onClick={() =>
+                          handleInviteResponse(invitation.id, "accept")
+                        }
+                      >
+                        <Check className="h-4 w-4 mr-1" /> 수락
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-1 border-muted-foreground/20"
+                        onClick={() =>
+                          handleInviteResponse(invitation.id, "decline")
+                        }
+                      >
+                        <X className="h-4 w-4 mr-1" /> 거절
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+              ))
+            ) : (
+              /* 모든 초대를 처리했을 때의 화면 */
+              <div className="flex flex-col items-center justify-center py-10 text-center">
+                <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center mb-3">
+                  <MailOpen className="h-6 w-6 text-muted-foreground" />
+                </div>
+                <p className="text-sm text-muted-foreground font-medium">
+                  새로운 초대가 없습니다.
+                </p>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* 워크스페이스 생성 다이얼로그 */}
+      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>새 워크스페이스 생성</DialogTitle>
+            <DialogDescription>
+              새로운 워크스페이스를 만들어 팀과 함께 작업을 시작하세요.
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field, fieldState }) => (
+                  <FormItem>
+                    <FormLabel>워크스페이스 이름 *</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="예: My Workspace"
+                        {...field}
+                        className={
+                          fieldState.error
+                            ? "border-red-500 focus-visible:ring-0 outline-none"
+                            : ""
+                        }
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>설명 (선택사항)</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="워크스페이스에 대한 간단한 설명"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <div className="flex justify-end space-x-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsCreateDialogOpen(false)}
+                >
+                  취소
+                </Button>
+                <Button type="submit" disabled={isLoading || isLimitReached}>
+                  {isLimitReached
+                    ? "생성 한도 초과 (최대 3개)"
+                    : "워크스페이스 생성"}
+                </Button>
+              </div>
+            </form>
+          </Form>
         </DialogContent>
       </Dialog>
     </div>

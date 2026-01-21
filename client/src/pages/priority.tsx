@@ -1,15 +1,30 @@
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "wouter";
+import { Link, useParams } from "wouter";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { format, parse, differenceInDays } from "date-fns";
 import type { ProjectWithDetails } from "@shared/schema";
+import api from "@/api/api-index";
 
 export default function Priority() {
+  const { id: workspaceId } = useParams();
+
   const { data: projects, isLoading } = useQuery({
-    queryKey: ["/api/projects"],
-    refetchInterval: 10000, // 실시간 업데이트를 위해 10초마다 자동 갱신
+    // 1. 쿼리 키에 workspaceId를 추가하여 워크스페이스별로 캐시를 분리합니다.
+    queryKey: ["/api/workspaces", workspaceId, "projects"],
+
+    queryFn: async () => {
+      // 2. 해당 워크스페이스의 프로젝트만 가져오는 엔드포인트로 요청을 보냅니다.
+      const response = await api.get(`/api/workspaces/${workspaceId}/projects`);
+      return response.data;
+    },
+
+    // 3. workspaceId가 존재할 때만 쿼리를 실행하도록 설정합니다.
+    enabled: !!workspaceId,
+
+    staleTime: 300000, // 5분
+    refetchOnWindowFocus: true,
   });
 
   // D-day 계산 함수
@@ -36,6 +51,7 @@ export default function Priority() {
   // 아카이브된 항목 필터링 (리스트 페이지와 동일한 로직)
   const archivedItems = (() => {
     try {
+      // const stored = localStorage.getItem('archivedItems');
       const stored = localStorage.getItem('archivedItems');
       return stored ? JSON.parse(stored) : [];
     } catch {
@@ -80,7 +96,7 @@ export default function Priority() {
     if (!activeProjects) return { "1": [], "2": [], "3": [], "4": [] };
     
     const tasksByPriority: { [key: string]: any[] } = { "1": [], "2": [], "3": [], "4": [] };
-    
+
     // 레거시 한국어 라벨을 숫자로 변환하는 함수
     const mapLegacyToNumeric = (priority: string) => {
       switch (priority) {
@@ -189,7 +205,7 @@ export default function Priority() {
                     {tasksByPriority[section.priority]?.map((task) => (
                       <Link
                         key={task.id}
-                        href={`/workspace/app/detail/task/${task.id}?from=priority`}
+                        href={`/workspace/${workspaceId}/detail/task/${task.id}?from=priority`}
                         className="flex items-center gap-3 bg-slate-700 p-3 rounded text-white text-sm hover:bg-slate-600 transition-colors cursor-pointer"
                         data-testid={`task-${task.id}`}
                       >

@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useLocation } from "wouter";
+import { useLocation, useParams } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -39,6 +39,7 @@ import {
 import api from "@/api/api-index";
 
 export default function Kanban() {
+  const { id: workspaceId } = useParams();
   const [, setLocation] = useLocation();
 
   const {
@@ -46,21 +47,62 @@ export default function Kanban() {
     isLoading: projectsLoading,
     error,
   } = useQuery({
-    queryKey: ["/api/projects"],
+    // 1. 쿼리 키에 workspaceId를 추가하여 워크스페이스별로 캐시를 분리합니다.
+    queryKey: ["/api/workspaces", workspaceId, "projects"],
+
+    queryFn: async () => {
+      // 2. 해당 워크스페이스의 프로젝트만 가져오는 엔드포인트로 요청을 보냅니다.
+      const response = await api.get(`/api/workspaces/${workspaceId}/projects`);
+      return response.data;
+    },
+
+    // 3. workspaceId가 존재할 때만 쿼리를 실행하도록 설정합니다.
+    enabled: !!workspaceId,
+
+    staleTime: 300000, // 5분
+    refetchOnWindowFocus: true,
   });
 
   const { data: users, isLoading: usersLoading } = useQuery({
     queryKey: ["/api/users"],
   });
 
+  // const { data: tasks, isLoading: tasksLoading } = useQuery({
+  //   queryKey: ["/api/tasks"],
+  // });
   const { data: tasks, isLoading: tasksLoading } = useQuery({
-    queryKey: ["/api/tasks"],
+    queryKey: ["tasks", workspaceId],
+    queryFn: async () => {
+      const response = await api.get(`/api/workspaces/${workspaceId}/tasks`);
+      return response.data;
+    },
+    enabled: !!workspaceId,
   });
 
+  // const [expandedProjects, setExpandedProjects] = useState<Set<string>>(
+  //   new Set()
+  // );
+  // const [expandedGoals, setExpandedGoals] = useState<Set<string>>(new Set());
+  const getInitialExpandedState = (key: string): Set<string> => {
+    const saved = localStorage.getItem(key);
+    if (saved) {
+      try {
+        // 저장된 JSON 문자열을 Set으로 변환하여 반환
+        return new Set(JSON.parse(saved));
+      } catch {
+        return new Set(); // 파싱 오류 시 빈 Set 반환
+      }
+    }
+    return new Set(); // 저장된 것이 없을 시 빈 Set 반환
+  };
+
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(
-    new Set()
+    getInitialExpandedState("KANBAN_expandedProjectIds") // 'expandedProjectIds'라는 키로 저장
   );
-  const [expandedGoals, setExpandedGoals] = useState<Set<string>>(new Set());
+  const [expandedGoals, setExpandedGoals] = useState<Set<string>>(
+    getInitialExpandedState("KANBAN_expandedGoalIds") // 'expandedGoalIds'라는 키로 저장
+  );
+
   const [hoveredProject, setHoveredProject] = useState<string | null>(null);
   const [hoveredGoal, setHoveredGoal] = useState<string | null>(null);
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
@@ -92,6 +134,25 @@ export default function Kanban() {
 
   const isLoading = projectsLoading || usersLoading || tasksLoading;
 
+  // const toggleProject = (projectId: string) => {
+  //   const newExpanded = new Set(expandedProjects);
+  //   if (newExpanded.has(projectId)) {
+  //     newExpanded.delete(projectId);
+  //   } else {
+  //     newExpanded.add(projectId);
+  //   }
+  //   setExpandedProjects(newExpanded);
+  // };
+
+  // const toggleGoal = (goalId: string) => {
+  //   const newExpanded = new Set(expandedGoals);
+  //   if (newExpanded.has(goalId)) {
+  //     newExpanded.delete(goalId);
+  //   } else {
+  //     newExpanded.add(goalId);
+  //   }
+  //   setExpandedGoals(newExpanded);
+  // };
   const toggleProject = (projectId: string) => {
     const newExpanded = new Set(expandedProjects);
     if (newExpanded.has(projectId)) {
@@ -99,9 +160,17 @@ export default function Kanban() {
     } else {
       newExpanded.add(projectId);
     }
+
     setExpandedProjects(newExpanded);
+
+    // 👈 **추가된 부분:** 상태를 로컬 저장소에 반영
+    localStorage.setItem(
+      "KANBAN_expandedProjectIds",
+      JSON.stringify(Array.from(newExpanded))
+    );
   };
 
+  // 3. 상태 변경 시 localStorage에 저장하는 로직을 추가합니다.
   const toggleGoal = (goalId: string) => {
     const newExpanded = new Set(expandedGoals);
     if (newExpanded.has(goalId)) {
@@ -109,7 +178,14 @@ export default function Kanban() {
     } else {
       newExpanded.add(goalId);
     }
+
     setExpandedGoals(newExpanded);
+
+    // 👈 **추가된 부분:** 상태를 로컬 저장소에 반영
+    localStorage.setItem(
+      "KANBAN_expandedGoalIds",
+      JSON.stringify(Array.from(newExpanded))
+    );
   };
 
   // 사용자 매핑
@@ -366,7 +442,7 @@ export default function Kanban() {
                           onClick={(e) => {
                             e.stopPropagation();
                             setLocation(
-                              `/workspace/app/detail/project/${project.id}?from=kanban`
+                              `/workspace/${workspaceId}/detail/project/${project.id}?from=kanban`
                             );
                           }}
                         >
@@ -435,6 +511,7 @@ export default function Kanban() {
       <ProjectModal
         isOpen={isProjectModalOpen}
         onClose={() => setIsProjectModalOpen(false)}
+        workspaceId={workspaceId as string}
       />
 
       <GoalModal
@@ -444,6 +521,7 @@ export default function Kanban() {
         }
         projectId={goalModalState.projectId}
         projectTitle={goalModalState.projectTitle}
+        workspaceId={workspaceId as string}
       />
 
       <TaskModal
@@ -453,6 +531,7 @@ export default function Kanban() {
         }
         goalId={taskModalState.goalId}
         goalTitle={taskModalState.goalTitle}
+        workspaceId={workspaceId as string}
       />
 
       <TaskModal
@@ -461,6 +540,7 @@ export default function Kanban() {
           setTaskEditModalState({ isOpen: false, editingTask: null })
         }
         editingTask={taskEditModalState.editingTask as any}
+        workspaceId={workspaceId as string}
       />
     </>
   );
@@ -499,6 +579,7 @@ function ProjectKanbanGoals({
   usersMap,
   setGoalModalState,
 }: ProjectKanbanGoalsProps) {
+  const { id: workspaceId } = useParams();
   const [, setLocation] = useLocation();
   // 프로젝트의 목표들 가져오기
   const {
@@ -572,7 +653,7 @@ function ProjectKanbanGoals({
                   <ChevronRight className="h-3 w-3" />
                 )}
               </Button>
-              <Target className="w-4 h-4 text-primary" />
+              <Target className="w-4 h-4 text-green-600" />
               <div>
                 <h4
                   className="font-medium text-foreground cursor-pointer hover:text-primary transition-colors"
@@ -580,7 +661,7 @@ function ProjectKanbanGoals({
                   onClick={(e) => {
                     e.stopPropagation();
                     setLocation(
-                      `/workspace/app/detail/goal/${goal.id}?from=kanban`
+                      `/workspace/${workspaceId}/detail/goal/${goal.id}?from=kanban`
                     );
                   }}
                 >
@@ -650,6 +731,7 @@ function GoalKanbanColumns({
   setTaskEditModalState,
   usersMap,
 }: GoalKanbanColumnsProps) {
+  const { id: workspaceId } = useParams();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
@@ -719,41 +801,6 @@ function GoalKanbanColumns({
     };
   }, [goal.tasks]);
 
-  // 작업 상태 변경 mutation
-  // const updateTaskStatusMutation = useMutation({
-  //   mutationFn: async ({ taskId, newStatus }: { taskId: string; newStatus: string }) => {
-  //     const response = await fetch(`/api/tasks/${taskId}`, {
-  //       method: 'PATCH',
-  //       body: JSON.stringify({ status: newStatus }),
-  //       headers: { 'Content-Type': 'application/json' },
-  //     });
-  //     return response.json();
-  //   },
-  //   onSuccess: () => {
-  //     queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
-  //     queryClient.invalidateQueries({ queryKey: ['/api/projects'] });
-  //     queryClient.invalidateQueries({ queryKey: ['/api/goals'] });
-  //     queryClient.invalidateQueries({ queryKey: ['/api/stats'] });
-  //     queryClient.invalidateQueries({ queryKey: ['/api/activities'] });
-  //     // 프로젝트별 목표 데이터도 무효화
-  //     queryClient.invalidateQueries({
-  //       predicate: (query) => query.queryKey[0] === "/api/projects" && query.queryKey[2] === "goals"
-  //     });
-  //     toast({
-  //       title: "성공",
-  //       description: "작업 상태가 변경되었습니다.",
-  //     });
-  //   },
-  //   onError: () => {
-  //     toast({
-  //       variant: "destructive",
-  //       title: "오류",
-  //       description: "작업 상태 변경에 실패했습니다.",
-  //     });
-  //   },
-  // });
-
-  /////////////////////////////
   const updateTaskStatusMutation = useMutation({
     mutationFn: async ({
       taskId,
@@ -842,7 +889,7 @@ function GoalKanbanColumns({
                 onDragStart={(e) => handleDragStart(e, task.id)}
                 onClick={() =>
                   setLocation(
-                    `/workspace/app/detail/task/${task.id}?from=kanban`
+                    `/workspace/${workspaceId}/detail/task/${task.id}?from=kanban`
                   )
                 }
               >

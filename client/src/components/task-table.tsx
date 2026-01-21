@@ -6,9 +6,9 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Plus, MoreHorizontal, Edit, Trash2 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { useLocation } from "wouter";
+import { useLocation, useParams } from "wouter";
 import { useMemo } from "react";
-// import type { TaskWithAssignees } from "@shared/schema";
+import type { TaskWithAssignees } from "@shared/schema";
 
 // ⭐⭐⭐ Assuming this type structure, which includes a list of users with id, name, and initials
 type Assignee = {
@@ -18,13 +18,13 @@ type Assignee = {
 };
 
 // Simplified TaskWithAssignees type for mock data context
-type TaskWithAssignees = {
-  id: string;
-  title: string;
-  status: "진행전" | "진행중" | "완료" | "이슈";
-  deadline: string | null;
-  assignees: Assignee[];
-};
+// type TaskWithAssignees = {
+//   id: string;
+//   title: string;
+//   status: "진행전" | "진행중" | "완료" | "이슈";
+//   deadline: string | null;
+//   assignees: Assignee[];
+// };
 
 // ⭐⭐⭐ 끝
 
@@ -33,73 +33,23 @@ interface TaskTableProps {
 }
 
 export function TaskTable({ onEditTask }: TaskTableProps) {
+  const { id: workspaceId } = useParams();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
 
   const handleViewMore = () => {
-    setLocation("/workspace/app/my-tasks");
+    setLocation(`/workspace/${workspaceId}/my-tasks`);
   };
 
-  // ⭐⭐⭐ --- MOCK DATA INJECTION ---
-  const MOCK_USER_ID = "user-me-123";
-
-  const mockTasks: TaskWithAssignees[] = [
-    {
-      id: "task-001",
-      title: "대시보드 UI 컴포넌트 통합",
-      status: "진행중",
-      deadline: "2025-11-05T00:00:00Z", // D-13
-      assignees: [{ id: MOCK_USER_ID, name: "김민준", initials: "K" }],
-    },
-    {
-      id: "task-002",
-      title: "백엔드 API 성능 테스트 보고서 작성",
-      status: "진행전",
-      deadline: "2025-10-22T00:00:00Z", // D-Day (Today)
-      assignees: [
-        { id: MOCK_USER_ID, name: "김민준", initials: "K" },
-        { id: "user-2", name: "박지수", initials: "P" },
-      ],
-    },
-    {
-      id: "task-003",
-      title: "긴급! 고객 피드백 반영 버그 수정",
-      status: "이슈",
-      deadline: "2025-10-18T00:00:00Z", // D+4 (Overdue)
-      assignees: [{ id: MOCK_USER_ID, name: "김민준", initials: "K" }],
-    },
-    {
-      id: "task-004",
-      title: "분기별 목표 설정 회의 자료 준비",
-      status: "완료",
-      deadline: "2025-12-31T00:00:00Z",
-      assignees: [{ id: MOCK_USER_ID, name: "김민준", initials: "K" }],
-    },
-    {
-      id: "task-005",
-      title: "프론트엔드 빌드 최적화 작업",
-      status: "진행중",
-      deadline: "2025-10-30T00:00:00Z",
-      assignees: [{ id: "user-other-999", name: "최수정", initials: "C" }], // Not assigned to MOCK_USER_ID
-    },
-  ];
-
-  const tasks = mockTasks;
-  const isLoading = false;
-
-  // ⭐⭐⭐ 끝
-
-  // const { data: tasks, isLoading } = useQuery({
-  //   queryKey: ["/api/tasks"],
-  //   refetchInterval: 10000,
-  // }); 나중에 다시 살리기
+  const { data: tasks, isLoading } = useQuery({
+    queryKey: ["/api/workspaces", workspaceId, "tasks"],
+    queryFn: () => apiRequest("GET", `/api/workspaces/${workspaceId}/tasks`),
+  });
 
   // Filter tasks to show only current user's tasks
   const myTasks = useMemo(() => {
-    // ⭐⭐⭐
-    const currentUserId = MOCK_USER_ID;
-    // ⭐⭐⭐ 끝
+    const currentUserId = localStorage.getItem("userId");
 
     // const currentUserId = localStorage.getItem("userId");
     if (!currentUserId || !tasks) return [];
@@ -116,8 +66,15 @@ export function TaskTable({ onEditTask }: TaskTableProps) {
       await apiRequest("DELETE", `/api/tasks/${taskId}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/workspaces", workspaceId, "tasks"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/workspaces", workspaceId, "projects"],
+      });
+      // queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+
       toast({
         title: "작업 삭제 완료",
         description: "작업이 성공적으로 삭제되었습니다.",
@@ -347,7 +304,7 @@ export function TaskTable({ onEditTask }: TaskTableProps) {
               ))}
 
               {myTasks.length === 0 && (
-                <tr>
+                <tr className="h-[130px]">
                   <td
                     colSpan={5}
                     className="p-8 text-center text-muted-foreground"

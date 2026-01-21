@@ -1,37 +1,57 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Edit, CheckCircle, Clock } from "lucide-react";
+import { Edit, CheckCircle, Clock, Delete, Trash2 } from "lucide-react";
 import type { ActivityWithDetails } from "@shared/schema";
+import { useParams } from "wouter";
+import api from "@/api/api-index";
 
 export function ActivityFeed() {
+  const { id: workspaceId } = useParams();
+
   const { data: activities, isLoading } = useQuery<ActivityWithDetails[]>({
-    queryKey: ["/api/activities"],
-    refetchInterval: 3000,
+    queryKey: ["/api/workspaces", workspaceId, "activities"],
+
+    queryFn: async () => {
+      const response = await api.get(
+        `/api/workspaces/${workspaceId}/activities`
+      );
+      return response.data as ActivityWithDetails[];
+    },
+
+    enabled: !!workspaceId,
   });
 
   const getActivityIcon = (description: string) => {
-    if (description.includes("생성")) return <Edit className="h-3 w-3 text-primary-foreground" />;
-    if (description.includes("완료")) return <CheckCircle className="h-3 w-3 text-white" />;
+    if (description.includes("생성"))
+      return <Edit className="h-3 w-3 text-primary-foreground" />;
+    if (description.includes("완료"))
+      return <CheckCircle className="h-3 w-3 text-white" />;
+    if (description.includes("삭제"))
+    return <Trash2 className="h-3 w-3 text-white" />;
     return <Clock className="h-3 w-3 text-primary-foreground" />;
   };
 
   const getActivityIconBg = (description: string) => {
     if (description.includes("완료")) return "bg-green-500";
+    if (description.includes("삭제")) return "bg-destructive";
     return "bg-primary";
   };
 
   const formatTimeAgo = (dateInput: string | Date) => {
-    const date = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
+    const date =
+      typeof dateInput === "string" ? new Date(dateInput) : dateInput;
     const now = new Date();
-    const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
-    
+    const diffInMinutes = Math.floor(
+      (now.getTime() - date.getTime()) / (1000 * 60)
+    );
+
     if (diffInMinutes < 1) return "방금 전";
     if (diffInMinutes < 60) return `${diffInMinutes}분 전`;
-    
+
     const diffInHours = Math.floor(diffInMinutes / 60);
     if (diffInHours < 24) return `${diffInHours}시간 전`;
-    
+
     const diffInDays = Math.floor(diffInHours / 24);
     return `${diffInDays}일 전`;
   };
@@ -60,34 +80,54 @@ export function ActivityFeed() {
   return (
     <Card data-testid="activity-feed">
       <CardHeader className="border-b border-border">
-        <h3 className="text-lg font-semibold" data-testid="text-activity-title">최근 활동</h3>
+        <h3 className="text-lg font-semibold" data-testid="text-activity-title">
+          최근 활동
+        </h3>
       </CardHeader>
       <CardContent className="p-4 space-y-3 max-h-[500px] overflow-y-auto">
         {activities?.map((activity: ActivityWithDetails) => (
-          <div 
-            key={activity.id} 
+          <div
+            key={activity.id}
             className="flex items-start space-x-3"
             data-testid={`activity-item-${activity.id}`}
           >
-            <div className={`w-8 h-8 ${getActivityIconBg(activity.description)} rounded-full flex items-center justify-center flex-shrink-0`}>
+            <div
+              className={`w-8 h-8 ${getActivityIconBg(
+                activity.description
+              )} rounded-full flex items-center justify-center flex-shrink-0`}
+            >
               {getActivityIcon(activity.description)}
             </div>
             <div className="flex-1">
-              <p className="text-sm" data-testid={`text-activity-description-${activity.id}`}>
-                <span className="font-medium">{activity.user?.name || "사용자"}</span>님이 {activity.description}{" "}
-                <span className="text-primary">{formatTimeAgo(activity.createdAt!)}</span>
+              <p
+                className="text-sm"
+                data-testid={`text-activity-description-${activity.id}`}
+              >
+                <span className="font-medium">
+                  {activity.user?.name || "사용자"}
+                </span>
+                님이 {activity.description}{" "}
+                <span className="text-primary">
+                  {formatTimeAgo(activity.createdAt!)}
+                </span>
               </p>
               {activity.task && (
-                <p className="text-xs text-muted-foreground" data-testid={`text-activity-task-${activity.id}`}>
+                <p
+                  className="text-xs text-muted-foreground"
+                  data-testid={`text-activity-task-${activity.id}`}
+                >
                   {activity.task.title}
                 </p>
               )}
             </div>
           </div>
         ))}
-        
+
         {(!activities || activities.length === 0) && (
-          <div className="text-center text-muted-foreground py-8" data-testid="text-empty-activities">
+          <div
+            className="h-[130px] flex items-center justify-center text-muted-foreground py-8"
+            data-testid="text-empty-activities"
+          >
             최근 활동이 없습니다.
           </div>
         )}

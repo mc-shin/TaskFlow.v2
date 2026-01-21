@@ -33,10 +33,23 @@ import api from "@/api/api-index";
 
 const signupSchema = z
   .object({
-    email: z.string().email("올바른 이메일 주소를 입력해주세요"),
+    email: z
+      .string()
+      .min(1, "이메일을 입력해 주세요.")
+      .email("올바른 이메일 주소를 입력해주세요")
+      .regex(
+        /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,10}$/,
+        "올바른 이메일 형식이어야 합니다 (예: user@example.co.kr)"
+      ),
     name: z.string().min(1, "이름을 입력해주세요"),
-    password: z.string().min(6, "비밀번호는 6자 이상이어야 합니다"),
-    confirmPassword: z.string(),
+    password: z
+      .string()
+      .min(8, "비밀번호는 8자 이상이어야 합니다") // 보안상 8자 이상 권장
+      .regex(
+        /^(?=.*[a-zA-Z])(?=.*[!@#$%^*+=-])(?=.*[0-9]).{8,15}$/,
+        "비밀번호는 영문, 숫자, 특수문자를 포함해야 합니다"
+      ),
+    confirmPassword: z.string().min(8, "비밀번호는 8자 이상이어야 합니다"), // 보안상 8자 이상 권장,
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "비밀번호가 일치하지 않습니다",
@@ -59,6 +72,7 @@ export function SignupPage() {
 
   const form = useForm<SignupForm>({
     resolver: zodResolver(signupSchema),
+    mode: "onTouched",
     defaultValues: {
       email: "",
       name: "",
@@ -77,69 +91,24 @@ export function SignupPage() {
 
       setEmailCheckLoading(true);
 
-      // try {
-      //   // Response 객체를 직접 받기 위해 fetch 사용
-      //   const response = await fetch(`/api/users/by-email/${encodeURIComponent(email)}`, {
-      //     credentials: "include",
-      //   });
-
-      //   // 응답을 받았을 때 현재 이메일과 일치하는지 확인 (경합 상태 방지)
-      //   const currentEmail = form.getValues('email');
-      //   if (currentEmail !== email) {
-      //     // 이메일이 바뀌었으면 이 응답은 무시
-      //     return;
-      //   }
-
-      //   if (response.status === 200) {
-      //     // 사용자가 존재하면 중복
-      //     setEmailStatus('taken');
-      //   } else if (response.status === 404) {
-      //     // 사용자가 없으면 사용 가능
-      //     setEmailStatus('available');
-      //   } else {
-      //     // 기타 오류
-      //     setEmailStatus('unchecked');
-      //   }
-      // } catch (error: any) {
-      //   // 에러 시에도 현재 이메일과 일치하는지 확인
-      //   const currentEmail = form.getValues('email');
-      //   if (currentEmail === email) {
-      //     setEmailStatus('unchecked');
-      //   }
-      // } finally {
-      //   setEmailCheckLoading(false);
-      // }
-
-      /////////////
       try {
-        // 🚩 [수정] fetch 대신 api.get 사용 및 `credentials: "include"` 제거
-        // Axios 인스턴스(api)에 이미 `withCredentials: true`가 설정되어 있습니다.
-        // -----------------------------------------------------------------
         const response = await api.get(
           `/api/users/by-email/${encodeURIComponent(email)}`
         );
-        // -----------------------------------------------------------------
 
-        // 응답을 받았을 때 현재 이메일과 일치하는지 확인 (경합 상태 방지)
         const currentEmail = form.getValues("email");
         if (currentEmail !== email) {
           // 이메일이 바뀌었으면 이 응답은 무시
           return;
         }
 
-        // Axios는 200 (OK) 응답일 때만 이 라인에 도달합니다.
-        // 🚩 [수정] response.status === 200 대신 이 라인에 도달한 것 자체로 성공 처리
         setEmailStatus("taken"); // 사용자가 존재하면 중복 (200 OK)
       } catch (error: any) {
-        // 에러 시에도 현재 이메일과 일치하는지 확인
         const currentEmail = form.getValues("email");
         if (currentEmail !== email) {
           return; // 이메일이 바뀌었으면 무시
         }
 
-        // 🚩 [수정] Axios 에러 처리 로직 추가
-        // -----------------------------------------------------------------
-        // AxiosError 타입인지 확인하고, 서버 응답이 있는지 확인합니다.
         if (error.response && error.response.status === 404) {
           // 404 Not Found는 사용자가 없음을 의미합니다.
           setEmailStatus("available"); // 사용자가 없으면 사용 가능 (404 Not Found)
@@ -152,7 +121,6 @@ export function SignupPage() {
       } finally {
         setEmailCheckLoading(false);
       }
-      /////////////
     },
     [form]
   );
@@ -170,6 +138,7 @@ export function SignupPage() {
   // 비밀번호 일치 여부 확인
   const watchPassword = form.watch("password");
   const watchConfirmPassword = form.watch("confirmPassword");
+
   useEffect(() => {
     if (!watchPassword || !watchConfirmPassword) {
       setPasswordsMatch(null);
@@ -255,7 +224,7 @@ export function SignupPage() {
               <FormField
                 control={form.control}
                 name="email"
-                render={({ field }) => (
+                render={({ field, fieldState }) => (
                   <FormItem>
                     <FormLabel htmlFor="signup-email-id">이메일</FormLabel>
                     <FormControl>
@@ -267,11 +236,11 @@ export function SignupPage() {
                           {...field}
                           data-testid="input-email"
                           className={
-                            emailStatus === "taken"
-                              ? "border-red-500"
+                            fieldState.error || emailStatus === "taken"
+                              ? "border-red-500 focus-visible:ring-0 outline-none" // 에러가 있거나 중복일 때
                               : emailStatus === "available"
-                              ? "border-green-500"
-                              : ""
+                              ? "border-green-500" // 사용 가능할 때
+                              : "" // 기본 상태
                           }
                         />
                         {emailCheckLoading && (
@@ -288,7 +257,7 @@ export function SignupPage() {
                       </div>
                     </FormControl>
                     <FormMessage />
-                    {emailStatus === "taken" && (
+                    {/* {emailStatus === "taken" && (
                       <p className="text-sm text-red-500 mt-1">
                         이미 사용 중인 이메일입니다.
                       </p>
@@ -298,6 +267,21 @@ export function SignupPage() {
                         사용 가능한 이메일입니다.
                       </p>
                     )}
+                     */}
+                    {!form.formState.errors.email && (
+                      <>
+                        {emailStatus === "taken" && (
+                          <p className="text-sm text-red-500 mt-1">
+                            이미 사용 중인 이메일입니다.
+                          </p>
+                        )}
+                        {emailStatus === "available" && (
+                          <p className="text-sm text-green-500 mt-1">
+                            사용 가능한 이메일입니다.
+                          </p>
+                        )}
+                      </>
+                    )}
                   </FormItem>
                 )}
               />
@@ -305,7 +289,7 @@ export function SignupPage() {
               <FormField
                 control={form.control}
                 name="name"
-                render={({ field }) => (
+                render={({ field, fieldState }) => (
                   <FormItem>
                     <FormLabel>이름</FormLabel>
                     <FormControl>
@@ -313,6 +297,11 @@ export function SignupPage() {
                         placeholder="이름을 입력하세요"
                         {...field}
                         data-testid="input-name"
+                        className={
+                          fieldState.error
+                            ? "border-red-500 focus-visible:ring-0 outline-none"
+                            : ""
+                        }
                       />
                     </FormControl>
                     <FormMessage />
@@ -323,9 +312,15 @@ export function SignupPage() {
               <FormField
                 control={form.control}
                 name="password"
-                render={({ field }) => (
+                render={({ field, fieldState }) => (
                   <FormItem>
-                    <FormLabel htmlFor="signup-pass-id">비밀번호</FormLabel>
+                    {/* <FormLabel htmlFor="signup-pass-id">비밀번호</FormLabel> */}
+                    <div className="h-[24px] flex justify-between items-center">
+                      <FormLabel htmlFor="signup-pass-id">비밀번호</FormLabel>
+                      <span className="text-[11px] text-muted-foreground">
+                        영문, 숫자, 특수문자 포함 8~15자
+                      </span>
+                    </div>
                     <FormControl>
                       <div className="relative">
                         <Input
@@ -334,6 +329,11 @@ export function SignupPage() {
                           placeholder="비밀번호를 입력하세요"
                           {...field}
                           data-testid="input-password"
+                          className={
+                            fieldState.error
+                              ? "border-red-500 focus-visible:ring-0 outline-none"
+                              : ""
+                          }
                         />
                         <Button
                           type="button"
@@ -359,7 +359,7 @@ export function SignupPage() {
               <FormField
                 control={form.control}
                 name="confirmPassword"
-                render={({ field }) => (
+                render={({ field, fieldState }) => (
                   <FormItem>
                     <FormLabel htmlFor="signup-pass-check-id">
                       비밀번호 확인
@@ -372,13 +372,22 @@ export function SignupPage() {
                           placeholder="비밀번호를 다시 입력하세요"
                           {...field}
                           data-testid="input-confirm-password"
-                          className={
-                            passwordsMatch === false
-                              ? "border-red-500"
-                              : passwordsMatch === true
-                              ? "border-green-500"
-                              : ""
-                          }
+                          // className={
+                          //   passwordsMatch === false
+                          //     ? "border-red-500"
+                          //     : passwordsMatch === true
+                          //     ? "border-green-500"
+                          //     : ""
+                          // }
+                          className={`
+                ${
+                  fieldState.error || passwordsMatch === false
+                    ? "!border-red-500 !ring-0 !ring-offset-0"
+                    : passwordsMatch === true
+                    ? "!border-green-500 !ring-0 !ring-offset-0"
+                    : ""
+                }
+              `}
                         />
                         <div className="absolute right-0 top-0 h-full flex items-center">
                           {passwordsMatch === true && (
@@ -407,7 +416,7 @@ export function SignupPage() {
                       </div>
                     </FormControl>
                     <FormMessage />
-                    {passwordsMatch === false && (
+                    {/* {passwordsMatch === false && (
                       <p className="text-sm text-red-500 mt-1">
                         비밀번호가 일치하지 않습니다.
                       </p>
@@ -416,7 +425,7 @@ export function SignupPage() {
                       <p className="text-sm text-green-500 mt-1">
                         비밀번호가 일치합니다.
                       </p>
-                    )}
+                    )} */}
                   </FormItem>
                 )}
               />

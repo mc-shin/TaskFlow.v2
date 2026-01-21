@@ -4,35 +4,86 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { ChevronDown, ChevronRight, FolderOpen, Target, Circle, ArrowLeft, Undo2 } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronRight,
+  FolderOpen,
+  Target,
+  Circle,
+  ArrowLeft,
+  Undo2,
+} from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useState, useMemo } from "react";
-import { useLocation } from "wouter";
+import { useState, useMemo, useEffect } from "react";
+import { useLocation, useParams } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import type { SafeTaskWithAssignees, ProjectWithDetails, GoalWithTasks, SafeUser } from "@shared/schema";
+import type {
+  SafeTaskWithAssignees,
+  ProjectWithDetails,
+  GoalWithTasks,
+  SafeUser,
+} from "@shared/schema";
 import { parse } from "date-fns";
-import { mapPriorityToLabel, getPriorityBadgeVariant } from "@/lib/priority-utils";
+import {
+  mapPriorityToLabel,
+  getPriorityBadgeVariant,
+} from "@/lib/priority-utils";
+import api from "@/api/api-index";
 
 export default function Archive() {
-  // Fetch archived data - projects now include hierarchical structure
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const { id: workspaceId } = useParams();
+
   const { data: archivedProjects, isLoading } = useQuery<ProjectWithDetails[]>({
-    queryKey: ["/api/archive/projects"],
+    queryKey: ["/api/workspaces", workspaceId, "archive", "projects"],
+
+    queryFn: async () => {
+      const response = await api.get(
+        `/api/workspaces/${workspaceId}/archive/projects`
+      );
+      return response.data;
+    },
+
+    enabled: !!workspaceId,
+  });
+
+  const {
+    data: projects,
+    isLoading: isLoadingProjects,
+    error,
+  } = useQuery({
+    queryKey: ["/api/workspaces", workspaceId, "projects"],
+
+    queryFn: async () => {
+      const response = await api.get(`/api/workspaces/${workspaceId}/projects`);
+      return response.data;
+    },
+    enabled: !!workspaceId,
+
+    staleTime: 300000, // 5분
+    refetchOnWindowFocus: true,
   });
 
   const { data: users } = useQuery({
     queryKey: ["/api/users"],
   });
 
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-
-  // Mutations for restoring items using unarchive endpoints
   const unarchiveProjectMutation = useMutation({
-    mutationFn: (id: string) => apiRequest("POST", `/api/projects/${id}/unarchive`),
+    mutationFn: (id: string) =>
+      apiRequest("POST", `/api/projects/${id}/unarchive`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/archive/projects"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      // queryClient.invalidateQueries({ queryKey: ["/api/archive/projects"] });
+      // queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      // ✅ 보관함 리스트 즉시 갱신 (계층형 키 구조 적용)
+      queryClient.invalidateQueries({
+        queryKey: ["/api/workspaces", workspaceId, "archive", "projects"],
+      });
+      // ✅ 일반 프로젝트 리스트 즉시 갱신
+      queryClient.invalidateQueries({
+        queryKey: ["/api/workspaces", workspaceId, "projects"],
+      });
       toast({
         title: "프로젝트 복원 완료",
         description: "프로젝트가 성공적으로 복원되었습니다.",
@@ -41,10 +92,19 @@ export default function Archive() {
   });
 
   const unarchiveGoalMutation = useMutation({
-    mutationFn: (id: string) => apiRequest("POST", `/api/goals/${id}/unarchive`),
+    mutationFn: (id: string) =>
+      apiRequest("POST", `/api/goals/${id}/unarchive`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/archive/goals"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      // queryClient.invalidateQueries({ queryKey: ["/api/archive/goals"] });
+      // queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      // ✅ 보관함 목표 리스트 즉시 갱신
+      queryClient.invalidateQueries({
+        queryKey: ["/api/workspaces", workspaceId, "archive", "goals"],
+      });
+      // ✅ 프로젝트 내의 목표 상태가 바뀌었으므로 프로젝트 리스트도 갱신
+      queryClient.invalidateQueries({
+        queryKey: ["/api/workspaces", workspaceId],
+      });
       toast({
         title: "목표 복원 완료",
         description: "목표가 성공적으로 복원되었습니다.",
@@ -53,10 +113,22 @@ export default function Archive() {
   });
 
   const unarchiveTaskMutation = useMutation({
-    mutationFn: (id: string) => apiRequest("POST", `/api/tasks/${id}/unarchive`),
+    mutationFn: (id: string) =>
+      apiRequest("POST", `/api/tasks/${id}/unarchive`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/archive/tasks"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      // queryClient.invalidateQueries({ queryKey: ["/api/archive/tasks"] });
+      // queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      // ✅ 보관함 작업 리스트 즉시 갱신
+      queryClient.invalidateQueries({
+        queryKey: ["/api/workspaces", workspaceId, "archive", "tasks"],
+      });
+      // ✅ 작업 관련 데이터 갱신
+      queryClient.invalidateQueries({
+        queryKey: ["/api/workspaces", workspaceId, "projects"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/workspaces", workspaceId, "tasks"],
+      });
       toast({
         title: "작업 복원 완료",
         description: "작업이 성공적으로 복원되었습니다.",
@@ -66,167 +138,349 @@ export default function Archive() {
 
   // State management
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
-  const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
-  const [expandedGoals, setExpandedGoals] = useState<Set<string>>(new Set());
+  // const [expandedProjects, setExpandedProjects] = useState<Set<string>>(
+  //   new Set()
+  // );
+  // const [expandedGoals, setExpandedGoals] = useState<Set<string>>(new Set());
+
+  const getInitialExpandedState = (key: string): Set<string> => {
+    const saved = localStorage.getItem(key);
+    if (saved) {
+      try {
+        // 저장된 JSON 문자열을 Set으로 변환하여 반환
+        return new Set(JSON.parse(saved));
+      } catch {
+        return new Set(); // 파싱 오류 시 빈 Set 반환
+      }
+    }
+    return new Set(); // 저장된 것이 없을 시 빈 Set 반환
+  };
+
+  const [expandedProjects, setExpandedProjects] = useState<Set<string>>(
+    getInitialExpandedState("ARCHIVE_expandedProjectIds")
+  );
+  const [expandedGoals, setExpandedGoals] = useState<Set<string>>(
+    getInitialExpandedState("ARCHIVE_expandedGoalIds")
+  );
 
   const [_, setLocation] = useLocation();
 
+  const activeGoalCounts = useMemo(() => {
+    const countMap = new Map<string, number>();
+    projects?.forEach((ap: any) => {
+      countMap.set(String(ap.id), ap.goals?.length || 0);
+    });
+    return countMap;
+  }, [projects]);
 
   // Helper functions
+  // const toggleProject = (projectId: string) => {
+  //   setExpandedProjects((prev) => {
+  //     const newSet = new Set(prev);
+  //     if (newSet.has(projectId)) {
+  //       newSet.delete(projectId);
+  //     } else {
+  //       newSet.add(projectId);
+  //     }
+  //     return newSet;
+  //   });
+  // };
+
+  // const toggleGoal = (goalId: string) => {
+  //   setExpandedGoals((prev) => {
+  //     const newSet = new Set(prev);
+  //     if (newSet.has(goalId)) {
+  //       newSet.delete(goalId);
+  //     } else {
+  //       newSet.add(goalId);
+  //     }
+  //     return newSet;
+  //   });
+  // };
   const toggleProject = (projectId: string) => {
-    setExpandedProjects(prev => {
+    setExpandedProjects((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(projectId)) {
         newSet.delete(projectId);
       } else {
         newSet.add(projectId);
       }
+
+      // 로컬 스토리지 업데이트
+      localStorage.setItem(
+        "ARCHIVE_expandedProjectIds",
+        JSON.stringify(Array.from(newSet))
+      );
       return newSet;
     });
   };
 
+  // 4. toggleGoal 수정: 상태 변경 시 localStorage에 저장
   const toggleGoal = (goalId: string) => {
-    setExpandedGoals(prev => {
+    setExpandedGoals((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(goalId)) {
         newSet.delete(goalId);
       } else {
         newSet.add(goalId);
       }
+
+      // 로컬 스토리지 업데이트
+      localStorage.setItem(
+        "ARCHIVE_expandedGoalIds",
+        JSON.stringify(Array.from(newSet))
+      );
       return newSet;
     });
   };
 
+  // const toggleItemSelection = (itemId: string) => {
+  //   setSelectedItems((prev) => {
+  //     const newSelected = new Set(prev);
+
+  //     // Helper function to find all child items of a project or goal
+  //     const getChildItems = (
+  //       parentId: string,
+  //       parentType: "project" | "goal"
+  //     ): string[] => {
+  //       const childIds: string[] = [];
+
+  //       if (parentType === "project") {
+  //         // Find all goals and tasks under this project
+  //         const project = archivedProjects?.find((p) => p.id === parentId);
+  //         if (project?.goals) {
+  //           project.goals.forEach((goal: any) => {
+  //             childIds.push(goal.id);
+  //             if (goal.tasks) {
+  //               goal.tasks.forEach((task: any) => {
+  //                 childIds.push(task.id);
+  //               });
+  //             }
+  //           });
+  //         }
+  //       } else if (parentType === "goal") {
+  //         // Find all tasks under this goal
+  //         archivedProjects?.forEach((project) => {
+  //           const goal = project.goals?.find((g: any) => g.id === parentId);
+  //           if (goal?.tasks) {
+  //             goal.tasks.forEach((task: any) => {
+  //               childIds.push(task.id);
+  //             });
+  //           }
+  //         });
+  //       }
+
+  //       return childIds;
+  //     };
+
+  //     // Determine the type of the selected item
+  //     let itemType: "project" | "goal" | "task" = "task";
+  //     const isProject = archivedProjects?.some((p) => p.id === itemId);
+  //     if (isProject) {
+  //       itemType = "project";
+  //     } else {
+  //       // Check if it's a goal
+  //       const isGoal = archivedProjects?.some((p) =>
+  //         p.goals?.some((g: any) => g.id === itemId)
+  //       );
+  //       if (isGoal) {
+  //         itemType = "goal";
+  //       }
+  //     }
+
+  //     // For parent items (project/goal), check if they should be considered "selected"
+  //     // either directly or because all their children are selected
+  //     let isCurrentlySelected = newSelected.has(itemId);
+  //     if (
+  //       !isCurrentlySelected &&
+  //       (itemType === "project" || itemType === "goal")
+  //     ) {
+  //       const childIds = getChildItems(itemId, itemType);
+  //       // Consider parent selected if all children are selected
+  //       if (childIds.length > 0) {
+  //         isCurrentlySelected = childIds.every((childId) =>
+  //           newSelected.has(childId)
+  //         );
+  //       }
+  //     }
+
+  //     if (isCurrentlySelected) {
+  //       // Deselecting: remove the item and all its children
+  //       newSelected.delete(itemId);
+
+  //       if (itemType === "project" || itemType === "goal") {
+  //         const childIds = getChildItems(itemId, itemType);
+  //         childIds.forEach((childId) => newSelected.delete(childId));
+  //       }
+  //     } else {
+  //       // Selecting: add the item and all its children
+  //       newSelected.add(itemId);
+
+  //       if (itemType === "project" || itemType === "goal") {
+  //         const childIds = getChildItems(itemId, itemType);
+  //         childIds.forEach((childId) => newSelected.add(childId));
+  //       }
+  //     }
+
+  //     return newSelected;
+  //   });
+  // };
+
+  // 2026-01-07 수정코드
   const toggleItemSelection = (itemId: string) => {
-    setSelectedItems(prev => {
+    setSelectedItems((prev) => {
       const newSelected = new Set(prev);
-      
-      // Helper function to find all child items of a project or goal
-      const getChildItems = (parentId: string, parentType: 'project' | 'goal'): string[] => {
-        const childIds: string[] = [];
-        
-        if (parentType === 'project') {
-          // Find all goals and tasks under this project
-          const project = archivedProjects?.find(p => p.id === parentId);
-          if (project?.goals) {
-            project.goals.forEach((goal: any) => {
-              childIds.push(goal.id);
-              if (goal.tasks) {
-                goal.tasks.forEach((task: any) => {
-                  childIds.push(task.id);
-                });
-              }
-            });
+      const allData = archivedProjects || [];
+
+      // 1. 클릭한 아이템의 정보와 부모 관계를 한 번에 찾기
+      let targetItem: any = null;
+      let itemType: "project" | "goal" | "task" = "task";
+      let parentId: string | null = null;
+      let grandParentId: string | null = null;
+
+      allData.forEach((project) => {
+        if (project.id === itemId) {
+          targetItem = project;
+          itemType = "project";
+        }
+        project.goals?.forEach((goal: any) => {
+          if (goal.id === itemId) {
+            targetItem = goal;
+            itemType = "goal";
+            parentId = project.id;
           }
-        } else if (parentType === 'goal') {
-          // Find all tasks under this goal
-          archivedProjects?.forEach(project => {
-            const goal = project.goals?.find((g: any) => g.id === parentId);
-            if (goal?.tasks) {
-              goal.tasks.forEach((task: any) => {
-                childIds.push(task.id);
-              });
+          goal.tasks?.forEach((task: any) => {
+            if (task.id === itemId) {
+              targetItem = task;
+              itemType = "task";
+              parentId = goal.id;
+              grandParentId = project.id;
             }
           });
+        });
+      });
+
+      if (!targetItem) return prev;
+
+      // 2. 자식 아이템 ID들을 추출하는 헬퍼 함수
+      const getChildIds = (item: any, type: string): string[] => {
+        const ids: string[] = [];
+        if (type === "project") {
+          item.goals?.forEach((g: any) => {
+            ids.push(g.id);
+            g.tasks?.forEach((t: any) => ids.push(t.id));
+          });
+        } else if (type === "goal") {
+          item.tasks?.forEach((t: any) => ids.push(t.id));
         }
-        
-        return childIds;
+        return ids;
       };
-      
-      // Determine the type of the selected item
-      let itemType: 'project' | 'goal' | 'task' = 'task';
-      const isProject = archivedProjects?.some(p => p.id === itemId);
-      if (isProject) {
-        itemType = 'project';
-      } else {
-        // Check if it's a goal
-        const isGoal = archivedProjects?.some(p => 
-          p.goals?.some((g: any) => g.id === itemId)
-        );
-        if (isGoal) {
-          itemType = 'goal';
-        }
-      }
-      
-      // For parent items (project/goal), check if they should be considered "selected" 
-      // either directly or because all their children are selected
-      let isCurrentlySelected = newSelected.has(itemId);
-      if (!isCurrentlySelected && (itemType === 'project' || itemType === 'goal')) {
-        const childIds = getChildItems(itemId, itemType);
-        // Consider parent selected if all children are selected
-        if (childIds.length > 0) {
-          isCurrentlySelected = childIds.every(childId => newSelected.has(childId));
-        }
-      }
-      
-      if (isCurrentlySelected) {
-        // Deselecting: remove the item and all its children
-        newSelected.delete(itemId);
-        
-        if (itemType === 'project' || itemType === 'goal') {
-          const childIds = getChildItems(itemId, itemType);
-          childIds.forEach(childId => newSelected.delete(childId));
-        }
-      } else {
-        // Selecting: add the item and all its children
+
+      const isSelecting = !newSelected.has(itemId);
+      const childIds = getChildIds(targetItem, itemType);
+
+      // 3. [하향식] 선택/해제 처리 (나와 내 자식들)
+      if (isSelecting) {
         newSelected.add(itemId);
-        
-        if (itemType === 'project' || itemType === 'goal') {
-          const childIds = getChildItems(itemId, itemType);
-          childIds.forEach(childId => newSelected.add(childId));
-        }
+        childIds.forEach((id) => newSelected.add(id));
+      } else {
+        newSelected.delete(itemId);
+        childIds.forEach((id) => newSelected.delete(id));
       }
-      
-      return newSelected;
+
+      // 4. [상향식] 부모 상태 업데이트 헬퍼
+      const updateParentStatus = (pId: string | null) => {
+        if (!pId) return;
+
+        let parent: any = null;
+        let siblings: any[] = [];
+        let upParentId: string | null = null;
+
+        // 부모 찾기 및 형제 아이템들 파악
+        allData.forEach((p) => {
+          if (p.id === pId) {
+            parent = p;
+            siblings = p.goals || [];
+          }
+          p.goals?.forEach((g: any) => {
+            if (g.id === pId) {
+              parent = g;
+              siblings = g.tasks || [];
+              upParentId = p.id;
+            }
+          });
+        });
+
+        if (parent && siblings.length > 0) {
+          // 모든 형제가 선택되어 있는지 확인
+          const allSiblingsSelected = siblings.every((s) =>
+            newSelected.has(s.id)
+          );
+          if (allSiblingsSelected) {
+            newSelected.add(pId);
+          } else {
+            newSelected.delete(pId);
+          }
+          // 더 상위 부모가 있다면 재귀 호출 (Task -> Goal -> Project)
+          if (upParentId) updateParentStatus(upParentId);
+        }
+      };
+
+      // 부모 업데이트 실행
+      updateParentStatus(parentId);
+
+      return new Set(newSelected);
     });
   };
 
+  //
+
   const formatDeadline = (deadline: string | null) => {
-    if (!deadline) return '-';
-    
-    const deadlineDate = parse(deadline, 'yyyy-MM-dd', new Date());
-    
+    if (!deadline) return "-";
+
+    const deadlineDate = parse(deadline, "yyyy-MM-dd", new Date());
+
     if (isNaN(deadlineDate.getTime())) {
-      return '-';
+      return "-";
     }
-    
+
     const month = deadlineDate.getMonth() + 1;
     const day = deadlineDate.getDate();
-    
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     deadlineDate.setHours(0, 0, 0, 0);
-    
+
     const diffTime = deadlineDate.getTime() - today.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
-    let dDayPart = '';
+
+    let dDayPart = "";
     if (diffDays < 0) {
       dDayPart = ` D+${Math.abs(diffDays)}`;
     } else if (diffDays === 0) {
-      dDayPart = ' D-Day';
+      dDayPart = " D-Day";
     } else {
       dDayPart = ` D-${diffDays}`;
     }
-    
+
     return `${month}/${day}${dDayPart}`;
   };
 
   const getDDayColorClass = (deadline: string | null) => {
     if (!deadline) return "text-muted-foreground";
-    
-    const deadlineDate = parse(deadline, 'yyyy-MM-dd', new Date());
+
+    const deadlineDate = parse(deadline, "yyyy-MM-dd", new Date());
     if (isNaN(deadlineDate.getTime())) {
       return "text-muted-foreground";
     }
-    
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     deadlineDate.setHours(0, 0, 0, 0);
-    
+
     const diffTime = deadlineDate.getTime() - today.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
+
     if (diffDays < 0) {
       return "px-2 py-1 text-xs rounded font-medium bg-red-100 text-red-700";
     } else if (diffDays === 0) {
@@ -253,16 +507,62 @@ export default function Archive() {
 
   // Function to derive status from progress (from list-tree.tsx)
   const getStatusFromProgress = (progress: number): string => {
-    if (progress <= 0) return '진행전';
-    if (progress >= 100) return '완료';
-    return '진행중';
+    if (progress <= 0) return "진행전";
+    if (progress >= 100) return "완료";
+    return "진행중";
   };
 
   const getUserById = (userId: string): SafeUser | undefined => {
-    return (users as SafeUser[])?.find(user => user.id === userId);
+    return (users as SafeUser[])?.find((user) => user.id === userId);
   };
 
   // Restore selected items
+  // const restoreSelectedItems = async () => {
+  //   if (selectedItems.size === 0) {
+  //     toast({
+  //       title: "선택된 항목이 없습니다",
+  //       description: "복원할 항목을 선택해주세요.",
+  //       variant: "destructive",
+  //     });
+  //     return;
+  //   }
+
+  //   // Find projects in the selected items
+  //   const selectedProjects = Array.from(selectedItems).filter((itemId) => {
+  //     return archivedProjects?.some((p: any) => p.id === itemId);
+  //   });
+
+  //   // Validate that at least one project is selected
+  //   if (selectedProjects.length === 0) {
+  //     toast({
+  //       title: "프로젝트 단위로 이동해 주세요.",
+  //       variant: "destructive",
+  //     });
+  //     return;
+  //   }
+
+  //   // Restore projects only (child goals and tasks will be restored automatically)
+  //   try {
+  //     for (const projectId of selectedProjects) {
+  //       await unarchiveProjectMutation.mutateAsync(projectId);
+  //     }
+
+  //     setSelectedItems(new Set());
+  //     toast({
+  //       title: "복원 완료",
+  //       description: `${selectedProjects.length}개 프로젝트가 성공적으로 복원되었습니다.`,
+  //     });
+  //   } catch (error) {
+  //     console.error("Error restoring items:", error);
+  //     toast({
+  //       title: "복원 실패",
+  //       description: "항목 복원 중 오류가 발생했습니다.",
+  //       variant: "destructive",
+  //     });
+  //   }
+  // };
+
+  // 2026-01-07 수정 코드
   const restoreSelectedItems = async () => {
     if (selectedItems.size === 0) {
       toast({
@@ -273,33 +573,57 @@ export default function Archive() {
       return;
     }
 
-    // Find projects in the selected items
-    const selectedProjects = Array.from(selectedItems).filter(itemId => {
-      return archivedProjects?.some((p: any) => p.id === itemId);
+    const selectedIds = Array.from(selectedItems);
+    const projectsToRestore: string[] = [];
+    const goalsToRestore: string[] = [];
+    // (필요 시) tasksToRestore: string[] = [];
+
+    // 1. 선택된 ID들의 타입 분류
+    selectedIds.forEach((itemId) => {
+      // 프로젝트인지 확인
+      const isProject = archivedProjects?.some((p) => p.id === itemId);
+      if (isProject) {
+        projectsToRestore.push(itemId);
+        return;
+      }
+
+      // 목표(Goal)인지 확인
+      const isGoal = archivedProjects?.some((p) =>
+        p.goals?.some((g: any) => g.id === itemId)
+      );
+      if (isGoal) {
+        goalsToRestore.push(itemId);
+      }
     });
 
-    // Validate that at least one project is selected
-    if (selectedProjects.length === 0) {
-      toast({
-        title: "프로젝트 단위로 이동해 주세요.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Restore projects only (child goals and tasks will be restored automatically)
     try {
-      for (const projectId of selectedProjects) {
+      // 2. 분류된 타입에 따라 각각의 API 호출
+      // 프로젝트 복원 실행
+      for (const projectId of projectsToRestore) {
         await unarchiveProjectMutation.mutateAsync(projectId);
       }
 
+      // 목표 복원 실행 (백엔드에서 부모 프로젝트도 자동으로 복원해줄 것입니다)
+      for (const goalId of goalsToRestore) {
+        // unarchiveGoalMutation이 정의되어 있어야 합니다.
+        await unarchiveGoalMutation.mutateAsync(goalId);
+      }
+
+      // 3. 성공 처리
       setSelectedItems(new Set());
+
+      const totalCount = projectsToRestore.length + goalsToRestore.length;
       toast({
         title: "복원 완료",
-        description: `${selectedProjects.length}개 프로젝트가 성공적으로 복원되었습니다.`,
+        description: `${totalCount}개의 항목이 성공적으로 복원되었습니다.`,
+      });
+
+      // 데이터 새로고침
+      queryClient.invalidateQueries({
+        queryKey: ["/api/workspaces", workspaceId],
       });
     } catch (error) {
-      console.error('Error restoring items:', error);
+      console.error("Error restoring items:", error);
       toast({
         title: "복원 실패",
         description: "항목 복원 중 오류가 발생했습니다.",
@@ -307,6 +631,7 @@ export default function Archive() {
       });
     }
   };
+  //
 
   // Backend now provides hierarchical structure, so we can use archived projects directly
   const mergedArchivedData = () => {
@@ -316,9 +641,9 @@ export default function Archive() {
   // Calculate total archived items count from hierarchical structure
   const totalArchivedCount = useMemo(() => {
     if (!archivedProjects) return 0;
-    
+
     let count = archivedProjects.length; // Count projects
-    
+
     // Count goals and tasks within projects
     for (const project of archivedProjects) {
       count += (project.goals || []).length; // Count goals
@@ -326,7 +651,7 @@ export default function Archive() {
         count += (goal.tasks || []).length; // Count tasks
       }
     }
-    
+
     return count;
   }, [archivedProjects]);
 
@@ -345,345 +670,515 @@ export default function Archive() {
       {/* Header - matching list page exactly */}
       <header className="h-16 bg-card border-b border-border flex items-center justify-between px-6">
         <div>
-          <h1 className="text-xl font-semibold" data-testid="header-title">보관함</h1>
-          <p className="text-sm text-muted-foreground" data-testid="header-subtitle">보관된 프로젝트, 목표, 작업을 관리합니다</p>
+          <h1 className="text-xl font-semibold" data-testid="header-title">
+            보관함
+          </h1>
+          <p
+            className="text-sm text-muted-foreground"
+            data-testid="header-subtitle"
+          >
+            보관된 프로젝트, 목표, 작업을 관리합니다
+          </p>
         </div>
         <div className="flex items-center space-x-4">
-            {selectedItems.size > 0 && (
-              <Button
-                onClick={restoreSelectedItems}
-                disabled={unarchiveProjectMutation.isPending || unarchiveGoalMutation.isPending || unarchiveTaskMutation.isPending}
-                data-testid="button-restore-selected"
-              >
-                <Undo2 className="h-4 w-4 mr-2" />
-                선택 항목 복원
-              </Button>
-            )}
-            <Button 
-              variant="default"
-              className="bg-blue-600 hover:bg-blue-700 text-white"
-              onClick={() => setLocation('/workspace/app/list')}
-              data-testid="button-list-page"
+          {selectedItems.size > 0 && (
+            <Button
+              onClick={restoreSelectedItems}
+              disabled={
+                unarchiveProjectMutation.isPending ||
+                unarchiveGoalMutation.isPending ||
+                unarchiveTaskMutation.isPending
+              }
+              data-testid="button-restore-selected"
             >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              리스트로 돌아가기
+              <Undo2 className="h-4 w-4 mr-2" />
+              선택 항목 복원
             </Button>
+          )}
+          <Button
+            variant="default"
+            className="bg-blue-600 hover:bg-blue-700 text-white"
+            onClick={() => setLocation(`/workspace/${workspaceId}/list`)}
+            data-testid="button-list-page"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            리스트로 돌아가기
+          </Button>
         </div>
       </header>
 
       {/* Main Content */}
       <main className="flex-1 p-6 overflow-auto" data-testid="main-content">
-
-
-      {/* Table Header */}
-      <div className="bg-muted/30 p-3 rounded-t-lg border">
-        <div className="grid grid-cols-12 gap-4 text-sm font-medium text-muted-foreground">
-          <div className="col-span-4">이름</div>
-          <div className="col-span-1">마감일</div>
-          <div className="col-span-1">담당자</div>
-          <div className="col-span-2">라벨</div>
-          <div className="col-span-1">상태</div>
-          <div className="col-span-2">진행도</div>
-          <div className="col-span-1">우선순위</div>
+        {/* Table Header */}
+        <div className="bg-muted/30 p-3 rounded-t-lg border">
+          <div className="grid grid-cols-12 gap-4 text-sm font-medium text-muted-foreground">
+            <div className="col-span-4">이름</div>
+            <div className="col-span-1">마감일</div>
+            <div className="col-span-1">담당자</div>
+            <div className="col-span-2">라벨</div>
+            <div className="col-span-1">상태</div>
+            <div className="col-span-2">진행도</div>
+            <div className="col-span-1">우선순위</div>
+          </div>
         </div>
-      </div>
 
-      {/* Content */}
-      <Card className="rounded-t-none">
-        <CardContent className="p-0">
-          {totalArchivedCount === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <Circle className="h-12 w-12 text-muted-foreground mb-4 mx-auto" />
-              <h3 className="text-lg font-medium text-muted-foreground mb-2">보관된 항목이 없습니다</h3>
-              <p className="text-muted-foreground">
-                프로젝트, 목표, 작업을 보관하면 이곳에 표시됩니다.
-              </p>
-            </div>
-          ) : (
-            <div className="divide-y">
-              {/* Archived Projects */}
-              {mergedArchivedData().map((project: any) => (
-                <div key={project.id}>
-                  {/* Project Row */}
-                  <div className="p-3 hover:bg-muted/50 transition-colors">
-                    <div className="grid grid-cols-12 gap-4 items-center">
-                      <div className="col-span-4 flex items-center gap-2">
-                        <Checkbox
-                          checked={selectedItems.has(project.id)}
-                          onCheckedChange={() => toggleItemSelection(project.id)}
-                          data-testid={`checkbox-project-${project.id}`}
-                        />
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 w-6 p-0"
-                          onClick={() => toggleProject(project.id)}
-                        >
-                          {expandedProjects.has(project.id) ? (
-                            <ChevronDown className="w-4 h-4" />
+        {/* Content */}
+        <Card className="rounded-t-none">
+          <CardContent className="p-0">
+            {totalArchivedCount === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Circle className="h-12 w-12 text-muted-foreground mb-4 mx-auto" />
+                <h3 className="text-lg font-medium text-muted-foreground mb-2">
+                  보관된 항목이 없습니다
+                </h3>
+                <p className="text-muted-foreground">
+                  프로젝트, 목표, 작업을 보관하면 이곳에 표시됩니다.
+                </p>
+              </div>
+            ) : (
+              <div className="divide-y">
+                {/* Archived Projects */}
+                {mergedArchivedData().map((project: any) => (
+                  <div key={project.id}>
+                    {/* Project Row */}
+                    <div className="p-3 hover:bg-muted/50 transition-colors">
+                      <div className="grid grid-cols-12 gap-4 items-center">
+                        <div className="col-span-4 flex items-center gap-2">
+                          <Checkbox
+                            checked={selectedItems.has(project.id)}
+                            onCheckedChange={() =>
+                              toggleItemSelection(project.id)
+                            }
+                            data-testid={`checkbox-project-${project.id}`}
+                          />
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0"
+                            onClick={() => toggleProject(project.id)}
+                          >
+                            {expandedProjects.has(project.id) ? (
+                              <ChevronDown className="w-4 h-4" />
+                            ) : (
+                              <ChevronRight className="w-4 h-4" />
+                            )}
+                          </Button>
+                          <FolderOpen className="w-4 h-4 text-blue-600" />
+                          <span
+                            className="font-medium"
+                            data-testid={`text-project-name-${project.id}`}
+                          >
+                            {project.name}
+                          </span>
+                          <Badge variant="outline" className="text-xs">
+                            <span
+                                className={`font-semibold ${
+                                  (activeGoalCounts?.get(
+                                    String(project.id)
+                                  ) ?? 0) > 0
+                                    ? "text-orange-600"
+                                    : "text-gray-400"
+                                }`}
+                              >
+                                진행중{" "}
+                                {activeGoalCounts?.get(String(project.id)) ??
+                                  0}
+                              </span>
+                          </Badge>
+                        </div>
+                        <div className="col-span-1">
+                          <span className={getDDayColorClass(project.deadline)}>
+                            {formatDeadline(project.deadline)}
+                          </span>
+                        </div>
+                        <div className="col-span-1">
+                          {project.owners && project.owners.length > 0 ? (
+                            <div className="flex -space-x-1">
+                              {project.owners
+                                .slice(0, 2)
+                                .map((owner: SafeUser, index: number) => (
+                                  <Avatar
+                                    key={owner.id}
+                                    className="h-6 w-6 border border-background"
+                                  >
+                                    <AvatarFallback className="text-xs">
+                                      {owner.initials}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                ))}
+                              {project.owners.length > 2 && (
+                                <span className="text-xs text-muted-foreground ml-1">
+                                  +{project.owners.length - 2}
+                                </span>
+                              )}
+                            </div>
                           ) : (
-                            <ChevronRight className="w-4 h-4" />
+                            <span className="text-muted-foreground text-sm">
+                              담당자 없음
+                            </span>
                           )}
-                        </Button>
-                        <FolderOpen className="w-4 h-4 text-blue-600" />
-                        <span className="font-medium" data-testid={`text-project-name-${project.id}`}>
-                          {project.name}
-                        </span>
-                        <Badge variant="outline" className="text-xs">
-                          {project.code}
-                        </Badge>
-                      </div>
-                      <div className="col-span-1">
-                        <span className={getDDayColorClass(project.deadline)}>
-                          {formatDeadline(project.deadline)}
-                        </span>
-                      </div>
-                      <div className="col-span-1">
-                        {project.owners && project.owners.length > 0 ? (
-                          <div className="flex -space-x-1">
-                            {project.owners.slice(0, 2).map((owner: SafeUser, index: number) => (
-                              <Avatar key={owner.id} className="h-6 w-6 border border-background">
-                                <AvatarFallback className="text-xs">
-                                  {owner.initials}
-                                </AvatarFallback>
-                              </Avatar>
-                            ))}
-                            {project.owners.length > 2 && (
-                              <span className="text-xs text-muted-foreground ml-1">
-                                +{project.owners.length - 2}
-                              </span>
+                        </div>
+                        <div className="col-span-2">
+                          {project.labels && project.labels.length > 0 ? (
+                            <div className="flex flex-wrap gap-1">
+                              {project.labels
+                                .slice(0, 2)
+                                .map((label: string, index: number) => (
+                                  <Badge
+                                    key={index}
+                                    variant="outline"
+                                    className={`text-xs ${
+                                      index === 0
+                                        ? "bg-blue-500 hover:bg-blue-600 text-white"
+                                        : "bg-green-500 hover:bg-green-600 text-white"
+                                    }`}
+                                  >
+                                    {label}
+                                  </Badge>
+                                ))}
+                              {project.labels.length > 2 && (
+                                <span className="text-xs text-muted-foreground">
+                                  +{project.labels.length - 2}
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground text-sm">
+                              -
+                            </span>
+                          )}
+                        </div>
+                        <div className="col-span-1">
+                          <Badge
+                            variant={getStatusBadgeVariant(
+                              project.status || "진행전"
                             )}
+                          >
+                            {project.status || "진행전"}
+                          </Badge>
+                        </div>
+                        <div className="col-span-2">
+                          <div className="flex items-center gap-2">
+                            <Progress
+                              value={project.progressPercentage || 0}
+                              className="flex-1"
+                            />
+                            <span className="text-sm text-muted-foreground w-10">
+                              {project.progressPercentage || 0}%
+                            </span>
                           </div>
-                        ) : (
-                          <span className="text-muted-foreground text-sm">담당자 없음</span>
-                        )}
-                      </div>
-                      <div className="col-span-2">
-                        {project.labels && project.labels.length > 0 ? (
-                          <div className="flex flex-wrap gap-1">
-                            {project.labels.slice(0, 2).map((label: string, index: number) => (
-                              <Badge key={index} variant="outline" className={`text-xs ${index === 0 ? 'bg-blue-500 hover:bg-blue-600 text-white' : 'bg-green-500 hover:bg-green-600 text-white'}`}>
-                                {label}
-                              </Badge>
-                            ))}
-                            {project.labels.length > 2 && (
-                              <span className="text-xs text-muted-foreground">
-                                +{project.labels.length - 2}
-                              </span>
-                            )}
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground text-sm">-</span>
-                        )}
-                      </div>
-                      <div className="col-span-1">
-                        <Badge variant={getStatusBadgeVariant(project.status || '진행전')}>
-                          {project.status || '진행전'}
-                        </Badge>
-                      </div>
-                      <div className="col-span-2">
-                        <div className="flex items-center gap-2">
-                          <Progress value={project.progressPercentage || 0} className="flex-1" />
-                          <span className="text-sm text-muted-foreground w-10">
-                            {project.progressPercentage || 0}%
+                        </div>
+                        <div className="col-span-1">
+                          <span className="text-sm text-muted-foreground">
+                            -
                           </span>
                         </div>
                       </div>
-                      <div className="col-span-1">
-                        <span className="text-sm text-muted-foreground">-</span>
-                      </div>
                     </div>
-                  </div>
 
-                  {/* Goals */}
-                  {expandedProjects.has(project.id) && project.goals && project.goals.length > 0 && (
-                    <div className="bg-muted/20">
-                      {project.goals.map((goal: any) => (
-                        <div key={goal.id}>
-                          {/* Goal Row */}
-                          <div className="p-3 hover:bg-muted/50 transition-colors">
-                            <div className="grid grid-cols-12 gap-4 items-center">
-                              <div className="col-span-4 flex items-center gap-2 pl-8">
-                                <Checkbox
-                                  checked={selectedItems.has(goal.id)}
-                                  onCheckedChange={() => toggleItemSelection(goal.id)}
-                                  data-testid={`checkbox-goal-${goal.id}`}
-                                />
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-6 w-6 p-0"
-                                  onClick={() => toggleGoal(goal.id)}
-                                >
-                                  {expandedGoals.has(goal.id) ? (
-                                    <ChevronDown className="w-4 h-4" />
-                                  ) : (
-                                    <ChevronRight className="w-4 h-4" />
-                                  )}
-                                </Button>
-                                <Target className="w-4 h-4 text-green-600" />
-                                <span className="font-medium" data-testid={`text-goal-title-${goal.id}`}>
-                                  {goal.title}
-                                </span>
-                              </div>
-                              <div className="col-span-1">
-                                <span className={getDDayColorClass(goal.deadline)}>
-                                  {formatDeadline(goal.deadline)}
-                                </span>
-                              </div>
-                              <div className="col-span-1">
-                                {goal.assignees && goal.assignees.length > 0 ? (
-                                  <div className="flex -space-x-1">
-                                    {goal.assignees.slice(0, 2).map((assignee: SafeUser, index: number) => (
-                                      <Avatar key={assignee.id} className="h-6 w-6 border border-background">
-                                        <AvatarFallback className="text-xs">
-                                          {assignee.initials}
-                                        </AvatarFallback>
-                                      </Avatar>
-                                    ))}
-                                    {goal.assignees.length > 2 && (
-                                      <span className="text-xs text-muted-foreground ml-1">
-                                        +{goal.assignees.length - 2}
-                                      </span>
-                                    )}
-                                  </div>
-                                ) : (
-                                  <span className="text-muted-foreground text-sm">담당자 없음</span>
-                                )}
-                              </div>
-                              <div className="col-span-2">
-                                {goal.labels && goal.labels.length > 0 ? (
-                                  <div className="flex flex-wrap gap-1">
-                                    {goal.labels.slice(0, 2).map((label: string, index: number) => (
-                                      <Badge key={index} variant="outline" className={`text-xs ${index === 0 ? 'bg-blue-500 hover:bg-blue-600 text-white' : 'bg-green-500 hover:bg-green-600 text-white'}`}>
-                                        {label}
-                                      </Badge>
-                                    ))}
-                                    {goal.labels.length > 2 && (
-                                      <span className="text-xs text-muted-foreground">
-                                        +{goal.labels.length - 2}
-                                      </span>
-                                    )}
-                                  </div>
-                                ) : (
-                                  <span className="text-muted-foreground text-sm">-</span>
-                                )}
-                              </div>
-                              <div className="col-span-1">
-                                <Badge variant={getStatusBadgeVariant(goal.status || '진행전')}>
-                                  {goal.status || '진행전'}
-                                </Badge>
-                              </div>
-                              <div className="col-span-2">
-                                <div className="flex items-center gap-2">
-                                  <Progress value={goal.progressPercentage || 0} className="flex-1" />
-                                  <span className="text-sm text-muted-foreground w-10">
-                                    {goal.progressPercentage || 0}%
-                                  </span>
-                                </div>
-                              </div>
-                              <div className="col-span-1">
-                                <span className="text-sm text-muted-foreground">-</span>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Tasks */}
-                          {expandedGoals.has(goal.id) && goal.tasks && goal.tasks.length > 0 && (
-                            <div className="bg-muted/30">
-                              {goal.tasks.map((task: any) => (
-                                <div key={task.id} className="p-3 hover:bg-muted/50 transition-colors">
-                                  <div className="grid grid-cols-12 gap-4 items-center">
-                                    <div className="col-span-4 flex items-center gap-2 pl-16">
-                                      <Checkbox
-                                        checked={selectedItems.has(task.id)}
-                                        onCheckedChange={() => toggleItemSelection(task.id)}
-                                        data-testid={`checkbox-task-${task.id}`}
-                                      />
-                                      <Circle className="w-4 h-4 text-orange-600" />
-                                      <span className="font-medium" data-testid={`text-task-title-${task.id}`}>
-                                        {task.title}
-                                      </span>
-                                    </div>
-                                    <div className="col-span-1">
-                                      <span className={getDDayColorClass(task.deadline)}>
-                                        {formatDeadline(task.deadline)}
-                                      </span>
-                                    </div>
-                                    <div className="col-span-1">
-                                      {task.assignees && task.assignees.length > 0 ? (
-                                        <div className="flex -space-x-1">
-                                          {task.assignees.slice(0, 2).map((assignee: SafeUser, index: number) => (
-                                            <Avatar key={assignee.id} className="h-6 w-6 border border-background">
-                                              <AvatarFallback className="text-xs">
-                                                {assignee.initials}
-                                              </AvatarFallback>
-                                            </Avatar>
-                                          ))}
-                                          {task.assignees.length > 2 && (
-                                            <span className="text-xs text-muted-foreground ml-1">
-                                              +{task.assignees.length - 2}
-                                            </span>
-                                          )}
-                                        </div>
+                    {/* Goals */}
+                    {expandedProjects.has(project.id) &&
+                      project.goals &&
+                      project.goals.length > 0 && (
+                        <div className="bg-muted/20">
+                          {project.goals.map((goal: any) => (
+                            <div key={goal.id}>
+                              {/* Goal Row */}
+                              <div className="p-3 hover:bg-muted/50 transition-colors">
+                                <div className="grid grid-cols-12 gap-4 items-center">
+                                  <div className="col-span-4 flex items-center gap-2 pl-8">
+                                    <Checkbox
+                                      checked={selectedItems.has(goal.id)}
+                                      onCheckedChange={() =>
+                                        toggleItemSelection(goal.id)
+                                      }
+                                      data-testid={`checkbox-goal-${goal.id}`}
+                                    />
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-6 w-6 p-0"
+                                      onClick={() => toggleGoal(goal.id)}
+                                    >
+                                      {expandedGoals.has(goal.id) ? (
+                                        <ChevronDown className="w-4 h-4" />
                                       ) : (
-                                        <span className="text-muted-foreground text-sm">담당자 없음</span>
+                                        <ChevronRight className="w-4 h-4" />
                                       )}
-                                    </div>
-                                    <div className="col-span-2">
-                                      {task.labels && task.labels.length > 0 ? (
-                                        <div className="flex flex-wrap gap-1">
-                                          {task.labels.slice(0, 2).map((label: string, index: number) => (
-                                            <Badge key={index} variant="outline" className={`text-xs ${index === 0 ? 'bg-blue-500 hover:bg-blue-600 text-white' : 'bg-green-500 hover:bg-green-600 text-white'}`}>
-                                              {label}
-                                            </Badge>
-                                          ))}
-                                          {task.labels.length > 2 && (
-                                            <span className="text-xs text-muted-foreground">
-                                              +{task.labels.length - 2}
-                                            </span>
+                                    </Button>
+                                    <Target className="w-4 h-4 text-green-600" />
+                                    <span
+                                      className="font-medium"
+                                      data-testid={`text-goal-title-${goal.id}`}
+                                    >
+                                      {goal.title}
+                                    </span>
+                                  </div>
+                                  <div className="col-span-1">
+                                    <span
+                                      className={getDDayColorClass(
+                                        goal.deadline
+                                      )}
+                                    >
+                                      {formatDeadline(goal.deadline)}
+                                    </span>
+                                  </div>
+                                  <div className="col-span-1">
+                                    {goal.assignees &&
+                                    goal.assignees.length > 0 ? (
+                                      <div className="flex -space-x-1">
+                                        {goal.assignees
+                                          .slice(0, 2)
+                                          .map(
+                                            (
+                                              assignee: SafeUser,
+                                              index: number
+                                            ) => (
+                                              <Avatar
+                                                key={assignee.id}
+                                                className="h-6 w-6 border border-background"
+                                              >
+                                                <AvatarFallback className="text-xs">
+                                                  {assignee.initials}
+                                                </AvatarFallback>
+                                              </Avatar>
+                                            )
                                           )}
-                                        </div>
-                                      ) : (
-                                        <span className="text-muted-foreground text-sm">-</span>
-                                      )}
-                                    </div>
-                                    <div className="col-span-1">
-                                      <Badge variant={getStatusBadgeVariant(task.status === '이슈' ? '이슈' : getStatusFromProgress(task.progress || 0))}>
-                                        {task.status === '이슈' ? '이슈' : getStatusFromProgress(task.progress || 0)}
-                                      </Badge>
-                                    </div>
-                                    <div className="col-span-2">
-                                      <div className="flex items-center gap-2">
-                                        <Progress value={task.progress || 0} className="flex-1" />
-                                        <span className="text-sm text-muted-foreground w-10">
-                                          {task.progress || 0}%
-                                        </span>
+                                        {goal.assignees.length > 2 && (
+                                          <span className="text-xs text-muted-foreground ml-1">
+                                            +{goal.assignees.length - 2}
+                                          </span>
+                                        )}
                                       </div>
-                                    </div>
-                                    <div className="col-span-1">
-                                      {task.priority && (
-                                        <Badge variant={getPriorityBadgeVariant(task.priority)}>
-                                          {mapPriorityToLabel(task.priority)}
-                                        </Badge>
+                                    ) : (
+                                      <span className="text-muted-foreground text-sm">
+                                        담당자 없음
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="col-span-2">
+                                    {goal.labels && goal.labels.length > 0 ? (
+                                      <div className="flex flex-wrap gap-1">
+                                        {goal.labels
+                                          .slice(0, 2)
+                                          .map(
+                                            (label: string, index: number) => (
+                                              <Badge
+                                                key={index}
+                                                variant="outline"
+                                                className={`text-xs ${
+                                                  index === 0
+                                                    ? "bg-blue-500 hover:bg-blue-600 text-white"
+                                                    : "bg-green-500 hover:bg-green-600 text-white"
+                                                }`}
+                                              >
+                                                {label}
+                                              </Badge>
+                                            )
+                                          )}
+                                        {goal.labels.length > 2 && (
+                                          <span className="text-xs text-muted-foreground">
+                                            +{goal.labels.length - 2}
+                                          </span>
+                                        )}
+                                      </div>
+                                    ) : (
+                                      <span className="text-muted-foreground text-sm">
+                                        -
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="col-span-1">
+                                    <Badge
+                                      variant={getStatusBadgeVariant(
+                                        goal.status || "진행전"
                                       )}
+                                    >
+                                      {goal.status || "진행전"}
+                                    </Badge>
+                                  </div>
+                                  <div className="col-span-2">
+                                    <div className="flex items-center gap-2">
+                                      <Progress
+                                        value={goal.progressPercentage || 0}
+                                        className="flex-1"
+                                      />
+                                      <span className="text-sm text-muted-foreground w-10">
+                                        {goal.progressPercentage || 0}%
+                                      </span>
                                     </div>
                                   </div>
+                                  <div className="col-span-1">
+                                    <span className="text-sm text-muted-foreground">
+                                      -
+                                    </span>
+                                  </div>
                                 </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                              </div>
 
+                              {/* Tasks */}
+                              {expandedGoals.has(goal.id) &&
+                                goal.tasks &&
+                                goal.tasks.length > 0 && (
+                                  <div className="bg-muted/30">
+                                    {goal.tasks.map((task: any) => (
+                                      <div
+                                        key={task.id}
+                                        className="p-3 hover:bg-muted/50 transition-colors"
+                                      >
+                                        <div className="grid grid-cols-12 gap-4 items-center">
+                                          <div className="col-span-4 flex items-center gap-2 pl-16">
+                                            <Checkbox
+                                              checked={selectedItems.has(
+                                                task.id
+                                              )}
+                                              onCheckedChange={() =>
+                                                toggleItemSelection(task.id)
+                                              }
+                                              data-testid={`checkbox-task-${task.id}`}
+                                            />
+                                            <Circle className="w-4 h-4 text-orange-600" />
+                                            <span
+                                              className="font-medium"
+                                              data-testid={`text-task-title-${task.id}`}
+                                            >
+                                              {task.title}
+                                            </span>
+                                          </div>
+                                          <div className="col-span-1">
+                                            <span
+                                              className={getDDayColorClass(
+                                                task.deadline
+                                              )}
+                                            >
+                                              {formatDeadline(task.deadline)}
+                                            </span>
+                                          </div>
+                                          <div className="col-span-1">
+                                            {task.assignees &&
+                                            task.assignees.length > 0 ? (
+                                              <div className="flex -space-x-1">
+                                                {task.assignees
+                                                  .slice(0, 2)
+                                                  .map(
+                                                    (
+                                                      assignee: SafeUser,
+                                                      index: number
+                                                    ) => (
+                                                      <Avatar
+                                                        key={assignee.id}
+                                                        className="h-6 w-6 border border-background"
+                                                      >
+                                                        <AvatarFallback className="text-xs">
+                                                          {assignee.initials}
+                                                        </AvatarFallback>
+                                                      </Avatar>
+                                                    )
+                                                  )}
+                                                {task.assignees.length > 2 && (
+                                                  <span className="text-xs text-muted-foreground ml-1">
+                                                    +{task.assignees.length - 2}
+                                                  </span>
+                                                )}
+                                              </div>
+                                            ) : (
+                                              <span className="text-muted-foreground text-sm">
+                                                담당자 없음
+                                              </span>
+                                            )}
+                                          </div>
+                                          <div className="col-span-2">
+                                            {task.labels &&
+                                            task.labels.length > 0 ? (
+                                              <div className="flex flex-wrap gap-1">
+                                                {task.labels
+                                                  .slice(0, 2)
+                                                  .map(
+                                                    (
+                                                      label: string,
+                                                      index: number
+                                                    ) => (
+                                                      <Badge
+                                                        key={index}
+                                                        variant="outline"
+                                                        className={`text-xs ${
+                                                          index === 0
+                                                            ? "bg-blue-500 hover:bg-blue-600 text-white"
+                                                            : "bg-green-500 hover:bg-green-600 text-white"
+                                                        }`}
+                                                      >
+                                                        {label}
+                                                      </Badge>
+                                                    )
+                                                  )}
+                                                {task.labels.length > 2 && (
+                                                  <span className="text-xs text-muted-foreground">
+                                                    +{task.labels.length - 2}
+                                                  </span>
+                                                )}
+                                              </div>
+                                            ) : (
+                                              <span className="text-muted-foreground text-sm">
+                                                -
+                                              </span>
+                                            )}
+                                          </div>
+                                          <div className="col-span-1">
+                                            <Badge
+                                              variant={getStatusBadgeVariant(
+                                                task.status === "이슈"
+                                                  ? "이슈"
+                                                  : getStatusFromProgress(
+                                                      task.progress || 0
+                                                    )
+                                              )}
+                                            >
+                                              {task.status === "이슈"
+                                                ? "이슈"
+                                                : getStatusFromProgress(
+                                                    task.progress || 0
+                                                  )}
+                                            </Badge>
+                                          </div>
+                                          <div className="col-span-2">
+                                            <div className="flex items-center gap-2">
+                                              <Progress
+                                                value={task.progress || 0}
+                                                className="flex-1"
+                                              />
+                                              <span className="text-sm text-muted-foreground w-10">
+                                                {task.progress || 0}%
+                                              </span>
+                                            </div>
+                                          </div>
+                                          <div className="col-span-1">
+                                            {task.priority && (
+                                              <Badge
+                                                variant={getPriorityBadgeVariant(
+                                                  task.priority
+                                                )}
+                                              >
+                                                {mapPriorityToLabel(
+                                                  task.priority
+                                                )}
+                                              </Badge>
+                                            )}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </main>
     </div>
   );

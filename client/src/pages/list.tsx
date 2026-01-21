@@ -495,7 +495,7 @@ export default function List() {
           </div>
         )}
       </main>
-      
+{/*       
       <ProjectModal
         isOpen={isProjectModalOpen}
         onClose={() => setIsProjectModalOpen(false)}
@@ -513,7 +513,7 @@ export default function List() {
         onClose={() => setTaskModalState({ isOpen: false, goalId: '', goalTitle: '' })}
         goalId={taskModalState.goalId}
         goalTitle={taskModalState.goalTitle}
-      />
+      /> */}
     </>
   );
 }

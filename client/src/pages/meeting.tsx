@@ -4,64 +4,100 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Calendar, Clock, Users, Video, Plus, MapPin, Square } from "lucide-react";
-import { Link, useLocation } from "wouter";
+import {
+  Calendar,
+  Clock,
+  Users,
+  Video,
+  Plus,
+  MapPin,
+  Square,
+} from "lucide-react";
+import { Link, useLocation, useParams } from "wouter";
 import { RealtimeClock } from "@/components/realtime-clock";
 import type { Meeting, SafeUser } from "@shared/schema";
+import api from "@/api/api-index";
 
 export default function Meeting() {
   const [selectedWeek, setSelectedWeek] = useState(0); // 0 = this week, 1 = next week, etc.
   const [currentTime, setCurrentTime] = useState(new Date());
   const [, setLocation] = useLocation();
-
-  // Update current time every second
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, []);
+  const { id: workspaceId } = useParams();
 
   // Auto scroll to current time on page load
   useEffect(() => {
     const scrollToCurrentTime = () => {
       const now = new Date();
       const currentHour = now.getHours();
-      
+
       // Find the time slot element for current hour
-      const timeSlotElement = document.querySelector(`[data-testid="row-time-${currentHour.toString().padStart(2, '0')}:00"]`);
-      
+      const timeSlotElement = document.querySelector(
+        `[data-testid="row-time-${currentHour.toString().padStart(2, "0")}:00"]`
+      );
+
       if (timeSlotElement) {
-        timeSlotElement.scrollIntoView({ 
-          behavior: 'smooth', 
-          block: 'center' 
+        timeSlotElement.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
         });
       }
     };
 
     // Delay scroll to ensure elements are rendered
     const timer = setTimeout(scrollToCurrentTime, 100);
-    
+
     return () => clearTimeout(timer);
   }, []); // Only run on mount
 
   // Fetch meetings data
+  // const { data: meetings = [], isLoading } = useQuery<Meeting[]>({
+  //   queryKey: ["/api/meetings"],
+  // });
   const { data: meetings = [], isLoading } = useQuery<Meeting[]>({
-    queryKey: ['/api/meetings'],
-  });
+  // 쿼리 키에 workspaceId를 추가하여 워크스페이스별로 캐시 분리
+  queryKey: ["/api/workspaces", workspaceId, "meetings"],
 
-  // Fetch users for participant avatars (workspace members only)
+  queryFn: async () => {
+    // 백엔드의 워크스페이스별 미팅 조회 엔드포인트 호출
+    const response = await api.get(`/api/workspaces/${workspaceId}/meetings`);
+    return response.data;
+  },
+
+  // workspaceId가 있을 때만 실행
+  enabled: !!workspaceId,
+  
+  staleTime: 300000, // 5분
+});
+
+  //   const { data: users = [] } = useQuery<SafeUser[]>({
+  //   queryKey: ['/api/users?workspace=true'],
+  // });
   const { data: users = [] } = useQuery<SafeUser[]>({
-    queryKey: ['/api/users?workspace=true'],
+    // 1. 쿼리 키에 workspaceId를 추가하여 워크스페이스별로 유저 목록을 개별 캐싱합니다.
+    queryKey: ["workspace-members", workspaceId],
+
+    queryFn: async () => {
+      // 2. 수정된 백엔드 API 경로(/api/workspaces/:id/users)를 호출합니다.
+      const response = await api.get(`/api/workspaces/${workspaceId}/users`);
+      return response.data;
+    },
+
+    // 3. workspaceId가 없을 때는 호출을 방지하여 에러를 막습니다.
+    enabled: !!workspaceId,
+
+    // 4. 효율적인 캐시 설정
+    staleTime: 300000, // 5분간 서버에 재요청하지 않음 (부하 감소)
+    refetchOnWindowFocus: true, // 사용자가 다시 브라우저를 볼 때 최신 데이터 확인
   });
 
   // Get current week dates
   const weekDates = useMemo(() => {
     const today = new Date();
     const currentWeekStart = new Date(today);
-    currentWeekStart.setDate(today.getDate() - today.getDay() + selectedWeek * 7);
-    
+    currentWeekStart.setDate(
+      today.getDate() - today.getDay() + selectedWeek * 7
+    );
+
     const dates = [];
     for (let i = 0; i < 7; i++) {
       const date = new Date(currentWeekStart);
@@ -75,56 +111,85 @@ export default function Meeting() {
   const timeSlots = useMemo(() => {
     const slots = [];
     for (let hour = 0; hour < 24; hour++) {
-      slots.push(`${hour.toString().padStart(2, '0')}:00`);
+      slots.push(`${hour.toString().padStart(2, "0")}:00`);
     }
     return slots;
   }, []);
 
   // Get meetings for a specific date and time slot (only meetings that START in this slot)
   const getMeetingsForSlot = (date: Date, timeSlot: string) => {
-    const targetDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-    const [hour] = timeSlot.split(':').map(Number);
-    
-    return meetings.filter(meeting => {
+    const targetDate = new Date(
+      date.getFullYear(),
+      date.getMonth(),
+      date.getDate()
+    );
+    const [hour] = timeSlot.split(":").map(Number);
+
+    return meetings.filter((meeting) => {
       const meetingStart = new Date(meeting.startAt);
-      const meetingDate = new Date(meetingStart.getFullYear(), meetingStart.getMonth(), meetingStart.getDate());
-      
+      const meetingDate = new Date(
+        meetingStart.getFullYear(),
+        meetingStart.getMonth(),
+        meetingStart.getDate()
+      );
+
       // Check if meeting is on the same date and starts in this hour slot
-      return targetDate.getTime() === meetingDate.getTime() && meetingStart.getHours() === hour;
+      return (
+        targetDate.getTime() === meetingDate.getTime() &&
+        meetingStart.getHours() === hour
+      );
     });
   };
 
   // Get today's meetings
   const todaysMeetings = useMemo(() => {
     const today = new Date();
-    const todayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    
-    return meetings.filter(meeting => {
+    const todayDate = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate()
+    );
+
+    return meetings.filter((meeting) => {
       const meetingStart = new Date(meeting.startAt);
-      const meetingDate = new Date(meetingStart.getFullYear(), meetingStart.getMonth(), meetingStart.getDate());
+      const meetingDate = new Date(
+        meetingStart.getFullYear(),
+        meetingStart.getMonth(),
+        meetingStart.getDate()
+      );
       return todayDate.getTime() === meetingDate.getTime();
     });
   }, [meetings]);
 
   // Get meeting color based on title
   const getMeetingColor = (title: string) => {
-    return title.toLowerCase().includes('스탠드업') || title.toLowerCase().includes('standup') 
-      ? 'bg-blue-500' : 'bg-yellow-500';
+    return title.toLowerCase().includes("스탠드업") ||
+      title.toLowerCase().includes("standup")
+      ? "bg-blue-500"
+      : "bg-yellow-500";
   };
 
   // Get user by ID
-  const getUserById = (userId: string) => {
-    return users.find(user => user.id === userId);
-  };
+  // const getUserById = (userId: string) => {
+  //   return users.find(user => user.id === userId);
+  // };
 
   // Calculate current time line position
   const getCurrentTimeLine = () => {
     const now = currentTime;
-    const todayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    
+    const todayDate = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate()
+    );
+
     // Find today's column index
-    const todayColumnIndex = weekDates.findIndex(date => {
-      const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const todayColumnIndex = weekDates.findIndex((date) => {
+      const dateOnly = new Date(
+        date.getFullYear(),
+        date.getMonth(),
+        date.getDate()
+      );
       return dateOnly.getTime() === todayDate.getTime();
     });
 
@@ -132,16 +197,19 @@ export default function Meeting() {
 
     const currentHour = now.getHours();
     const currentMinutes = now.getMinutes();
-    
+
     // Show time line for all hours (00:00 - 23:59)
     const hourSlotIndex = currentHour; // Direct mapping for 24-hour display
     const minutePercentage = currentMinutes / 60; // 0-1 percentage within the hour
-    
+
     return {
       columnIndex: todayColumnIndex,
       hourSlotIndex,
       minutePercentage,
-      timeString: now.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
+      timeString: now.toLocaleTimeString("ko-KR", {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
     };
   };
 
@@ -157,18 +225,23 @@ export default function Meeting() {
             <h1 className="text-xl font-semibold" data-testid="header-title">
               미팅
             </h1>
-            <p className="text-sm text-muted-foreground" data-testid="header-subtitle">
+            <p
+              className="text-sm text-muted-foreground"
+              data-testid="header-subtitle"
+            >
               팀 미팅과 일정을 관리하고 참여자를 확인할 수 있습니다
             </p>
           </div>
-          
-          <div className="flex items-center space-x-4">
 
+          <div className="flex items-center space-x-4">
             {/* Participant Avatars */}
             <div className="flex items-center space-x-2">
               <div className="flex -space-x-1">
                 {users.slice(0, 5).map((user) => (
-                  <Avatar key={user.id} className="w-8 h-8 border-2 border-background">
+                  <Avatar
+                    key={user.id}
+                    className="w-8 h-8 border-2 border-background"
+                  >
                     <AvatarFallback className="text-xs bg-primary text-primary-foreground">
                       {user.initials}
                     </AvatarFallback>
@@ -183,18 +256,17 @@ export default function Meeting() {
                 )}
               </div>
             </div>
-            
+
             {/* Real-time Clock */}
             <RealtimeClock />
-            
+
             {/* New Meeting Button */}
-            <Link href="/workspace/app/meeting/new">
-              <Button 
+            <Link href={`/workspace/${workspaceId}/meeting/new`}>
+              <Button
                 className="bg-blue-600 hover:bg-blue-700 text-white"
                 data-testid="button-new-meeting"
               >
-                <Plus className="w-4 h-4 mr-2" />
-                새 미팅
+                <Plus className="w-4 h-4 mr-2" />새 미팅
               </Button>
             </Link>
           </div>
@@ -202,36 +274,51 @@ export default function Meeting() {
 
         {/* Today's Meetings Section */}
         <div className="px-6 py-4 bg-card border-b border-border">
-          <h2 className="text-lg font-semibold mb-4" data-testid="text-todays-meetings">
+          <h2
+            className="text-lg font-semibold mb-4"
+            data-testid="text-todays-meetings"
+          >
             오늘의 미팅
           </h2>
-          
+
           {isLoading ? (
             <div className="flex space-x-3">
-              {[1, 2, 3].map(i => (
-                <div key={i} className="h-16 w-48 bg-muted rounded animate-pulse" />
+              {[...Array(3)].map((_, i) => (
+                <div
+                  key={i}
+                  className="h-16 w-48 bg-muted rounded animate-pulse"
+                />
               ))}
             </div>
           ) : todaysMeetings.length > 0 ? (
             <div className="flex space-x-3 overflow-x-auto">
               {todaysMeetings.map((meeting) => (
-                <Card 
-                  key={meeting.id} 
+                <Card
+                  key={meeting.id}
                   className="p-3 hover:bg-accent cursor-pointer transition-colors min-w-48 flex-shrink-0"
                   data-testid={`card-today-meeting-${meeting.id}`}
-                  onClick={() => setLocation(`/workspace/app/meeting/${meeting.id}`)}
+                  onClick={() =>
+                    setLocation(`/workspace/${workspaceId}/meeting/${meeting.id}`)
+                  }
                 >
                   <div className="flex items-center justify-between mb-2">
-                    <h3 className="font-medium text-sm truncate" data-testid={`text-meeting-title-${meeting.id}`}>
+                    <h3
+                      className="font-medium text-sm truncate"
+                      data-testid={`text-meeting-title-${meeting.id}`}
+                    >
                       {meeting.title}
                     </h3>
-                    <div className={`w-3 h-3 rounded-full ${getMeetingColor(meeting.title)}`} />
+                    <div
+                      className={`w-3 h-3 rounded-full ${getMeetingColor(
+                        meeting.title
+                      )}`}
+                    />
                   </div>
                   <div className="flex items-center text-xs text-muted-foreground">
                     <Clock className="w-3 h-3 mr-1" />
-                    {new Date(meeting.startAt).toLocaleTimeString('ko-KR', { 
-                      hour: '2-digit', 
-                      minute: '2-digit' 
+                    {new Date(meeting.startAt).toLocaleTimeString("ko-KR", {
+                      hour: "2-digit",
+                      minute: "2-digit",
                     })}
                     {meeting.location && (
                       <>
@@ -245,7 +332,9 @@ export default function Meeting() {
               ))}
             </div>
           ) : (
-            <p className="text-muted-foreground text-sm">오늘 예정된 미팅이 없습니다.</p>
+            <p className="text-muted-foreground text-sm">
+              오늘 예정된 미팅이 없습니다.
+            </p>
           )}
         </div>
 
@@ -253,19 +342,30 @@ export default function Meeting() {
         <main className="flex-1 p-6 overflow-auto" data-testid="main-content">
           {/* Calendar Week Navigation */}
           <div className="flex items-center justify-center space-x-2 mb-4">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               size="sm"
               onClick={() => setSelectedWeek(selectedWeek - 1)}
               data-testid="button-prev-week"
             >
               ←
             </Button>
-            <span className="text-sm font-medium" data-testid="text-current-week">
-              {weekDates[0]?.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })} - {weekDates[6]?.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })}
+            <span
+              className="text-sm font-medium"
+              data-testid="text-current-week"
+            >
+              {weekDates[0]?.toLocaleDateString("ko-KR", {
+                month: "long",
+                day: "numeric",
+              })}{" "}
+              -{" "}
+              {weekDates[6]?.toLocaleDateString("ko-KR", {
+                month: "long",
+                day: "numeric",
+              })}
             </span>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               size="sm"
               onClick={() => setSelectedWeek(selectedWeek + 1)}
               data-testid="button-next-week"
@@ -273,23 +373,23 @@ export default function Meeting() {
               →
             </Button>
           </div>
-          
+
           <div className="bg-card rounded-lg border border-border overflow-hidden relative">
             {/* Calendar Header */}
             <div className="grid grid-cols-8 bg-muted">
-              <div className="p-3 border-r border-border font-medium text-sm">시간</div>
+              <div className="p-3 border-r border-border font-medium text-sm">
+                시간
+              </div>
               {weekDates.map((date, index) => (
-                <div 
-                  key={index} 
+                <div
+                  key={index}
                   className="p-3 border-r border-border last:border-r-0 text-center"
                   data-testid={`header-date-${index}`}
                 >
                   <div className="font-medium text-sm">
-                    {date.toLocaleDateString('ko-KR', { weekday: 'short' })}
+                    {date.toLocaleDateString("ko-KR", { weekday: "short" })}
                   </div>
-                  <div className="text-lg font-semibold">
-                    {date.getDate()}
-                  </div>
+                  <div className="text-lg font-semibold">{date.getDate()}</div>
                 </div>
               ))}
             </div>
@@ -297,58 +397,62 @@ export default function Meeting() {
             {/* Calendar Body */}
             <div className="divide-y divide-border">
               {timeSlots.map((timeSlot, slotIndex) => (
-                <div 
-                  key={timeSlot} 
+                <div
+                  key={timeSlot}
                   className="grid grid-cols-8 min-h-[60px] relative"
                   data-testid={`row-time-${timeSlot}`}
                 >
                   {/* Current Time Line */}
-                  {currentTimeLine && currentTimeLine.hourSlotIndex === slotIndex && (
-                    <div 
-                      className="absolute left-0 right-0 z-10 flex items-center"
-                      style={{
-                        top: `${currentTimeLine.minutePercentage * 100}%`,
-                        transform: 'translateY(-50%)'
-                      }}
-                    >
-                      {/* Time indicator in the time column */}
-                      <div className="bg-red-500 text-white text-xs px-2 py-1 rounded-l z-20 whitespace-nowrap">
-                        {currentTimeLine.timeString}
+                  {currentTimeLine &&
+                    currentTimeLine.hourSlotIndex === slotIndex && (
+                      <div
+                        className="absolute left-0 right-0 z-10 flex items-center"
+                        style={{
+                          top: `${currentTimeLine.minutePercentage * 100}%`,
+                          transform: "translateY(-50%)",
+                        }}
+                      >
+                        {/* Time indicator in the time column */}
+                        <div className="bg-red-500 text-white text-xs px-2 py-1 rounded-l z-20 whitespace-nowrap">
+                          {currentTimeLine.timeString}
+                        </div>
+                        {/* Red line across all calendar columns */}
+                        <div className="bg-red-500 h-0.5 flex-1" />
                       </div>
-                      {/* Red line across all calendar columns */}
-                      <div className="bg-red-500 h-0.5 flex-1" />
-                    </div>
-                  )}
-                  
+                    )}
+
                   {/* Time Column */}
                   <div className="p-3 border-r border-border bg-muted/50 flex items-center justify-center">
                     <span className="text-sm font-medium">{timeSlot}</span>
                   </div>
-                  
+
                   {/* Date Columns */}
                   {weekDates.map((date, dateIndex) => {
                     const slotMeetings = getMeetingsForSlot(date, timeSlot);
                     return (
-                      <div 
-                        key={dateIndex} 
+                      <div
+                        key={dateIndex}
                         className="p-1 border-r border-border last:border-r-0 relative min-h-[60px]"
                         data-testid={`cell-${dateIndex}-${timeSlot}`}
                       >
                         {slotMeetings.map((meeting) => {
                           const meetingStart = new Date(meeting.startAt);
-                          const meetingEnd = meeting.endAt ? new Date(meeting.endAt) : new Date(meetingStart.getTime() + 60 * 60 * 1000); // Default 1 hour
-                          
+                          const meetingEnd = meeting.endAt
+                            ? new Date(meeting.endAt)
+                            : new Date(meetingStart.getTime() + 60 * 60 * 1000); // Default 1 hour
+
                           // Calculate start time within the hour slot
                           const startMinutes = meetingStart.getMinutes();
                           const topOffset = (startMinutes / 60) * 100; // percentage from top of hour
-                          
+
                           // Calculate total duration in hours
-                          const durationMs = meetingEnd.getTime() - meetingStart.getTime();
+                          const durationMs =
+                            meetingEnd.getTime() - meetingStart.getTime();
                           const durationHours = durationMs / (60 * 60 * 1000);
-                          
+
                           // Calculate height in pixels (60px per hour slot)
                           const heightPx = durationHours * 60;
-                          
+
                           return (
                             <div
                               key={meeting.id}
@@ -360,17 +464,36 @@ export default function Meeting() {
                               style={{
                                 top: `${topOffset}%`,
                                 height: `${heightPx}px`,
-                                minHeight: '30px' // Ensure minimum visibility for 2 lines
+                                minHeight: "30px", // Ensure minimum visibility for 2 lines
                               }}
                               data-testid={`meeting-block-${meeting.id}`}
-                              title={`${meeting.title} - ${meeting.location || '위치 미정'} (${meetingStart.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })} - ${meetingEnd ? meetingEnd.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) : '종료시간 미정'})`}
+                              title={`${meeting.title} - ${
+                                meeting.location || "위치 미정"
+                              } (${meetingStart.toLocaleTimeString("ko-KR", {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })} - ${
+                                meetingEnd
+                                  ? meetingEnd.toLocaleTimeString("ko-KR", {
+                                      hour: "2-digit",
+                                      minute: "2-digit",
+                                    })
+                                  : "종료시간 미정"
+                              })`}
                               onClick={() => {
-                                setLocation(`/workspace/app/meeting/${meeting.id}`);
+                                setLocation(
+                                  `/workspace/${workspaceId}/meeting/${meeting.id}`
+                                );
                               }}
                             >
-                              <div className="truncate leading-tight">{meeting.title}</div>
+                              <div className="truncate leading-tight">
+                                {meeting.title}
+                              </div>
                               <div className="truncate text-xs opacity-90 leading-tight">
-                                {meetingStart.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
+                                {meetingStart.toLocaleTimeString("ko-KR", {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
                               </div>
                             </div>
                           );

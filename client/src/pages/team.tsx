@@ -5,11 +5,12 @@ import { ActivityFeed } from "@/components/activity-feed";
 import { CalendarWidget } from "@/components/calendar-widget";
 import { TaskModal } from "@/components/task-modal";
 import { useState } from "react";
+import { useParams } from "wouter";
 
 export default function Team() {
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
-
+  const { id: workspaceId } = useParams();
 
   const handleEditTask = (task: any) => {
     setEditingTask(task);
@@ -24,40 +25,44 @@ export default function Team() {
           <h1 className="text-xl font-semibold" data-testid="header-title">
             팀
           </h1>
-          <p className="text-sm text-muted-foreground" data-testid="header-subtitle">
+          <p
+            className="text-sm text-muted-foreground"
+            data-testid="header-subtitle"
+          >
             팀원들의 진행 상황과 작업 현황을 한눈에 확인할 수 있습니다
           </p>
         </div>
       </header>
-      
+
       {/* Team Content */}
       <main className="flex-1 p-6 overflow-auto" data-testid="main-content">
         {/* Progress Overview */}
         <ProgressOverview />
-        
+
         {/* Status Cards */}
         <StatusCards />
-        
+
         {/* Task Management Section */}
         <div className="grid grid-cols-3 gap-6 mt-8">
           {/* Task List and Activity Feed */}
           <div className="col-span-2 space-y-6">
-            <TaskTable 
-              onEditTask={handleEditTask}
-            />
+            <TaskTable onEditTask={handleEditTask} />
             <ActivityFeed />
           </div>
-          
+
           {/* Calendar */}
-          <CalendarWidget />
+          <div>
+            <CalendarWidget />
+          </div>
         </div>
       </main>
-      
+
       {/* Task Modal */}
-      <TaskModal 
+      <TaskModal
         isOpen={isTaskModalOpen}
         onClose={() => setIsTaskModalOpen(false)}
         editingTask={editingTask}
+        workspaceId={workspaceId as string}
       />
     </>
   );

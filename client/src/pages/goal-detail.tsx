@@ -47,7 +47,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { useState, useEffect } from "react";
-import { useLocation, useRoute } from "wouter";
+import { useLocation, useParams, useRoute } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { ObjectUploader } from "@/components/ObjectUploader";
 import { apiRequest } from "@/lib/queryClient";
@@ -61,14 +61,19 @@ import { Comments } from "@/components/comments";
 import api from "@/api/api-index";
 
 export default function GoalDetail() {
-  const [, params] = useRoute("/workspace/app/detail/goal/:id");
+  const { id: workspaceId, goalId } = useParams();
+  // const [, params] = useRoute("/workspace/app/detail/goal/:id");
   const [, setLocation] = useLocation();
 
   // Helper function to get back URL based on where user came from
+  const urlParams = new URLSearchParams(window.location.search);
+  const currentFrom = urlParams.get("from");
   const getBackUrl = () => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const from = urlParams.get("from");
-    return from === "kanban" ? "/workspace/app/kanban" : "/workspace/app/list";
+    // const urlParams = new URLSearchParams(window.location.search);
+    // const from = urlParams.get("from");
+    if (currentFrom === "kanban") return `/workspace/${workspaceId}/kanban`;
+    if (currentFrom === "priority") return `/workspace/${workspaceId}/priority`;
+    return `/workspace/${workspaceId}/list`;
   };
 
   // Check if user came from list page to disable status editing
@@ -79,7 +84,7 @@ export default function GoalDetail() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const goalId = params?.id;
+  // const goalId = params?.id;
   const [isEditing, setIsEditing] = useState(false);
   const [editedGoal, setEditedGoal] = useState<Partial<GoalWithTasks>>({});
   const [taskModalState, setTaskModalState] = useState<{
@@ -97,13 +102,36 @@ export default function GoalDetail() {
   >([]);
   const [currentUser, setCurrentUser] = useState<SafeUser | null>(null);
 
-  const { data: projects, isLoading } = useQuery({
-    queryKey: ["/api/projects"],
+  const {
+    data: projects,
+    isLoading,
+    error,
+  } = useQuery({
+    queryKey: ["/api/workspaces", workspaceId, "projects"],
+
+    queryFn: async () => {
+      const response = await api.get(`/api/workspaces/${workspaceId}/projects`);
+      return response.data;
+    },
+    enabled: !!workspaceId,
+
+    staleTime: 300000, // 5분
+    refetchOnWindowFocus: true,
   });
 
   // 워크스페이스 멤버 목록 (기본 멤버 + 초대 수락한 멤버)
   const { data: users } = useQuery({
-    queryKey: ["/api/users", { workspace: true }],
+    queryKey: ["workspace-members", workspaceId],
+
+    queryFn: async () => {
+      const response = await api.get(`/api/workspaces/${workspaceId}/users`);
+      return response.data;
+    },
+
+    enabled: !!workspaceId,
+
+    staleTime: 300000,
+    refetchOnWindowFocus: true,
   });
 
   // 현재 로그인한 사용자 식별
@@ -207,7 +235,7 @@ export default function GoalDetail() {
         title: "목표 삭제 완료",
         description: "목표가 성공적으로 삭제되었습니다.",
       });
-      setLocation("/workspace/app/list");
+      setLocation(`/workspace/${workspaceId}/list`);
     },
     onError: (error: any) => {
       const errorMsg = error?.message || "목표 삭제 중 오류가 발생했습니다.";
@@ -233,12 +261,23 @@ export default function GoalDetail() {
   };
 
   const handleTaskClick = (taskId: string) => {
-    setLocation(`/workspace/app/detail/task/${taskId}`);
+    // setLocation(`/workspace/${workspaceId}/detail/task/${taskId}`);
+    const search = currentFrom ? `?from=${currentFrom}` : "";
+    // 최종 경로: /workspace/ID/detail/task/ID?from=kanban
+    setLocation(`/workspace/${workspaceId}/detail/task/${taskId}${search}`);
   };
 
   const handleProjectClick = () => {
     if (parentProject) {
-      setLocation(`/workspace/app/detail/project/${parentProject.id}`);
+      // setLocation(`/workspace/${workspaceId}/detail/project/${parentProject.id}`);
+      // 이동할 기본 경로 설정
+      const baseUrl = `/workspace/${workspaceId}/detail/project/${parentProject.id}`;
+
+      // 현재 URL에 'from'이 있다면 이를 유지하고, 없다면 빈 문자열을 붙입니다.
+      const searchParams = currentFrom ? `?from=${currentFrom}` : "";
+
+      // 최종 경로로 이동 (예: .../project/123?from=kanban)
+      setLocation(baseUrl + searchParams);
     }
   };
 
@@ -1390,6 +1429,7 @@ export default function GoalDetail() {
         }
         goalId={taskModalState.goalId}
         goalTitle={taskModalState.goalTitle}
+        workspaceId={workspaceId as string}
       />
     </>
   );

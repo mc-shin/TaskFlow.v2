@@ -9,60 +9,107 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { CalendarIcon, Clock, MapPin, Users, FileText, MessageSquare, Upload, ArrowLeft, Paperclip } from "lucide-react";
-import { useLocation } from "wouter";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import {
+  CalendarIcon,
+  Clock,
+  MapPin,
+  Users,
+  FileText,
+  MessageSquare,
+  Upload,
+  ArrowLeft,
+  Paperclip,
+} from "lucide-react";
+import { useLocation, useParams } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { insertMeetingSchema, SafeUser } from "@shared/schema";
 import { ObjectUploader } from "@/components/ObjectUploader";
+import api from "@/api/api-index";
 
 // 확장된 미팅 스키마 (UI용)
-const newMeetingSchema = insertMeetingSchema.omit({
-  startAt: true,
-  endAt: true
-}).extend({
-  title: z.string().min(1, "제목을 입력해주세요"),
-  date: z.string().min(1, "날짜를 선택해주세요"),
-  startTime: z.string().min(1, "시작 시간을 선택해주세요"),
-  endTime: z.string().optional(),
-  attendeeIds: z.array(z.string()).min(1, "최소 한 명의 참여자를 선택해주세요")
-});
+const newMeetingSchema = insertMeetingSchema
+  .omit({
+    startAt: true,
+    endAt: true,
+  })
+  .extend({
+    title: z.string().min(1, "제목을 입력해주세요"),
+    date: z.string().min(1, "날짜를 선택해주세요"),
+    startTime: z.string().min(1, "시작 시간을 선택해주세요"),
+    endTime: z.string().optional(),
+    attendeeIds: z
+      .array(z.string())
+      .min(1, "최소 한 명의 참여자를 선택해주세요"),
+  });
 
 type NewMeetingForm = z.infer<typeof newMeetingSchema>;
 
 export default function NewMeeting() {
   const { toast } = useToast();
-  const [selectedParticipants, setSelectedParticipants] = useState<string[]>([]);
+  const [selectedParticipants, setSelectedParticipants] = useState<string[]>(
+    []
+  );
   const [, setLocation] = useLocation();
   const [comments, setComments] = useState<string>("");
   const [uploadedFiles, setUploadedFiles] = useState<string[]>([]);
+  const { id: workspaceId } = useParams();
 
   // 파일 업로드 핸들러
   const handleGetUploadParameters = async () => {
-    const response = await apiRequest('POST', '/api/objects/upload');
+    const response = await apiRequest("POST", "/api/objects/upload");
     const data = await response.json();
     return {
-      method: 'PUT' as const,
+      method: "PUT" as const,
       url: data.uploadURL,
     };
   };
 
-  const handleUploadComplete = (result: { successful: Array<{ uploadURL: string; name: string }> }) => {
+  const handleUploadComplete = (result: {
+    successful: Array<{ uploadURL: string; name: string }>;
+  }) => {
     if (result.successful && result.successful.length > 0) {
-      const uploadedUrls = result.successful.map(file => file.uploadURL);
-      setUploadedFiles(prev => [...prev, ...uploadedUrls]);
+      const uploadedUrls = result.successful.map((file) => file.uploadURL);
+      setUploadedFiles((prev) => [...prev, ...uploadedUrls]);
       toast({
         title: "파일 업로드 완료",
-        description: `${result.successful.length}개 파일이 업로드되었습니다.`
+        description: `${result.successful.length}개 파일이 업로드되었습니다.`,
       });
     }
   };
 
   // 사용자 목록 가져오기 (workspace members only)
   const { data: users = [] } = useQuery<SafeUser[]>({
-    queryKey: ['/api/users?workspace=true'],
+    // 1. 쿼리 키에 workspaceId를 추가하여 워크스페이스별로 유저 목록을 개별 캐싱합니다.
+    queryKey: ["workspace-members", workspaceId],
+
+    queryFn: async () => {
+      // 2. 수정된 백엔드 API 경로(/api/workspaces/:id/users)를 호출합니다.
+      const response = await api.get(`/api/workspaces/${workspaceId}/users`);
+      return response.data;
+    },
+
+    // 3. workspaceId가 없을 때는 호출을 방지하여 에러를 막습니다.
+    enabled: !!workspaceId,
+
+    // 4. 효율적인 캐시 설정
+    staleTime: 300000, // 5분간 서버에 재요청하지 않음 (부하 감소)
+    refetchOnWindowFocus: true, // 사용자가 다시 브라우저를 볼 때 최신 데이터 확인
   });
 
   // 폼 설정
@@ -76,83 +123,103 @@ export default function NewMeeting() {
       date: "",
       startTime: "",
       endTime: "",
-      attendeeIds: []
-    }
+      attendeeIds: [],
+    },
   });
 
   // 미팅 생성 뮤테이션
   const createMeetingMutation = useMutation({
-    mutationFn: async (data: { meetingData: any; initialComment: string | null }) => {
+    mutationFn: async (data: {
+      meetingData: any;
+      initialComment: string | null;
+    }) => {
+      const payload = {
+        ...data.meetingData,
+        workspaceId: workspaceId, // 현재 접속 중인 워크스페이스 ID 추가
+      };
+
       // 먼저 미팅을 생성
-      const meetingResponse = await apiRequest('POST', '/api/meetings', data.meetingData);
-      const meeting = await meetingResponse.json();
-      
+      const meetingResponse = await apiRequest(
+        "POST",
+        "/api/meetings",
+        payload
+      );
+      const meeting = await meetingResponse;
+
       // 초기 댓글이 있으면 추가
       if (data.initialComment && meeting.id) {
         const currentUser = users[0]; // 현재 로그인된 사용자 (임시로 첫 번째 사용자 사용)
         if (currentUser) {
-          await apiRequest('POST', `/api/meetings/${meeting.id}/comments`, {
+          await apiRequest("POST", `/api/meetings/${meeting.id}/comments`, {
             content: data.initialComment,
-            authorId: currentUser.id
+            authorId: currentUser.id,
           });
         }
       }
-      
+
       return meeting;
     },
-    onSuccess: () => {
+    onSuccess: async () => {
+      // [수정 핵심] 목록 페이지의 queryKey와 동일한 배열 구조로 맞춤
+      const meetingListKey = ["/api/workspaces", workspaceId, "meetings"];
+
+      // 1. 강제 무효화 및 다시 불러오기
+      await queryClient.invalidateQueries({
+        queryKey: meetingListKey,
+        exact: true, // 정확히 이 키를 가진 쿼리 타겟팅
+      });
+
+      // 2. 혹시 모를 캐시 잔상을 위해 강제 리페치 실행
+      // await queryClient.refetchQueries({
+      //   queryKey: meetingListKey
+      // });
+
       toast({
         title: "미팅이 생성되었습니다",
-        description: "새로운 미팅이 성공적으로 추가되었습니다."
+        description: "새로운 미팅이 성공적으로 추가되었습니다.",
       });
-      // 미팅 목록 새로고침
-      queryClient.invalidateQueries({ queryKey: ['/api/meetings'] });
-      // 미팅 페이지로 이동
-      setLocation('/workspace/app/meeting');
+
+      // 3. 갱신이 확실히 예약된 후 페이지 이동
+      setLocation(`/workspace/${workspaceId}/meeting`);
     },
     onError: (error) => {
-      console.error('미팅 생성 오류:', error);
+      console.error("미팅 생성 오류:", error);
       toast({
         title: "오류가 발생했습니다",
         description: "미팅 생성 중 문제가 발생했습니다.",
-        variant: "destructive"
+        variant: "destructive",
       });
-    }
+    },
   });
 
   // 참여자 토글
   const toggleParticipant = (userId: string) => {
-    setSelectedParticipants(prev => {
-      const newSelection = prev.includes(userId) 
-        ? prev.filter(id => id !== userId)
+    setSelectedParticipants((prev) => {
+      const newSelection = prev.includes(userId)
+        ? prev.filter((id) => id !== userId)
         : [...prev, userId];
-      
+
       // 폼 값도 업데이트
-      form.setValue('attendeeIds', newSelection);
+      form.setValue("attendeeIds", newSelection);
       return newSelection;
     });
   };
 
   // 폼 제출
   const onSubmit = (data: NewMeetingForm) => {
-    console.log('=== 폼 제출 시작 ===');
-    console.log('Form data:', data);
-    console.log('Selected participants:', selectedParticipants);
-    console.log('Form errors:', form.formState.errors);
-
     // 날짜와 시간을 ISO 문자열로 변환
     const startDateTime = new Date(`${data.date}T${data.startTime}`);
     let endDateTime: Date | null = null;
-    
+
     if (data.endTime) {
       endDateTime = new Date(`${data.date}T${data.endTime}`);
-      
+
       // 종료 시간이 있을 때만 시간 검증
       if (endDateTime <= startDateTime) {
         toast({
           title: "시간 설정 오류",
           description: "종료 시간은 시작 시간보다 늦어야 합니다.",
-          variant: "destructive"
+          variant: "destructive",
         });
         return;
       }
@@ -166,15 +233,13 @@ export default function NewMeeting() {
       endAt: endDateTime ? endDateTime.toISOString() : null,
       type: data.type,
       location: data.location || "",
-      attendeeIds: selectedParticipants
+      attendeeIds: selectedParticipants,
     };
 
-    console.log('Meeting data to send:', meetingData);
-    
     // 미팅을 생성하고, 초기 댓글이 있으면 함께 저장
     createMeetingMutation.mutate({
       meetingData,
-      initialComment: comments.trim() || null
+      initialComment: comments.trim() || null,
     });
   };
 
@@ -184,10 +249,10 @@ export default function NewMeeting() {
         {/* 헤더 */}
         <header className="h-16 bg-card border-b border-border flex items-center justify-between px-6">
           <div className="flex items-center space-x-4">
-            <Button 
-              variant="ghost" 
+            <Button
+              variant="ghost"
               size="sm"
-              onClick={() => setLocation('/workspace/app/meeting')}
+              onClick={() => setLocation(`/workspace/${workspaceId}/meeting`)}
               data-testid="button-back"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
@@ -203,7 +268,10 @@ export default function NewMeeting() {
         <main className="flex-1 p-6 overflow-auto" data-testid="main-content">
           <div className="max-w-2xl mx-auto">
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              <form
+                onSubmit={form.handleSubmit(onSubmit)}
+                className="space-y-6"
+              >
                 {/* 기본 정보 카드 */}
                 <Card>
                   <CardHeader>
@@ -221,7 +289,7 @@ export default function NewMeeting() {
                         <FormItem>
                           <FormLabel>제목 *</FormLabel>
                           <FormControl>
-                            <Input 
+                            <Input
                               placeholder="미팅 제목을 입력하세요"
                               data-testid="input-title"
                               {...field}
@@ -240,7 +308,7 @@ export default function NewMeeting() {
                         <FormItem>
                           <FormLabel>내용</FormLabel>
                           <FormControl>
-                            <Textarea 
+                            <Textarea
                               placeholder="미팅 내용을 입력하세요"
                               rows={4}
                               data-testid="textarea-description"
@@ -264,7 +332,7 @@ export default function NewMeeting() {
                             <span>위치</span>
                           </FormLabel>
                           <FormControl>
-                            <Input 
+                            <Input
                               placeholder="미팅 장소를 입력하세요"
                               data-testid="input-location"
                               {...field}
@@ -295,7 +363,7 @@ export default function NewMeeting() {
                         <FormItem>
                           <FormLabel>날짜 *</FormLabel>
                           <FormControl>
-                            <Input 
+                            <Input
                               type="date"
                               data-testid="input-date"
                               {...field}
@@ -318,7 +386,7 @@ export default function NewMeeting() {
                               <span>시작 시간 *</span>
                             </FormLabel>
                             <FormControl>
-                              <Input 
+                              <Input
                                 type="time"
                                 data-testid="input-start-time"
                                 {...field}
@@ -340,7 +408,7 @@ export default function NewMeeting() {
                               <span>종료 시간 (선택사항)</span>
                             </FormLabel>
                             <FormControl>
-                              <Input 
+                              <Input
                                 type="time"
                                 data-testid="input-end-time"
                                 {...field}
@@ -372,17 +440,21 @@ export default function NewMeeting() {
                           <FormControl>
                             <div className="grid grid-cols-2 gap-3">
                               {users.map((user) => (
-                                <div 
-                                  key={user.id} 
+                                <div
+                                  key={user.id}
                                   className="flex items-center space-x-2"
                                 >
                                   <Checkbox
                                     id={`user-${user.id}`}
-                                    checked={selectedParticipants.includes(user.id)}
-                                    onCheckedChange={() => toggleParticipant(user.id)}
+                                    checked={selectedParticipants.includes(
+                                      user.id
+                                    )}
+                                    onCheckedChange={() =>
+                                      toggleParticipant(user.id)
+                                    }
                                     data-testid={`checkbox-user-${user.username}`}
                                   />
-                                  <Label 
+                                  <Label
                                     htmlFor={`user-${user.id}`}
                                     className="flex items-center space-x-2 cursor-pointer"
                                   >
@@ -436,7 +508,10 @@ export default function NewMeeting() {
                             </p>
                             <div className="space-y-1">
                               {uploadedFiles.map((fileUrl, index) => (
-                                <div key={index} className="text-xs text-muted-foreground bg-secondary p-2 rounded">
+                                <div
+                                  key={index}
+                                  className="text-xs text-muted-foreground bg-secondary p-2 rounded"
+                                >
                                   파일 {index + 1}: 업로드 완료
                                 </div>
                               ))}
@@ -451,7 +526,7 @@ export default function NewMeeting() {
                         <MessageSquare className="w-4 h-4" />
                         <span>초기 댓글 (선택사항)</span>
                       </Label>
-                      <Textarea 
+                      <Textarea
                         placeholder="미팅에 대한 초기 댓글을 작성하세요... (선택사항)"
                         value={comments}
                         onChange={(e) => setComments(e.target.value)}
@@ -459,7 +534,8 @@ export default function NewMeeting() {
                         data-testid="textarea-comments"
                       />
                       <p className="text-xs text-muted-foreground">
-                        미팅 생성 후 상세보기에서 댓글을 추가로 작성할 수 있습니다.
+                        미팅 생성 후 상세보기에서 댓글을 추가로 작성할 수
+                        있습니다.
                       </p>
                     </div>
                   </CardContent>
@@ -467,30 +543,28 @@ export default function NewMeeting() {
 
                 {/* 액션 버튼 */}
                 <div className="flex justify-end space-x-4">
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    onClick={() => setLocation('/workspace/app/meeting')}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() =>
+                      setLocation(`/workspace/${workspaceId}/meeting`)
+                    }
                     data-testid="button-cancel"
                   >
                     취소
                   </Button>
-                  <Button 
-                    type="submit" 
+                  <Button
+                    type="submit"
                     disabled={createMeetingMutation.isPending}
                     data-testid="button-submit"
                     onClick={(e) => {
                       e.preventDefault();
-                      console.log('=== 버튼 클릭됨 ===');
-                      console.log('Form state:', {
-                        isValid: form.formState.isValid,
-                        errors: form.formState.errors,
-                        values: form.getValues()
-                      });
                       form.handleSubmit(onSubmit)();
                     }}
                   >
-                    {createMeetingMutation.isPending ? "생성 중..." : "미팅 생성"}
+                    {createMeetingMutation.isPending
+                      ? "생성 중..."
+                      : "미팅 생성"}
                   </Button>
                 </div>
               </form>

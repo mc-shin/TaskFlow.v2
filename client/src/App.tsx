@@ -11,13 +11,14 @@ import { WorkspacePage } from "@/pages/workspace";
 import NotFound from "@/pages/not-found";
 
 function Router() {
+
   return (
     <Switch>
       <Route path="/" component={Landing} />
       <Route path="/login" component={LoginPage} />
       <Route path="/signup" component={SignupPage} />
       <Route path="/workspace" component={WorkspacePage} />
-      <Route path="/workspace/app/*">
+      <Route path="/workspace/:id/*">
         <WorkspaceAppShell />
       </Route>
       <Route component={NotFound} />

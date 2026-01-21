@@ -36,6 +36,7 @@ import api from "@/api/api-index";
 const taskFormSchema = insertTaskSchema.extend({
   deadline: z.string().optional(),
   progress: z.number().optional(),
+  workspaceId: z.string().min(1, "워크스페이스 ID가 필요합니다"),
 });
 
 type TaskFormData = z.infer<typeof taskFormSchema>;
@@ -46,6 +47,8 @@ interface TaskModalProps {
   editingTask?: TaskWithAssignees | null;
   goalId?: string;
   goalTitle?: string;
+  workspaceId: string; // ⭐ workspaceId 추가
+  onSuccess?: () => void; // ⭐ 추가
 }
 
 export function TaskModal({
@@ -54,39 +57,22 @@ export function TaskModal({
   editingTask,
   goalId,
   goalTitle,
+  workspaceId,
+  onSuccess, // ⭐ 추가
 }: TaskModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // const { data: users } = useQuery({
-  //   queryKey: ["/api/users", { workspace: true }],
-  //   queryFn: () => fetch('/api/users?workspace=true').then(res => res.json()),
-  // });
-
-  ///////////////
   const { data: users } = useQuery({
-    // 쿼리 키는 변경 없습니다. (키 값의 객체 형태는 Axios params와 일치)
-    queryKey: ["/api/users", { workspace: true }],
+    queryKey: ["/api/workspaces", workspaceId, "users"],
 
     queryFn: async () => {
-      // 🚩 [2] fetch 코드를 Axios로 교체
-      // -----------------------------------------------------------------
-      const response = await api.get("/api/users", {
-        // 쿼리 파라미터 (?workspace=true)를 params 객체로 전달합니다.
-        // Axios가 이를 안전하게 URL로 인코딩해줍니다.
-        params: {
-          workspace: true,
-        },
-      });
+      const response = await api.get(`/api/workspaces/${workspaceId}/users`);
 
-      // [3] Axios는 응답 데이터(JSON 파싱 완료)를 response.data에 담습니다.
-      // 또한, HTTP 4xx/5xx 에러는 자동으로 throw 하므로, .then(res => res.json())을
-      // 사용할 필요가 없습니다.
       return response.data as User[];
-      // -----------------------------------------------------------------
     },
+    enabled: !!workspaceId,
   });
-  ////////////
 
   const form = useForm<TaskFormData>({
     resolver: zodResolver(taskFormSchema),
@@ -101,6 +87,7 @@ export function TaskModal({
       assigneeIds: [],
       goalId: goalId || "",
       projectId: "",
+      workspaceId: workspaceId, // ⭐ 초기값 설정
     },
   });
 
@@ -115,6 +102,7 @@ export function TaskModal({
         duration: editingTask.duration || 0,
         progress: editingTask.progress || 0,
         assigneeIds: editingTask.assigneeIds || [],
+        workspaceId: workspaceId,
       });
     } else {
       form.reset({
@@ -126,9 +114,10 @@ export function TaskModal({
         duration: 0,
         progress: 0,
         assigneeIds: [],
+        workspaceId: workspaceId,
       });
     }
-  }, [editingTask, form]);
+  }, [editingTask, workspaceId, form]);
 
   const createTaskMutation = useMutation({
     mutationFn: async (data: TaskFormData) => {
@@ -138,24 +127,48 @@ export function TaskModal({
         assigneeIds: data.assigneeIds || [],
       };
       const response = await apiRequest("POST", "/api/tasks", taskData);
-      return response.json();
+      return response;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/goals"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/activities"] });
+      // queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      // queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      // queryClient.invalidateQueries({ queryKey: ["/api/goals"] });
+      // queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+      // queryClient.invalidateQueries({ queryKey: ["/api/activities"] });
+      // ✅ 쿼리 키를 배열 구조로 통일 (목록을 불러오는 useQuery의 키와 일치시켜야 함)
+      queryClient.invalidateQueries({
+        queryKey: ["/api/workspaces", workspaceId, "tasks"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/workspaces", workspaceId, "projects"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/workspaces", workspaceId, "goals"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/workspaces", workspaceId, "stats"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/workspaces", workspaceId, "activities"],
+      });
+
       // 프로젝트별 목표 데이터도 무효화
       queryClient.invalidateQueries({
         predicate: (query) =>
           query.queryKey[0] === "/api/projects" &&
           query.queryKey[2] === "goals",
       });
+
       toast({
         title: "작업 생성 완료",
         description: "새 작업이 성공적으로 생성되었습니다.",
       });
+
+      // ⭐ 작업 생성 성공 시 부모 컴포넌트의 펼치기 함수 실행
+      if (onSuccess) {
+        onSuccess();
+      }
+
       onClose();
     },
     onError: () => {
@@ -178,20 +191,38 @@ export function TaskModal({
         `/api/tasks/${editingTask?.id}`,
         taskData
       );
-      return response.json();
+      return response
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/goals"] });
+      // queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      // queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      // queryClient.invalidateQueries({ queryKey: ["/api/goals"] });
+      // queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+      // queryClient.invalidateQueries({ queryKey: ["/api/activities"] });
+      // 프로젝트별 목표 데이터도 무효화
+      // 1. [핵심 수정] myTask 페이지에서 사용하는 정확한 키를 무효화합니다.
+      queryClient.invalidateQueries({
+        queryKey: ["/api/workspaces", workspaceId, "tasks"],
+      });
+
+      // 2. [추가] 워크스페이스 관련 모든 데이터를 한 번에 무효화 (안전한 방법)
+      queryClient.invalidateQueries({
+        queryKey: ["/api/workspaces", workspaceId],
+      });
+
+      // 3. 기존 무효화 로직도 유지 (필요한 경우)
       queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
       queryClient.invalidateQueries({ queryKey: ["/api/activities"] });
-      // 프로젝트별 목표 데이터도 무효화
+
       queryClient.invalidateQueries({
         predicate: (query) =>
           query.queryKey[0] === "/api/projects" &&
           query.queryKey[2] === "goals",
       });
+      // queryClient.invalidateQueries({
+      //   queryKey: [`/api/workspaces/${workspaceId}/activities`],
+      // });
+
       toast({
         title: "작업 수정 완료",
         description: "작업이 성공적으로 수정되었습니다.",
@@ -220,7 +251,11 @@ export function TaskModal({
       }
     }
 
-    const updatedData = { ...data, status: autoStatus };
+    const updatedData = {
+      ...data,
+      workspaceId: workspaceId,
+      status: autoStatus,
+    };
 
     if (editingTask) {
       updateTaskMutation.mutate(updatedData);

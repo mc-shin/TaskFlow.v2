@@ -2,19 +2,33 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { insertGoalSchema } from "@shared/schema";
+import { useEffect } from "react";
 
 const goalFormSchema = insertGoalSchema.extend({
   title: z.string().min(1, "목표 제목을 입력해주세요"),
   description: z.string().optional(),
   deadline: z.string().optional(),
+  workspaceId: z.string().min(1), // 필수 필드로 추가
 });
 
 type GoalFormData = z.infer<typeof goalFormSchema>;
@@ -24,9 +38,18 @@ interface GoalModalProps {
   onClose: () => void;
   projectId: string;
   projectTitle?: string;
+  workspaceId: string; // ⭐ workspaceId 추가
+  onSuccess?: () => void; // ⭐ 추가
 }
 
-export function GoalModal({ isOpen, onClose, projectId, projectTitle }: GoalModalProps) {
+export function GoalModal({
+  isOpen,
+  onClose,
+  projectId,
+  projectTitle,
+  workspaceId,
+  onSuccess, // ⭐ 추가
+}: GoalModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -36,26 +59,59 @@ export function GoalModal({ isOpen, onClose, projectId, projectTitle }: GoalModa
       title: "",
       description: "",
       projectId: projectId,
+      workspaceId: workspaceId, // 초기값 설정
       deadline: "",
     },
   });
 
+  // workspaceId가 프롭으로 전달되면 폼 값도 업데이트
+  useEffect(() => {
+    if (workspaceId) {
+      form.setValue("workspaceId", workspaceId);
+    }
+  }, [workspaceId, form]);
+
   const createGoalMutation = useMutation({
     mutationFn: async (data: GoalFormData) => {
       const response = await apiRequest("POST", "/api/goals", data);
-      return response.json();
+      return response;
     },
     onSuccess: () => {
       // Invalidate multiple queries to update the UI
-      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId, "goals"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/goals"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
-      
+      // queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      // queryClient.invalidateQueries({ queryKey: ["/api/projects", projectId, "goals"] });
+      // queryClient.invalidateQueries({ queryKey: ["/api/goals"] });
+      // queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+      // 1. 해당 워크스페이스의 모든 프로젝트 목록 갱신
+      queryClient.invalidateQueries({
+        queryKey: ["/api/workspaces", workspaceId, "projects"],
+      });
+      // 2. 해당 워크스페이스의 모든 목표 목록 갱신 (목록 페이지에서 이 키를 사용해야 함)
+      queryClient.invalidateQueries({
+        queryKey: ["/api/workspaces", workspaceId, "goals"],
+      });
+      // 3. 통계 데이터 갱신
+      queryClient.invalidateQueries({
+        queryKey: ["/api/workspaces", workspaceId, "stats"],
+      });
+      // 4. 특정 프로젝트 상세 내의 목표 목록 갱신 (사용 중인 경우)
+      queryClient.invalidateQueries({
+        queryKey: ["/api/projects", projectId, "goals"],
+      });
+   queryClient.invalidateQueries({
+      queryKey: ["/api/workspaces", workspaceId, "activities"],
+    });
+
       toast({
         title: "목표 생성 완료",
         description: "새 목표가 성공적으로 생성되었습니다.",
       });
+
+      // ⭐ 목표 생성 성공 후 부모 컴포넌트의 펼치기 함수 호출
+      if (onSuccess) {
+        onSuccess();
+      }
+      
       form.reset();
       onClose();
     },
@@ -72,6 +128,7 @@ export function GoalModal({ isOpen, onClose, projectId, projectTitle }: GoalModa
     createGoalMutation.mutate({
       ...data,
       projectId: projectId, // Ensure projectId is set
+      workspaceId: workspaceId, // 명시적으로 한 번 더 확인
       status: "진행중", // Set status to 진행중 when creating goals from project detail page
     });
   };
@@ -89,7 +146,10 @@ export function GoalModal({ isOpen, onClose, projectId, projectTitle }: GoalModa
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+          <form
+            onSubmit={form.handleSubmit(handleSubmit)}
+            className="space-y-6"
+          >
             <FormField
               control={form.control}
               name="title"

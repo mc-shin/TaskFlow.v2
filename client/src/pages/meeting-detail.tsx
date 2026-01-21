@@ -88,7 +88,7 @@ const editMeetingSchema = insertMeetingSchema
 type EditMeetingForm = z.infer<typeof editMeetingSchema>;
 
 export default function MeetingDetail() {
-  const { id } = useParams();
+  const { id: workspaceId, meetingId } = useParams();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
@@ -103,41 +103,6 @@ export default function MeetingDetail() {
   } | null>(null);
 
   // 첨부파일 다운로드 핸들러
-  // const handleDownloadAttachment = async (attachment: MeetingAttachment) => {
-  //   try {
-  //     // fetch를 직접 사용하여 파일 다운로드
-  //     const response = await fetch(`/objects/${encodeURI(attachment.filePath)}`);
-
-  //     if (response.ok) {
-  //       // 브라우저의 다운로드 기능 사용
-  //       const blob = await response.blob();
-  //       const url = window.URL.createObjectURL(blob);
-  //       const a = document.createElement('a');
-  //       a.href = url;
-  //       a.download = attachment.fileName;
-  //       document.body.appendChild(a);
-  //       a.click();
-  //       window.URL.revokeObjectURL(url);
-  //       document.body.removeChild(a);
-
-  //       toast({
-  //         title: "다운로드 완료",
-  //         description: `${attachment.fileName} 파일이 다운로드되었습니다.`
-  //       });
-  //     } else {
-  //       throw new Error('다운로드 실패');
-  //     }
-  //   } catch (error) {
-  //     console.error('Download error:', error);
-  //     toast({
-  //       title: "다운로드 실패",
-  //       description: "파일 다운로드 중 오류가 발생했습니다.",
-  //       variant: "destructive"
-  //     });
-  //   }
-  // };
-
-  ////////////////////////////////
   const handleDownloadAttachment = async (attachment: MeetingAttachment) => {
     try {
       // 🚩 [수정] Axios를 사용하여 파일 다운로드
@@ -174,17 +139,30 @@ export default function MeetingDetail() {
       });
     }
   };
-  ////////////////////////////////
 
   // 미팅 정보 조회
   const { data: meeting, isLoading: meetingLoading } = useQuery<Meeting>({
-    queryKey: ["/api/meetings", id],
-    enabled: !!id,
+    queryKey: [`/api/meetings/${meetingId}`],
+    enabled: !!meetingId,
   });
 
   // 사용자 목록 조회 (워크스페이스 멤버만)
   const { data: users = [] } = useQuery<SafeUser[]>({
-    queryKey: ["/api/users?workspace=true"],
+    // 1. 쿼리 키에 workspaceId를 추가하여 워크스페이스별로 유저 목록을 개별 캐싱합니다.
+    queryKey: ["workspace-members", workspaceId],
+
+    queryFn: async () => {
+      // 2. 수정된 백엔드 API 경로(/api/workspaces/:id/users)를 호출합니다.
+      const response = await api.get(`/api/workspaces/${workspaceId}/users`);
+      return response.data;
+    },
+
+    // 3. workspaceId가 없을 때는 호출을 방지하여 에러를 막습니다.
+    enabled: !!workspaceId,
+
+    // 4. 효율적인 캐시 설정
+    staleTime: 300000, // 5분간 서버에 재요청하지 않음 (부하 감소)
+    refetchOnWindowFocus: true, // 사용자가 다시 브라우저를 볼 때 최신 데이터 확인
   });
 
   // 현재 로그인한 사용자 식별
@@ -200,14 +178,14 @@ export default function MeetingDetail() {
   const { data: comments = [], refetch: refetchComments } = useQuery<
     MeetingCommentWithAuthor[]
   >({
-    queryKey: ["/api/meetings", id, "comments"],
-    enabled: !!id,
+    queryKey: ["/api/meetings", meetingId, "comments"],
+    enabled: !!meetingId,
   });
 
   // 첨부파일 목록 조회
   const { data: attachments = [] } = useQuery<MeetingAttachment[]>({
-    queryKey: ["/api/meetings", id, "attachments"],
-    enabled: !!id,
+    queryKey: ["/api/meetings", meetingId, "attachments"],
+    enabled: !!meetingId,
   });
 
   // 댓글 생성 뮤테이션
@@ -216,7 +194,7 @@ export default function MeetingDetail() {
       if (!currentUser) {
         throw new Error("로그인이 필요합니다.");
       }
-      return apiRequest("POST", `/api/meetings/${id}/comments`, {
+      return apiRequest("POST", `/api/meetings/${meetingId}/comments`, {
         content,
         authorId: currentUser.id,
       });
@@ -224,7 +202,7 @@ export default function MeetingDetail() {
     onSuccess: () => {
       setNewComment("");
       queryClient.invalidateQueries({
-        queryKey: ["/api/meetings", id, "comments"],
+        queryKey: ["/api/meetings", meetingId, "comments"],
       });
       toast({
         title: "댓글 작성 완료",
@@ -252,14 +230,18 @@ export default function MeetingDetail() {
       if (!currentUser) {
         throw new Error("로그인이 필요합니다.");
       }
-      return apiRequest("PUT", `/api/meetings/${id}/comments/${commentId}`, {
-        content,
-      });
+      return apiRequest(
+        "PUT",
+        `/api/meetings/${meetingId}/comments/${commentId}`,
+        {
+          content,
+        }
+      );
     },
     onSuccess: () => {
       setEditingComment(null);
       queryClient.invalidateQueries({
-        queryKey: ["/api/meetings", id, "comments"],
+        queryKey: ["/api/meetings", meetingId, "comments"],
       });
       toast({
         title: "댓글 수정 완료",
@@ -283,13 +265,13 @@ export default function MeetingDetail() {
       }
       return apiRequest(
         "DELETE",
-        `/api/meetings/${id}/comments/${commentId}`,
+        `/api/meetings/${meetingId}/comments/${commentId}`,
         {}
       );
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: ["/api/meetings", id, "comments"],
+        queryKey: ["/api/meetings", meetingId, "comments"],
       });
       toast({
         title: "댓글 삭제 완료",
@@ -343,15 +325,17 @@ export default function MeetingDetail() {
 
   // 미팅 수정 뮤테이션
   const updateMeetingMutation = useMutation({
-    mutationFn: (data: any) => apiRequest("PATCH", `/api/meetings/${id}`, data),
+    mutationFn: (data: any) =>
+      apiRequest("PATCH", `/api/meetings/${meetingId}`, data),
     onSuccess: (data) => {
-      console.log("Meeting updated successfully:", data);
       toast({
         title: "미팅이 수정되었습니다",
         description: "미팅 정보가 성공적으로 업데이트되었습니다.",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/meetings"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/meetings", id] });
+      queryClient.invalidateQueries({
+        queryKey: [`/api/meetings/${meetingId}`],
+      });
       setIsEditing(false);
     },
     onError: (error) => {
@@ -366,14 +350,24 @@ export default function MeetingDetail() {
 
   // 미팅 삭제 뮤테이션
   const deleteMeetingMutation = useMutation({
-    mutationFn: () => apiRequest("DELETE", `/api/meetings/${id}`),
-    onSuccess: () => {
+    mutationFn: () => apiRequest("DELETE", `/api/meetings/${meetingId}`),
+    onSuccess: async () => {
+      // 1. 목록 페이지에서 사용하는 것과 정확히 일치하는 키 설정
+      const meetingListKey = ["/api/workspaces", workspaceId, "meetings"];
+
+      // 2. 해당 쿼리를 무효화하고 서버 데이터를 다시 가져오도록 대기
+      await queryClient.invalidateQueries({
+        queryKey: meetingListKey,
+        exact: true,
+      });
+
       toast({
         title: "미팅이 삭제되었습니다",
         description: "미팅이 성공적으로 삭제되었습니다.",
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/meetings"] });
-      setLocation("/workspace/app/meeting");
+
+      // 3. 캐시가 무효화된 후 페이지 이동
+      setLocation(`/workspace/${workspaceId}/meeting`);
     },
     onError: (error) => {
       console.error("Meeting delete error:", error);
@@ -399,9 +393,6 @@ export default function MeetingDetail() {
 
   // 폼 제출
   const onSubmit = (data: EditMeetingForm) => {
-    console.log("=== 미팅 수정 시작 ===");
-    console.log("Form data:", data);
-
     // 날짜와 시간을 ISO 문자열로 변환
     const startDateTime = new Date(`${data.date}T${data.startTime}`);
     let endDateTime: Date | null = null;
@@ -430,7 +421,6 @@ export default function MeetingDetail() {
       attendeeIds: selectedParticipants,
     };
 
-    console.log("Meeting update data:", meetingData);
     updateMeetingMutation.mutate(meetingData);
   };
 
@@ -443,7 +433,7 @@ export default function MeetingDetail() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setLocation("/workspace/app/meeting")}
+                onClick={() => setLocation(`/workspace/${workspaceId}/meeting`)}
                 data-testid="button-back"
               >
                 <ArrowLeft className="w-4 h-4 mr-2" />
@@ -474,7 +464,7 @@ export default function MeetingDetail() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setLocation("/workspace/app/meeting")}
+                onClick={() => setLocation(`/workspace/${workspaceId}/meeting`)}
                 data-testid="button-back"
               >
                 <ArrowLeft className="w-4 h-4 mr-2" />
@@ -507,7 +497,7 @@ export default function MeetingDetail() {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => setLocation("/workspace/app/meeting")}
+              onClick={() => setLocation(`/workspace/${workspaceId}/meeting`)}
               data-testid="button-back"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
@@ -823,27 +813,28 @@ export default function MeetingDetail() {
                   </div>
 
                   {/* 위치 */}
-                  {meeting.location && (
-                    <div className="flex items-center space-x-2 text-muted-foreground">
-                      <MapPin className="w-4 h-4" />
-                      <span data-testid="text-meeting-location">
-                        {meeting.location}
-                      </span>
-                    </div>
-                  )}
+                  <div className="flex items-center space-x-2 text-muted-foreground">
+                    <MapPin className="w-4 h-4" />
+                    <span data-testid="text-meeting-location">
+                      {meeting.location && meeting.location.trim() !== ""
+                        ? meeting.location
+                        : "지정된 위치가 없습니다."}
+                    </span>
+                  </div>
 
                   {/* 설명 */}
-                  {meeting.description && (
-                    <div className="pt-4 border-t">
-                      <h4 className="font-medium mb-2">내용</h4>
-                      <p
-                        className="text-muted-foreground whitespace-pre-wrap"
-                        data-testid="text-meeting-description"
-                      >
-                        {meeting.description}
-                      </p>
-                    </div>
-                  )}
+                  <div className="pt-4 border-t">
+                    <h4 className="font-medium mb-2">내용</h4>
+                    <p
+                      className="text-muted-foreground whitespace-pre-wrap"
+                      data-testid="text-meeting-description"
+                    >
+                      {/* {meeting.description || "입력된 내용이 없습니다."} */}
+                      {meeting.description && meeting.description.trim() !== ""
+                        ? meeting.description
+                        : "입력된 내용이 없습니다."}
+                    </p>
+                  </div>
                 </CardContent>
               </Card>
 

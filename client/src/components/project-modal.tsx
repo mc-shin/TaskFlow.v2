@@ -21,9 +21,10 @@ type ProjectFormData = z.infer<typeof projectFormSchema>;
 interface ProjectModalProps {
   isOpen: boolean;
   onClose: () => void;
+  workspaceId: string; // ⭐ workspaceId 추가
 }
 
-export function ProjectModal({ isOpen, onClose }: ProjectModalProps) {
+export function ProjectModal({ isOpen, onClose, workspaceId }: ProjectModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -34,30 +35,42 @@ export function ProjectModal({ isOpen, onClose }: ProjectModalProps) {
       description: "",
     },
   });
-
+  
   const createProjectMutation = useMutation({
     mutationFn: async (data: ProjectFormData) => {
-      // Generate a unique project code
       const projectCode = `PROJ-${Date.now().toString().slice(-6)}`;
       const projectData = {
         name: data.name,
         code: projectCode,
         description: data.description || null,
+        workspaceId: workspaceId,
       };
-      const response = await apiRequest("POST", "/api/projects", projectData);
-      return response.json();
+      
+      return await apiRequest("POST", "/api/projects", projectData);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+      // ✅ 1. 프로젝트 목록 쿼리 키를 현재 워크스페이스 ID를 포함한 키로 정확히 지정해야 합니다.
+      queryClient.invalidateQueries({ 
+        queryKey: ["/api/workspaces", workspaceId, "projects"] 
+      });
+      // ✅ 2. 통계(stats) 쿼리도 workspaceId를 포함하고 있다면 맞춰서 수정합니다.
+      queryClient.invalidateQueries({ 
+        queryKey: ["users-stats", workspaceId] 
+      });
+         queryClient.invalidateQueries({
+      queryKey: ["/api/workspaces", workspaceId, "activities"],
+    });
+
       toast({
         title: "프로젝트 생성 완료",
         description: "새 프로젝트가 성공적으로 생성되었습니다.",
       });
+      
       form.reset();
       onClose();
     },
-    onError: () => {
+    onError: (error: Error) => {
+      console.error("프로젝트 생성 에러:", error);
       toast({
         title: "생성 실패",
         description: "프로젝트 생성 중 오류가 발생했습니다.",

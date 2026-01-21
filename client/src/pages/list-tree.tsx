@@ -53,8 +53,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { useState, useEffect } from "react";
-import { useLocation } from "wouter";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useLocation, useParams } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import type {
   SafeTaskWithAssignees,
@@ -73,51 +73,59 @@ import {
   getPriorityBadgeVariant,
 } from "@/lib/priority-utils";
 import api from "@/api/api-index";
+import { flushSync } from "react-dom";
 
 export default function ListTree() {
-  // const { data: projects, isLoading, error } = useQuery({
-  //   queryKey: ["/api/projects"],
-  //   queryFn: () => fetch("/api/projects").then(res => res.json()),
-  //   refetchInterval: 10000, // 실시간 업데이트를 위해 10초마다 자동 갱신
-  //   staleTime: 300000, // 5분간 캐시 유지하여 즉시 데이터 표시
-  //   refetchOnWindowFocus: true, // 창 포커스 시에도 갱신
-  // });
+  const { id: workspaceId } = useParams();
 
-  ////////////////////////
   const {
     data: projects,
-    isLoading,
+    isLoading: isLoadingProjects,
     error,
   } = useQuery({
-    queryKey: ["/api/projects"],
+    queryKey: ["/api/workspaces", workspaceId, "projects"],
 
     queryFn: async () => {
-      // 🚩 [수정] fetch 대신 api.get 사용
-      // -----------------------------------------------------------------
-      const response = await api.get("/api/projects");
-
-      // 🚩 [수정] .then(res => res.json()) 제거 후 response.data 반환
-      // Axios는 응답 데이터(JSON 파싱 완료)를 response.data에 담습니다.
+      const response = await api.get(`/api/workspaces/${workspaceId}/projects`);
       return response.data;
-      // -----------------------------------------------------------------
     },
-    refetchInterval: 10000, // 실시간 업데이트를 위해 10초마다 자동 갱신
-    staleTime: 300000, // 5분간 캐시 유지하여 즉시 데이터 표시
-    refetchOnWindowFocus: true, // 창 포커스 시에도 갱신
-  });
-  ////////////////////////
+    enabled: !!workspaceId,
 
-  // Database-based archive filtering is now handled by the backend
-  // Projects, goals, and tasks with isArchived=true are excluded from API responses
+    staleTime: 300000, // 5분
+    refetchOnWindowFocus: true,
+  });
+
+  const { data: archivedProjects, isLoading } = useQuery<ProjectWithDetails[]>({
+    queryKey: ["/api/workspaces", workspaceId, "archive", "projects"],
+
+    queryFn: async () => {
+      const response = await api.get(
+        `/api/workspaces/${workspaceId}/archive/projects`
+      );
+      return response.data;
+    },
+
+    enabled: !!workspaceId,
+  });
+
+  const { data: goals } = useQuery({
+    queryKey: ["/api/workspaces", workspaceId, "goals"],
+
+    queryFn: async () => {
+      const response = await api.get(`/api/workspaces/${workspaceId}/goals`);
+      return response.data;
+    },
+    enabled: !!workspaceId,
+
+    staleTime: 300000, // 5분
+    refetchOnWindowFocus: true,
+  });
+
   const activeProjects = projects as ProjectWithDetails[];
 
   const [_, setLocation] = useLocation();
   const { toast } = useToast();
 
-  const [expandedProjects, setExpandedProjects] = useState<Set<string>>(
-    new Set()
-  );
-  const [expandedGoals, setExpandedGoals] = useState<Set<string>>(new Set());
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [showSelectionToast, setShowSelectionToast] = useState(false);
   const [workspaceName, setWorkspaceName] = useState("하이더");
@@ -148,6 +156,61 @@ export default function ListTree() {
   const [isInviteLoading, setIsInviteLoading] = useState(false);
   const [deletedMemberIds, setDeletedMemberIds] = useState<Set<string>>(
     new Set()
+  );
+  const [renderKey, setRenderKey] = useState(0);
+
+  const useOnClickOutside = (ref: any, handler: any) => {
+    useEffect(() => {
+      const listener = (event: { target: any }) => {
+        // ref가 없거나, 클릭한 요소가 ref 내부의 요소라면 무시
+        if (!ref.current || ref.current.contains(event.target)) {
+          return;
+        }
+        const targetElement = event.target;
+
+        const isInsideSelectContent = targetElement.closest(
+          "[data-radix-popper-content-wrapper], .your-select-content-class"
+        );
+
+        if (isInsideSelectContent) {
+          return; // SelectContent 내부 클릭은 무시
+        }
+
+        handler(event);
+      };
+
+      // 이벤트 리스너 등록
+      document.addEventListener("mousedown", listener);
+      document.addEventListener("touchstart", listener);
+
+      // 클린업 함수: 컴포넌트 언마운트 시 리스너 제거
+      return () => {
+        document.removeEventListener("mousedown", listener);
+        document.removeEventListener("touchstart", listener);
+      };
+    }, [ref, handler]);
+  };
+
+  const wrapperRef = useRef(null);
+
+  const getInitialExpandedState = (key: string): Set<string> => {
+    const saved = localStorage.getItem(key);
+    if (saved) {
+      try {
+        // 저장된 JSON 문자열을 Set으로 변환하여 반환
+        return new Set(JSON.parse(saved));
+      } catch {
+        return new Set(); // 파싱 오류 시 빈 Set 반환
+      }
+    }
+    return new Set(); // 저장된 것이 없을 시 빈 Set 반환
+  };
+  // 2. 상태를 선언할 때 이 함수를 사용
+  const [expandedProjects, setExpandedProjects] = useState<Set<string>>(
+    getInitialExpandedState("LIST_expandedProjectIds") // 'expandedProjectIds'라는 키로 저장
+  );
+  const [expandedGoals, setExpandedGoals] = useState<Set<string>>(
+    getInitialExpandedState("LIST_expandedGoalIds") // 'expandedGoalIds'라는 키로 저장
   );
 
   // Inline editing state
@@ -211,40 +274,27 @@ export default function ListTree() {
     }
   }, [projects]);
 
-  // Get users for assignee dropdown (워크스페이스 멤버만)
-  // const { data: users } = useQuery({
-  //   queryKey: ["/api/users", { workspace: true }],
-  //   queryFn: () => fetch("/api/users?workspace=true").then((res) => res.json()),
-  //   refetchInterval: 10000, // 실시간 업데이트를 위해 10초마다 자동 갱신
-  //   staleTime: 300000, // 5분간 캐시 유지하여 즉시 데이터 표시
-  //   refetchOnWindowFocus: true, // 창 포커스 시에도 갱신
-  // });
+  const archivedGoalCounts = useMemo(() => {
+    const countMap = new Map<string, number>();
+    archivedProjects?.forEach((ap) => {
+      countMap.set(String(ap.id), ap.goals?.length || 0);
+    });
+    return countMap;
+  }, [archivedProjects]);
 
-  //////////////////////
-  const { data: users } = useQuery({
-    queryKey: ["/api/users", { workspace: true }],
+  const { data: users, isLoading: isLoadingUsers } = useQuery({
+    queryKey: ["workspace-members", workspaceId],
 
     queryFn: async () => {
-      // 🚩 [수정] fetch('/api/users?workspace=true') 대신 api.get 사용
-      // -----------------------------------------------------------------
-      const response = await api.get("/api/users", {
-        // 쿼리 파라미터 (?workspace=true)를 params 객체로 전달합니다.
-        // Axios가 이를 자동으로 URL로 인코딩하여 붙여줍니다.
-        params: {
-          workspace: true,
-        },
-      });
-
-      // 🚩 [수정] .then(res => res.json()) 대신 response.data 반환
-      // Axios는 응답 데이터(JSON 파싱 완료)를 response.data에 담습니다.
+      const response = await api.get(`/api/workspaces/${workspaceId}/users`);
       return response.data;
-      // -----------------------------------------------------------------
     },
-    refetchInterval: 10000, // 실시간 업데이트를 위해 10초마다 자동 갱신
-    staleTime: 300000, // 5분간 캐시 유지하여 즉시 데이터 표시
-    refetchOnWindowFocus: true, // 창 포커스 시에도 갱신
+
+    enabled: !!workspaceId,
+
+    staleTime: 300000,
+    refetchOnWindowFocus: true,
   });
-  //////////////////////
 
   // Get current user's role to check if they can delete members
   const currentUserEmail = localStorage.getItem("userEmail") || "";
@@ -258,34 +308,29 @@ export default function ListTree() {
   // 멤버 삭제 mutation (관리자 페이지와 동일한 로직)
   const deleteUserMutation = useMutation({
     mutationFn: async (userId: string) => {
+      // 1. API 경로를 관리자 페이지와 동일하게 워크스페이스 기반으로 수정
       return apiRequest(
         "DELETE",
-        `/api/users/${userId}`,
+        `/api/workspaces/${workspaceId}/workspaceMembers/${userId}`,
         {},
-        {
-          "X-User-Email": currentUserEmail,
-        }
+        { "X-User-Email": currentUserEmail }
       );
     },
     onSuccess: () => {
-      // 명시적으로 모든 사용자 관련 쿼리들을 무효화
-      console.log("멤버 삭제 후 캐시 무효화 시작");
-
-      // 구체적인 쿼리들을 명시적으로 무효화
-      queryClient.invalidateQueries({
-        queryKey: ["/api/users", { workspace: true }],
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/users/with-stats"] });
+      // 2. 관리자 페이지에서 사용하던 쿼리 무효화 로직을 그대로 적용
+      // 명시적인 쿼리 키 무효화
+      queryClient.invalidateQueries({ queryKey: ["workspace-members", workspaceId] });
+      queryClient.invalidateQueries({ queryKey: ["users-stats", workspaceId] });
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
       queryClient.invalidateQueries({ queryKey: ["/api/goals"] });
       queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
       queryClient.invalidateQueries({ queryKey: ["/api/meetings"] });
 
-      // predicate를 사용한 추가 무효화
+      // 3. predicate를 사용하여 /api/로 시작하는 모든 관련 캐시 삭제
       queryClient.invalidateQueries({
         predicate: ({ queryKey }) => {
           const key = queryKey[0] as string;
-          console.log("캐시 무효화 확인 중:", key);
+
           return (
             key?.startsWith("/api/users") ||
             key?.startsWith("/api/projects") ||
@@ -295,8 +340,6 @@ export default function ListTree() {
           );
         },
       });
-
-      console.log("멤버 삭제 후 캐시 무효화 완료");
 
       toast({
         title: "멤버 삭제 완료",
@@ -353,9 +396,6 @@ export default function ListTree() {
 
     // Improved progress calculation algorithm
     const totalTasks = childTasks.length;
-    console.log(
-      `Updating progress for ${type} ${itemId} to ${targetProgress}% with ${totalTasks} child tasks`
-    );
 
     // Get current distribution
     const currentDistribution = childTasks.reduce(
@@ -372,9 +412,6 @@ export default function ListTree() {
       (currentDistribution.completed * 100 +
         currentDistribution.inProgress * 50) /
       totalTasks;
-    console.log(
-      `Current progress: ${currentProgress}% (${currentDistribution.completed} completed, ${currentDistribution.inProgress} in-progress, ${currentDistribution.notStarted} not-started)`
-    );
 
     // Find optimal distribution with preference for minimal changes
     let bestDistribution = currentDistribution;
@@ -413,14 +450,6 @@ export default function ListTree() {
     const finalProgress =
       (bestDistribution.completed * 100 + bestDistribution.inProgress * 50) /
       totalTasks;
-    console.log(
-      `Best distribution: ${bestDistribution.completed} completed, ${bestDistribution.inProgress} in-progress, ${bestDistribution.notStarted} not-started`
-    );
-    console.log(
-      `This gives ${finalProgress}% progress (target: ${targetProgress}%, error: ${bestError.toFixed(
-        1
-      )}%)`
-    );
 
     // Deterministic task assignment to exactly match target distribution
     const updates: Array<{ task: SafeTaskWithAssignees; newStatus: string }> =
@@ -508,9 +537,6 @@ export default function ListTree() {
       for (const task of tasks) {
         if (task.status !== targetStatus) {
           updates.push({ task, newStatus: targetStatus });
-          console.log(
-            `Updating task "${task.title}" from ${task.status} to ${targetStatus}`
-          );
         }
       }
     }
@@ -521,9 +547,6 @@ export default function ListTree() {
       inProgress: targetAssignment["진행중"].length,
       notStarted: targetAssignment["진행전"].length,
     };
-    console.log(
-      `Final verification: ${finalDistribution.completed} completed, ${finalDistribution.inProgress} in-progress, ${finalDistribution.notStarted} not-started`
-    );
 
     if (
       finalDistribution.completed !== bestDistribution.completed ||
@@ -566,8 +589,17 @@ export default function ListTree() {
     }
 
     // Invalidate queries once after all updates are complete
-    queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
-    queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+    // queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+    // queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+    queryClient.invalidateQueries({
+      queryKey: ["/api/workspaces", workspaceId, "projects"],
+    });
+    queryClient.invalidateQueries({
+      queryKey: ["/api/workspaces", workspaceId, "tasks"],
+    });
+    queryClient.invalidateQueries({
+      queryKey: ["/api/workspaces", workspaceId, "activities"],
+    });
 
     // Return the actual achieved progress
     return finalProgress;
@@ -578,6 +610,7 @@ export default function ListTree() {
     setShowSelectionToast(selectedItems.size > 0);
   }, [selectedItems.size]);
 
+  // 상태 변경 시 localStorage에 저장하는 로직을 추가합니다.
   const toggleProject = (projectId: string) => {
     const newExpanded = new Set(expandedProjects);
     if (newExpanded.has(projectId)) {
@@ -585,9 +618,17 @@ export default function ListTree() {
     } else {
       newExpanded.add(projectId);
     }
+
     setExpandedProjects(newExpanded);
+
+    // 👈 **추가된 부분:** 상태를 로컬 저장소에 반영
+    localStorage.setItem(
+      "LIST_expandedProjectIds",
+      JSON.stringify(Array.from(newExpanded))
+    );
   };
 
+  // 3. 상태 변경 시 localStorage에 저장하는 로직을 추가합니다.
   const toggleGoal = (goalId: string) => {
     const newExpanded = new Set(expandedGoals);
     if (newExpanded.has(goalId)) {
@@ -595,7 +636,14 @@ export default function ListTree() {
     } else {
       newExpanded.add(goalId);
     }
+
     setExpandedGoals(newExpanded);
+
+    // 👈 **추가된 부분:** 상태를 로컬 저장소에 반영
+    localStorage.setItem(
+      "LIST_expandedGoalIds",
+      JSON.stringify(Array.from(newExpanded))
+    );
   };
 
   const toggleItemSelection = (itemId: string) => {
@@ -711,9 +759,6 @@ export default function ListTree() {
       }
     }
 
-    // No automatic parent selection when selecting child items
-    // Users should explicitly select parent items if they want them selected
-
     setSelectedItems(newSelected);
   };
 
@@ -793,6 +838,12 @@ export default function ListTree() {
     setEditingValue("");
   };
 
+  const handleClickOutside = useCallback(() => {
+    cancelEditing();
+  }, [cancelEditing]);
+
+  useOnClickOutside(wrapperRef, handleClickOutside);
+
   // Mutations for updating items
   const updateProjectMutation = useMutation({
     mutationFn: async (data: { id: string; updates: any }) => {
@@ -800,17 +851,29 @@ export default function ListTree() {
     },
     onMutate: async ({ id, updates }) => {
       // Cancel outgoing refetches
-      await queryClient.cancelQueries({ queryKey: ["/api/projects"] });
+      // await queryClient.cancelQueries({ queryKey: ["/api/projects"] });
+      const projectKey = ["/api/workspaces", workspaceId, "projects"];
+      await queryClient.cancelQueries({ queryKey: projectKey });
 
       // Snapshot the previous value
-      const previousProjects = queryClient.getQueryData(["/api/projects"]);
+      // const previousProjects = queryClient.getQueryData(["/api/projects"]);
+      const previousProjects = queryClient.getQueryData(projectKey);
 
       // Optimistically update the cache
+      // queryClient.setQueryData(
+      //   ["/api/projects"],
+      //   (old: ProjectWithDetails[] | undefined) => {
+      //     if (!old) return old;
+
+      //     return old.map((project) =>
+      //       project.id === id ? { ...project, ...updates } : project
+      //     );
+      //   }
+      // );
       queryClient.setQueryData(
-        ["/api/projects"],
+        projectKey,
         (old: ProjectWithDetails[] | undefined) => {
           if (!old) return old;
-
           return old.map((project) =>
             project.id === id ? { ...project, ...updates } : project
           );
@@ -836,17 +899,32 @@ export default function ListTree() {
     },
     onMutate: async ({ id, updates }) => {
       // Cancel outgoing refetches
-      await queryClient.cancelQueries({ queryKey: ["/api/projects"] });
+      // await queryClient.cancelQueries({ queryKey: ["/api/projects"] });
+      const projectKey = ["/api/workspaces", workspaceId, "projects"];
+      await queryClient.cancelQueries({ queryKey: projectKey });
 
       // Snapshot the previous value
-      const previousProjects = queryClient.getQueryData(["/api/projects"]);
+      // const previousProjects = queryClient.getQueryData(["/api/projects"]);
+      const previousProjects = queryClient.getQueryData(projectKey);
 
       // Optimistically update the cache
+      // queryClient.setQueryData(
+      //   ["/api/projects"],
+      //   (old: ProjectWithDetails[] | undefined) => {
+      //     if (!old) return old;
+
+      //     return old.map((project) => ({
+      //       ...project,
+      //       goals: project.goals?.map((goal) =>
+      //         goal.id === id ? { ...goal, ...updates } : goal
+      //       ),
+      //     }));
+      //   }
+      // );
       queryClient.setQueryData(
-        ["/api/projects"],
+        projectKey,
         (old: ProjectWithDetails[] | undefined) => {
           if (!old) return old;
-
           return old.map((project) => ({
             ...project,
             goals: project.goals?.map((goal) =>
@@ -874,47 +952,37 @@ export default function ListTree() {
       return await apiRequest("PUT", `/api/tasks/${data.id}`, data.updates);
     },
     onMutate: async ({ id, updates }) => {
-      // Skip optimistic update for progress changes as they require recalculating project progress
-      if (updates.progress !== undefined) {
-        return { taskId: id, updates };
+      const projectKey = ["/api/workspaces", workspaceId, "projects"];
+
+      await queryClient.cancelQueries({ queryKey: projectKey });
+      const previousProjects = queryClient.getQueryData(projectKey);
+
+      if (updates.progress === undefined) {
+        queryClient.setQueryData(
+          projectKey,
+          (old: ProjectWithDetails[] | undefined) => {
+            if (!old) return old;
+            return old.map((project) => ({
+              ...project,
+              goals: project.goals?.map((goal) => ({
+                ...goal,
+                tasks: goal.tasks?.map((task) =>
+                  task.id === id ? { ...task, ...updates } : task
+                ),
+              })),
+            }));
+          }
+        );
       }
-
-      // Cancel outgoing refetches to prevent optimistic update from being overwritten
-      await queryClient.cancelQueries({ queryKey: ["/api/projects"] });
-
-      // Snapshot the previous value
-      const previousProjects = queryClient.getQueryData(["/api/projects"]);
-
-      // Optimistically update the cache for non-progress updates
-      queryClient.setQueryData(
-        ["/api/projects"],
-        (old: ProjectWithDetails[] | undefined) => {
-          if (!old) return old;
-
-          return old.map((project) => ({
-            ...project,
-            goals: project.goals?.map((goal) => ({
-              ...goal,
-              tasks: goal.tasks?.map((task) =>
-                task.id === id ? { ...task, ...updates } : task
-              ),
-            })),
-          }));
-        }
-      );
 
       return { previousProjects, taskId: id, updates };
     },
     onSuccess: async (data, variables) => {
-      // Backend now stores progress field, no manual cache update needed
-
-      // Check if parent project/goal is completed and reset it when child task is modified
       const { id: taskId, updates } = variables;
-
-      // Find the parent project and goal for this task
-      const currentProjects = queryClient.getQueryData([
-        "/api/projects",
-      ]) as ProjectWithDetails[];
+      const projectKey = ["/api/workspaces", workspaceId, "projects"];
+      const currentProjects = queryClient.getQueryData(
+        projectKey
+      ) as ProjectWithDetails[];
 
       if (currentProjects) {
         for (const project of currentProjects) {
@@ -994,23 +1062,54 @@ export default function ListTree() {
         queryClient.setQueryData(["/api/projects"], context.previousProjects);
       }
     },
-    onSettled: () => {
-      // Always refetch after error or success to ensure data consistency
-      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
-      // Force refetch to ensure fresh data
-      queryClient.refetchQueries({ queryKey: ["/api/projects"] });
+    onSettled: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ["/api/workspaces", workspaceId, "projects"],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["/api/workspaces", workspaceId, "tasks"],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["/api/workspaces", workspaceId, "activities"],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["/api/workspaces", workspaceId, "stats"],
+        }),
+      ]);
     },
   });
 
-  // Delete mutations
   const deleteProjectMutation = useMutation({
     mutationFn: async (id: string) => {
       return await apiRequest("DELETE", `/api/projects/${id}`);
     },
+    onMutate: async (projectId) => {
+      await queryClient.cancelQueries({
+        queryKey: ["/api/workspaces", workspaceId],
+      });
+
+      // 캐시에서 즉시 제거
+      queryClient.setQueryData(
+        ["/api/workspaces", workspaceId, "projects"],
+        (old: any) => old?.filter((p: any) => p.id !== projectId)
+      );
+    },
+    onSettled: () => {
+      // ✅ 활동 피드를 다시 불러오도록 신호를 보냄
+      queryClient.invalidateQueries({
+        queryKey: ["/api/workspaces", workspaceId, "activities"],
+      });
+      // 프로젝트 목록도 갱신
+      queryClient.invalidateQueries({
+        queryKey: ["/api/workspaces", workspaceId, "projects"],
+      });
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      toast({
+        title: "프로젝트 삭제 완료",
+        description: "프로젝트와 모든 하위 항목이 삭제되었습니다.",
+      });
     },
   });
 
@@ -1018,9 +1117,76 @@ export default function ListTree() {
     mutationFn: async (id: string) => {
       return await apiRequest("DELETE", `/api/goals/${id}`);
     },
+    // 1. 서버 응답 전 UI를 먼저 수정 (낙관적 업데이트)
+    onMutate: async (deletedGoalId) => {
+      // 진행 중인 워크스페이스 관련 쿼리 취소 (데이터 덮어쓰기 방지)
+      await queryClient.cancelQueries({
+        queryKey: ["/api/workspaces", workspaceId],
+      });
+
+      // 에러 발생 시 복구를 위한 이전 상태 저장 (Snapshot)
+      const previousGoals = queryClient.getQueryData([
+        "/api/workspaces",
+        workspaceId,
+        "goals",
+      ]);
+      const previousTasks = queryClient.getQueryData([
+        "/api/workspaces",
+        workspaceId,
+        "tasks",
+      ]);
+
+      // 캐시에서 삭제할 목표 제거
+      queryClient.setQueryData(
+        ["/api/workspaces", workspaceId, "goals"],
+        (old: any) => old?.filter((g: any) => g.id !== deletedGoalId)
+      );
+
+      // 캐시에서 해당 목표에 속한 태스크들도 즉시 제거
+      queryClient.setQueryData(
+        ["/api/workspaces", workspaceId, "tasks"],
+        (old: any) => old?.filter((t: any) => t.goalId !== deletedGoalId)
+      );
+
+      // 복구용 컨텍스트 반환
+      return { previousGoals, previousTasks };
+    },
+    // 2. 에러 발생 시 이전 상태로 롤백
+    onError: (err, deletedGoalId, context) => {
+      if (context) {
+        queryClient.setQueryData(
+          ["/api/workspaces", workspaceId, "goals"],
+          context.previousGoals
+        );
+        queryClient.setQueryData(
+          ["/api/workspaces", workspaceId, "tasks"],
+          context.previousTasks
+        );
+      }
+      toast({
+        title: "삭제 실패",
+        description: "목표 삭제 중 오류가 발생했습니다.",
+        variant: "destructive",
+      });
+    },
+    // 3. 성공/실패 여부와 상관없이 서버와 데이터 동기화
+    onSettled: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["/api/workspaces", workspaceId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/workspaces", workspaceId, "activities"],
+      });
+      // 프로젝트 목록도 갱신
+      queryClient.invalidateQueries({
+        queryKey: ["/api/workspaces", workspaceId, "goal"],
+      });
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      toast({
+        title: "목표 삭제 완료",
+        description: "목표와 모든 하위 항목이 삭제되었습니다.",
+      });
     },
   });
 
@@ -1029,8 +1195,28 @@ export default function ListTree() {
       return await apiRequest("DELETE", `/api/tasks/${id}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      // 1. ⭐ 문자열 백틱 대신 콤마(,)로 구분된 배열 구조 사용
+      queryClient.invalidateQueries({
+        queryKey: ["/api/workspaces", workspaceId, "tasks"],
+      });
+
+      // 2. 통계 데이터도 동일한 구조로 무효화
+      queryClient.invalidateQueries({
+        queryKey: ["/api/workspaces", workspaceId, "stats"],
+      });
+
+      // 3. (선택사항) 만약 프로젝트 목록의 진행률도 바뀌어야 한다면
+      queryClient.invalidateQueries({
+        queryKey: ["/api/workspaces", workspaceId, "projects"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/workspaces", workspaceId, "activities"],
+      });
+
+      toast({
+        title: "작업 삭제 완료",
+        description: "작업이 성공적으로 삭제되었습니다.",
+      });
     },
   });
 
@@ -1040,8 +1226,16 @@ export default function ListTree() {
       return await apiRequest("POST", `/api/projects/${id}/archive`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/archive/projects"] });
+      // queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      // queryClient.invalidateQueries({ queryKey: ["/api/archive/projects"] });
+      // ✅ 해당 워크스페이스의 프로젝트 리스트 즉시 갱신
+      queryClient.invalidateQueries({
+        queryKey: ["/api/workspaces", workspaceId, "archive", "projects"],
+      });
+      // 일반 프로젝트 리스트 쿼리도 무효화 (목록에서 사라지게 하기 위함)
+      queryClient.invalidateQueries({
+        queryKey: ["/api/workspaces", workspaceId, "projects"],
+      });
       toast({
         title: "프로젝트 보관 완료",
         description: "프로젝트가 성공적으로 보관되었습니다.",
@@ -1054,8 +1248,26 @@ export default function ListTree() {
       return await apiRequest("POST", `/api/goals/${id}/archive`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/archive/goals"] });
+      // queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      // queryClient.invalidateQueries({ queryKey: ["/api/archive/goals"] });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/projects", workspaceId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/archive/goals", workspaceId],
+      });
+      // 만약 목표 리스트를 따로 관리한다면 아래 추가
+      queryClient.invalidateQueries({ queryKey: ["/api/goals", workspaceId] });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/workspaces", workspaceId, "projects"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/workspaces", workspaceId, "archive", "goals"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/workspaces", workspaceId, "archive", "projects"],
+      });
+
       toast({
         title: "목표 보관 완료",
         description: "목표가 성공적으로 보관되었습니다.",
@@ -1068,8 +1280,15 @@ export default function ListTree() {
       return await apiRequest("POST", `/api/tasks/${id}/archive`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/archive/tasks"] });
+      // queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      // queryClient.invalidateQueries({ queryKey: ["/api/archive/tasks"] });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/projects", workspaceId],
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks", workspaceId] });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/archive/tasks", workspaceId],
+      });
       toast({
         title: "작업 보관 완료",
         description: "작업이 성공적으로 보관되었습니다.",
@@ -1079,10 +1298,6 @@ export default function ListTree() {
 
   const saveEdit = async () => {
     if (!editingField) return;
-
-    console.log(
-      `SaveEdit called for ${editingField.type} ${editingField.itemId}, field: ${editingField.field}, value: ${editingValue}`
-    );
 
     const updates: any = {};
 
@@ -1124,17 +1339,12 @@ export default function ListTree() {
       ) {
         // For goals and projects, we need to update their child tasks to achieve target progress
         // Skip the normal update flow and handle this specially
-        console.log(
-          `Calling updateProgressForParentItem for ${editingField.type} ${editingField.itemId} with target ${progressValue}%`
-        );
         try {
           const achievedProgress = await updateProgressForParentItem(
             editingField.itemId,
             editingField.type,
             progressValue
           );
-          console.log(`updateProgressForParentItem completed successfully`);
-
           const itemTypeName =
             editingField.type === "goal" ? "목표" : "프로젝트";
 
@@ -1152,7 +1362,7 @@ export default function ListTree() {
 
           // Navigate to graph view after successful progress update
           setTimeout(() => {
-            setLocation("/workspace/app/team");
+            setLocation(`/workspace/${workspaceId}/team`);
           }, 1500);
         } catch (error) {
           console.error("Error in updateProgressForParentItem:", error);
@@ -1180,7 +1390,7 @@ export default function ListTree() {
           onSuccess: () => {
             if (editingField.field === "progress") {
               setTimeout(() => {
-                setLocation("/workspace/app/team");
+                setLocation(`/workspace/${workspaceId}/team`);
               }, 1500);
             }
           },
@@ -1193,7 +1403,7 @@ export default function ListTree() {
           onSuccess: () => {
             if (editingField.field === "progress") {
               setTimeout(() => {
-                setLocation("/workspace/app/team");
+                setLocation(`/workspace/${workspaceId}/team`);
               }, 1500);
             }
           },
@@ -1206,7 +1416,7 @@ export default function ListTree() {
           onSuccess: () => {
             if (editingField.field === "progress") {
               setTimeout(() => {
-                setLocation("/workspace/app/team");
+                setLocation(`/workspace/${workspaceId}/team`);
               }, 1500);
             }
           },
@@ -1317,9 +1527,15 @@ export default function ListTree() {
 
     const handleAssigneeToggle = (userId: string, isSelected: boolean) => {
       // Get the latest assignee IDs from the current cache/data to avoid stale closure issues
-      const latestData = queryClient.getQueryData(["/api/projects"]) as
-        | ProjectWithDetails[]
-        | undefined;
+      // const latestData = queryClient.getQueryData(["/api/projects"]) as
+      //   | ProjectWithDetails[]
+      //   | undefined;
+      const queryKey = ["/api/workspaces", workspaceId, "projects"];
+
+      // 2. 캐시에서 최신 데이터를 가져옵니다.
+      const latestData =
+        queryClient.getQueryData<ProjectWithDetails[]>(queryKey);
+
       let latestCurrentAssigneeIds: string[] = [];
 
       if (latestData) {
@@ -1412,14 +1628,13 @@ export default function ListTree() {
           <div className="space-y-2">
             <h4 className="font-medium text-sm">담당자 선택</h4>
             <div className="space-y-1 max-h-48 overflow-y-auto">
-              {/* 초대 대기중 표시 제거 - 실제 담당자만 표시 */}
-
-              {/* Current users - 모든 사용자 표시하여 다중 선택 가능 */}
               {(users as SafeUser[])?.map((user) => {
-                // Always get the latest data for checkbox state to avoid stale display
-                const latestData = queryClient.getQueryData([
-                  "/api/projects",
-                ]) as ProjectWithDetails[] | undefined;
+                const queryKey = ["/api/workspaces", workspaceId, "projects"];
+
+                // 2. 이제 최신 데이터를 정상적으로 가져올 수 있습니다.
+                const latestData =
+                  queryClient.getQueryData<ProjectWithDetails[]>(queryKey);
+
                 let latestAssigneeIds: string[] = [];
 
                 // Get assignee IDs from latest data, allowing empty arrays
@@ -1561,12 +1776,9 @@ export default function ListTree() {
     status: string,
     progress?: number
   ) => {
-    // Check if this item was marked as completed locally (only for interactive behavior)
     const isLocallyCompleted = completedItems.has(itemId);
+    const isLocallyDeleted = completedItems.has(`deleted-${itemId}`);
 
-    // For status display, use database status primarily
-    // "이슈" 상태는 progress와 독립적으로 표시
-    // For goals and projects, prioritize manual status over calculated progress-based status
     const displayStatus =
       status === "이슈"
         ? "이슈"
@@ -1574,316 +1786,136 @@ export default function ListTree() {
         ? getStatusFromProgress(progress)
         : status;
 
-    // For projects and goals, make status clickable to complete (except for "이슈" status)
     if ((type === "project" || type === "goal") && displayStatus !== "이슈") {
-      // Check if auto completion is allowed (all child items are 100% complete)
-      const autoCompleteAllowed = canAutoComplete(itemId, type);
-      // Check if the item is actually completed (either in database or locally)
-      const isActuallyCompleted = status === "완료" || isLocallyCompleted;
+      const canAutoComplete = (
+        targetId: string,
+        itemType: "project" | "goal"
+      ): boolean => {
+        if (!projects || !Array.isArray(projects)) return false;
 
-      // Enable completion button if auto-completion is allowed OR if already completed
-      const isCompleteButtonEnabled =
-        autoCompleteAllowed || isActuallyCompleted;
-      // Consider both database and local completion state for button display
-      const isAlreadyCompleted = isActuallyCompleted;
-      // Function to calculate what the status should be based on child progress
-      // For cancellation: return the natural progress-based status without manual completion
-      const getCalculatedStatus = (
-        itemId: string,
-        type: "project" | "goal",
-        forCancellation: boolean = false
-      ): string => {
-        if (!projects || !Array.isArray(projects)) return "진행전";
+        if (itemType === "project") {
+          const project = (projects as ProjectWithDetails[]).find(
+            (p) => String(p.id) === String(targetId)
+          );
 
-        if (type === "project") {
-          const project = projects.find((p) => p.id === itemId);
-          if (!project) return "진행전";
+          const hasGoals = !!(project?.goals && project.goals.length > 0);
+          return (
+            hasGoals &&
+            (project?.goals?.every(
+              (g) => g.status === "완료" || completedItems.has(g.id)
+            ) ??
+              false)
+          );
+        } else {
+          const project = (projects as ProjectWithDetails[]).find((p) =>
+            p.goals?.some((g) => String(g.id) === String(targetId))
+          );
+          const goal = project?.goals?.find(
+            (g) => String(g.id) === String(targetId)
+          );
 
-          if (project.goals && project.goals.length > 0) {
-            const allCompleted = project.goals.every(
-              (goal: any) => goal.progressPercentage === 100
-            );
-            const anyStarted = project.goals.some(
-              (goal: any) => goal.progressPercentage > 0
-            );
-            if (allCompleted && !forCancellation) return "완료";
-            if (anyStarted) return "진행중";
-            return "진행전";
-          }
-
-          if (project.tasks && project.tasks.length > 0) {
-            const allCompleted = project.tasks.every(
-              (task: any) => task.progress === 100 || task.status === "완료"
-            );
-            const anyStarted = project.tasks.some(
-              (task: any) =>
-                (task.progress !== null && task.progress > 0) ||
-                task.status === "진행중"
-            );
-            if (allCompleted && !forCancellation) return "완료";
-            if (anyStarted) return "진행중";
-            return "진행전";
-          }
-
-          return "진행전";
-        } else if (type === "goal") {
-          for (const project of projects) {
-            if (project.goals) {
-              const goal = project.goals.find((g: any) => g.id === itemId);
-              if (goal) {
-                if (goal.tasks && goal.tasks.length > 0) {
-                  const allCompleted = goal.tasks.every(
-                    (task: any) =>
-                      task.progress === 100 || task.status === "완료"
-                  );
-                  const anyStarted = goal.tasks.some(
-                    (task: any) =>
-                      (task.progress !== null && task.progress > 0) ||
-                      task.status === "진행중"
-                  );
-                  // For cancellation: don't return '완료' even if all tasks are complete
-                  // This allows manual completion to be cancelled back to '진행중'
-                  if (allCompleted && !forCancellation) return "완료";
-                  if (anyStarted || (allCompleted && forCancellation))
-                    return "진행중";
-                  return "진행전";
-                }
-                return "진행전";
-              }
-            }
-          }
+          const hasTasks = !!(goal?.tasks && goal.tasks.length > 0);
+          return (
+            hasTasks &&
+            (goal?.tasks?.every(
+              (t) => t.status === "완료" || completedItems.has(t.id)
+            ) ??
+              false)
+          );
         }
-
-        return "진행전";
       };
 
-      const handleCompleteClick = async () => {
-        // Allow click if auto-completion is allowed OR if already completed locally
-        if (!autoCompleteAllowed && !isLocallyCompleted) {
-          return; // Not allowed to complete
+      const autoCompleteAllowed = canAutoComplete(itemId, type);
+
+      let showAsCompleted = status === "완료";
+
+      if (isLocallyDeleted) {
+        if (status !== "완료") {
+          setCompletedItems((prev) => {
+            const newSet = new Set(prev);
+            newSet.delete(`deleted-${itemId}`);
+            return newSet;
+          });
+          showAsCompleted = false;
+        } else {
+          showAsCompleted = false;
         }
+      } else if (isLocallyCompleted) {
+        showAsCompleted = true;
+      }
+
+      const isCompleteButtonEnabled = autoCompleteAllowed || showAsCompleted;
+
+      const handleCompleteClick = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (!isCompleteButtonEnabled) return;
 
         try {
-          if (isActuallyCompleted) {
-            // This is a cancel operation - revert to calculated status and remove child items
+          if (showAsCompleted) {
             setCompletedItems((prev) => {
               const newSet = new Set(prev);
               newSet.delete(itemId);
-
-              // Remove child items as well
-              if (type === "project") {
-                // For project cancellation, remove all goals and tasks
-                const project = (projects as ProjectWithDetails[])?.find(
-                  (p) => p.id === itemId
-                );
-                if (project?.goals) {
-                  project.goals.forEach((goal) => {
-                    newSet.delete(goal.id);
-                    if (goal.tasks) {
-                      goal.tasks.forEach((task) => newSet.delete(task.id));
-                    }
-                  });
-                }
-                if (project?.tasks) {
-                  project.tasks.forEach((task) => newSet.delete(task.id));
-                }
-              } else if (type === "goal") {
-                // For goal cancellation, remove only tasks under this goal
-                const project = (projects as ProjectWithDetails[])?.find((p) =>
-                  p.goals?.some((g) => g.id === itemId)
-                );
-                const goal = project?.goals?.find((g) => g.id === itemId);
-                if (goal?.tasks) {
-                  goal.tasks.forEach((task) => newSet.delete(task.id));
-                }
-              }
-
+              newSet.add(`deleted-${itemId}`);
               return newSet;
             });
 
-            const calculatedStatus = getCalculatedStatus(itemId, type, true); // forCancellation = true
-
-            if (type === "project") {
-              await updateProjectMutation.mutateAsync({
-                id: itemId,
-                updates: {
-                  status: calculatedStatus,
-                },
-              });
-
-              toast({
-                title: "프로젝트 완료 취소",
-                description: "프로젝트 완료가 취소되었습니다.",
-              });
-            } else if (type === "goal") {
-              await updateGoalMutation.mutateAsync({
-                id: itemId,
-                updates: {
-                  status: calculatedStatus,
-                },
-              });
-
-              // 목표 취소 시 상위 프로젝트의 상태도 재계산하여 업데이트
-              const parentProject = (projects as ProjectWithDetails[])?.find(
-                (p) => p.goals?.some((g) => g.id === itemId)
-              );
-
-              if (parentProject) {
-                // 프로젝트가 완료 상태였다면 재계산된 상태로 업데이트
-                if (
-                  parentProject.status === "완료" ||
-                  completedItems.has(parentProject.id)
-                ) {
-                  const projectCalculatedStatus = getCalculatedStatus(
-                    parentProject.id,
-                    "project",
-                    true
-                  );
-
-                  // 프로젝트 로컬 완료 상태도 제거
-                  setCompletedItems((prev) => {
-                    const newSet = new Set(prev);
-                    newSet.delete(parentProject.id);
-                    return newSet;
-                  });
-
-                  await updateProjectMutation.mutateAsync({
-                    id: parentProject.id,
-                    updates: {
-                      status: projectCalculatedStatus,
-                    },
-                  });
-                }
-              }
-
-              toast({
-                title: "목표 완료 취소",
-                description: "목표 완료가 취소되었습니다.",
-              });
-            }
+            const mutation =
+              type === "project" ? updateProjectMutation : updateGoalMutation;
+            await mutation.mutateAsync({
+              id: itemId,
+              updates: { status: "진행중" },
+            });
           } else {
-            // This is a complete operation
-            setCompletedItems(
-              (prev) => new Set(Array.from(prev).concat(itemId))
-            );
+            setCompletedItems((prev) => {
+              const newSet = new Set(prev);
+              newSet.add(itemId);
+              newSet.delete(`deleted-${itemId}`);
+              return newSet;
+            });
 
-            if (type === "project") {
-              await updateProjectMutation.mutateAsync({
-                id: itemId,
-                updates: {
-                  status: "완료",
-                },
-              });
-
-              toast({
-                title: "프로젝트 완료",
-                description: "프로젝트가 완료 상태로 변경되었습니다.",
-              });
-            } else if (type === "goal") {
-              await updateGoalMutation.mutateAsync({
-                id: itemId,
-                updates: {
-                  status: "완료",
-                },
-              });
-
-              toast({
-                title: "목표 완료",
-                description: "목표가 완료 상태로 변경되었습니다.",
-              });
-            }
+            const mutation =
+              type === "project" ? updateProjectMutation : updateGoalMutation;
+            await mutation.mutateAsync({
+              id: itemId,
+              updates: { status: "완료" },
+            });
           }
 
-          // Force refresh the data to ensure UI updates
           await queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
-          await queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
         } catch (error) {
-          console.error("Status update failed:", error);
-
-          // Revert local state if the update failed
-          if (displayStatus === "완료" || isLocallyCompleted) {
-            setCompletedItems(
-              (prev) => new Set(Array.from(prev).concat(itemId))
-            );
-          } else {
-            setCompletedItems((prev) => {
-              const newSet = new Set(prev);
-              newSet.delete(itemId);
-              return newSet;
-            });
-          }
-
-          toast({
-            title: "상태 변경 실패",
-            description: "상태 변경 중 오류가 발생했습니다.",
-            variant: "destructive",
-          });
+          console.error("Update failed:", error);
         }
       };
 
-      // Get tooltip message for disabled state
-      const getTooltipMessage = () => {
-        if (isAlreadyCompleted) return "";
-        if (type === "project") {
-          return !autoCompleteAllowed
-            ? "모든 하위 목표가 100% 완료되어야 완료할 수 있습니다"
-            : "";
-        } else if (type === "goal") {
-          return !autoCompleteAllowed
-            ? "모든 하위 작업이 100% 완료되어야 완료할 수 있습니다"
-            : "";
+      const getBadgeUI = () => {
+        const base = "text-xs font-medium transition-all duration-200";
+        if (showAsCompleted) {
+          return {
+            text: "취소",
+            className: `${base} cursor-pointer hover:scale-105 hover:shadow-md bg-orange-600 hover:bg-orange-700 text-white border-orange-600 font-semibold shadow-lg`,
+          };
         }
-        return "";
+        return {
+          text: "완료",
+          className: isCompleteButtonEnabled
+            ? `${base} cursor-pointer hover:scale-105 hover:shadow-md bg-blue-600 hover:bg-blue-700 text-white border-blue-600 font-semibold`
+            : `${base} cursor-not-allowed bg-gray-200 dark:bg-gray-800 text-gray-400 dark:text-gray-500 border-gray-200 dark:border-gray-700 opacity-50`,
+        };
       };
 
-      // Get variant and styling based on completion state
-      const getCompletionBadgeVariant = () => {
-        if (isAlreadyCompleted) {
-          return "outline"; // Already completed - neutral outline style
-        } else if (isCompleteButtonEnabled) {
-          return "default"; // Can be completed - primary blue style
-        } else {
-          return "secondary"; // Cannot be completed - muted gray style
-        }
-      };
-
-      const getCompletionBadgeClassName = () => {
-        const baseClasses = "text-xs font-medium transition-all duration-200";
-
-        if (isAlreadyCompleted) {
-          // 완료 상태 - 취소 버튼 (주황색 배경, 흰색 텍스트, 그림자)
-          return `${baseClasses} cursor-pointer hover:scale-105 hover:shadow-md bg-orange-600 hover:bg-orange-700 text-white border-orange-600 font-semibold shadow-lg`;
-        } else if (isCompleteButtonEnabled) {
-          // 활성화 상태 - 밝은 파란색으로 변경하여 더 명확한 구분
-          return `${baseClasses} cursor-pointer hover:scale-105 hover:shadow-md bg-blue-600 hover:bg-blue-700 text-white border-blue-600 font-semibold`;
-        } else {
-          // 비활성화 상태 - 더 연한 회색으로 명확한 구분
-          return `${baseClasses} cursor-not-allowed bg-gray-200 dark:bg-gray-800 text-gray-400 dark:text-gray-500 border-gray-200 dark:border-gray-700 opacity-50`;
-        }
-      };
+      const ui = getBadgeUI();
 
       return (
         <Badge
-          variant={getCompletionBadgeVariant()}
-          className={getCompletionBadgeClassName()}
-          style={{
-            borderRadius: "0px",
-            opacity: isAlreadyCompleted || isCompleteButtonEnabled ? 1 : 0.6,
-          }}
-          onClick={
-            isCompleteButtonEnabled || isAlreadyCompleted
-              ? handleCompleteClick
-              : undefined
-          }
-          title={getTooltipMessage()}
-          data-testid={`status-${itemId}`}
+          className={ui.className}
+          style={{ borderRadius: "0px" }}
+          onClick={handleCompleteClick}
         >
-          {isAlreadyCompleted ? "취소" : "완료"}
+          {ui.text}
         </Badge>
       );
     }
 
-    // For tasks, keep original read-only behavior
     return (
       <Badge
         variant={getStatusBadgeVariant(displayStatus)}
@@ -1918,6 +1950,13 @@ export default function ListTree() {
 
     // Progress options for dropdown (10% increments)
     const progressOptions = Array.from({ length: 11 }, (_, i) => i * 10);
+
+    // 🌟 새로운 함수: 취소 시 편집 모드를 해제합니다.
+    const handleCancelEdit = (isOpen: Boolean) => {
+      if (!isOpen) {
+        cancelEditing();
+      }
+    };
 
     const handleProgressSelect = async (value: string) => {
       const progressValue = parseInt(value);
@@ -1957,24 +1996,27 @@ export default function ListTree() {
 
     if (isEditing && !isIssueStatus) {
       return (
-        <Select
-          value={progress.toString()}
-          onValueChange={handleProgressSelect}
-        >
-          <SelectTrigger
-            className="h-6 text-xs w-16"
-            data-testid={`edit-progress-${itemId}`}
+        <div ref={wrapperRef}>
+          <Select
+            value={progress.toString()}
+            onValueChange={handleProgressSelect}
+            onOpenChange={handleCancelEdit}
           >
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {progressOptions.map((option) => (
-              <SelectItem key={option} value={option.toString()}>
-                {option}%
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+            <SelectTrigger
+              className="h-6 text-xs w-5/6"
+              data-testid={`edit-progress-${itemId}`}
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {progressOptions.map((option) => (
+                <SelectItem key={option} value={option.toString()}>
+                  {option}%
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       );
     }
 
@@ -2187,30 +2229,37 @@ export default function ListTree() {
 
     if (isEditing) {
       return (
-        <Select
-          value={editingValue}
-          onValueChange={(value) => {
-            setEditingValue(value);
-            updateTaskMutation.mutate({
-              id: itemId,
-              updates: { priority: value },
-            });
-            cancelEditing();
-          }}
-        >
-          <SelectTrigger
-            className="h-6 text-xs"
-            data-testid={`edit-importance-${itemId}`}
+        <div ref={wrapperRef}>
+          <Select
+            value={editingValue}
+            onValueChange={(value) => {
+              setEditingValue(value);
+              updateTaskMutation.mutate({
+                id: itemId,
+                updates: { priority: value },
+              });
+              cancelEditing();
+            }}
+            onOpenChange={(open) => {
+              if (!open && editingValue === importance) {
+                cancelEditing();
+              }
+            }}
           >
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="1">높음</SelectItem>
-            <SelectItem value="3">중요</SelectItem>
-            <SelectItem value="2">낮음</SelectItem>
-            <SelectItem value="4">미정</SelectItem>
-          </SelectContent>
-        </Select>
+            <SelectTrigger
+              className="h-6 text-xs"
+              data-testid={`edit-importance-${itemId}`}
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="1">높음</SelectItem>
+              <SelectItem value="3">중요</SelectItem>
+              <SelectItem value="2">낮음</SelectItem>
+              <SelectItem value="4">미정</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       );
     }
 
@@ -2337,7 +2386,7 @@ export default function ListTree() {
           <Button
             variant="default"
             className="bg-purple-600 hover:bg-purple-700 text-white"
-            onClick={() => setLocation("/workspace/app/archive")}
+            onClick={() => setLocation(`/workspace/${workspaceId}/archive`)}
             data-testid="button-archive-page"
           >
             <Archive className="w-4 h-4 mr-2" />
@@ -2362,12 +2411,10 @@ export default function ListTree() {
                 <div className="flex items-center gap-4">
                   <h3 className="text-lg font-semibold">프로젝트 참여자</h3>
                   <div className="flex items-center gap-2">
-                    {(() => {
-                      // Show all system users in project participants for real-time updates
-                      // This ensures new users appear immediately when they join the system
-                      const uniqueMembers = (users as SafeUser[]) || [];
-
-                      return uniqueMembers.map((member) => (
+                    {isLoadingUsers || isLoadingProjects ? (
+                      <CardContent className="h-8 bg-muted rounded animate-pulse"></CardContent>
+                    ) : (
+                      ((users as SafeUser[]) || []).map((member) => (
                         <div
                           key={member.id}
                           className="flex items-center gap-2"
@@ -2379,8 +2426,8 @@ export default function ListTree() {
                             </AvatarFallback>
                           </Avatar>
                         </div>
-                      ));
-                    })()}
+                      ))
+                    )}
                   </div>
                 </div>
                 <Button
@@ -2411,382 +2458,813 @@ export default function ListTree() {
 
         {/* Content */}
         <Card className="rounded-t-none">
-          <CardContent className="p-0">
-            {!projects || (projects as ProjectWithDetails[]).length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <p>프로젝트가 없습니다</p>
-                <p className="text-sm mt-1">새 프로젝트를 추가해주세요</p>
-              </div>
-            ) : (
-              <div className="divide-y">
-                {activeProjects.map((project) => (
-                  <div key={project.id}>
-                    {/* Project Row */}
-                    <div
-                      className={`p-3 hover:bg-muted/50 transition-colors ${
-                        completedItems.has(project.id) ? "opacity-50" : ""
-                      }`}
-                    >
-                      <div className="grid grid-cols-12 gap-4 items-center">
-                        <div className="col-span-4 flex items-center gap-2">
-                          <Checkbox
-                            checked={selectedItems.has(project.id)}
-                            onCheckedChange={() =>
-                              toggleItemSelection(project.id)
-                            }
-                            data-testid={`checkbox-project-${project.id}`}
-                          />
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 w-6 p-0"
-                            onClick={() => toggleProject(project.id)}
-                          >
-                            {expandedProjects.has(project.id) ? (
-                              <ChevronDown className="w-4 h-4" />
-                            ) : (
-                              <ChevronRight className="w-4 h-4" />
-                            )}
-                          </Button>
-                          <FolderOpen className="w-4 h-4 text-blue-600" />
-                          <button
-                            className="font-medium hover:text-blue-600 cursor-pointer transition-colors text-left"
-                            onClick={() =>
-                              setLocation(
-                                `/workspace/app/detail/project/${project.id}?from=list`
-                              )
-                            }
-                            data-testid={`text-project-name-${project.id}`}
-                          >
-                            {project.name}
-                          </button>
-                          <Badge variant="outline" className="text-xs">
-                            {project.code}
-                          </Badge>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="ml-2"
-                            onClick={() =>
-                              setGoalModalState({
-                                isOpen: true,
-                                projectId: project.id,
-                                projectTitle: project.name,
-                              })
-                            }
-                            data-testid={`button-add-goal-${project.id}`}
-                          >
-                            <Plus className="w-4 h-4" />
-                          </Button>
-                        </div>
-                        <div className="col-span-1">
-                          {renderEditableDeadline(
-                            project.id,
-                            "project",
-                            project.deadline
-                          )}
-                        </div>
-                        <div className="col-span-1">
-                          {renderEditableAssignee(
-                            project.id,
-                            "project",
-                            project.owners && project.owners.length > 0
-                              ? project.owners[0]
-                              : null,
-                            project.ownerIds
-                          )}
-                        </div>
-                        <div className="col-span-2">
-                          {renderEditableLabel(
-                            project.id,
-                            "project",
-                            project.labels || []
-                          )}
-                        </div>
-                        <div className="col-span-1">
-                          {renderEditableStatus(
-                            project.id,
-                            "project",
-                            project.status || ""
-                          )}
-                        </div>
-                        <div className="col-span-2">
-                          {(() => {
-                            // Calculate progress as "프로젝트 하위 목표 진행도 총합 / 목표 수"
-                            const goals = project.goals || [];
-                            if (goals.length === 0)
-                              return renderEditableProgress(
-                                project.id,
-                                "project",
-                                0
-                              );
+          {isLoadingProjects || isLoadingUsers ? (
+            <CardContent className="p-0">
+              <div className="min-h-[200px] flex flex-col justify-center items-center py-8 text-muted-foreground bg-muted rounded animate-pulse"></div>
+            </CardContent>
+          ) : (
+            // <CardContent className="p-0">
+            //   {!projects || (projects as ProjectWithDetails[]).length === 0 ? (
+            //     <div className="min-h-[200px] flex flex-col justify-center items-center py-8 text-muted-foreground">
+            //       <p>프로젝트가 없습니다</p>
+            //       <p className="text-sm mt-1">새 프로젝트를 추가해주세요</p>
+            //     </div>
+            //   ) : (
+            //     <div className="divide-y">
+            //       {activeProjects.map((project) => (
+            //         <div key={project.id}>
+            //           {/* Project Row */}
+            //           <div
+            //             className={`p-3 hover:bg-muted/50 hover:bg-[hsl(215,40%,30%)] transition-colors ${
+            //               completedItems.has(project.id) ? "opacity-50" : ""
+            //             }`}
+            //           >
+            //             <div className="grid grid-cols-12 gap-4 items-center">
+            //               <div className="col-span-4 flex items-center gap-2">
+            //                 <Checkbox
+            //                   checked={selectedItems.has(project.id)}
+            //                   onCheckedChange={() =>
+            //                     toggleItemSelection(project.id)
+            //                   }
+            //                   data-testid={`checkbox-project-${project.id}`}
+            //                 />
+            //                 <Button
+            //                   variant="ghost"
+            //                   size="sm"
+            //                   // 1. 하위 목표가 없으면 버튼 자체를 비활성화 (클릭 이벤트 차단)
+            //                   disabled={
+            //                     !project.goals || project.goals.length === 0
+            //                   }
+            //                   className={`h-6 w-6 p-0 transition-all ${
+            //                     !project.goals || project.goals.length === 0
+            //                       ? "cursor-default opacity-30 hover:bg-transparent" // 목표 없으면 커서 고정 및 호버 효과 제거
+            //                       : "cursor-pointer hover:bg-muted" // 목표 있으면 포인터 커서 및 호버 효과 적용
+            //                   }`}
+            //                   onClick={() => toggleProject(project.id)}
+            //                 >
+            //                   {/* 2. 하위 목표가 있고 펼쳐진 상태일 때만 Down 아이콘 */}
+            //                   {project.goals &&
+            //                   project.goals.length > 0 &&
+            //                   expandedProjects.has(project.id) ? (
+            //                     <ChevronDown className="w-4 h-4" />
+            //                   ) : (
+            //                     /* 3. 닫혀있거나 하위 목표가 없는 경우 모두 Right 아이콘 */
+            //                     <ChevronRight className="w-4 h-4" />
+            //                   )}
+            //                 </Button>
+            //                 <FolderOpen className="w-4 h-4 text-blue-600" />
+            //                 <button
+            //                   className="font-medium hover:text-blue-600 cursor-pointer transition-colors text-left"
+            //                   onClick={() =>
+            //                     setLocation(
+            //                       `/workspace/${workspaceId}/detail/project/${project.id}?from=list`
+            //                     )
+            //                   }
+            //                   data-testid={`text-project-name-${project.id}`}
+            //                 >
+            //                   {project.name}
+            //                 </button>
+            //                 <Badge variant="outline" className="text-xs">
+            //                   {project.code}
+            //                 </Badge>
+            //                 <Button
+            //                   variant="ghost"
+            //                   size="sm"
+            //                   className="ml-2"
+            //                   onClick={() =>
+            //                     setGoalModalState({
+            //                       isOpen: true,
+            //                       projectId: project.id,
+            //                       projectTitle: project.name,
+            //                     })
+            //                   }
+            //                   data-testid={`button-add-goal-${project.id}`}
+            //                 >
+            //                   <Plus className="w-4 h-4" />
+            //                 </Button>
+            //               </div>
+            //               <div className="col-span-1">
+            //                 {renderEditableDeadline(
+            //                   project.id,
+            //                   "project",
+            //                   project.deadline
+            //                 )}
+            //               </div>
+            //               <div className="col-span-1">
+            //                 {renderEditableAssignee(
+            //                   project.id,
+            //                   "project",
+            //                   project.owners && project.owners.length > 0
+            //                     ? project.owners[0]
+            //                     : null,
+            //                   project.ownerIds
+            //                 )}
+            //               </div>
+            //               <div className="col-span-2">
+            //                 {renderEditableLabel(
+            //                   project.id,
+            //                   "project",
+            //                   project.labels || []
+            //                 )}
+            //               </div>
+            //               <div className="col-span-1">
+            //                 {renderEditableStatus(
+            //                   project.id,
+            //                   "project",
+            //                   project.status || ""
+            //                 )}
+            //               </div>
+            //               <div className="col-span-2">
+            //                 {(() => {
+            //                   // Calculate progress as "프로젝트 하위 목표 진행도 총합 / 목표 수"
+            //                   const goals = project.goals || [];
+            //                   if (goals.length === 0)
+            //                     return renderEditableProgress(
+            //                       project.id,
+            //                       "project",
+            //                       0
+            //                     );
 
-                            const goalProgressSum = goals.reduce(
-                              (sum, goal) => {
-                                const goalTasks = goal.tasks || [];
-                                const goalProgress =
-                                  goalTasks.length > 0
-                                    ? goalTasks.reduce(
-                                        (taskSum, task) =>
-                                          taskSum + (task.progress || 0),
-                                        0
-                                      ) / goalTasks.length
-                                    : 0;
-                                return sum + goalProgress;
-                              },
-                              0
-                            );
+            //                   const goalProgressSum = goals.reduce(
+            //                     (sum, goal) => {
+            //                       const goalTasks = goal.tasks || [];
+            //                       const goalProgress =
+            //                         goalTasks.length > 0
+            //                           ? goalTasks.reduce(
+            //                               (taskSum, task) =>
+            //                                 taskSum + (task.progress || 0),
+            //                               0
+            //                             ) / goalTasks.length
+            //                           : 0;
+            //                       return sum + goalProgress;
+            //                     },
+            //                     0
+            //                   );
 
-                            const averageProgress = Math.round(
-                              goalProgressSum / goals.length
-                            );
-                            return renderEditableProgress(
+            //                   const averageProgress = Math.round(
+            //                     goalProgressSum / goals.length
+            //                   );
+            //                   return renderEditableProgress(
+            //                     project.id,
+            //                     "project",
+            //                     averageProgress
+            //                   );
+            //                 })()}
+            //               </div>
+            //               <div className="col-span-1">
+            //                 {renderEditableImportance(
+            //                   project.id,
+            //                   "project",
+            //                   "중간"
+            //                 )}
+            //               </div>
+            //             </div>
+            //           </div>
+
+            //           {/* Goals */}
+            //           {expandedProjects.has(project.id) && project.goals && (
+            //             <div
+            //               className="bg-muted/20"
+            //               key={`${project.id}-${renderKey}`}
+            //             >
+            //               {project.goals
+            //                 .slice()
+            //                 .sort((a, b) => {
+            //                   const dateA = new Date(
+            //                     a.completedAt || 0
+            //                   ).getTime();
+            //                   const dateB = new Date(
+            //                     b.completedAt || 0
+            //                   ).getTime();
+
+            //                   return dateA - dateB;
+            //                 })
+            //                 .map((goal) => (
+            //                   <div key={goal.id}>
+            //                     {/* Goal Row */}
+            //                     <div
+            //                       className={`p-3 hover:bg-muted/50 hover:bg-[hsl(215,40%,30%)] transition-colors ${
+            //                         completedItems.has(project.id) ||
+            //                         completedItems.has(goal.id)
+            //                           ? "opacity-50"
+            //                           : ""
+            //                       }`}
+            //                     >
+            //                       <div className="grid grid-cols-12 gap-4 items-center">
+            //                         <div className="col-span-4 flex items-center gap-2 ml-8">
+            //                           <Checkbox
+            //                             checked={selectedItems.has(goal.id)}
+            //                             onCheckedChange={() =>
+            //                               toggleItemSelection(goal.id)
+            //                             }
+            //                             data-testid={`checkbox-goal-${goal.id}`}
+            //                           />
+            //                           <Button
+            //                             variant="ghost"
+            //                             size="sm"
+            //                             // 1. 하위 태스크가 없으면 클릭 비활성화 및 포인터 커서 제거
+            //                             disabled={
+            //                               !goal.tasks || goal.tasks.length === 0
+            //                             }
+            //                             className={`h-6 w-6 p-0 transition-all ${
+            //                               !goal.tasks || goal.tasks.length === 0
+            //                                 ? "cursor-default opacity-30 hover:bg-transparent"
+            //                                 : "cursor-pointer hover:bg-muted"
+            //                             }`}
+            //                             onClick={() => toggleGoal(goal.id)}
+            //                           >
+            //                             {/* 2. 데이터가 있고 펼쳐진 상태일 때만 Down 아이콘 */}
+            //                             {goal.tasks &&
+            //                             goal.tasks.length > 0 &&
+            //                             expandedGoals.has(goal.id) ? (
+            //                               <ChevronDown className="w-4 h-4" />
+            //                             ) : (
+            //                               /* 3. 데이터가 없거나 닫힌 상태면 Right 아이콘 */
+            //                               <ChevronRight className="w-4 h-4" />
+            //                             )}
+            //                           </Button>
+            //                           <Target className="w-4 h-4 text-green-600" />
+            //                           <button
+            //                             className="font-medium hover:text-green-600 cursor-pointer transition-colors text-left"
+            //                             onClick={() =>
+            //                               setLocation(
+            //                                 `/workspace/${workspaceId}/detail/goal/${goal.id}?from=list`
+            //                               )
+            //                             }
+            //                             data-testid={`text-goal-name-${goal.id}`}
+            //                           >
+            //                             {goal.title}
+            //                           </button>
+            //                           <Button
+            //                             variant="ghost"
+            //                             size="sm"
+            //                             className="ml-2"
+            //                             onClick={() =>
+            //                               setTaskModalState({
+            //                                 isOpen: true,
+            //                                 goalId: goal.id,
+            //                                 goalTitle: goal.title,
+            //                               })
+            //                             }
+            //                             data-testid={`button-add-task-${goal.id}`}
+            //                           >
+            //                             <Plus className="w-4 h-4" />
+            //                           </Button>
+            //                         </div>
+            //                         <div className="col-span-1">
+            //                           {renderEditableDeadline(
+            //                             goal.id,
+            //                             "goal",
+            //                             goal.deadline
+            //                           )}
+            //                         </div>
+            //                         <div className="col-span-1">
+            //                           {renderEditableAssignee(
+            //                             goal.id,
+            //                             "goal",
+            //                             goal.assignees &&
+            //                               goal.assignees.length > 0
+            //                               ? goal.assignees[0]
+            //                               : null,
+            //                             undefined,
+            //                             goal.assigneeIds
+            //                           )}
+            //                         </div>
+            //                         <div className="col-span-2">
+            //                           {renderEditableLabel(
+            //                             goal.id,
+            //                             "goal",
+            //                             goal.labels || []
+            //                           )}
+            //                         </div>
+            //                         <div className="col-span-1">
+            //                           {renderEditableStatus(
+            //                             goal.id,
+            //                             "goal",
+            //                             goal.status || ""
+            //                           )}
+            //                         </div>
+            //                         <div className="col-span-2">
+            //                           {(() => {
+            //                             // 목표 진행도 = 목표 하위 작업들 진행도 합 / 목표 하위 작업들 수
+            //                             const goalTasks = goal.tasks || [];
+            //                             if (goalTasks.length === 0)
+            //                               return renderEditableProgress(
+            //                                 goal.id,
+            //                                 "goal",
+            //                                 0
+            //                               );
+
+            //                             const taskProgressSum =
+            //                               goalTasks.reduce(
+            //                                 (sum, task) =>
+            //                                   sum + (task.progress || 0),
+            //                                 0
+            //                               );
+            //                             const averageProgress = Math.round(
+            //                               taskProgressSum / goalTasks.length
+            //                             );
+            //                             return renderEditableProgress(
+            //                               goal.id,
+            //                               "goal",
+            //                               averageProgress
+            //                             );
+            //                           })()}
+            //                         </div>
+            //                         <div className="col-span-1">
+            //                           {renderEditableImportance(
+            //                             goal.id,
+            //                             "goal",
+            //                             "중간"
+            //                           )}
+            //                         </div>
+            //                       </div>
+            //                     </div>
+
+            //                     {/* Tasks */}
+            //                     {expandedGoals.has(goal.id) && goal.tasks && (
+            //                       <div className="bg-muted/30">
+            //                         {goal.tasks.map((task) => (
+            //                           <div
+            //                             key={task.id}
+            //                             className={`p-3 hover:bg-muted/50 hover:bg-[hsl(215,40%,30%)] transition-colors ${
+            //                               completedItems.has(project.id) ||
+            //                               completedItems.has(goal.id) ||
+            //                               completedItems.has(task.id)
+            //                                 ? "opacity-50"
+            //                                 : ""
+            //                             }`}
+            //                           >
+            //                             <div className="grid grid-cols-12 gap-4 items-center">
+            //                               <div className="col-span-4 flex items-center gap-2 ml-16">
+            //                                 <Checkbox
+            //                                   checked={selectedItems.has(
+            //                                     task.id
+            //                                   )}
+            //                                   onCheckedChange={() =>
+            //                                     toggleItemSelection(task.id)
+            //                                   }
+            //                                   data-testid={`checkbox-task-${task.id}`}
+            //                                 />
+            //                                 <Circle className="w-4 h-4 text-orange-600" />
+            //                                 <button
+            //                                   className="font-medium hover:text-orange-600 cursor-pointer transition-colors text-left"
+            //                                   onClick={() =>
+            //                                     setLocation(
+            //                                       `/workspace/${workspaceId}/detail/task/${task.id}?from=list`
+            //                                     )
+            //                                   }
+            //                                   data-testid={`text-task-name-${task.id}`}
+            //                                 >
+            //                                   {task.title}
+            //                                 </button>
+            //                               </div>
+            //                               <div className="col-span-1">
+            //                                 {renderEditableDeadline(
+            //                                   task.id,
+            //                                   "task",
+            //                                   task.deadline
+            //                                 )}
+            //                               </div>
+            //                               <div className="col-span-1">
+            //                                 {renderEditableAssignee(
+            //                                   task.id,
+            //                                   "task",
+            //                                   task.assignees &&
+            //                                     task.assignees.length > 0
+            //                                     ? task.assignees[0]
+            //                                     : null,
+            //                                   undefined,
+            //                                   task.assigneeIds
+            //                                 )}
+            //                               </div>
+            //                               <div className="col-span-2">
+            //                                 {renderEditableLabel(
+            //                                   task.id,
+            //                                   "task",
+            //                                   task.labels || []
+            //                                 )}
+            //                               </div>
+            //                               <div className="col-span-1">
+            //                                 {renderEditableStatus(
+            //                                   task.id,
+            //                                   "task",
+            //                                   task.status,
+            //                                   getProgressFromStatus(task.status)
+            //                                 )}
+            //                               </div>
+            //                               <div className="col-span-2">
+            //                                 {renderEditableProgress(
+            //                                   task.id,
+            //                                   "task",
+            //                                   task.progress ??
+            //                                     getProgressFromStatus(
+            //                                       task.status
+            //                                     ),
+            //                                   task.status
+            //                                 )}
+            //                               </div>
+            //                               <div className="col-span-1">
+            //                                 {renderEditableImportance(
+            //                                   task.id,
+            //                                   "task",
+            //                                   task.priority || "4"
+            //                                 )}
+            //                               </div>
+            //                             </div>
+            //                           </div>
+            //                         ))}
+            //                       </div>
+            //                     )}
+            //                   </div>
+            //                 ))}
+            //             </div>
+            //           )}
+            //         </div>
+            //       ))}
+            //     </div>
+            //   )}
+            // </CardContent>
+            <CardContent className="p-0">
+              {!projects || (projects as ProjectWithDetails[]).length === 0 ? (
+                <div className="min-h-[200px] flex flex-col justify-center items-center py-8 text-muted-foreground">
+                  <p>프로젝트가 없습니다</p>
+                  <p className="text-sm mt-1">새 프로젝트를 추가해주세요</p>
+                </div>
+              ) : (
+                <div className="divide-y">
+                  {activeProjects.map((project) => (
+                    <div key={project.id}>
+                      {/* Project Row */}
+                      <div
+                        className={`p-3 hover:bg-muted/50 hover:bg-[hsl(215,40%,30%)] transition-colors ${
+                          completedItems.has(project.id) ? "opacity-50" : ""
+                        }`}
+                      >
+                        <div className="grid grid-cols-12 gap-4 items-center">
+                          <div className="col-span-4 flex items-center gap-2">
+                            <Checkbox
+                              checked={selectedItems.has(project.id)}
+                              onCheckedChange={() =>
+                                toggleItemSelection(project.id)
+                              }
+                              data-testid={`checkbox-project-${project.id}`}
+                            />
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              disabled={
+                                !project.goals || project.goals.length === 0
+                              }
+                              className={`h-6 w-6 p-0 transition-all ${
+                                !project.goals || project.goals.length === 0
+                                  ? "cursor-default opacity-30 hover:bg-transparent"
+                                  : "cursor-pointer hover:bg-muted"
+                              }`}
+                              onClick={() => toggleProject(project.id)}
+                            >
+                              {project.goals &&
+                              project.goals.length > 0 &&
+                              expandedProjects.has(project.id) ? (
+                                <ChevronDown className="w-4 h-4" />
+                              ) : (
+                                <ChevronRight className="w-4 h-4" />
+                              )}
+                            </Button>
+                            <FolderOpen className="w-4 h-4 text-blue-600" />
+                            <button
+                              className="font-medium hover:text-blue-600 cursor-pointer transition-colors text-left"
+                              onClick={() =>
+                                setLocation(
+                                  `/workspace/${workspaceId}/detail/project/${project.id}?from=list`
+                                )
+                              }
+                              data-testid={`text-project-name-${project.id}`}
+                            >
+                              {project.name}
+                            </button>
+                            <Badge variant="outline" className="text-xs">
+                              <span
+                                className={`font-semibold ${
+                                  (archivedGoalCounts?.get(
+                                    String(project.id)
+                                  ) ?? 0) > 0
+                                    ? "text-orange-600"
+                                    : "text-gray-400"
+                                }`}
+                              >
+                                보관됨{" "}
+                                {archivedGoalCounts?.get(String(project.id)) ??
+                                  0}
+                              </span>
+                            </Badge>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="ml-2"
+                              onClick={() =>
+                                setGoalModalState({
+                                  isOpen: true,
+                                  projectId: project.id,
+                                  projectTitle: project.name,
+                                })
+                              }
+                              data-testid={`button-add-goal-${project.id}`}
+                            >
+                              <Plus className="w-4 h-4" />
+                            </Button>
+                          </div>
+                          <div className="col-span-1">
+                            {renderEditableDeadline(
                               project.id,
                               "project",
-                              averageProgress
-                            );
-                          })()}
-                        </div>
-                        <div className="col-span-1">
-                          {renderEditableImportance(
-                            project.id,
-                            "project",
-                            "중간"
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Goals */}
-                    {expandedProjects.has(project.id) && project.goals && (
-                      <div className="bg-muted/20">
-                        {project.goals.map((goal) => (
-                          <div key={goal.id}>
-                            {/* Goal Row */}
-                            <div
-                              className={`p-3 hover:bg-muted/50 transition-colors ${
-                                completedItems.has(project.id) ||
-                                completedItems.has(goal.id)
-                                  ? "opacity-50"
-                                  : ""
-                              }`}
-                            >
-                              <div className="grid grid-cols-12 gap-4 items-center">
-                                <div className="col-span-4 flex items-center gap-2 ml-8">
-                                  <Checkbox
-                                    checked={selectedItems.has(goal.id)}
-                                    onCheckedChange={() =>
-                                      toggleItemSelection(goal.id)
-                                    }
-                                    data-testid={`checkbox-goal-${goal.id}`}
-                                  />
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-6 w-6 p-0"
-                                    onClick={() => toggleGoal(goal.id)}
-                                  >
-                                    {expandedGoals.has(goal.id) ? (
-                                      <ChevronDown className="w-4 h-4" />
-                                    ) : (
-                                      <ChevronRight className="w-4 h-4" />
-                                    )}
-                                  </Button>
-                                  <Target className="w-4 h-4 text-green-600" />
-                                  <button
-                                    className="font-medium hover:text-green-600 cursor-pointer transition-colors text-left"
-                                    onClick={() =>
-                                      setLocation(
-                                        `/workspace/app/detail/goal/${goal.id}?from=list`
-                                      )
-                                    }
-                                    data-testid={`text-goal-name-${goal.id}`}
-                                  >
-                                    {goal.title}
-                                  </button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="ml-2"
-                                    onClick={() =>
-                                      setTaskModalState({
-                                        isOpen: true,
-                                        goalId: goal.id,
-                                        goalTitle: goal.title,
-                                      })
-                                    }
-                                    data-testid={`button-add-task-${goal.id}`}
-                                  >
-                                    <Plus className="w-4 h-4" />
-                                  </Button>
-                                </div>
-                                <div className="col-span-1">
-                                  {renderEditableDeadline(
-                                    goal.id,
-                                    "goal",
-                                    goal.deadline
-                                  )}
-                                </div>
-                                <div className="col-span-1">
-                                  {renderEditableAssignee(
-                                    goal.id,
-                                    "goal",
-                                    goal.assignees && goal.assignees.length > 0
-                                      ? goal.assignees[0]
-                                      : null,
-                                    undefined,
-                                    goal.assigneeIds
-                                  )}
-                                </div>
-                                <div className="col-span-2">
-                                  {renderEditableLabel(
-                                    goal.id,
-                                    "goal",
-                                    goal.labels || []
-                                  )}
-                                </div>
-                                <div className="col-span-1">
-                                  {renderEditableStatus(
-                                    goal.id,
-                                    "goal",
-                                    goal.status || ""
-                                  )}
-                                </div>
-                                <div className="col-span-2">
-                                  {(() => {
-                                    // 목표 진행도 = 목표 하위 작업들 진행도 합 / 목표 하위 작업들 수
-                                    const goalTasks = goal.tasks || [];
-                                    if (goalTasks.length === 0)
-                                      return renderEditableProgress(
-                                        goal.id,
-                                        "goal",
-                                        0
-                                      );
-
-                                    const taskProgressSum = goalTasks.reduce(
-                                      (sum, task) => sum + (task.progress || 0),
-                                      0
-                                    );
-                                    const averageProgress = Math.round(
-                                      taskProgressSum / goalTasks.length
-                                    );
-                                    return renderEditableProgress(
-                                      goal.id,
-                                      "goal",
-                                      averageProgress
-                                    );
-                                  })()}
-                                </div>
-                                <div className="col-span-1">
-                                  {renderEditableImportance(
-                                    goal.id,
-                                    "goal",
-                                    "중간"
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Tasks */}
-                            {expandedGoals.has(goal.id) && goal.tasks && (
-                              <div className="bg-muted/30">
-                                {goal.tasks.map((task) => (
-                                  <div
-                                    key={task.id}
-                                    className={`p-3 hover:bg-muted/50 transition-colors ${
-                                      completedItems.has(project.id) ||
-                                      completedItems.has(goal.id) ||
-                                      completedItems.has(task.id)
-                                        ? "opacity-50"
-                                        : ""
-                                    }`}
-                                  >
-                                    <div className="grid grid-cols-12 gap-4 items-center">
-                                      <div className="col-span-4 flex items-center gap-2 ml-16">
-                                        <Checkbox
-                                          checked={selectedItems.has(task.id)}
-                                          onCheckedChange={() =>
-                                            toggleItemSelection(task.id)
-                                          }
-                                          data-testid={`checkbox-task-${task.id}`}
-                                        />
-                                        <Circle className="w-4 h-4 text-orange-600" />
-                                        <button
-                                          className="font-medium hover:text-orange-600 cursor-pointer transition-colors text-left"
-                                          onClick={() =>
-                                            setLocation(
-                                              `/workspace/app/detail/task/${task.id}?from=list`
-                                            )
-                                          }
-                                          data-testid={`text-task-name-${task.id}`}
-                                        >
-                                          {task.title}
-                                        </button>
-                                      </div>
-                                      <div className="col-span-1">
-                                        {renderEditableDeadline(
-                                          task.id,
-                                          "task",
-                                          task.deadline
-                                        )}
-                                      </div>
-                                      <div className="col-span-1">
-                                        {renderEditableAssignee(
-                                          task.id,
-                                          "task",
-                                          task.assignees &&
-                                            task.assignees.length > 0
-                                            ? task.assignees[0]
-                                            : null,
-                                          undefined,
-                                          task.assigneeIds
-                                        )}
-                                      </div>
-                                      <div className="col-span-2">
-                                        {renderEditableLabel(
-                                          task.id,
-                                          "task",
-                                          task.labels || []
-                                        )}
-                                      </div>
-                                      <div className="col-span-1">
-                                        {renderEditableStatus(
-                                          task.id,
-                                          "task",
-                                          task.status,
-                                          getProgressFromStatus(task.status)
-                                        )}
-                                      </div>
-                                      <div className="col-span-2">
-                                        {renderEditableProgress(
-                                          task.id,
-                                          "task",
-                                          task.progress ??
-                                            getProgressFromStatus(task.status),
-                                          task.status
-                                        )}
-                                      </div>
-                                      <div className="col-span-1">
-                                        {renderEditableImportance(
-                                          task.id,
-                                          "task",
-                                          task.priority || "4"
-                                        )}
-                                      </div>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
+                              project.deadline
                             )}
                           </div>
-                        ))}
+                          <div className="col-span-1">
+                            {renderEditableAssignee(
+                              project.id,
+                              "project",
+                              project.owners && project.owners.length > 0
+                                ? project.owners[0]
+                                : null,
+                              project.ownerIds
+                            )}
+                          </div>
+                          <div className="col-span-2">
+                            {renderEditableLabel(
+                              project.id,
+                              "project",
+                              project.labels || []
+                            )}
+                          </div>
+                          <div className="col-span-1">
+                            {renderEditableStatus(
+                              project.id,
+                              "project",
+                              project.status || ""
+                            )}
+                          </div>
+                          <div className="col-span-2">
+                            {/* ⭐ 백엔드 stats에서 가져온 진행률 사용 */}
+                            {renderEditableProgress(
+                              project.id,
+                              "project",
+                              project.progressPercentage || 0
+                            )}
+                          </div>
+                          <div className="col-span-1">
+                            {renderEditableImportance(
+                              project.id,
+                              "project",
+                              "중간"
+                            )}
+                          </div>
+                        </div>
                       </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
+
+                      {/* Goals */}
+                      {expandedProjects.has(project.id) && project.goals && (
+                        <div
+                          className="bg-muted/20"
+                          key={`${project.id}-${renderKey}`}
+                        >
+                          {project.goals
+                            .slice()
+                            .sort((a, b) => {
+                              const dateA = new Date(
+                                a.completedAt || 0
+                              ).getTime();
+                              const dateB = new Date(
+                                b.completedAt || 0
+                              ).getTime();
+                              return dateA - dateB;
+                            })
+                            .map((goal) => (
+                              <div key={goal.id}>
+                                {/* Goal Row */}
+                                <div
+                                  className={`p-3 hover:bg-muted/50 hover:bg-[hsl(215,40%,30%)] transition-colors ${
+                                    completedItems.has(project.id) ||
+                                    completedItems.has(goal.id)
+                                      ? "opacity-50"
+                                      : ""
+                                  }`}
+                                >
+                                  <div className="grid grid-cols-12 gap-4 items-center">
+                                    <div className="col-span-4 flex items-center gap-2 ml-8">
+                                      <Checkbox
+                                        checked={selectedItems.has(goal.id)}
+                                        onCheckedChange={() =>
+                                          toggleItemSelection(goal.id)
+                                        }
+                                        data-testid={`checkbox-goal-${goal.id}`}
+                                      />
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        disabled={
+                                          !goal.tasks || goal.tasks.length === 0
+                                        }
+                                        className={`h-6 w-6 p-0 transition-all ${
+                                          !goal.tasks || goal.tasks.length === 0
+                                            ? "cursor-default opacity-30 hover:bg-transparent"
+                                            : "cursor-pointer hover:bg-muted"
+                                        }`}
+                                        onClick={() => toggleGoal(goal.id)}
+                                      >
+                                        {goal.tasks &&
+                                        goal.tasks.length > 0 &&
+                                        expandedGoals.has(goal.id) ? (
+                                          <ChevronDown className="w-4 h-4" />
+                                        ) : (
+                                          <ChevronRight className="w-4 h-4" />
+                                        )}
+                                      </Button>
+                                      <Target className="w-4 h-4 text-green-600" />
+                                      <button
+                                        className="font-medium hover:text-green-600 cursor-pointer transition-colors text-left"
+                                        onClick={() =>
+                                          setLocation(
+                                            `/workspace/${workspaceId}/detail/goal/${goal.id}?from=list`
+                                          )
+                                        }
+                                        data-testid={`text-goal-name-${goal.id}`}
+                                      >
+                                        {goal.title}
+                                      </button>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="ml-2"
+                                        onClick={() =>
+                                          setTaskModalState({
+                                            isOpen: true,
+                                            goalId: goal.id,
+                                            goalTitle: goal.title,
+                                          })
+                                        }
+                                        data-testid={`button-add-task-${goal.id}`}
+                                      >
+                                        <Plus className="w-4 h-4" />
+                                      </Button>
+                                    </div>
+                                    <div className="col-span-1">
+                                      {renderEditableDeadline(
+                                        goal.id,
+                                        "goal",
+                                        goal.deadline
+                                      )}
+                                    </div>
+                                    <div className="col-span-1">
+                                      {renderEditableAssignee(
+                                        goal.id,
+                                        "goal",
+                                        goal.assignees &&
+                                          goal.assignees.length > 0
+                                          ? goal.assignees[0]
+                                          : null,
+                                        undefined,
+                                        goal.assigneeIds
+                                      )}
+                                    </div>
+                                    <div className="col-span-2">
+                                      {renderEditableLabel(
+                                        goal.id,
+                                        "goal",
+                                        goal.labels || []
+                                      )}
+                                    </div>
+                                    <div className="col-span-1">
+                                      {renderEditableStatus(
+                                        goal.id,
+                                        "goal",
+                                        goal.status || ""
+                                      )}
+                                    </div>
+                                    <div className="col-span-2">
+                                      {/* ⭐ 백엔드에서 계산된 goal.progressPercentage 사용 */}
+                                      {renderEditableProgress(
+                                        goal.id,
+                                        "goal",
+                                        goal.progressPercentage || 0
+                                      )}
+                                    </div>
+                                    <div className="col-span-1">
+                                      {renderEditableImportance(
+                                        goal.id,
+                                        "goal",
+                                        "중간"
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Tasks */}
+                                {expandedGoals.has(goal.id) && goal.tasks && (
+                                  <div className="bg-muted/30">
+                                    {goal.tasks.map((task) => (
+                                      <div
+                                        key={task.id}
+                                        className={`p-3 hover:bg-muted/50 hover:bg-[hsl(215,40%,30%)] transition-colors ${
+                                          completedItems.has(project.id) ||
+                                          completedItems.has(goal.id) ||
+                                          completedItems.has(task.id)
+                                            ? "opacity-50"
+                                            : ""
+                                        }`}
+                                      >
+                                        <div className="grid grid-cols-12 gap-4 items-center">
+                                          <div className="col-span-4 flex items-center gap-2 ml-16">
+                                            <Checkbox
+                                              checked={selectedItems.has(
+                                                task.id
+                                              )}
+                                              onCheckedChange={() =>
+                                                toggleItemSelection(task.id)
+                                              }
+                                              data-testid={`checkbox-task-${task.id}`}
+                                            />
+                                            <Circle className="w-4 h-4 text-orange-600" />
+                                            <button
+                                              className="font-medium hover:text-orange-600 cursor-pointer transition-colors text-left"
+                                              onClick={() =>
+                                                setLocation(
+                                                  `/workspace/${workspaceId}/detail/task/${task.id}?from=list`
+                                                )
+                                              }
+                                              data-testid={`text-task-name-${task.id}`}
+                                            >
+                                              {task.title}
+                                            </button>
+                                          </div>
+                                          <div className="col-span-1">
+                                            {renderEditableDeadline(
+                                              task.id,
+                                              "task",
+                                              task.deadline
+                                            )}
+                                          </div>
+                                          <div className="col-span-1">
+                                            {renderEditableAssignee(
+                                              task.id,
+                                              "task",
+                                              task.assignees &&
+                                                task.assignees.length > 0
+                                                ? task.assignees[0]
+                                                : null,
+                                              undefined,
+                                              task.assigneeIds
+                                            )}
+                                          </div>
+                                          <div className="col-span-2">
+                                            {renderEditableLabel(
+                                              task.id,
+                                              "task",
+                                              task.labels || []
+                                            )}
+                                          </div>
+                                          <div className="col-span-1">
+                                            {renderEditableStatus(
+                                              task.id,
+                                              "task",
+                                              task.status,
+                                              getProgressFromStatus(task.status)
+                                            )}
+                                          </div>
+                                          <div className="col-span-2">
+                                            {renderEditableProgress(
+                                              task.id,
+                                              "task",
+                                              task.progress ??
+                                                getProgressFromStatus(
+                                                  task.status
+                                                ),
+                                              task.status
+                                            )}
+                                          </div>
+                                          <div className="col-span-1">
+                                            {renderEditableImportance(
+                                              task.id,
+                                              "task",
+                                              task.priority || "4"
+                                            )}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          )}
         </Card>
 
         {/* Bottom Selection Toast */}
@@ -2797,9 +3275,9 @@ export default function ListTree() {
                 {selectedItems.size}개 선택됨
               </span>
               <Button
-                variant="ghost"
+                variant="default"
+                className="bg-purple-600 hover:bg-purple-700 text-white"
                 size="sm"
-                className="text-white hover:text-slate-800 text-sm"
                 onClick={clearSelection}
                 data-testid="button-clear-selection"
               >
@@ -2824,63 +3302,104 @@ export default function ListTree() {
                   : "삭제"}
               </Button>
               <Button
-                variant="default"
+                variant="destructive"
                 size="sm"
                 className="bg-blue-600 hover:bg-blue-700 text-sm"
                 onClick={async () => {
                   const selectedArray = Array.from(selectedItems);
 
-                  // Filter to only get selected projects
-                  const selectedProjectIds: string[] = [];
-                  const nonProjectCount = selectedArray.filter((itemId) => {
-                    // Check if it's a project
-                    const isProject = (projects as ProjectWithDetails[])?.some(
-                      (p) => p.id === itemId
-                    );
-                    if (isProject) {
-                      selectedProjectIds.push(itemId);
-                      return false;
-                    }
-                    return true; // Count non-project items
-                  }).length;
+                  // // Filter to only get selected projects
+                  // const selectedProjectIds: string[] = [];
+                  // const nonProjectCount = selectedArray.filter((itemId) => {
+                  //   // Check if it's a project
+                  //   const isProject = (projects as ProjectWithDetails[])?.some(
+                  //     (p) => p.id === itemId
+                  //   );
+                  //   if (isProject) {
+                  //     selectedProjectIds.push(itemId);
+                  //     return false;
+                  //   }
+                  //   return true; // Count non-project items
+                  // }).length;
 
-                  if (selectedProjectIds.length === 0) {
-                    toast({
-                      title: "보관 제한",
-                      description: "프로젝트 단위로 이동해 주세요.",
-                      variant: "destructive",
-                    });
-                    return;
-                  }
+                  // if (selectedProjectIds.length === 0) {
+                  //   toast({
+                  //     title: "보관 제한",
+                  //     description: "프로젝트 단위로 이동해 주세요.",
+                  //     variant: "destructive",
+                  //   });
+                  //   return;
+                  // }
 
-                  // Show info message if non-project items were also selected
-                  if (nonProjectCount > 0) {
-                    toast({
-                      title: "보관 안내",
-                      description: `선택된 항목 중 ${selectedProjectIds.length}개 프로젝트만 보관됩니다.`,
-                    });
-                  }
+                  // // Show info message if non-project items were also selected
+                  // if (nonProjectCount > 0) {
+                  //   toast({
+                  //     title: "보관 안내",
+                  //     description: `선택된 항목 중 ${selectedProjectIds.length}개 프로젝트만 보관됩니다.`,
+                  //   });
+                  // }
 
+                  // try {
+                  //   // Archive selected projects using database-based mutations
+                  //   for (const projectId of selectedProjectIds) {
+                  //     await archiveProjectMutation.mutateAsync(projectId);
+                  //   }
+
+                  //   // Force immediate data refresh to ensure archived projects disappear from list
+                  //   await queryClient.refetchQueries({
+                  //     queryKey: ["/api/projects"],
+                  //   });
+
+                  //   toast({
+                  //     title: "보관 완료",
+                  //     description: `${selectedProjectIds.length}개 프로젝트가 보관함으로 이동되었습니다.`,
+                  //   });
+
+                  //   clearSelection();
+                  //   setTimeout(() => {
+                  //     setLocation(`/workspace/${workspaceId}/archive`);
+                  //   }, 1000);
                   try {
-                    // Archive selected projects using database-based mutations
-                    for (const projectId of selectedProjectIds) {
-                      await archiveProjectMutation.mutateAsync(projectId);
+                    for (const itemId of selectedArray) {
+                      // 1. 프로젝트인지 확인 후 프로젝트 보관 실행
+                      const isProject = (
+                        projects as ProjectWithDetails[]
+                      )?.some((p) => p.id === itemId);
+                      if (isProject) {
+                        await archiveProjectMutation.mutateAsync(itemId);
+                        continue; // 다음 아이템으로
+                      }
+
+                      // 2. 목표인지 확인 후 목표 보관 실행 (goals 목록이 있다고 가정)
+                      const isGoal = (goals as GoalWithTasks[])?.some(
+                        (g) => g.id === itemId
+                      );
+                      if (isGoal) {
+                        await archiveGoalMutation.mutateAsync(itemId);
+                        continue;
+                      }
+
+                      // 3. 작업인지 확인 후 작업 보관 실행
+                      // const isTask = (tasks as Task[])?.some(t => t.id === itemId);
+                      // if (isTask) {
+                      //   await archiveTaskMutation.mutateAsync(itemId);
+                      // }
                     }
 
-                    // Force immediate data refresh to ensure archived projects disappear from list
+                    // 모든 처리가 끝난 후 캐시 갱신 및 알림
                     await queryClient.refetchQueries({
                       queryKey: ["/api/projects"],
                     });
-
                     toast({
                       title: "보관 완료",
-                      description: `${selectedProjectIds.length}개 프로젝트가 보관함으로 이동되었습니다.`,
+                      description: "선택한 모든 항목이 보관되었습니다.",
                     });
 
                     clearSelection();
-                    setTimeout(() => {
-                      setLocation("/workspace/app/archive");
-                    }, 1000);
+                    setTimeout(
+                      () => setLocation(`/workspace/${workspaceId}/archive`),
+                      1000
+                    );
                   } catch (error) {
                     console.error("Failed to archive items:", error);
                     toast({
@@ -2912,6 +3431,7 @@ export default function ListTree() {
       <ProjectModal
         isOpen={isProjectModalOpen}
         onClose={() => setIsProjectModalOpen(false)}
+        workspaceId={workspaceId as string}
       />
 
       <GoalModal
@@ -2921,6 +3441,16 @@ export default function ListTree() {
         }
         projectId={goalModalState.projectId}
         projectTitle={goalModalState.projectTitle}
+        workspaceId={workspaceId as string}
+        onSuccess={() => {
+          if (goalModalState.projectId) {
+            setExpandedProjects((prev) => {
+              const next = new Set(prev);
+              next.add(goalModalState.projectId);
+              return next;
+            });
+          }
+        }}
       />
 
       <TaskModal
@@ -2930,6 +3460,16 @@ export default function ListTree() {
         }
         goalId={taskModalState.goalId}
         goalTitle={taskModalState.goalTitle}
+        workspaceId={workspaceId as string}
+        onSuccess={() => {
+          if (taskModalState.goalId) {
+            setExpandedGoals((prev) => {
+              const next = new Set(prev);
+              next.add(taskModalState.goalId);
+              return next;
+            });
+          }
+        }}
       />
 
       {/* Member Invite Modal */}
@@ -2980,14 +3520,204 @@ export default function ListTree() {
                 </Select>
                 <Button
                   className="bg-blue-600 hover:bg-blue-700 text-white px-6"
+                  // onClick={async () => {
+                  //   // Email validation
+                  //   if (!inviteUsername.trim()) {
+                  //     setUsernameError("이메일을 입력해 주세요.");
+                  //     return;
+                  //   }
+
+                  //   // Email format validation
+                  //   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                  //   if (!emailRegex.test(inviteUsername)) {
+                  //     setUsernameError("올바른 이메일 형식을 입력해 주세요.");
+                  //     return;
+                  //   }
+
+                  //   setIsInviteLoading(true);
+
+                  //   try {
+                  //     let existingInvites: any[] | null = null;
+                  //     const existingInviteUrl = `/api/invitations/email/${inviteUsername}`; // Axios가 인코딩 처리
+
+                  //     try {
+                  //       const existingInviteResponse = await api.get(
+                  //         existingInviteUrl
+                  //       );
+                  //       existingInvites = existingInviteResponse.data;
+                  //     } catch (error) {
+
+                  //     }
+
+                  //     if (existingInvites && existingInvites.length > 0) {
+                  //       const pendingInvite = existingInvites.find(
+                  //         (invite: any) => invite.status === "pending"
+                  //       );
+                  //       if (pendingInvite) {
+                  //         toast({
+                  //           title: "초대 실패",
+                  //           description: "이미 초대가 진행 중인 사용자입니다.",
+                  //           variant: "destructive",
+                  //         });
+                  //         setIsInviteLoading(false);
+                  //         return;
+                  //       }
+                  //     }
+
+                  //     let existingUser = null;
+                  //     try {
+                  //       // 🚩 [수정] 기존 사용자 확인 fetch 블록
+                  //       const response = await api.get(
+                  //         `/api/users/by-email/${inviteUsername}` // Axios가 인코딩 처리
+                  //       );
+                  //       existingUser = response.data; // 자동 JSON 파싱
+                  //     } catch (error) {
+                  //       // 사용자가 존재하지 않아도 괜찮음
+                  //     }
+
+                  //     const usersResponse = await api.get("/api/users", {
+                  //       params: {
+                  //         workspace: true,
+                  //       },
+                  //     });
+                  //     const allUsers = usersResponse.data;
+
+                  //     const myEmail = localStorage.getItem("userEmail")?.toLowerCase();
+
+                  //     // 이메일이 일치하는 사용자를 우선 찾고, 없으면 첫 번째 사용자 선택
+                  //     let currentUser = allUsers.find(
+                  //       (u: any) => u.email?.toLowerCase() === myEmail
+                  //     );
+
+                  //     // if (!currentUser && allUsers.length > 0) {
+                  //     //   currentUser = allUsers[0];
+                  //     // }
+
+                  //     // 현재 사용자가 없으면 에러 처리
+                  //     if (!currentUser) {
+                  //       const storedName = localStorage.getItem("userName")
+                  //       currentUser = { email: myEmail, name: storedName };
+                  //     }
+
+                  //     // 워크스페이스 기반 초대 생성 (프로젝트 ID 없이)
+                  //     const invitationData = {
+                  //       workspaceId: workspaceId,
+                  //       inviterEmail: currentUser.email,
+                  //       inviterName: currentUser.name,
+                  //       inviteeEmail: inviteUsername,
+                  //       role: inviteRole,
+                  //       status: "pending",
+                  //     };
+
+                  //     // -----------------------------------------------------------------
+                  //     // 🚩 [수정] 초대 생성 POST fetch 블록
+                  //     // Axios는 method, headers, body/JSON.stringify를 자동으로 처리합니다.
+                  //     // 4xx/5xx 에러는 throw하므로, 별도의 if (!response.ok) 체크가 필요 없습니다.
+                  //     const response = await api.post(
+                  //       "/api/invitations",
+                  //       invitationData
+                  //     );
+
+                  //     const newInvitation = response.data; // 자동 JSON 파싱
+                  //     // -----------------------------------------------------------------
+
+                  //     // localStorage에도 저장 (기존 호환성 유지)
+                  //     const invitations = JSON.parse(
+                  //       localStorage.getItem("invitations") || "[]"
+                  //     );
+                  //     const localInvitation = {
+                  //       ...newInvitation,
+                  //       inviterName: currentUser.name,
+                  //       inviteeName: existingUser
+                  //         ? existingUser.name
+                  //         : inviteUsername,
+                  //       createdAt: new Date().toISOString(),
+                  //     };
+
+                  //     invitations.push(localInvitation);
+                  //     localStorage.setItem(
+                  //       "invitations",
+                  //       JSON.stringify(invitations)
+                  //     );
+
+                  //     // 전역 초대 목록에 저장 (신규가입자도 확인할 수 있도록)
+                  //     const globalInvitations = JSON.parse(
+                  //       localStorage.getItem("pendingInvitations") || "[]"
+                  //     );
+                  //     globalInvitations.push(localInvitation);
+                  //     localStorage.setItem(
+                  //       "pendingInvitations",
+                  //       JSON.stringify(globalInvitations)
+                  //     );
+
+                  //     // 기존 사용자의 경우 개별 받은 초대 목록에도 추가
+                  //     if (existingUser) {
+                  //       const receivedInvitations = JSON.parse(
+                  //         localStorage.getItem(
+                  //           `receivedInvitations_${inviteUsername}`
+                  //         ) || "[]"
+                  //       );
+                  //       receivedInvitations.push(localInvitation);
+                  //       localStorage.setItem(
+                  //         `receivedInvitations_${inviteUsername}`,
+                  //         JSON.stringify(receivedInvitations)
+                  //       );
+
+                  //       // 같은 브라우저의 다른 탭에서 즉시 업데이트되도록 storage 이벤트 수동 트리거
+                  //       window.dispatchEvent(
+                  //         new StorageEvent("storage", {
+                  //           key: `receivedInvitations_${inviteUsername}`,
+                  //           newValue: JSON.stringify(receivedInvitations),
+                  //           oldValue: JSON.stringify(
+                  //             receivedInvitations.slice(0, -1)
+                  //           ),
+                  //         })
+                  //       );
+                  //     } else {
+                  //       // 신규 사용자의 경우에도 pendingInvitations 변경 이벤트 트리거
+                  //       window.dispatchEvent(
+                  //         new StorageEvent("storage", {
+                  //           key: "pendingInvitations",
+                  //           newValue:
+                  //             localStorage.getItem("pendingInvitations"),
+                  //           oldValue: JSON.stringify(
+                  //             globalInvitations.slice(0, -1)
+                  //           ),
+                  //         })
+                  //       );
+                  //     }
+
+                  //     const inviteeName = existingUser
+                  //       ? existingUser.name
+                  //       : inviteUsername;
+                  //     const userStatus = existingUser
+                  //       ? "기존 사용자"
+                  //       : "신규 가입 예정자";
+
+                  //     toast({
+                  //       title: "초대 완료",
+                  //       description: `${inviteeName}(${userStatus})에게 ${inviteRole} 권한으로 초대를 보냈습니다.`,
+                  //     });
+
+                  //     setInviteUsername("");
+                  //     setInviteRole("팀원");
+                  //     setUsernameError("");
+                  //     setIsInviteModalOpen(false);
+                  //   } catch (error) {
+                  //     console.error("초대 실패:", error);
+                  //     setUsernameError("초대 발송 중 오류가 발생했습니다.");
+                  //   } finally {
+                  //     setIsInviteLoading(false);
+                  //   }
+                  // }}
                   onClick={async () => {
-                    // Email validation
+                    // 1. Email validation
                     if (!inviteUsername.trim()) {
                       setUsernameError("이메일을 입력해 주세요.");
                       return;
                     }
 
-                    // Email format validation
+                    // 2. Email format validation
                     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
                     if (!emailRegex.test(inviteUsername)) {
                       setUsernameError("올바른 이메일 형식을 입력해 주세요.");
@@ -2996,320 +3726,78 @@ export default function ListTree() {
 
                     setIsInviteLoading(true);
 
-                    // try {
-                    //   // 이미 해당 워크스페이스에 초대되었는지 확인
-                    //   const existingInviteResponse = await fetch(
-                    //     `/api/invitations/email/${encodeURIComponent(
-                    //       inviteUsername
-                    //     )}`
-                    //   );
-                    //   if (existingInviteResponse.ok) {
-                    //     const existingInvites =
-                    //       await existingInviteResponse.json();
-                    //     const pendingInvite = existingInvites.find(
-                    //       (invite: any) => invite.status === "pending"
-                    //     );
-                    //     if (pendingInvite) {
-                    //       toast({
-                    //         title: "초대 실패",
-                    //         description: "이미 초대가 진행 중인 사용자입니다.",
-                    //         variant: "destructive",
-                    //       });
-                    //       setIsInviteLoading(false);
-                    //       return;
-                    //     }
-                    //   }
-                    //   // 기존 사용자인지 확인 (선택 사항)
-                    //   let existingUser = null;
-                    //   try {
-                    //     const response = await fetch(
-                    //       `/api/users/by-email/${encodeURIComponent(
-                    //         inviteUsername
-                    //       )}`
-                    //     );
-                    //     if (response.ok) {
-                    //       existingUser = await response.json();
-                    //     }
-                    //   } catch (error) {
-                    //     // 사용자가 존재하지 않아도 괜찮음
-                    //   }
-
-                    //   // 현재 로그인된 사용자의 정보 가져오기 (워크스페이스 멤버만)
-                    //   const usersResponse = await fetch(
-                    //     "/api/users?workspace=true"
-                    //   );
-                    //   const allUsers = await usersResponse.json();
-
-                    //   // localStorage의 userEmail을 기반으로 실제 사용자 매핑
-                    //   const userEmail = localStorage.getItem("userEmail") || "";
-                    //   const email = userEmail.toLowerCase();
-                    //   let currentUser;
-                    //   if (
-                    //     email.includes("admin") ||
-                    //     email === "admin@qubicom.co.kr"
-                    //   ) {
-                    //     currentUser = allUsers.find(
-                    //       (u: any) => u.username === "admin"
-                    //     );
-                    //   } else if (
-                    //     email.includes("hyejin") ||
-                    //     email === "1@qubicom.co.kr"
-                    //   ) {
-                    //     currentUser = allUsers.find(
-                    //       (u: any) => u.username === "hyejin"
-                    //     );
-                    //   } else if (
-                    //     email.includes("hyejung") ||
-                    //     email === "2@qubicom.co.kr"
-                    //   ) {
-                    //     currentUser = allUsers.find(
-                    //       (u: any) => u.username === "hyejung"
-                    //     );
-                    //   } else if (
-                    //     email.includes("chamin") ||
-                    //     email === "3@qubicom.co.kr"
-                    //   ) {
-                    //     currentUser = allUsers.find(
-                    //       (u: any) => u.username === "chamin"
-                    //     );
-                    //   } else {
-                    //     // 기본적으로 첫 번째 사용자 사용
-                    //     currentUser = allUsers[0];
-                    //   }
-
-                    //   // 현재 사용자가 없으면 에러 처리
-                    //   if (!currentUser) {
-                    //     throw new Error("사용자 정보를 찾을 수 없습니다");
-                    //   }
-
-                    //   // 워크스페이스 기반 초대 생성 (프로젝트 ID 없이)
-                    //   const invitationData = {
-                    //     inviterEmail: currentUser.email,
-                    //     inviteeEmail: inviteUsername,
-                    //     role: inviteRole,
-                    //     status: "pending",
-                    //   };
-
-                    //   const response = await fetch("/api/invitations", {
-                    //     method: "POST",
-                    //     headers: {
-                    //       "Content-Type": "application/json",
-                    //     },
-                    //     body: JSON.stringify(invitationData),
-                    //   });
-
-                    //   if (!response.ok) {
-                    //     throw new Error("초대 생성 실패");
-                    //   }
-
-                    //   const newInvitation = await response.json();
-
-                    //   // localStorage에도 저장 (기존 호환성 유지)
-                    //   const invitations = JSON.parse(
-                    //     localStorage.getItem("invitations") || "[]"
-                    //   );
-                    //   const localInvitation = {
-                    //     ...newInvitation,
-                    //     inviterName: currentUser.name,
-                    //     inviteeName: existingUser
-                    //       ? existingUser.name
-                    //       : inviteUsername,
-                    //     createdAt: new Date().toISOString(),
-                    //   };
-
-                    //   invitations.push(localInvitation);
-                    //   localStorage.setItem(
-                    //     "invitations",
-                    //     JSON.stringify(invitations)
-                    //   );
-
-                    //   // 전역 초대 목록에 저장 (신규가입자도 확인할 수 있도록)
-                    //   const globalInvitations = JSON.parse(
-                    //     localStorage.getItem("pendingInvitations") || "[]"
-                    //   );
-                    //   globalInvitations.push(localInvitation);
-                    //   localStorage.setItem(
-                    //     "pendingInvitations",
-                    //     JSON.stringify(globalInvitations)
-                    //   );
-
-                    //   // 기존 사용자의 경우 개별 받은 초대 목록에도 추가
-                    //   if (existingUser) {
-                    //     const receivedInvitations = JSON.parse(
-                    //       localStorage.getItem(
-                    //         `receivedInvitations_${inviteUsername}`
-                    //       ) || "[]"
-                    //     );
-                    //     receivedInvitations.push(localInvitation);
-                    //     localStorage.setItem(
-                    //       `receivedInvitations_${inviteUsername}`,
-                    //       JSON.stringify(receivedInvitations)
-                    //     );
-
-                    //     // 같은 브라우저의 다른 탭에서 즉시 업데이트되도록 storage 이벤트 수동 트리거
-                    //     window.dispatchEvent(
-                    //       new StorageEvent("storage", {
-                    //         key: `receivedInvitations_${inviteUsername}`,
-                    //         newValue: JSON.stringify(receivedInvitations),
-                    //         oldValue: JSON.stringify(
-                    //           receivedInvitations.slice(0, -1)
-                    //         ),
-                    //       })
-                    //     );
-                    //   } else {
-                    //     // 신규 사용자의 경우에도 pendingInvitations 변경 이벤트 트리거
-                    //     window.dispatchEvent(
-                    //       new StorageEvent("storage", {
-                    //         key: "pendingInvitations",
-                    //         newValue:
-                    //           localStorage.getItem("pendingInvitations"),
-                    //         oldValue: JSON.stringify(
-                    //           globalInvitations.slice(0, -1)
-                    //         ),
-                    //       })
-                    //     );
-                    //   }
-
-                    //   const inviteeName = existingUser
-                    //     ? existingUser.name
-                    //     : inviteUsername;
-                    //   const userStatus = existingUser
-                    //     ? "기존 사용자"
-                    //     : "신규 가입 예정자";
-
-                    //   toast({
-                    //     title: "초대 완료",
-                    //     description: `${inviteeName}(${userStatus})에게 ${inviteRole} 권한으로 초대를 보냈습니다.`,
-                    //   });
-
-                    //   setInviteUsername("");
-                    //   setInviteRole("팀원");
-                    //   setUsernameError("");
-                    //   setIsInviteModalOpen(false);
-                    // } catch (error) {
-                    //   console.error("초대 실패:", error);
-                    //   setUsernameError("초대 발송 중 오류가 발생했습니다.");
-                    // } finally {
-                    //   setIsInviteLoading(false);
-                    // }
                     try {
-                      // 1. 이미 해당 워크스페이스에 초대되었는지 확인
-                      // -----------------------------------------------------------------
-                      // 🚩 [수정] 첫 번째 fetch 블록 (초대 확인)
+                      // 3. 중복 초대 체크 수정 (현재 워크스페이스 ID 확인 추가)
                       let existingInvites: any[] | null = null;
-                      const existingInviteUrl = `/api/invitations/email/${inviteUsername}`; // Axios가 인코딩 처리
-
                       try {
                         const existingInviteResponse = await api.get(
-                          existingInviteUrl
+                          `/api/invitations/email/${inviteUsername}`
                         );
                         existingInvites = existingInviteResponse.data;
                       } catch (error) {
-                        // API 호출이 404 등으로 실패해도 (초대가 없다고 간주하고) 다음 로직으로 진행합니다.
-                        // console.warn("기존 초대 확인 실패 (다음 로직으로 진행):", error);
+                        // 에러 발생 시 무시 (데이터가 없는 경우 등)
                       }
 
                       if (existingInvites && existingInvites.length > 0) {
+                        // ⭐ 수정: 전체 중 'pending'이면서 '현재 워크스페이스'인 초대가 있는지 확인
                         const pendingInvite = existingInvites.find(
-                          (invite: any) => invite.status === "pending"
+                          (invite: any) =>
+                            invite.status === "pending" &&
+                            invite.workspaceId === workspaceId
                         );
+
                         if (pendingInvite) {
                           toast({
                             title: "초대 실패",
-                            description: "이미 초대가 진행 중인 사용자입니다.",
+                            description:
+                              "이 워크스페이스에 이미 초대가 진행 중인 사용자입니다.",
                             variant: "destructive",
                           });
                           setIsInviteLoading(false);
                           return;
                         }
                       }
-                      // -----------------------------------------------------------------
 
-                      // 2. 기존 사용자인지 확인 (선택 사항)
+                      // 4. 기존 사용자 확인 (초대받는 사람)
                       let existingUser = null;
                       try {
-                        // 🚩 [수정] 기존 사용자 확인 fetch 블록
                         const response = await api.get(
-                          `/api/users/by-email/${inviteUsername}` // Axios가 인코딩 처리
+                          `/api/users/by-email/${inviteUsername}`
                         );
-                        existingUser = response.data; // 자동 JSON 파싱
-                      } catch (error) {
-                        // 사용자가 존재하지 않아도 괜찮음
-                      }
+                        existingUser = response.data;
+                      } catch (error) {}
 
-                      // 3. 현재 로그인된 사용자의 정보 가져오기 (워크스페이스 멤버만)
-                      // 🚩 [수정] 현재 로그인된 사용자 정보 fetch 블록
-                      const usersResponse = await api.get("/api/users", {
-                        params: {
-                          workspace: true,
-                        },
-                      });
-                      const allUsers = usersResponse.data; // 자동 JSON 파싱
-                      // -----------------------------------------------------------------
+                      // 5. 발신자(본인) 정보 가져오기 수정 ⭐
+                      // 기존의 복잡한 allUsers.find 로직 대신, 로그인 시 저장된 본인의 정보를 직접 참조합니다.
+                      const myEmail = localStorage
+                        .getItem("userEmail")
+                        ?.toLowerCase();
+                      const myName =
+                        localStorage.getItem("userName") || "관리자";
 
-                      // localStorage의 userEmail을 기반으로 실제 사용자 매핑
-                      const userEmail = localStorage.getItem("userEmail") || "";
-                      const email = userEmail.toLowerCase();
-                      let currentUser;
-                      if (
-                        email.includes("admin") ||
-                        email === "admin@qubicom.co.kr"
-                      ) {
-                        currentUser = allUsers.find(
-                          (u: any) => u.username === "admin"
-                        );
-                      } else if (
-                        email.includes("hyejin") ||
-                        email === "1@qubicom.co.kr"
-                      ) {
-                        currentUser = allUsers.find(
-                          (u: any) => u.username === "hyejin"
-                        );
-                      } else if (
-                        email.includes("hyejung") ||
-                        email === "2@qubicom.co.kr"
-                      ) {
-                        currentUser = allUsers.find(
-                          (u: any) => u.username === "hyejung"
-                        );
-                      } else if (
-                        email.includes("chamin") ||
-                        email === "3@qubicom.co.kr"
-                      ) {
-                        currentUser = allUsers.find(
-                          (u: any) => u.username === "chamin"
-                        );
-                      } else {
-                        // 기본적으로 첫 번째 사용자 사용
-                        currentUser = allUsers[0];
-                      }
+                      const currentUser = {
+                        email: myEmail,
+                        name: myName,
+                      };
 
-                      // 현재 사용자가 없으면 에러 처리
-                      if (!currentUser) {
-                        throw new Error("사용자 정보를 찾을 수 없습니다");
-                      }
-
-                      // 워크스페이스 기반 초대 생성 (프로젝트 ID 없이)
+                      // 6. 초대 데이터 구성
                       const invitationData = {
+                        workspaceId: workspaceId,
                         inviterEmail: currentUser.email,
-                        inviteeEmail: inviteUsername,
+                        inviterName: currentUser.name, // 로그인된 본인의 이름이 정확히 들어감
+                        inviteeEmail: inviteUsername.toLowerCase(),
                         role: inviteRole,
                         status: "pending",
                       };
 
-                      // -----------------------------------------------------------------
-                      // 🚩 [수정] 초대 생성 POST fetch 블록
-                      // Axios는 method, headers, body/JSON.stringify를 자동으로 처리합니다.
-                      // 4xx/5xx 에러는 throw하므로, 별도의 if (!response.ok) 체크가 필요 없습니다.
+                      // 7. 초대 생성 API 호출
                       const response = await api.post(
                         "/api/invitations",
                         invitationData
                       );
+                      const newInvitation = response.data;
 
-                      const newInvitation = response.data; // 자동 JSON 파싱
-                      // -----------------------------------------------------------------
-
-                      // localStorage에도 저장 (기존 호환성 유지)
+                      // 8. 로컬 스토리지 및 UI 업데이트 (기존 로직 유지)
                       const invitations = JSON.parse(
                         localStorage.getItem("invitations") || "[]"
                       );
@@ -3328,7 +3816,6 @@ export default function ListTree() {
                         JSON.stringify(invitations)
                       );
 
-                      // 전역 초대 목록에 저장 (신규가입자도 확인할 수 있도록)
                       const globalInvitations = JSON.parse(
                         localStorage.getItem("pendingInvitations") || "[]"
                       );
@@ -3338,55 +3825,33 @@ export default function ListTree() {
                         JSON.stringify(globalInvitations)
                       );
 
-                      // 기존 사용자의 경우 개별 받은 초대 목록에도 추가
                       if (existingUser) {
+                        const receivedKey = `receivedInvitations_${inviteUsername.toLowerCase()}`;
                         const receivedInvitations = JSON.parse(
-                          localStorage.getItem(
-                            `receivedInvitations_${inviteUsername}`
-                          ) || "[]"
+                          localStorage.getItem(receivedKey) || "[]"
                         );
                         receivedInvitations.push(localInvitation);
                         localStorage.setItem(
-                          `receivedInvitations_${inviteUsername}`,
+                          receivedKey,
                           JSON.stringify(receivedInvitations)
                         );
 
-                        // 같은 브라우저의 다른 탭에서 즉시 업데이트되도록 storage 이벤트 수동 트리거
                         window.dispatchEvent(
                           new StorageEvent("storage", {
-                            key: `receivedInvitations_${inviteUsername}`,
+                            key: receivedKey,
                             newValue: JSON.stringify(receivedInvitations),
-                            oldValue: JSON.stringify(
-                              receivedInvitations.slice(0, -1)
-                            ),
-                          })
-                        );
-                      } else {
-                        // 신규 사용자의 경우에도 pendingInvitations 변경 이벤트 트리거
-                        window.dispatchEvent(
-                          new StorageEvent("storage", {
-                            key: "pendingInvitations",
-                            newValue:
-                              localStorage.getItem("pendingInvitations"),
-                            oldValue: JSON.stringify(
-                              globalInvitations.slice(0, -1)
-                            ),
                           })
                         );
                       }
 
-                      const inviteeName = existingUser
-                        ? existingUser.name
-                        : inviteUsername;
-                      const userStatus = existingUser
-                        ? "기존 사용자"
-                        : "신규 가입 예정자";
-
                       toast({
                         title: "초대 완료",
-                        description: `${inviteeName}(${userStatus})에게 ${inviteRole} 권한으로 초대를 보냈습니다.`,
+                        description: `${
+                          existingUser ? existingUser.name : inviteUsername
+                        }님에게 초대를 보냈습니다.`,
                       });
 
+                      // 9. 상태 초기화 및 모달 닫기
                       setInviteUsername("");
                       setInviteRole("팀원");
                       setUsernameError("");

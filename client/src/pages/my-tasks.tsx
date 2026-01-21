@@ -5,15 +5,23 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Plus, Edit, Trash2, Search, Filter } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { TaskModal } from "@/components/task-modal";
-import { useLocation } from "wouter";
+import { useLocation, useParams } from "wouter";
 import type { TaskWithAssignees } from "@shared/schema";
+import api from "@/api/api-index";
 
 export default function MyTasks() {
+  const { id: workspaceId } = useParams();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
@@ -23,16 +31,25 @@ export default function MyTasks() {
   const [editingTask, setEditingTask] = useState(null);
 
   const { data: tasks, isLoading } = useQuery({
-    queryKey: ["/api/tasks"],
+    queryKey: ["/api/workspaces", workspaceId, "tasks"],
+
+    queryFn: async () => {
+      const response = await api.get(`/api/workspaces/${workspaceId}/tasks`);
+      return response.data;
+    },
+    
+    enabled: !!workspaceId,
   });
 
   // Filter tasks to show only current user's tasks
   const myTasks = useMemo(() => {
     const currentUserId = localStorage.getItem("userId");
     if (!currentUserId || !tasks) return [];
-    
-    return (tasks as TaskWithAssignees[]).filter(task => 
-      task.assignees && task.assignees.some(assignee => assignee.id === currentUserId)
+
+    return (tasks as TaskWithAssignees[]).filter(
+      (task) =>
+        task.assignees &&
+        task.assignees.some((assignee) => assignee.id === currentUserId)
     );
   }, [tasks]);
 
@@ -97,33 +114,53 @@ export default function MyTasks() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     deadlineDate.setHours(0, 0, 0, 0);
-    
+
     const diffTime = deadlineDate.getTime() - today.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
+
     if (diffDays < 0) {
-      return <Badge className="bg-blue-500 text-white hover:bg-blue-600">D-+{Math.abs(diffDays)}</Badge>;
+      return (
+        <Badge className="bg-blue-500 text-white hover:bg-blue-600">
+          D-+{Math.abs(diffDays)}
+        </Badge>
+      );
     } else if (diffDays === 0) {
-      return <Badge className="bg-orange-500 text-white hover:bg-orange-600">D-Day</Badge>;
+      return (
+        <Badge className="bg-orange-500 text-white hover:bg-orange-600">
+          D-Day
+        </Badge>
+      );
     } else {
-      return <Badge className="bg-blue-500 text-white hover:bg-blue-600">D-{diffDays}</Badge>;
+      return (
+        <Badge className="bg-blue-500 text-white hover:bg-blue-600">
+          D-{diffDays}
+        </Badge>
+      );
     }
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "진행전": return "bg-gray-500";
-      case "진행중": return "bg-blue-500";
-      case "완료": return "bg-green-500";
-      case "이슈": return "bg-orange-500";
-      default: return "bg-gray-500";
+      case "진행전":
+        return "bg-gray-500";
+      case "진행중":
+        return "bg-blue-500";
+      case "완료":
+        return "bg-green-500";
+      case "이슈":
+        return "bg-orange-500";
+      default:
+        return "bg-gray-500";
     }
   };
 
   // 필터링된 작업 목록
   const filteredTasks = myTasks.filter((task: TaskWithAssignees) => {
-    const matchesSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === "all" || task.status === statusFilter;
+    const matchesSearch = task.title
+      .toLowerCase()
+      .includes(searchTerm.toLowerCase());
+    const matchesStatus =
+      statusFilter === "all" || task.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
 
@@ -136,12 +173,15 @@ export default function MyTasks() {
             <h1 className="text-xl font-semibold" data-testid="header-title">
               내 작업
             </h1>
-            <p className="text-sm text-muted-foreground" data-testid="header-subtitle">
+            <p
+              className="text-sm text-muted-foreground"
+              data-testid="header-subtitle"
+            >
               모든 작업을 관리하고 추적하세요
             </p>
           </div>
-          <Button 
-            onClick={() => setLocation("/workspace/app/team")}
+          <Button
+            onClick={() => setLocation(`/workspace/${workspaceId}/team`)}
             data-testid="button-go-to-team"
           >
             ← 목록으로
@@ -154,7 +194,10 @@ export default function MyTasks() {
             <CardContent className="p-6">
               <div className="space-y-4">
                 {[...Array(5)].map((_, i) => (
-                  <div key={i} className="h-16 bg-muted animate-pulse rounded"></div>
+                  <div
+                    key={i}
+                    className="h-16 bg-muted animate-pulse rounded"
+                  ></div>
                 ))}
               </div>
             </CardContent>
@@ -172,12 +215,15 @@ export default function MyTasks() {
           <h1 className="text-xl font-semibold" data-testid="header-title">
             내 작업
           </h1>
-          <p className="text-sm text-muted-foreground" data-testid="header-subtitle">
+          <p
+            className="text-sm text-muted-foreground"
+            data-testid="header-subtitle"
+          >
             모든 작업을 관리하고 추적하세요
           </p>
         </div>
-        <Button 
-          onClick={() => setLocation("/workspace/app/team")}
+        <Button
+          onClick={() => setLocation(`/workspace/${workspaceId}/team`)}
           data-testid="button-go-to-team"
         >
           ← 목록으로
@@ -201,7 +247,7 @@ export default function MyTasks() {
                   data-testid="input-search"
                 />
               </div>
-              
+
               {/* 상태 필터 */}
               <div className="w-48">
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -226,48 +272,78 @@ export default function MyTasks() {
         <Card data-testid="my-tasks-table">
           <CardHeader className="border-b border-border">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold" data-testid="text-tasks-title">
+              <h3
+                className="text-lg font-semibold"
+                data-testid="text-tasks-title"
+              >
                 작업 목록 ({filteredTasks?.length || 0}개)
               </h3>
             </div>
           </CardHeader>
-          
+
           <CardContent className="p-0">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-border">
-                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">작업</th>
-                    <th className="text-left p-4 text-sm font-medium text-muted-foreground w-[220px]">마감기한</th>
-                    <th className="text-left p-4 text-sm font-medium text-muted-foreground w-[100px]">상태</th>
-                    <th className="text-left p-4 text-sm font-medium text-muted-foreground w-[150px]">담당자</th>
-                    <th className="text-left p-4 text-sm font-medium text-muted-foreground w-[100px]">작업</th>
+                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">
+                      작업
+                    </th>
+                    <th className="text-left p-4 text-sm font-medium text-muted-foreground w-[220px]">
+                      마감기한
+                    </th>
+                    <th className="text-left p-4 text-sm font-medium text-muted-foreground w-[100px]">
+                      상태
+                    </th>
+                    <th className="text-left p-4 text-sm font-medium text-muted-foreground w-[150px]">
+                      담당자
+                    </th>
+                    <th className="text-left p-4 text-sm font-medium text-muted-foreground w-[100px]">
+                      작업
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredTasks?.map((task: TaskWithAssignees) => (
-                    <tr 
+                    <tr
                       key={task.id}
                       className="task-row border-b border-border hover:bg-accent/50 transition-colors"
                       data-testid={`row-task-${task.id}`}
                     >
                       <td className="p-4">
                         <div className="flex items-center space-x-3">
-                          <div className={`w-2 h-2 ${getStatusColor(task.status)} rounded-full`}></div>
-                          <span className="font-medium" data-testid={`text-task-title-${task.id}`}>
+                          <div
+                            className={`w-2 h-2 ${getStatusColor(
+                              task.status
+                            )} rounded-full`}
+                          ></div>
+                          <span
+                            className="font-medium"
+                            data-testid={`text-task-title-${task.id}`}
+                          >
                             {task.title}
                           </span>
                         </div>
                       </td>
-                      <td className="p-4 w-[220px]" data-testid={`text-task-deadline-${task.id}`}>
+                      <td
+                        className="p-4 w-[220px]"
+                        data-testid={`text-task-deadline-${task.id}`}
+                      >
                         <div className="flex items-center gap-2">
                           <span className="text-muted-foreground">
-                            {task.deadline ? new Date(task.deadline).toLocaleDateString('ko-KR') : '-'}
+                            {task.deadline
+                              ? new Date(task.deadline).toLocaleDateString(
+                                  "ko-KR"
+                                )
+                              : "-"}
                           </span>
                           {task.deadline && getDdayBadge(task.deadline)}
                         </div>
                       </td>
-                      <td className="p-4 w-[100px]" data-testid={`badge-task-status-${task.id}`}>
+                      <td
+                        className="p-4 w-[100px]"
+                        data-testid={`badge-task-status-${task.id}`}
+                      >
                         {getStatusBadge(task.status)}
                       </td>
                       <td className="p-4 w-[150px]">
@@ -278,24 +354,27 @@ export default function MyTasks() {
                                 {task.assignees[0].initials}
                               </AvatarFallback>
                             </Avatar>
-                            <span className="text-sm" data-testid={`text-assignee-${task.id}`}>
-                              {task.assignees[0].name || ''}
+                            <span
+                              className="text-sm"
+                              data-testid={`text-assignee-${task.id}`}
+                            >
+                              {task.assignees[0].name || ""}
                             </span>
                           </div>
                         )}
                       </td>
                       <td className="p-4 w-[100px]">
                         <div className="flex space-x-2">
-                          <Button 
-                            variant="ghost" 
+                          <Button
+                            variant="ghost"
                             size="icon"
                             onClick={() => handleEditTask(task)}
                             data-testid={`button-edit-${task.id}`}
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
-                          <Button 
-                            variant="ghost" 
+                          <Button
+                            variant="ghost"
                             size="icon"
                             onClick={() => handleDeleteTask(task.id)}
                             disabled={deleteTaskMutation.isPending}
@@ -307,14 +386,17 @@ export default function MyTasks() {
                       </td>
                     </tr>
                   ))}
-                  
+
                   {(!filteredTasks || filteredTasks.length === 0) && (
                     <tr>
-                      <td colSpan={5} className="p-8 text-center text-muted-foreground" data-testid="text-empty-tasks">
-                        {searchTerm || statusFilter !== "all" 
-                          ? "검색 조건에 맞는 작업이 없습니다." 
-                          : "작업이 없습니다."
-                        }
+                      <td
+                        colSpan={5}
+                        className="p-8 text-center text-muted-foreground"
+                        data-testid="text-empty-tasks"
+                      >
+                        {searchTerm || statusFilter !== "all"
+                          ? "검색 조건에 맞는 작업이 없습니다."
+                          : "작업이 없습니다."}
                       </td>
                     </tr>
                   )}
@@ -326,10 +408,11 @@ export default function MyTasks() {
       </main>
 
       {/* Task Modal */}
-      <TaskModal 
+      <TaskModal
         isOpen={isTaskModalOpen}
         onClose={() => setIsTaskModalOpen(false)}
         editingTask={editingTask}
+        workspaceId={workspaceId as string}
       />
     </>
   );

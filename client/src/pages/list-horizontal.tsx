@@ -46,7 +46,7 @@ import {
   getPriorityBadgeVariant,
 } from "@/lib/priority-utils";
 import { useState } from "react";
-import { useLocation } from "wouter";
+import { useLocation, useParams } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import type {
   SafeTaskWithAssignees,
@@ -77,6 +77,7 @@ interface FlattenedItem {
 }
 
 export default function ListHorizontal() {
+  const { id: workspaceId } = useParams();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const {
@@ -1056,6 +1057,7 @@ export default function ListHorizontal() {
       <ProjectModal
         isOpen={isProjectModalOpen}
         onClose={() => setIsProjectModalOpen(false)}
+        workspaceId={workspaceId as string}
       />
 
       <GoalModal
@@ -1065,6 +1067,7 @@ export default function ListHorizontal() {
         }
         projectId={goalModalState.projectId}
         projectTitle={goalModalState.projectTitle}
+        workspaceId={workspaceId as string}
       />
 
       <TaskModal
@@ -1074,6 +1077,7 @@ export default function ListHorizontal() {
         }
         goalId={taskModalState.goalId}
         goalTitle={taskModalState.goalTitle}
+        workspaceId={workspaceId as string}
       />
     </>
   );

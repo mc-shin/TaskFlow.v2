@@ -47,6 +47,10 @@ export default defineConfig({
   // 로컬 클라이언트 루트
   root: resolve(__dirname, "client"),
 
+  /////
+  envDir: __dirname,
+  /////
+
   plugins: [
     react(), // Fast Refresh 포함
     // Replit 관련 플러그인/동적 import 제거
@@ -67,12 +71,24 @@ export default defineConfig({
   // },
   build: {
     // ⭐️ 이 부분을 'dist'로 변경하거나 아예 삭제해야 합니다.
-    outDir: "dist",
+    // outDir: "dist",
+
+    //////
+    outDir: resolve(__dirname, "dist"),
+    emptyOutDir: true,
+    ///////
   },
 
   server: {
     port: 5173,
     open: true,
+    // 🚩 API 요청을 백엔드로 포워딩하는 프록시 설정 추가 (핵심)
+    proxy: {
+      "/api": {
+        target: "https://121.190.39.238:5000", // 백엔드 서버 주소
+        changeOrigin: true, // 호스트 헤더를 백엔드 서버의 호스트로 변경
+      },
+    },
     // 서버 보안/프록시 등은 제거. 로컬 정적 자원만 서비스
   },
 });

@@ -47,7 +47,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { useState, useMemo, useEffect } from "react";
-import { useLocation, useRoute } from "wouter";
+import { useLocation, useParams, useRoute } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { ObjectUploader } from "@/components/ObjectUploader";
 import { apiRequest } from "@/lib/queryClient";
@@ -65,21 +65,26 @@ import {
 import api from "@/api/api-index";
 
 export default function TaskDetail() {
-  const [, params] = useRoute("/workspace/app/detail/task/:id");
+  const { id: workspaceId, taskId } = useParams();
+  // const [, params] = useRoute("/workspace/app/detail/task/:id");
   const [, setLocation] = useLocation();
 
   // Helper function to get back URL based on where user came from
+  const urlParams = new URLSearchParams(window.location.search);
+  const currentFrom = urlParams.get("from");
+
   const getBackUrl = () => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const from = urlParams.get("from");
-    if (from === "kanban") return "/workspace/app/kanban";
-    if (from === "priority") return "/workspace/app/priority";
-    return "/workspace/app/list";
+    // const urlParams = new URLSearchParams(window.location.search);
+    // const from = urlParams.get("from");
+
+    if (currentFrom === "kanban") return `/workspace/${workspaceId}/kanban`;
+    if (currentFrom === "priority") return `/workspace/${workspaceId}/priority`;
+    return `/workspace/${workspaceId}/list`;
   };
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const taskId = params?.id;
+  // const taskId = params?.id;
   const [isEditing, setIsEditing] = useState(false);
   const [editedTask, setEditedTask] = useState<Partial<SafeTaskWithAssignees>>(
     {}
@@ -90,30 +95,36 @@ export default function TaskDetail() {
   >([]);
   const [currentUser, setCurrentUser] = useState<SafeUser | null>(null);
 
-  const { data: projects, isLoading } = useQuery({
-    queryKey: ["/api/projects"],
-  });
+  const {
+    data: projects,
+    isLoading,
+    error,
+  } = useQuery({
+    queryKey: ["/api/workspaces", workspaceId, "projects"],
 
-  // const { data: users } = useQuery({
-  //   queryKey: ["/api/users", { workspace: true }],
-  //   queryFn: () => fetch('/api/users?workspace=true').then(res => res.json()),
-  // });
-
-  /////////////////////////
-  const { data: users } = useQuery({
-    queryKey: ["/api/users", { workspace: true }],
-    // 🚩 [수정] fetch 대신 api.get 사용 및 .then(res => res.json()) 제거
-    // -----------------------------------------------------------------
-    // Axios는 응답 데이터(res.data)를 JSON 객체로 자동 파싱해줍니다.
     queryFn: async () => {
-      const response = await api.get("/api/users", {
-        params: { workspace: true }, // 쿼리 파라미터를 params 객체로 전달
-      });
-      return response.data; // 파싱된 JSON 객체를 반환
+      const response = await api.get(`/api/workspaces/${workspaceId}/projects`);
+      return response.data;
     },
-    // -----------------------------------------------------------------
+    enabled: !!workspaceId,
+
+    staleTime: 300000, // 5분
+    refetchOnWindowFocus: true,
   });
-  /////////////////////////
+
+  const { data: users } = useQuery({
+    queryKey: ["workspace-members", workspaceId],
+
+    queryFn: async () => {
+      const response = await api.get(`/api/workspaces/${workspaceId}/users`);
+      return response.data;
+    },
+
+    enabled: !!workspaceId,
+
+    staleTime: 300000,
+    refetchOnWindowFocus: true,
+  });
 
   // 현재 로그인한 사용자 식별
   useEffect(() => {
@@ -139,32 +150,20 @@ export default function TaskDetail() {
     return undefined;
   }, [projects, taskId]);
 
-  // Get accepted invitations for the project to filter assignee candidates
   // const { data: acceptedInvitations } = useQuery({
   //   queryKey: ["/api/invitations/projects", parentProjectId],
-  //   queryFn: () =>
-  //     fetch(`/api/invitations/projects/${parentProjectId}`).then((res) =>
-  //       res.json()
-  //     ),
+  //   queryFn: async () => {
+  //     // 🚩 [수정] fetch 대신 api.get 사용 및 .then(res => res.json()) 제거
+  //     // Axios는 응답 데이터(res.data)를 JSON 객체로 자동 파싱해줍니다.
+  //     // -----------------------------------------------------------------
+  //     const response = await api.get(
+  //       `/api/invitations/projects/${parentProjectId}`
+  //     );
+  //     return response.data; // 파싱된 JSON 객체를 반환
+  //     // -----------------------------------------------------------------
+  //   },
   //   enabled: !!parentProjectId,
   // });
-
-  ///////////////////////////
-  const { data: acceptedInvitations } = useQuery({
-    queryKey: ["/api/invitations/projects", parentProjectId],
-    queryFn: async () => {
-      // 🚩 [수정] fetch 대신 api.get 사용 및 .then(res => res.json()) 제거
-      // Axios는 응답 데이터(res.data)를 JSON 객체로 자동 파싱해줍니다.
-      // -----------------------------------------------------------------
-      const response = await api.get(
-        `/api/invitations/projects/${parentProjectId}`
-      );
-      return response.data; // 파싱된 JSON 객체를 반환
-      // -----------------------------------------------------------------
-    },
-    enabled: !!parentProjectId,
-  });
-  ///////////////////////////
 
   // Find the task and its parent goal/project
   let task: SafeTaskWithAssignees | undefined;
@@ -190,26 +189,39 @@ export default function TaskDetail() {
     },
     onSuccess: (data, variables) => {
       // Comprehensive cache invalidation for better synchronization
-      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      // queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
+      // queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
+      // queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+      // queryClient.invalidateQueries({ queryKey: ["/api/users"] });
+      // queryClient.invalidateQueries({
+      //   queryKey: ["/api/users", { workspace: true }],
+      // });
+
+      // // Additional predicate-based invalidation for related data
+      // queryClient.invalidateQueries({
+      //   predicate: (query) => {
+      //     const key = query.queryKey[0] as string;
+      //     return (
+      //       key?.startsWith("/api/projects") ||
+      //       key?.startsWith("/api/tasks") ||
+      //       key?.startsWith("/api/users") ||
+      //       key?.startsWith("/api/stats")
+      //     );
+      //   },
+      // });
+      // 1. 현재 워크스페이스와 관련된 데이터를 정확히 무효화
       queryClient.invalidateQueries({
-        queryKey: ["/api/users", { workspace: true }],
+        queryKey: ["/api/workspaces", workspaceId],
       });
 
-      // Additional predicate-based invalidation for related data
+      // 2. 만약 특정 테스크나 프로젝트 상세 정보를 쓰고 있다면 추가
       queryClient.invalidateQueries({
-        predicate: (query) => {
-          const key = query.queryKey[0] as string;
-          return (
-            key?.startsWith("/api/projects") ||
-            key?.startsWith("/api/tasks") ||
-            key?.startsWith("/api/users") ||
-            key?.startsWith("/api/stats")
-          );
-        },
+        queryKey: ["/api/tasks", taskId],
       });
+
+      // 3. (선택사항) 모든 API 관련 캐시를 한 번에 날리고 싶을 때
+      // prefix 매칭을 위해 배열의 첫 요소만 사용
+      queryClient.invalidateQueries({ queryKey: ["/api/workspaces"] });
 
       setIsEditing(false);
       setEditedTask({});
@@ -250,7 +262,7 @@ export default function TaskDetail() {
         title: "작업 삭제 완료",
         description: "작업이 성공적으로 삭제되었습니다.",
       });
-      setLocation("/workspace/app/list");
+      setLocation(`/workspace/${workspaceId}/list`);
     },
     onError: () => {
       toast({
@@ -276,13 +288,23 @@ export default function TaskDetail() {
 
   const handleProjectClick = () => {
     if (parentProject) {
-      setLocation(`/workspace/app/detail/project/${parentProject.id}`);
+      // setLocation(
+      //   `/workspace/${workspaceId}/detail/project/${parentProject.id}`
+      // );
+      const search = currentFrom ? `?from=${currentFrom}` : "";
+      setLocation(
+        `/workspace/${workspaceId}/detail/project/${parentProject.id}${search}`
+      );
     }
   };
 
   const handleGoalClick = () => {
     if (parentGoal) {
-      setLocation(`/workspace/app/detail/goal/${parentGoal.id}`);
+      // setLocation(`/workspace/${workspaceId}/detail/goal/${parentGoal.id}`);
+      const search = currentFrom ? `?from=${currentFrom}` : "";
+      setLocation(
+        `/workspace/${workspaceId}/detail/goal/${parentGoal.id}${search}`
+      );
     }
   };
 

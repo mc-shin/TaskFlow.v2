@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -20,12 +20,27 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { CheckSquare, Eye, EyeOff } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { CheckSquare, Eye, EyeOff, AlertCircle } from "lucide-react";
 import api from "@/api/api-index";
+import axios, { AxiosError } from "axios";
 
 const loginSchema = z.object({
-  email: z.string().email("올바른 이메일 주소를 입력해주세요"),
-  password: z.string().min(1, "비밀번호를 입력해주세요"),
+  email: z
+    .string()
+    .min(1, "이메일을 입력해 주세요.")
+    .email("올바른 이메일 주소를 입력해주세요")
+    .regex(
+      /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,10}$/,
+      "올바른 이메일 형식이어야 합니다 (예: user@example.co.kr)"
+    ),
+  password: z
+    .string()
+    .min(8, "비밀번호는 8자 이상이어야 합니다") // 보안상 8자 이상 권장
+    .regex(
+      /^(?=.*[a-zA-Z])(?=.*[!@#$%^*+=-])(?=.*[0-9]).{8,15}$/,
+      "비밀번호는 영문, 숫자, 특수문자를 포함해야 합니다"
+    ),
 });
 
 type LoginForm = z.infer<typeof loginSchema>;
@@ -34,9 +49,11 @@ export function LoginPage() {
   const [, setLocation] = useLocation();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const form = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
+    mode: "onTouched",
     defaultValues: {
       email: "",
       password: "",
@@ -45,106 +62,60 @@ export function LoginPage() {
 
   const onSubmit = async (data: LoginForm) => {
     setIsLoading(true);
+    setError(null);
 
-    // ⭐⭐⭐ 1. 로컬 테스트 계정 하드코딩 처리 (핵심 수정 부분) ⭐⭐⭐
-    const testEmail = "admin@qubicom.co.kr";
-    const testPassword = "1"; // 테스트 비밀번호 (임의 설정)
-
-    if (
-      data.email.toLowerCase() === testEmail &&
-      data.password === testPassword
-    ) {
-      console.log("Login successful with test account:", testEmail);
-
-      // 더미 사용자 정보
-      const dummyUser = {
-        id: "test-admin-123",
-        name: "관리자 (테스트)",
-        initials: "AD",
-        role: "admin",
-      };
-
-      // 로그인 상태와 사용자 정보를 localStorage에 저장
-      localStorage.setItem("isLoggedIn", "true");
-      localStorage.setItem("userEmail", testEmail);
-      localStorage.setItem("userId", dummyUser.id);
-      localStorage.setItem("userName", dummyUser.name);
-      localStorage.setItem("userInitials", dummyUser.initials);
-      localStorage.setItem("userRole", dummyUser.role);
-
-      // 워크스페이스 관리 페이지로 이동
-      setLocation("/workspace");
-      setIsLoading(false);
-      return; // 하드코딩된 로직이 실행되면 여기서 종료
-    }
-    // ⭐⭐⭐ 로컬 테스트 계정 하드코딩 처리 끝 ⭐⭐⭐
-
-    // try {
-    //   console.log("Login attempt:", data);
-
-    //   // 사용자 정보 조회
-    //   const response = await fetch(
-    //     `/api/users/by-email/${encodeURIComponent(data.email)}`
-    //   );
-    //   if (!response.ok) {
-    //     throw new Error("사용자를 찾을 수 없습니다");
-    //   }
-
-    //   const user = await response.json();
-    //   console.log("Found user:", user);
-
-    //   // 로그인 상태와 사용자 정보를 localStorage에 저장
-    //   localStorage.setItem("isLoggedIn", "true");
-    //   localStorage.setItem("userEmail", data.email);
-    //   localStorage.setItem("userId", user.id); // 실제 사용자 ID 저장
-    //   localStorage.setItem("userName", user.name);
-    //   localStorage.setItem("userInitials", user.initials);
-    //   localStorage.setItem("userRole", user.role);
-
-    //   // 워크스페이스 관리 페이지로 이동
-    //   setLocation("/workspace");
-    // } catch (error) {
-    //   console.error("Login error:", error);
-    //   // TODO: 에러 메시지 표시
-    // } finally {
-    //   setIsLoading(false);
-    // }
-
-    /////////////////////
     try {
-      console.log("Login attempt:", data);
+      const response = await api.post("/api/login", {
+        email: data.email,
+        password: data.password,
+      });
 
-      // 1. 사용자 정보 조회
-      // -----------------------------------------------------------------
-      // 🚩 [수정] fetch('/api/users/by-email/...') 대신 api.get 사용
-      const response = await api.get(`/api/users/by-email/${data.email}`);
-
-      // Axios는 4xx/5xx 상태 코드에서 자동으로 에러를 throw하므로
-      // if (!response.ok) { throw new Error(...) } 체크가 필요 없습니다.
-
-      const user = response.data; // Axios가 JSON을 자동으로 파싱합니다.
-      // -----------------------------------------------------------------
-
-      console.log("Found user:", user);
+      const user = response.data;
 
       // 로그인 상태와 사용자 정보를 localStorage에 저장
       localStorage.setItem("isLoggedIn", "true");
       localStorage.setItem("userEmail", data.email);
-      localStorage.setItem("userId", user.id); // 실제 사용자 ID 저장
+      localStorage.setItem("userId", user.id);
       localStorage.setItem("userName", user.name);
       localStorage.setItem("userInitials", user.initials);
       localStorage.setItem("userRole", user.role);
 
       // 워크스페이스 관리 페이지로 이동
       setLocation("/workspace");
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Login error:", error);
-      // TODO: 에러 메시지 표시
+
+      let errorMessage = "로그인 중 오류가 발생했습니다.";
+
+      if (axios.isAxiosError(error)) {
+        const status = error.response?.status;
+        if (status === 404) {
+          errorMessage = "등록되지 않은 이메일입니다.";
+        } else if (status === 401) {
+          // [추가] 비밀번호 틀림 처리
+          errorMessage = "비밀번호가 틀렸습니다. 다시 확인해주세요.";
+        } else {
+          errorMessage = "서버 오류가 발생했습니다. 잠시 후 시도해주세요.";
+        }
+      } else if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
-    /////////////////////
   };
+
+  // 특정 필드의 값 변화를 감시합니다.
+  const watchAllFields = form.watch();
+
+  // 값이 변경될 때마다 에러 메시지를 초기화합니다.
+  useEffect(() => {
+    if (error) {
+      setError(null);
+    }
+  }, [watchAllFields.email, watchAllFields.password]); // 이메일이나 비밀번호가 수정되면 실행
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
@@ -161,12 +132,23 @@ export function LoginPage() {
           </div>
         </CardHeader>
         <CardContent>
+          {error && (
+            <Alert
+              // variant="destructive"
+              className="mb-4 border-red-500 text-red-500"
+            >
+              <div className="flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 text-red-500" />
+                <AlertDescription>{error}</AlertDescription>
+              </div>
+            </Alert>
+          )}
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <FormField
                 control={form.control}
                 name="email"
-                render={({ field }) => (
+                render={({ field, fieldState }) => (
                   <FormItem>
                     <FormLabel>이메일</FormLabel>
                     <FormControl>
@@ -175,6 +157,7 @@ export function LoginPage() {
                         placeholder="이메일을 입력하세요"
                         {...field}
                         data-testid="input-email"
+                        className={(fieldState.error || error) ? "border-red-500 focus-visible:ring-0 outline-none" : ""}
                       />
                     </FormControl>
                     <FormMessage />
@@ -185,7 +168,7 @@ export function LoginPage() {
               <FormField
                 control={form.control}
                 name="password"
-                render={({ field }) => (
+                render={({ field, fieldState }) => (
                   <FormItem>
                     <FormLabel htmlFor="login-pass-id">비밀번호</FormLabel>
                     <FormControl>
@@ -196,6 +179,7 @@ export function LoginPage() {
                           placeholder="비밀번호를 입력하세요"
                           {...field}
                           data-testid="input-password"
+                          className={(fieldState.error || error) ? "border-red-500 focus-visible:ring-0 outline-none" : ""}
                         />
                         <Button
                           type="button"
