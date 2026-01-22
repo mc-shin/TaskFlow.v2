@@ -85,7 +85,7 @@ export default defineConfig({
     // 🚩 API 요청을 백엔드로 포워딩하는 프록시 설정 추가 (핵심)
     proxy: {
       "/api": {
-        target: "https://121.190.39.238:5000", // 백엔드 서버 주소
+        target: "http://121.190.39.238:5000", // 백엔드 서버 주소
         changeOrigin: true, // 호스트 헤더를 백엔드 서버의 호스트로 변경
       },
     },
