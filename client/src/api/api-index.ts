@@ -2,7 +2,7 @@ import axios from "axios";
 
 // 1. 환경 변수 읽기
 // VITE_ 접두사를 통해 환경 변수(.env.local 또는 Vercel 설정)를 가져옵니다.
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || ''
 
 if (!apiBaseUrl) {
   // 개발 환경이나 배포 환경에서 설정 누락 시 경고
