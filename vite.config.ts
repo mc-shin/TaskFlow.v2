@@ -74,7 +74,8 @@ export default defineConfig({
     // outDir: "dist",
 
     //////
-    outDir: resolve(__dirname, "dist"),
+    // outDir: resolve(__dirname, "dist"),
+    outDir: "dist",
     emptyOutDir: true,
     ///////
   },
