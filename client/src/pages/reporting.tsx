@@ -81,7 +81,10 @@ export default function Diagnostic() {
     (user: any) => user.email === userEmail,
   );
 
-  const userAdmin = currentUser?.email === "admin@qubicom.co.kr";
+  const userAdmin =
+    currentUser?.email === "admin@qubicom.co.kr" ||
+    currentUser?.email === "hslee@qubicom.co.kr" ||
+    currentUser?.email === "cheolhoo.kim@qubicom.co.kr";
 
   // 2. 보고서 목록 가져오기 (공유 상태 포함)
   const {
@@ -336,22 +339,53 @@ export default function Diagnostic() {
 
         if (projectDrafts.length === 0) return proj;
 
+        const divider = "\n----------------------\n";
+
+        // const changedActuals = projectDrafts
+        //   .filter((d) => d.actual?.trim() !== proj.actual?.trim())
+        //   .map((d) => `[${d.userName || d.userId}] ${d.actual}`);
+
+        // const changedPlans = projectDrafts
+        //   .filter((d) => d.plan?.trim() !== proj.plan?.trim())
+        //   .map((d) => `[${d.userName || d.userId}] ${d.plan}`);
+
+        // return {
+        //   ...proj,
+        //   actual:
+        //     changedActuals.length > 0
+        //       ? changedActuals.join("\n\n")
+        //       : proj.actual,
+        //   plan: changedPlans.length > 0 ? changedPlans.join("\n\n") : proj.plan,
+        // };
+
+        //2026-01-22
         const changedActuals = projectDrafts
-          .filter((d) => d.actual?.trim() !== proj.actual?.trim())
-          .map((d) => `[${d.userName || d.userId}] ${d.actual}`);
+          .filter(
+            (d) =>
+              d.actual?.trim() !== "" &&
+              d.actual?.trim() !== proj.actual?.trim(),
+          )
+          .map((d) => `[${d.userName || d.userId}]\n${d.actual}`); // 이름 다음 줄바꿈 추가
 
         const changedPlans = projectDrafts
-          .filter((d) => d.plan?.trim() !== proj.plan?.trim())
-          .map((d) => `[${d.userName || d.userId}] ${d.plan}`);
+          .filter(
+            (d) =>
+              d.plan?.trim() !== "" && d.plan?.trim() !== proj.plan?.trim(),
+          )
+          .map((d) => `[${d.userName || d.userId}]\n${d.plan}`);
 
         return {
           ...proj,
           actual:
             changedActuals.length > 0
-              ? changedActuals.join("\n\n")
+              ? changedActuals.join(divider) + divider // 팀원 사이와 마지막에 구분선 추가
               : proj.actual,
-          plan: changedPlans.length > 0 ? changedPlans.join("\n\n") : proj.plan,
+          plan:
+            changedPlans.length > 0
+              ? changedPlans.join(divider) + divider
+              : proj.plan,
         };
+        ////
       });
 
       setReportData({
@@ -1414,7 +1448,7 @@ export default function Diagnostic() {
   const reorderText = (text: string) => {
     const lines = text.split("\n");
     const hangulSeq = "가나다라마바사아자차카타파하";
-    const counters: Record<number, number> = {};
+    let counters: Record<number, number> = {};
 
     const getStandardSymbolType = (level: number) => {
       if (level <= 1) return "1.";
@@ -1427,6 +1461,11 @@ export default function Diagnostic() {
 
     return lines
       .map((line) => {
+        if (line.includes("----------------------")) {
+          counters = {};
+          return line;
+        }
+
         // 기호까지만 매칭
         const match = line.match(/^(\s*)([0-9]+|[가-힣]|[①-⑮㉮-㉿])([\.\)]?)/);
         if (!match) return line;
@@ -1462,7 +1501,7 @@ export default function Diagnostic() {
       .join("\n");
   };
 
-  if (isFetchLoading) {
+  if (isFetchLoading || usersLoading || !isInitialized) {
     return (
       <div className="flex h-screen items-center justify-center flex-col gap-4">
         <RefreshCcw className="animate-spin w-10 h-10 text-primary" />
@@ -1484,9 +1523,7 @@ export default function Diagnostic() {
 
       <main className="flex-1 p-6 overflow-auto">
         {reportData ? (
-          <div
-            className={`${userAdmin ? "max-w-none" : "max-w-4xl"} mx-auto space-y-6`}
-          >
+          <div className="max-w-none mx-auto space-y-6">
             <div className="flex justify-between items-center">
               <h2 className="text-2xl font-bold flex items-center gap-2">
                 <CheckCircle2 className="text-green-500" /> 분석된 보고서 내용
@@ -1715,23 +1752,60 @@ export default function Diagnostic() {
                               handleTextChange(idx, "actual", e.target.value)
                             }
                             // ★ 여기에 추가합니다
-                            onFocus={(e) => {
-                              // 내용이 아예 없거나 공백만 있을 경우 초기값 셋팅
-                              if (
-                                !project.actual ||
-                                project.actual.trim() === ""
-                              ) {
-                                // 1. 뒤에 공백을 두 칸 넣어 가독성을 확보합니다.
-                                handleTextChange(idx, "actual", "1.  ");
+                            // onFocus={(e) => {
+                            //   // 내용이 아예 없거나 공백만 있을 경우 초기값 셋팅
+                            //   if (
+                            //     !project.actual ||
+                            //     project.actual.trim() === ""
+                            //   ) {
+                            //     // 1. 뒤에 공백을 두 칸 넣어 가독성을 확보합니다.
+                            //     handleTextChange(idx, "actual", "1.  ");
 
-                                // 커서를 맨 뒤로 보냅니다.
-                                const val = e.target.value;
+                            //     // 커서를 맨 뒤로 보냅니다.
+                            //     const val = e.target.value;
+                            //     setTimeout(() => {
+                            //       e.target.setSelectionRange(
+                            //         val.length + 4,
+                            //         val.length + 4,
+                            //       );
+                            //     }, 0);
+                            //   }
+                            // }}
+                            onFocus={(e) => {
+                              const currentVal = project.actual || "";
+
+                              // 1. 아예 비어있거나 공백만 있는 경우 -> '1.  ' 셋팅
+                              if (currentVal.trim() === "") {
+                                handleTextChange(idx, "actual", "1.  ");
                                 setTimeout(() => {
-                                  e.target.setSelectionRange(
-                                    val.length + 4,
-                                    val.length + 4,
-                                  );
+                                  e.target.setSelectionRange(4, 4);
                                 }, 0);
+                              }
+                              // 2. 내용이 있는데(취합 후), 마지막이 줄바꿈이거나 번호 형식이 아닐 경우
+                              else if (userAdmin) {
+                                // 관리자일 때만 자동 번호 추가를 원할 경우 조건 추가
+                                const trimmedVal = currentVal.trimEnd();
+
+                                // 마지막 줄이 숫자/기호로 시작하는 번호 형식이 아닌지 체크 (정규식)
+                                // 예: '내용입니다' 로 끝나면 새 줄에 '1. ' 추가
+                                const lines = trimmedVal.split("\n");
+                                const lastLine = lines[lines.length - 1];
+                                const bulletRegex =
+                                  /^(\d+\.|[가-힣]\.|[①-⑮]|\d+\)|[가-힣]\))/;
+
+                                if (!bulletRegex.test(lastLine.trim())) {
+                                  const newVal = trimmedVal + "\n\n1.  ";
+                                  handleTextChange(idx, "actual", newVal);
+
+                                  setTimeout(() => {
+                                    e.target.setSelectionRange(
+                                      newVal.length,
+                                      newVal.length,
+                                    );
+                                    // 포커스 시 자동으로 스크롤을 맨 아래로 내림
+                                    e.target.scrollTop = e.target.scrollHeight;
+                                  }, 0);
+                                }
                               }
                             }}
                             onPaste={(e) => {
@@ -1770,7 +1844,27 @@ export default function Diagnostic() {
                                 );
                               }, 0);
                             }}
-                            onKeyDown={(e) => handleKeyDown(e, idx, "actual")}
+                            onKeyDown={(e) => {
+                              // 기존에 있던 번호 자동 조절 로직 실행
+                              handleKeyDown(e, idx, "actual");
+
+                              // 엔터 키 처리
+                              if (e.key === "Enter" && !e.shiftKey) {
+                                const target = e.currentTarget;
+
+                                // setTimeout을 사용하여 줄바꿈이 입력된 '직후'에 실행되도록 합니다.
+                                setTimeout(() => {
+                                  // 1. 스크롤을 맨 아래로 이동
+                                  target.scrollTo({
+                                    top: target.scrollHeight,
+                                    behavior: "smooth", // 부드러운 움직임을 원치 않으면 제거 가능
+                                  });
+
+                                  // 2. 만약 내용이 너무 길어 behavior: "smooth"가 안 먹힐 경우를 대비한 강제 이동
+                                  target.scrollTop = target.scrollHeight;
+                                }, 0); // 10ms 정도의 아주 짧은 지연시간이면 충분합니다.
+                              }
+                            }}
                             placeholder="내용을 입력하세요."
                           />
                         </td>
@@ -1891,7 +1985,28 @@ export default function Diagnostic() {
                                 );
                               }, 0);
                             }}
-                            onKeyDown={(e) => handleKeyDown(e, idx, "plan")}
+                            // onKeyDown={(e) => handleKeyDown(e, idx, "plan")}
+                            onKeyDown={(e) => {
+                              // 기존에 있던 번호 자동 조절 로직 실행
+                              handleKeyDown(e, idx, "plan");
+
+                              // 엔터 키 처리
+                              if (e.key === "Enter" && !e.shiftKey) {
+                                const target = e.currentTarget;
+
+                                // setTimeout을 사용하여 줄바꿈이 입력된 '직후'에 실행되도록 합니다.
+                                setTimeout(() => {
+                                  // 1. 스크롤을 맨 아래로 이동
+                                  target.scrollTo({
+                                    top: target.scrollHeight,
+                                    behavior: "smooth", // 부드러운 움직임을 원치 않으면 제거 가능
+                                  });
+
+                                  // 2. 만약 내용이 너무 길어 behavior: "smooth"가 안 먹힐 경우를 대비한 강제 이동
+                                  target.scrollTop = target.scrollHeight;
+                                }, 0); // 10ms 정도의 아주 짧은 지연시간이면 충분합니다.
+                              }
+                            }}
                             placeholder="내용을 입력하세요."
                           />
                         </td>
