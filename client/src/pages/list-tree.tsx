@@ -100,7 +100,7 @@ export default function ListTree() {
 
     queryFn: async () => {
       const response = await api.get(
-        `/api/workspaces/${workspaceId}/archive/projects`
+        `/api/workspaces/${workspaceId}/archive/projects`,
       );
       return response.data;
     },
@@ -155,7 +155,7 @@ export default function ListTree() {
   const [usernameError, setUsernameError] = useState("");
   const [isInviteLoading, setIsInviteLoading] = useState(false);
   const [deletedMemberIds, setDeletedMemberIds] = useState<Set<string>>(
-    new Set()
+    new Set(),
   );
   const [renderKey, setRenderKey] = useState(0);
 
@@ -169,7 +169,7 @@ export default function ListTree() {
         const targetElement = event.target;
 
         const isInsideSelectContent = targetElement.closest(
-          "[data-radix-popper-content-wrapper], .your-select-content-class"
+          "[data-radix-popper-content-wrapper], .your-select-content-class",
         );
 
         if (isInsideSelectContent) {
@@ -207,10 +207,10 @@ export default function ListTree() {
   };
   // 2. 상태를 선언할 때 이 함수를 사용
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(
-    getInitialExpandedState("LIST_expandedProjectIds") // 'expandedProjectIds'라는 키로 저장
+    getInitialExpandedState("LIST_expandedProjectIds"), // 'expandedProjectIds'라는 키로 저장
   );
   const [expandedGoals, setExpandedGoals] = useState<Set<string>>(
-    getInitialExpandedState("LIST_expandedGoalIds") // 'expandedGoalIds'라는 키로 저장
+    getInitialExpandedState("LIST_expandedGoalIds"), // 'expandedGoalIds'라는 키로 저장
   );
 
   // Inline editing state
@@ -243,7 +243,7 @@ export default function ListTree() {
     return () => {
       window.removeEventListener(
         "workspaceNameUpdated",
-        handleWorkspaceNameUpdate
+        handleWorkspaceNameUpdate,
       );
     };
   }, []);
@@ -299,7 +299,7 @@ export default function ListTree() {
   // Get current user's role to check if they can delete members
   const currentUserEmail = localStorage.getItem("userEmail") || "";
   const currentUser = (users as SafeUser[] | undefined)?.find(
-    (u) => u.email === currentUserEmail
+    (u) => u.email === currentUserEmail,
   );
   const isCurrentUserAdmin = currentUser?.role === "관리자";
 
@@ -313,13 +313,15 @@ export default function ListTree() {
         "DELETE",
         `/api/workspaces/${workspaceId}/workspaceMembers/${userId}`,
         {},
-        { "X-User-Email": currentUserEmail }
+        { "X-User-Email": currentUserEmail },
       );
     },
     onSuccess: () => {
       // 2. 관리자 페이지에서 사용하던 쿼리 무효화 로직을 그대로 적용
       // 명시적인 쿼리 키 무효화
-      queryClient.invalidateQueries({ queryKey: ["workspace-members", workspaceId] });
+      queryClient.invalidateQueries({
+        queryKey: ["workspace-members", workspaceId],
+      });
       queryClient.invalidateQueries({ queryKey: ["users-stats", workspaceId] });
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
       queryClient.invalidateQueries({ queryKey: ["/api/goals"] });
@@ -360,7 +362,7 @@ export default function ListTree() {
   const updateProgressForParentItem = async (
     itemId: string,
     type: "goal" | "project",
-    targetProgress: number
+    targetProgress: number,
   ): Promise<number> => {
     if (!projects) return targetProgress;
 
@@ -377,7 +379,7 @@ export default function ListTree() {
     } else if (type === "project") {
       // Find all tasks under all goals in this project
       const project = (projects as ProjectWithDetails[]).find(
-        (p) => p.id === itemId
+        (p) => p.id === itemId,
       );
       if (project?.goals) {
         project.goals.forEach((goal) => {
@@ -405,7 +407,7 @@ export default function ListTree() {
         else acc.notStarted++;
         return acc;
       },
-      { completed: 0, inProgress: 0, notStarted: 0 }
+      { completed: 0, inProgress: 0, notStarted: 0 },
     );
 
     const currentProgress =
@@ -472,25 +474,25 @@ export default function ListTree() {
     // First, assign tasks that can keep their current status (minimize changes)
     const keepNotStarted = Math.min(
       tasksByStatus["진행전"].length,
-      bestDistribution.notStarted
+      bestDistribution.notStarted,
     );
     const keepInProgress = Math.min(
       tasksByStatus["진행중"].length,
-      bestDistribution.inProgress
+      bestDistribution.inProgress,
     );
     const keepCompleted = Math.min(
       tasksByStatus["완료"].length,
-      bestDistribution.completed
+      bestDistribution.completed,
     );
 
     targetAssignment["진행전"].push(
-      ...tasksByStatus["진행전"].slice(0, keepNotStarted)
+      ...tasksByStatus["진행전"].slice(0, keepNotStarted),
     );
     targetAssignment["진행중"].push(
-      ...tasksByStatus["진행중"].slice(0, keepInProgress)
+      ...tasksByStatus["진행중"].slice(0, keepInProgress),
     );
     targetAssignment["완료"].push(
-      ...tasksByStatus["완료"].slice(0, keepCompleted)
+      ...tasksByStatus["완료"].slice(0, keepCompleted),
     );
 
     // Collect remaining tasks that need reassignment
@@ -557,7 +559,7 @@ export default function ListTree() {
         "Distribution mismatch! Target:",
         bestDistribution,
         "Actual:",
-        finalDistribution
+        finalDistribution,
       );
     }
 
@@ -578,13 +580,13 @@ export default function ListTree() {
     const failedUpdates = results.filter(
       (result) =>
         result.status === "rejected" ||
-        (result.status === "fulfilled" && !result.value.success)
+        (result.status === "fulfilled" && !result.value.success),
     );
 
     if (failedUpdates.length > 0) {
       console.error(`${failedUpdates.length} task updates failed`);
       throw new Error(
-        `${failedUpdates.length} out of ${updates.length} task updates failed`
+        `${failedUpdates.length} out of ${updates.length} task updates failed`,
       );
     }
 
@@ -624,7 +626,7 @@ export default function ListTree() {
     // 👈 **추가된 부분:** 상태를 로컬 저장소에 반영
     localStorage.setItem(
       "LIST_expandedProjectIds",
-      JSON.stringify(Array.from(newExpanded))
+      JSON.stringify(Array.from(newExpanded)),
     );
   };
 
@@ -642,7 +644,7 @@ export default function ListTree() {
     // 👈 **추가된 부분:** 상태를 로컬 저장소에 반영
     localStorage.setItem(
       "LIST_expandedGoalIds",
-      JSON.stringify(Array.from(newExpanded))
+      JSON.stringify(Array.from(newExpanded)),
     );
   };
 
@@ -652,14 +654,14 @@ export default function ListTree() {
     // Helper function to find all child items of a project or goal
     const getChildItems = (
       parentId: string,
-      parentType: "project" | "goal"
+      parentType: "project" | "goal",
     ): string[] => {
       const childIds: string[] = [];
 
       if (parentType === "project") {
         // Find all goals and tasks under this project
         const project = (projects as ProjectWithDetails[])?.find(
-          (p) => p.id === parentId
+          (p) => p.id === parentId,
         );
         if (project?.goals) {
           project.goals.forEach((goal) => {
@@ -688,7 +690,7 @@ export default function ListTree() {
 
     // Helper function to find parent items
     const getParentItems = (
-      childId: string
+      childId: string,
     ): { projectId?: string; goalId?: string } => {
       for (const project of (projects as ProjectWithDetails[]) || []) {
         // Check if this is a goal of the project
@@ -711,14 +713,14 @@ export default function ListTree() {
     // Determine the type of the selected item
     let itemType: "project" | "goal" | "task" = "task";
     const isProject = (projects as ProjectWithDetails[])?.some(
-      (p) => p.id === itemId
+      (p) => p.id === itemId,
     );
     if (isProject) {
       itemType = "project";
     } else {
       // Check if it's a goal
       const isGoal = (projects as ProjectWithDetails[])?.some((p) =>
-        p.goals?.some((g) => g.id === itemId)
+        p.goals?.some((g) => g.id === itemId),
       );
       if (isGoal) {
         itemType = "goal";
@@ -736,7 +738,7 @@ export default function ListTree() {
       // Consider parent selected if all children are selected
       if (childIds.length > 0) {
         isCurrentlySelected = childIds.every((childId) =>
-          newSelected.has(childId)
+          newSelected.has(childId),
         );
       }
     }
@@ -779,7 +781,7 @@ export default function ListTree() {
       selectedArray.forEach((itemId) => {
         // Check if it's a project
         const isProject = (projects as ProjectWithDetails[])?.some(
-          (p) => p.id === itemId
+          (p) => p.id === itemId,
         );
         if (isProject) {
           projectIds.push(itemId);
@@ -788,7 +790,7 @@ export default function ListTree() {
 
         // Check if it's a goal
         const isGoal = (projects as ProjectWithDetails[])?.some((p) =>
-          p.goals?.some((g) => g.id === itemId)
+          p.goals?.some((g) => g.id === itemId),
         );
         if (isGoal) {
           goalIds.push(itemId);
@@ -827,7 +829,7 @@ export default function ListTree() {
     itemId: string,
     field: string,
     type: "project" | "goal" | "task",
-    currentValue: string
+    currentValue: string,
   ) => {
     setEditingField({ itemId, field, type });
     setEditingValue(currentValue);
@@ -875,9 +877,9 @@ export default function ListTree() {
         (old: ProjectWithDetails[] | undefined) => {
           if (!old) return old;
           return old.map((project) =>
-            project.id === id ? { ...project, ...updates } : project
+            project.id === id ? { ...project, ...updates } : project,
           );
-        }
+        },
       );
 
       return { previousProjects };
@@ -928,10 +930,10 @@ export default function ListTree() {
           return old.map((project) => ({
             ...project,
             goals: project.goals?.map((goal) =>
-              goal.id === id ? { ...goal, ...updates } : goal
+              goal.id === id ? { ...goal, ...updates } : goal,
             ),
           }));
-        }
+        },
       );
 
       return { previousProjects };
@@ -967,11 +969,11 @@ export default function ListTree() {
               goals: project.goals?.map((goal) => ({
                 ...goal,
                 tasks: goal.tasks?.map((task) =>
-                  task.id === id ? { ...task, ...updates } : task
+                  task.id === id ? { ...task, ...updates } : task,
                 ),
               })),
             }));
-          }
+          },
         );
       }
 
@@ -981,7 +983,7 @@ export default function ListTree() {
       const { id: taskId, updates } = variables;
       const projectKey = ["/api/workspaces", workspaceId, "projects"];
       const currentProjects = queryClient.getQueryData(
-        projectKey
+        projectKey,
       ) as ProjectWithDetails[];
 
       if (currentProjects) {
@@ -1011,7 +1013,7 @@ export default function ListTree() {
                 } catch (error) {
                   console.error(
                     "Failed to reset goal completion status:",
-                    error
+                    error,
                   );
                 }
               }
@@ -1035,7 +1037,7 @@ export default function ListTree() {
                 } catch (error) {
                   console.error(
                     "Failed to reset project completion status:",
-                    error
+                    error,
                   );
                 }
               }
@@ -1045,7 +1047,7 @@ export default function ListTree() {
                 toast({
                   title: "상태 변경",
                   description: `하위 작업 수정으로 인해 ${statusChanges.join(
-                    "과 "
+                    "과 ",
                   )} 완료 상태가 해제되었습니다.`,
                 });
               }
@@ -1092,7 +1094,7 @@ export default function ListTree() {
       // 캐시에서 즉시 제거
       queryClient.setQueryData(
         ["/api/workspaces", workspaceId, "projects"],
-        (old: any) => old?.filter((p: any) => p.id !== projectId)
+        (old: any) => old?.filter((p: any) => p.id !== projectId),
       );
     },
     onSettled: () => {
@@ -1103,6 +1105,9 @@ export default function ListTree() {
       // 프로젝트 목록도 갱신
       queryClient.invalidateQueries({
         queryKey: ["/api/workspaces", workspaceId, "projects"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["projects", workspaceId],
       });
     },
     onSuccess: () => {
@@ -1139,13 +1144,13 @@ export default function ListTree() {
       // 캐시에서 삭제할 목표 제거
       queryClient.setQueryData(
         ["/api/workspaces", workspaceId, "goals"],
-        (old: any) => old?.filter((g: any) => g.id !== deletedGoalId)
+        (old: any) => old?.filter((g: any) => g.id !== deletedGoalId),
       );
 
       // 캐시에서 해당 목표에 속한 태스크들도 즉시 제거
       queryClient.setQueryData(
         ["/api/workspaces", workspaceId, "tasks"],
-        (old: any) => old?.filter((t: any) => t.goalId !== deletedGoalId)
+        (old: any) => old?.filter((t: any) => t.goalId !== deletedGoalId),
       );
 
       // 복구용 컨텍스트 반환
@@ -1156,11 +1161,11 @@ export default function ListTree() {
       if (context) {
         queryClient.setQueryData(
           ["/api/workspaces", workspaceId, "goals"],
-          context.previousGoals
+          context.previousGoals,
         );
         queryClient.setQueryData(
           ["/api/workspaces", workspaceId, "tasks"],
-          context.previousTasks
+          context.previousTasks,
         );
       }
       toast({
@@ -1343,7 +1348,7 @@ export default function ListTree() {
           const achievedProgress = await updateProgressForParentItem(
             editingField.itemId,
             editingField.type,
-            progressValue
+            progressValue,
           );
           const itemTypeName =
             editingField.type === "goal" ? "목표" : "프로젝트";
@@ -1352,7 +1357,7 @@ export default function ListTree() {
             Math.round(achievedProgress) === progressValue
               ? `${itemTypeName} 진행도가 ${progressValue}%로 업데이트되고 하위 작업들이 조정되었습니다.`
               : `${itemTypeName} 진행도가 ${Math.round(
-                  achievedProgress
+                  achievedProgress,
                 )}%로 조정되었습니다 (목표: ${progressValue}%).`;
 
           toast({
@@ -1394,7 +1399,7 @@ export default function ListTree() {
               }, 1500);
             }
           },
-        }
+        },
       );
     } else if (editingField.type === "goal") {
       updateGoalMutation.mutate(
@@ -1407,7 +1412,7 @@ export default function ListTree() {
               }, 1500);
             }
           },
-        }
+        },
       );
     } else if (editingField.type === "task") {
       updateTaskMutation.mutate(
@@ -1420,7 +1425,7 @@ export default function ListTree() {
               }, 1500);
             }
           },
-        }
+        },
       );
     }
   };
@@ -1437,7 +1442,7 @@ export default function ListTree() {
   const renderEditableDeadline = (
     itemId: string,
     type: "project" | "goal" | "task",
-    deadline: string | null
+    deadline: string | null,
   ) => {
     const isEditing =
       editingField?.itemId === itemId && editingField?.field === "deadline";
@@ -1483,7 +1488,7 @@ export default function ListTree() {
     type: "project" | "goal" | "task",
     assignee: SafeUser | null,
     ownerIds?: string[] | null,
-    assigneeIds?: string[] | null
+    assigneeIds?: string[] | null,
   ) => {
     // Get all assignees for display
     const currentAssigneeIds =
@@ -1492,8 +1497,8 @@ export default function ListTree() {
           ? ownerIds
           : []
         : Array.isArray(assigneeIds)
-        ? assigneeIds
-        : [];
+          ? assigneeIds
+          : [];
     const assignees = currentAssigneeIds
       .map((id) => (users as SafeUser[])?.find((user) => user.id === id))
       .filter(Boolean) as SafeUser[];
@@ -1504,21 +1509,21 @@ export default function ListTree() {
       try {
         // Get all pending invitations from localStorage
         const globalInvitations = JSON.parse(
-          localStorage.getItem("pendingInvitations") || "[]"
+          localStorage.getItem("pendingInvitations") || "[]",
         );
 
         // Also check individual user invitation lists (for existing users)
         const allUsers = (users as SafeUser[]) || [];
         allUsers.forEach((user) => {
           const userInvitations = JSON.parse(
-            localStorage.getItem(`receivedInvitations_${user.email}`) || "[]"
+            localStorage.getItem(`receivedInvitations_${user.email}`) || "[]",
           );
           globalInvitations.push(...userInvitations);
         });
 
         // Filter invitations for this specific project that are still pending
         pendingInvitations = globalInvitations.filter(
-          (inv: any) => inv.projectId === itemId && inv.status === "pending"
+          (inv: any) => inv.projectId === itemId && inv.status === "pending",
         );
       } catch (error) {
         console.error("Error loading pending invitations:", error);
@@ -1641,7 +1646,7 @@ export default function ListTree() {
                 if (latestData && Array.isArray(latestData)) {
                   if (type === "project") {
                     const latestProject = latestData.find(
-                      (p) => p.id === itemId
+                      (p) => p.id === itemId,
                     );
                     if (
                       latestProject &&
@@ -1717,7 +1722,7 @@ export default function ListTree() {
   // Helper function to check if all child items are completed
   const canAutoComplete = (
     itemId: string,
-    type: "project" | "goal"
+    type: "project" | "goal",
   ): boolean => {
     if (!projects || !Array.isArray(projects)) return false;
 
@@ -1774,7 +1779,7 @@ export default function ListTree() {
     itemId: string,
     type: "project" | "goal" | "task",
     status: string,
-    progress?: number
+    progress?: number,
   ) => {
     const isLocallyCompleted = completedItems.has(itemId);
     const isLocallyDeleted = completedItems.has(`deleted-${itemId}`);
@@ -1783,42 +1788,42 @@ export default function ListTree() {
       status === "이슈"
         ? "이슈"
         : type === "task" && progress !== undefined
-        ? getStatusFromProgress(progress)
-        : status;
+          ? getStatusFromProgress(progress)
+          : status;
 
     if ((type === "project" || type === "goal") && displayStatus !== "이슈") {
       const canAutoComplete = (
         targetId: string,
-        itemType: "project" | "goal"
+        itemType: "project" | "goal",
       ): boolean => {
         if (!projects || !Array.isArray(projects)) return false;
 
         if (itemType === "project") {
           const project = (projects as ProjectWithDetails[]).find(
-            (p) => String(p.id) === String(targetId)
+            (p) => String(p.id) === String(targetId),
           );
 
           const hasGoals = !!(project?.goals && project.goals.length > 0);
           return (
             hasGoals &&
             (project?.goals?.every(
-              (g) => g.status === "완료" || completedItems.has(g.id)
+              (g) => g.status === "완료" || completedItems.has(g.id),
             ) ??
               false)
           );
         } else {
           const project = (projects as ProjectWithDetails[]).find((p) =>
-            p.goals?.some((g) => String(g.id) === String(targetId))
+            p.goals?.some((g) => String(g.id) === String(targetId)),
           );
           const goal = project?.goals?.find(
-            (g) => String(g.id) === String(targetId)
+            (g) => String(g.id) === String(targetId),
           );
 
           const hasTasks = !!(goal?.tasks && goal.tasks.length > 0);
           return (
             hasTasks &&
             (goal?.tasks?.every(
-              (t) => t.status === "완료" || completedItems.has(t.id)
+              (t) => t.status === "완료" || completedItems.has(t.id),
             ) ??
               false)
           );
@@ -1931,7 +1936,7 @@ export default function ListTree() {
     itemId: string,
     type: "project" | "goal" | "task",
     progress: number,
-    status?: string
+    status?: string,
   ) => {
     // Only tasks can have their progress edited directly
     if (type !== "task") {
@@ -2048,7 +2053,7 @@ export default function ListTree() {
   const renderEditableLabel = (
     itemId: string,
     type: "project" | "goal" | "task",
-    labels: string[]
+    labels: string[],
   ) => {
     const currentLabels = labels || [];
 
@@ -2056,7 +2061,7 @@ export default function ListTree() {
     let currentItem: any = null;
     if (type === "project") {
       currentItem = (projects as ProjectWithDetails[])?.find(
-        (p) => p.id === itemId
+        (p) => p.id === itemId,
       );
     } else if (type === "goal") {
       currentItem = (projects as ProjectWithDetails[])
@@ -2101,7 +2106,7 @@ export default function ListTree() {
 
     const handleLabelRemove = (labelToRemove: string) => {
       const updatedLabels = currentLabels.filter(
-        (label) => label !== labelToRemove
+        (label) => label !== labelToRemove,
       );
 
       if (type === "project") {
@@ -2217,7 +2222,7 @@ export default function ListTree() {
   const renderEditableImportance = (
     itemId: string,
     type: "project" | "goal" | "task",
-    importance: string
+    importance: string,
   ) => {
     const isEditing =
       editingField?.itemId === itemId && editingField?.field === "importance";
@@ -2936,7 +2941,7 @@ export default function ListTree() {
                               className="font-medium hover:text-blue-600 cursor-pointer transition-colors text-left"
                               onClick={() =>
                                 setLocation(
-                                  `/workspace/${workspaceId}/detail/project/${project.id}?from=list`
+                                  `/workspace/${workspaceId}/detail/project/${project.id}?from=list`,
                                 )
                               }
                               data-testid={`text-project-name-${project.id}`}
@@ -2947,7 +2952,7 @@ export default function ListTree() {
                               <span
                                 className={`font-semibold ${
                                   (archivedGoalCounts?.get(
-                                    String(project.id)
+                                    String(project.id),
                                   ) ?? 0) > 0
                                     ? "text-orange-600"
                                     : "text-gray-400"
@@ -2978,7 +2983,7 @@ export default function ListTree() {
                             {renderEditableDeadline(
                               project.id,
                               "project",
-                              project.deadline
+                              project.deadline,
                             )}
                           </div>
                           <div className="col-span-1">
@@ -2988,21 +2993,21 @@ export default function ListTree() {
                               project.owners && project.owners.length > 0
                                 ? project.owners[0]
                                 : null,
-                              project.ownerIds
+                              project.ownerIds,
                             )}
                           </div>
                           <div className="col-span-2">
                             {renderEditableLabel(
                               project.id,
                               "project",
-                              project.labels || []
+                              project.labels || [],
                             )}
                           </div>
                           <div className="col-span-1">
                             {renderEditableStatus(
                               project.id,
                               "project",
-                              project.status || ""
+                              project.status || "",
                             )}
                           </div>
                           <div className="col-span-2">
@@ -3010,14 +3015,14 @@ export default function ListTree() {
                             {renderEditableProgress(
                               project.id,
                               "project",
-                              project.progressPercentage || 0
+                              project.progressPercentage || 0,
                             )}
                           </div>
                           <div className="col-span-1">
                             {renderEditableImportance(
                               project.id,
                               "project",
-                              "중간"
+                              "중간",
                             )}
                           </div>
                         </div>
@@ -3033,10 +3038,10 @@ export default function ListTree() {
                             .slice()
                             .sort((a, b) => {
                               const dateA = new Date(
-                                a.completedAt || 0
+                                a.completedAt || 0,
                               ).getTime();
                               const dateB = new Date(
-                                b.completedAt || 0
+                                b.completedAt || 0,
                               ).getTime();
                               return dateA - dateB;
                             })
@@ -3086,7 +3091,7 @@ export default function ListTree() {
                                         className="font-medium hover:text-green-600 cursor-pointer transition-colors text-left"
                                         onClick={() =>
                                           setLocation(
-                                            `/workspace/${workspaceId}/detail/goal/${goal.id}?from=list`
+                                            `/workspace/${workspaceId}/detail/goal/${goal.id}?from=list`,
                                           )
                                         }
                                         data-testid={`text-goal-name-${goal.id}`}
@@ -3113,7 +3118,7 @@ export default function ListTree() {
                                       {renderEditableDeadline(
                                         goal.id,
                                         "goal",
-                                        goal.deadline
+                                        goal.deadline,
                                       )}
                                     </div>
                                     <div className="col-span-1">
@@ -3125,21 +3130,21 @@ export default function ListTree() {
                                           ? goal.assignees[0]
                                           : null,
                                         undefined,
-                                        goal.assigneeIds
+                                        goal.assigneeIds,
                                       )}
                                     </div>
                                     <div className="col-span-2">
                                       {renderEditableLabel(
                                         goal.id,
                                         "goal",
-                                        goal.labels || []
+                                        goal.labels || [],
                                       )}
                                     </div>
                                     <div className="col-span-1">
                                       {renderEditableStatus(
                                         goal.id,
                                         "goal",
-                                        goal.status || ""
+                                        goal.status || "",
                                       )}
                                     </div>
                                     <div className="col-span-2">
@@ -3147,14 +3152,14 @@ export default function ListTree() {
                                       {renderEditableProgress(
                                         goal.id,
                                         "goal",
-                                        goal.progressPercentage || 0
+                                        goal.progressPercentage || 0,
                                       )}
                                     </div>
                                     <div className="col-span-1">
                                       {renderEditableImportance(
                                         goal.id,
                                         "goal",
-                                        "중간"
+                                        "중간",
                                       )}
                                     </div>
                                   </div>
@@ -3178,7 +3183,7 @@ export default function ListTree() {
                                           <div className="col-span-4 flex items-center gap-2 ml-16">
                                             <Checkbox
                                               checked={selectedItems.has(
-                                                task.id
+                                                task.id,
                                               )}
                                               onCheckedChange={() =>
                                                 toggleItemSelection(task.id)
@@ -3190,7 +3195,7 @@ export default function ListTree() {
                                               className="font-medium hover:text-orange-600 cursor-pointer transition-colors text-left"
                                               onClick={() =>
                                                 setLocation(
-                                                  `/workspace/${workspaceId}/detail/task/${task.id}?from=list`
+                                                  `/workspace/${workspaceId}/detail/task/${task.id}?from=list`,
                                                 )
                                               }
                                               data-testid={`text-task-name-${task.id}`}
@@ -3202,7 +3207,7 @@ export default function ListTree() {
                                             {renderEditableDeadline(
                                               task.id,
                                               "task",
-                                              task.deadline
+                                              task.deadline,
                                             )}
                                           </div>
                                           <div className="col-span-1">
@@ -3214,14 +3219,14 @@ export default function ListTree() {
                                                 ? task.assignees[0]
                                                 : null,
                                               undefined,
-                                              task.assigneeIds
+                                              task.assigneeIds,
                                             )}
                                           </div>
                                           <div className="col-span-2">
                                             {renderEditableLabel(
                                               task.id,
                                               "task",
-                                              task.labels || []
+                                              task.labels || [],
                                             )}
                                           </div>
                                           <div className="col-span-1">
@@ -3229,7 +3234,9 @@ export default function ListTree() {
                                               task.id,
                                               "task",
                                               task.status,
-                                              getProgressFromStatus(task.status)
+                                              getProgressFromStatus(
+                                                task.status,
+                                              ),
                                             )}
                                           </div>
                                           <div className="col-span-2">
@@ -3238,16 +3245,16 @@ export default function ListTree() {
                                               "task",
                                               task.progress ??
                                                 getProgressFromStatus(
-                                                  task.status
+                                                  task.status,
                                                 ),
-                                              task.status
+                                              task.status,
                                             )}
                                           </div>
                                           <div className="col-span-1">
                                             {renderEditableImportance(
                                               task.id,
                                               "task",
-                                              task.priority || "4"
+                                              task.priority || "4",
                                             )}
                                           </div>
                                         </div>
@@ -3372,7 +3379,7 @@ export default function ListTree() {
 
                       // 2. 목표인지 확인 후 목표 보관 실행 (goals 목록이 있다고 가정)
                       const isGoal = (goals as GoalWithTasks[])?.some(
-                        (g) => g.id === itemId
+                        (g) => g.id === itemId,
                       );
                       if (isGoal) {
                         await archiveGoalMutation.mutateAsync(itemId);
@@ -3398,7 +3405,7 @@ export default function ListTree() {
                     clearSelection();
                     setTimeout(
                       () => setLocation(`/workspace/${workspaceId}/archive`),
-                      1000
+                      1000,
                     );
                   } catch (error) {
                     console.error("Failed to archive items:", error);
@@ -3731,7 +3738,7 @@ export default function ListTree() {
                       let existingInvites: any[] | null = null;
                       try {
                         const existingInviteResponse = await api.get(
-                          `/api/invitations/email/${inviteUsername}`
+                          `/api/invitations/email/${inviteUsername}`,
                         );
                         existingInvites = existingInviteResponse.data;
                       } catch (error) {
@@ -3743,7 +3750,7 @@ export default function ListTree() {
                         const pendingInvite = existingInvites.find(
                           (invite: any) =>
                             invite.status === "pending" &&
-                            invite.workspaceId === workspaceId
+                            invite.workspaceId === workspaceId,
                         );
 
                         if (pendingInvite) {
@@ -3762,7 +3769,7 @@ export default function ListTree() {
                       let existingUser = null;
                       try {
                         const response = await api.get(
-                          `/api/users/by-email/${inviteUsername}`
+                          `/api/users/by-email/${inviteUsername}`,
                         );
                         existingUser = response.data;
                       } catch (error) {}
@@ -3793,13 +3800,13 @@ export default function ListTree() {
                       // 7. 초대 생성 API 호출
                       const response = await api.post(
                         "/api/invitations",
-                        invitationData
+                        invitationData,
                       );
                       const newInvitation = response.data;
 
                       // 8. 로컬 스토리지 및 UI 업데이트 (기존 로직 유지)
                       const invitations = JSON.parse(
-                        localStorage.getItem("invitations") || "[]"
+                        localStorage.getItem("invitations") || "[]",
                       );
                       const localInvitation = {
                         ...newInvitation,
@@ -3813,34 +3820,34 @@ export default function ListTree() {
                       invitations.push(localInvitation);
                       localStorage.setItem(
                         "invitations",
-                        JSON.stringify(invitations)
+                        JSON.stringify(invitations),
                       );
 
                       const globalInvitations = JSON.parse(
-                        localStorage.getItem("pendingInvitations") || "[]"
+                        localStorage.getItem("pendingInvitations") || "[]",
                       );
                       globalInvitations.push(localInvitation);
                       localStorage.setItem(
                         "pendingInvitations",
-                        JSON.stringify(globalInvitations)
+                        JSON.stringify(globalInvitations),
                       );
 
                       if (existingUser) {
                         const receivedKey = `receivedInvitations_${inviteUsername.toLowerCase()}`;
                         const receivedInvitations = JSON.parse(
-                          localStorage.getItem(receivedKey) || "[]"
+                          localStorage.getItem(receivedKey) || "[]",
                         );
                         receivedInvitations.push(localInvitation);
                         localStorage.setItem(
                           receivedKey,
-                          JSON.stringify(receivedInvitations)
+                          JSON.stringify(receivedInvitations),
                         );
 
                         window.dispatchEvent(
                           new StorageEvent("storage", {
                             key: receivedKey,
                             newValue: JSON.stringify(receivedInvitations),
-                          })
+                          }),
                         );
                       }
 
@@ -3893,7 +3900,7 @@ export default function ListTree() {
                     ? (users as SafeUser[])
                     : [];
                   const filteredUsers = allUsers.filter(
-                    (user) => !deletedMemberIds.has(user.id)
+                    (user) => !deletedMemberIds.has(user.id),
                   );
 
                   return (

@@ -79,13 +79,13 @@ export default function Admin() {
     return () => {
       window.removeEventListener(
         "handleWorkspaceUpdate",
-        handleWorkspaceNameUpdate
+        handleWorkspaceNameUpdate,
       );
     };
   }, []);
 
   const { data: projects, isLoading: projectsLoading } = useQuery({
-    queryKey: ["projects", workspaceId], // 식별자로 사용
+    queryKey: ["/api/workspaces", workspaceId, "projects"],
     queryFn: async () => {
       const response = await api.get(`/api/workspaces/${workspaceId}/projects`);
       return response.data;
@@ -98,14 +98,14 @@ export default function Admin() {
     queryFn: async () => {
       // URL에 직접 workspaceId를 포함하여 의도를 명확히 함
       const response = await api.get(
-        `/api/workspaces/${workspaceId}/users/with-stats`
+        `/api/workspaces/${workspaceId}/users/with-stats`,
       );
       return response.data;
     },
     staleTime: 0,
     enabled: !!workspaceId,
   });
-console.log(usersWithStats)
+
   const { data: tasks, isLoading: tasksLoading } = useQuery({
     queryKey: ["tasks", workspaceId],
     queryFn: async () => {
@@ -126,11 +126,14 @@ console.log(usersWithStats)
         "DELETE",
         `/api/workspaces/${workspaceId}/workspaceMembers/${userId}`,
         {},
-        { "X-User-Email": currentUserEmail }
+        { "X-User-Email": currentUserEmail },
       );
     },
     onSuccess: () => {
       // 명시적으로 모든 사용자 관련 쿼리들을 무효화
+      queryClient.invalidateQueries({
+        queryKey: ["workspace-members", workspaceId],
+      });
       queryClient.invalidateQueries({ queryKey: ["users-stats", workspaceId] });
       queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
       queryClient.invalidateQueries({ queryKey: ["/api/goals"] });
@@ -143,6 +146,7 @@ console.log(usersWithStats)
           const key = queryKey[0] as string;
 
           return (
+            key === "workspace-members" ||
             key?.startsWith("/api/users") ||
             key?.startsWith("/api/projects") ||
             key?.startsWith("/api/goals") ||
@@ -250,7 +254,7 @@ console.log(usersWithStats)
 
       try {
         const userRes = await api.get(
-          `/api/users/by-email/${encodeURIComponent(userEmail)}`
+          `/api/users/by-email/${encodeURIComponent(userEmail)}`,
         );
         const userId = userRes.data.id;
         setCurrentUserId(userId);
@@ -322,13 +326,13 @@ console.log(usersWithStats)
 
                       const projectTasks =
                         project.goals?.flatMap(
-                          (goal: any) => goal.tasks || []
+                          (goal: any) => goal.tasks || [],
                         ) || [];
 
                       const projectTasksSum =
                         project.goals
                           ?.map((goal: any) =>
-                            goal.tasks?.map((task: any) => task?.progress)
+                            goal.tasks?.map((task: any) => task?.progress),
                           )
                           ?.reduce(
                             (totalAverageSum: number, progressArray: any[]) => {
@@ -345,7 +349,7 @@ console.log(usersWithStats)
                                   const numberValue = +value || 0;
                                   return sum + numberValue;
                                 },
-                                0
+                                0,
                               );
 
                               const average =
@@ -353,14 +357,14 @@ console.log(usersWithStats)
 
                               return totalAverageSum + average;
                             },
-                            0
+                            0,
                           ) || 0;
 
                       // 프로젝트 전체 진행률 계산
                       const totalGoal = projectGoal.length;
                       const totalTasks = projectTasks.length;
                       const projectProgress = Math.round(
-                        Math.round(projectTasksSum) / totalGoal || 0
+                        Math.round(projectTasksSum) / totalGoal || 0,
                       );
 
                       return (
@@ -456,7 +460,7 @@ console.log(usersWithStats)
                                   >
                                     <div
                                       className={`w-2 h-2 rounded-full ${getTaskStatusColor(
-                                        task.status
+                                        task.status,
                                       )}`}
                                     ></div>
                                     <span className="truncate text-slate-200 pr-4">
@@ -600,7 +604,7 @@ console.log(usersWithStats)
                                   ? Math.round(
                                       (user.completedTaskCount /
                                         user.taskCount) *
-                                        100
+                                        100,
                                     )
                                   : 0}
                                 %
@@ -612,7 +616,7 @@ console.log(usersWithStats)
                                   ? Math.round(
                                       (user.completedTaskCount /
                                         user.taskCount) *
-                                        100
+                                        100,
                                     )
                                   : 0
                               }
@@ -666,15 +670,13 @@ console.log(usersWithStats)
                                       </AlertDialogFooter>
                                     </AlertDialogContent>
                                   </AlertDialog>
-                                ) : (
-                                  null
-                                )}
+                                ) : null}
                               </div>
                             )}
                         </div>
                       </CardContent>
                     </Card>
-                  )
+                  ),
                 )}
               </div>
             )}

@@ -1,7 +1,7 @@
 import axios from "axios";
 
 // 1. 환경 변수 읽기
-// VITE_ 접두사를 통해 환경 변수(.env.local 또는 Vercel 설정)를 가져옵니다.
+// 개발환경 (배포할땐 비활성화)
 // const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || ''
 
 // if (!apiBaseUrl) {
@@ -15,8 +15,8 @@ import axios from "axios";
 // 2. Axios 인스턴스의 baseURL로 설정
 const api = axios.create({
   // apiBaseUrl이 있다면 해당 주소를, 없다면 undefined를 사용 (Axios는 undefined일 경우 상대 경로 사용)
-  // baseURL: apiBaseUrl,
-  baseURL: "",
+  // baseURL: apiBaseUrl,    // 개발환경 (배포할땐 비활성화)
+  baseURL: "",   // 실제 환경
   withCredentials: true, // 쿠키/세션 기반 인증을 위해 필수
   headers: {
     "Content-Type": "application/json",
