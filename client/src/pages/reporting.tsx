@@ -132,13 +132,24 @@ export default function Diagnostic() {
 
   //   return shared?.id;
   // }, [diagnosticHistory]);
+  // const sharedReportId = useMemo(() => {
+  //   if (!diagnosticHistory) return null;
+  //   return diagnosticHistory.find((r: any) => {
+  //     const val = r.isShared ?? r.is_shared;
+  //     return val === true || String(val) === "true";
+  //   });
+  // }, [diagnosticHistory]);
+
+  //2026-01-23
   const sharedReportId = useMemo(() => {
-    if (!diagnosticHistory) return null;
-    return diagnosticHistory.find((r: any) => {
+    if (!diagnosticHistory || !Array.isArray(diagnosticHistory)) return null;
+    const shared = diagnosticHistory.find((r: any) => {
       const val = r.isShared ?? r.is_shared;
       return val === true || String(val) === "true";
     });
+    return shared?.id; // 객체가 아닌 ID 문자열 자체를 리턴하도록 확인
   }, [diagnosticHistory]);
+  ////
 
   const deleteMutation = useMutation({
     mutationFn: async (reportId: string) => {
@@ -427,7 +438,12 @@ export default function Diagnostic() {
   });
 
   useEffect(() => {
-    if (!diagnosticHistory || isInitialized) return;
+    // if (!diagnosticHistory || isInitialized) return;
+
+    //2026-01-23
+    if (!diagnosticHistory || (userEmail && !userAdmin && !myDrafts)) return;
+    if (isInitialized) return;
+    ////
 
     const sharedReport = diagnosticHistory.find(
       (r: any) => r.isShared === true || String(r.isShared) === "true",
