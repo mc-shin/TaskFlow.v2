@@ -33,6 +33,8 @@ import {
   TextRun,
   VerticalMergeType,
   LevelFormat,
+  convertMillimetersToTwip,
+  PageOrientation,
 } from "docx";
 import { saveAs } from "file-saver";
 import { useToast } from "@/hooks/use-toast";
@@ -113,32 +115,11 @@ export default function Diagnostic() {
       queryClient.invalidateQueries({
         queryKey: ["weekly-reports", workspaceId],
       });
-
       refetchHistory();
 
       toast({ title: "보고서가 팀원들에게 공유되었습니다." });
-      refetchHistory();
     },
   });
-
-  // const sharedReportId = useMemo(() => {
-  //   if (!diagnosticHistory || !Array.isArray(diagnosticHistory)) return null;
-
-  //   const shared = diagnosticHistory.find((r: any) => {
-  //     // isShared, is_shared, isShared(문자열/불리언) 모두 체크
-  //     const val = r.isShared ?? r.is_shared;
-  //     return val === true || String(val) === "true";
-  //   });
-
-  //   return shared?.id;
-  // }, [diagnosticHistory]);
-  // const sharedReportId = useMemo(() => {
-  //   if (!diagnosticHistory) return null;
-  //   return diagnosticHistory.find((r: any) => {
-  //     const val = r.isShared ?? r.is_shared;
-  //     return val === true || String(val) === "true";
-  //   });
-  // }, [diagnosticHistory]);
 
   //2026-01-23
   const sharedReportId = useMemo(() => {
@@ -437,88 +418,130 @@ export default function Diagnostic() {
     },
   });
 
-  useEffect(() => {
-    // if (!diagnosticHistory || isInitialized) return;
+  // useEffect(() => {
+  //   // if (!diagnosticHistory || isInitialized) return;
 
-    //2026-01-23
-    if (!diagnosticHistory || (userEmail && !userAdmin && !myDrafts)) return;
-    if (isInitialized) return;
-    ////
+  //   //2026-01-23
+  //   if (!diagnosticHistory || (userEmail && !userAdmin && !myDrafts)) return;
+  //   if (isInitialized) return;
+  //   ////
 
-    const sharedReport = diagnosticHistory.find(
-      (r: any) => r.isShared === true || String(r.isShared) === "true",
-    );
+  //   const sharedReport = diagnosticHistory.find(
+  //     (r: any) => r.isShared === true || String(r.isShared) === "true",
+  //   );
 
-    // 2. 관리자(Admin)라면 자동 로드를 하지 않고 목록 화면에 머무름
-    if (userAdmin) {
-      setIsInitialized(true);
-      return;
-    }
+  //   // 2. 관리자(Admin)라면 자동 로드를 하지 않고 목록 화면에 머무름
+  //   if (userAdmin) {
+  //     setIsInitialized(true);
+  //     return;
+  //   }
 
-    if (!sharedReport) {
-      setIsInitialized(true);
-      return;
-    }
+  //   if (!sharedReport) {
+  //     setIsInitialized(true);
+  //     return;
+  //   }
 
-    const weekRange = getWeekRange();
+  //   const weekRange = getWeekRange();
 
-    // 데이터 로드 우선순위 결정
-    const savedTemp = localStorage.getItem(storageKey); // 1. 로컬 임시 저장본
+  //   // 데이터 로드 우선순위 결정
+  //   const savedTemp = localStorage.getItem(storageKey); // 1. 로컬 임시 저장본
 
-    // 2. 내가 이미 서버에 제출한 드래프트 찾기 (myDrafts 쿼리 결과 활용)
-    const myLastDraft = myDrafts && myDrafts.length > 0 ? myDrafts : null;
+  //   // 2. 내가 이미 서버에 제출한 드래프트 찾기 (myDrafts 쿼리 결과 활용)
+  //   const myLastDraft = myDrafts && myDrafts.length > 0 ? myDrafts : null;
 
-    // if (savedTemp) {
-    //   // 아직 제출 전이거나 수정 중인 데이터가 로컬에 있다면 로드
-    //   setReportData(JSON.parse(savedTemp));
-    // } else if (!userAdmin && myLastDraft) {
-    //   // 팀원이고 서버에 제출한 기록이 있다면, 서버 기록을 UI에 복원
-    //   let mergedContent = JSON.parse(JSON.stringify(sharedReport.content));
-    //   mergedContent.projects = mergedContent.projects.map((origProj: any) => {
-    //     const myUpdate = myLastDraft.find(
-    //       (d: any) => d.projectName === origProj.name,
-    //     );
-    //     return myUpdate
-    //       ? { ...origProj, actual: myUpdate.actual, plan: myUpdate.plan }
-    //       : origProj;
-    //   });
-    //   setReportData(mergedContent);
-    // } else {
-    //   // 관리자이거나 처음 작성하는 팀원인 경우 원본 로드
-    //   setReportData(JSON.parse(JSON.stringify(sharedReport.content)));
-    // }
-    let finalContent: WeeklyReportData;
+  //   let finalContent: WeeklyReportData;
 
-    if (savedTemp) {
-      // 1. 로컬 저장본 로드
-      finalContent = JSON.parse(savedTemp);
-    } else if (!userAdmin && myLastDraft) {
-      // 2. 서버 드래프트 로드 및 병합
-      let merged = JSON.parse(JSON.stringify(sharedReport.content));
-      merged.projects = merged.projects.map((origProj: any) => {
-        const myUpdate = myLastDraft.find(
-          (d: any) => d.projectName === origProj.name,
-        );
-        return myUpdate
-          ? { ...origProj, actual: myUpdate.actual, plan: myUpdate.plan }
-          : origProj;
-      });
-      finalContent = merged;
-    } else {
-      // 3. 최초 원본 로드
-      finalContent = JSON.parse(JSON.stringify(sharedReport.content));
-    }
+  //   if (savedTemp) {
+  //     // 1. 로컬 저장본 로드
+  //     finalContent = JSON.parse(savedTemp);
+  //   } else if (!userAdmin && myLastDraft) {
+  //     // 2. 서버 드래프트 로드 및 병합
+  //     let merged = JSON.parse(JSON.stringify(sharedReport.content));
+  //     merged.projects = merged.projects.map((origProj: any) => {
+  //       const myUpdate = myLastDraft.find(
+  //         (d: any) => d.projectName === origProj.name,
+  //       );
+  //       return myUpdate
+  //         ? { ...origProj, actual: myUpdate.actual, plan: myUpdate.plan }
+  //         : origProj;
+  //     });
+  //     finalContent = merged;
+  //   } else {
+  //     // 3. 최초 원본 로드
+  //     finalContent = JSON.parse(JSON.stringify(sharedReport.content));
+  //   }
 
-    // [핵심 추가] 어떤 경로로 데이터를 가져왔든, 날짜는 현재 시점 기준으로 강제 업데이트
+  //   // [핵심 추가] 어떤 경로로 데이터를 가져왔든, 날짜는 현재 시점 기준으로 강제 업데이트
+  //   finalContent.period = {
+  //     actual: weekRange.actual,
+  //     plan: weekRange.plan,
+  //   };
+
+  //   setReportData(finalContent);
+
+  //   setIsInitialized(true);
+  // }, [diagnosticHistory, myDrafts, userAdmin, isInitialized, storageKey]);
+
+  //2026-01-29
+useEffect(() => {
+  // 1. 기본 가드 로직 (1번 코드 유지)
+  if (!diagnosticHistory || (userEmail && !userAdmin && !myDrafts)) return;
+
+  const sharedReport = diagnosticHistory.find(
+    (r: any) => r.isShared === true || String(r.isShared) === "true",
+  );
+
+  // 🚩 [핵심 수정] 재공유 판단 기준
+  // sharedReportId가 바뀌었는지를 직접 체크합니다.
+  const isNewReport = sharedReport && reportData?.id !== sharedReport.id;
+
+  // 이미 초기화 됐더라도 "새로운 ID"가 들어오면 이 if문을 통과해서 아래 로직을 수행합니다.
+  if (isInitialized && !isNewReport) return;
+
+  // 2. 관리자/공유 없음 처리
+  if (userAdmin || !sharedReport) {
+    if (!sharedReport && reportData) setReportData(null);
+    setIsInitialized(true);
+    return;
+  }
+
+  const weekRange = getWeekRange();
+  
+  // 🚩 [핵심 수정] 재공유(isNewReport)일 때는 과거의 흔적들을 무시하고 null로 시작
+  const savedTemp = isNewReport ? null : localStorage.getItem(storageKey);
+  const myLastDraft = isNewReport ? null : (myDrafts && myDrafts.length > 0 ? myDrafts : null);
+
+  let finalContent: WeeklyReportData;
+
+  // 3. 데이터 로드 로직 (1번 코드의 로직을 그대로 유지하되 안전장치 추가)
+  if (savedTemp) {
+    finalContent = JSON.parse(savedTemp);
+  } else if (!userAdmin && myLastDraft) {
+    let merged = JSON.parse(JSON.stringify(sharedReport.content));
+    merged.projects = merged.projects.map((origProj: any) => {
+      const myUpdate = myLastDraft.find((d: any) => d.projectName === origProj.name);
+      return myUpdate ? { ...origProj, actual: myUpdate.actual, plan: myUpdate.plan } : origProj;
+    });
+    finalContent = merged;
+  } else {
+    // 최초 로드 및 재공유 시 이곳으로 들어옵니다.
+    finalContent = JSON.parse(JSON.stringify(sharedReport.content));
+  }
+
+  // 🚩 [중요] ID를 세팅하되, finalContent가 유효할 때만 실행
+  if (finalContent) {
+    finalContent.id = sharedReport.id; // 다음 비교를 위해 id 저장
     finalContent.period = {
       actual: weekRange.actual,
       plan: weekRange.plan,
     };
-
+    
     setReportData(finalContent);
-
     setIsInitialized(true);
-  }, [diagnosticHistory, myDrafts, userAdmin, isInitialized, storageKey]);
+  }
+
+}, [diagnosticHistory, myDrafts, userAdmin, isInitialized, storageKey, sharedReportId]);
+  ////
 
   // reportData 변경 시 로컬 스토리지 자동 저장
   useEffect(() => {
@@ -527,188 +550,6 @@ export default function Diagnostic() {
     }
   }, [reportData, storageKey, isInitialized]);
 
-  // const handleDownloadWord = async () => {
-  //   if (!reportData) return;
-
-  //   try {
-  //     // 1. 문서 생성
-  //     const doc = new Document({
-  //       sections: [
-  //         {
-  //           properties: {},
-  //           children: [
-  //             // 보고서 제목
-  //             new Paragraph({
-  //               text: reportData.title,
-  //               heading: HeadingLevel.HEADING_1,
-  //               alignment: AlignmentType.CENTER,
-  //               spacing: { before: 200, after: 200 },
-  //             }),
-  //             // 제목 아래 여백 (1번 구조처럼 기간은 표 내부로 이동하므로 여기서는 제거하거나 간소화 가능)
-  //             new Paragraph({ text: "", spacing: { after: 200 } }),
-
-  //             // 표(Table) 생성
-  //             new Table({
-  //               width: { size: 100, type: WidthType.PERCENTAGE },
-  //               rows: [
-  //                 // 헤더 1행: [프로젝트(병합 시작), 실적, 계획]
-  //                 new TableRow({
-  //                   tableHeader: true,
-  //                   children: [
-  //                     new TableCell({
-  //                       width: { size: 20, type: WidthType.PERCENTAGE },
-  //                       children: [
-  //                         new Paragraph({
-  //                           text: "프로젝트",
-  //                           alignment: AlignmentType.CENTER,
-  //                           style: "bold",
-  //                         }),
-  //                       ],
-  //                       shading: { fill: "F2F2F2" },
-  //                       verticalAlign: VerticalAlign.CENTER,
-  //                       verticalMerge: VerticalMergeType.RESTART, // 세로 병합 시작
-  //                     }),
-  //                     new TableCell({
-  //                       width: { size: 40, type: WidthType.PERCENTAGE },
-  //                       children: [
-  //                         new Paragraph({
-  //                           text: "실적",
-  //                           alignment: AlignmentType.CENTER,
-  //                           style: "bold",
-  //                         }),
-  //                       ],
-  //                       shading: { fill: "F2F2F2" },
-  //                       verticalAlign: VerticalAlign.CENTER,
-  //                     }),
-  //                     new TableCell({
-  //                       width: { size: 40, type: WidthType.PERCENTAGE },
-  //                       children: [
-  //                         new Paragraph({
-  //                           text: "계획",
-  //                           alignment: AlignmentType.CENTER,
-  //                           style: "bold",
-  //                         }),
-  //                       ],
-  //                       shading: { fill: "F2F2F2" },
-  //                       verticalAlign: VerticalAlign.CENTER,
-  //                     }),
-  //                   ],
-  //                 }),
-
-  //                 // 헤더 2행: [프로젝트(병합 계속), 실적 기간, 계획 기간]
-  //                 new TableRow({
-  //                   tableHeader: true,
-  //                   children: [
-  //                     new TableCell({
-  //                       children: [], // 빈 배열이지만 vMerge가 있어 위와 합쳐짐
-  //                       verticalMerge: VerticalMergeType.CONTINUE, // 세로 병합 계속
-  //                     }),
-  //                     new TableCell({
-  //                       children: [
-  //                         new Paragraph({
-  //                           alignment: AlignmentType.CENTER,
-  //                           children: [
-  //                             new TextRun({
-  //                               text: reportData.period.actual,
-  //                               size: 18,
-  //                               color: "666666",
-  //                             }),
-  //                           ],
-  //                         }),
-  //                       ],
-  //                       shading: { fill: "FAFAFA" },
-  //                       verticalAlign: VerticalAlign.CENTER,
-  //                     }),
-  //                     new TableCell({
-  //                       children: [
-  //                         new Paragraph({
-  //                           alignment: AlignmentType.CENTER,
-  //                           children: [
-  //                             new TextRun({
-  //                               text: reportData.period.plan,
-  //                               size: 18,
-  //                               color: "666666",
-  //                             }),
-  //                           ],
-  //                         }),
-  //                       ],
-  //                       shading: { fill: "FAFAFA" },
-  //                       verticalAlign: VerticalAlign.CENTER,
-  //                     }),
-  //                   ],
-  //                 }),
-
-  //                 // 데이터 행들
-  //                 ...reportData.projects.map(
-  //                   (p) =>
-  //                     new TableRow({
-  //                       children: [
-  //                         new TableCell({
-  //                           width: { size: 20, type: WidthType.PERCENTAGE },
-  //                           children: [
-  //                             new Paragraph({
-  //                               text: p.name,
-  //                               alignment: AlignmentType.CENTER,
-  //                             }),
-  //                           ],
-  //                           verticalAlign: VerticalAlign.CENTER,
-  //                           shading: { fill: "FAFAFA" },
-  //                         }),
-  //                         new TableCell({
-  //                           width: { size: 40, type: WidthType.PERCENTAGE },
-  //                           children: p.actual.split("\n").map(
-  //                             (line) =>
-  //                               new Paragraph({
-  //                                 text: line,
-  //                                 spacing: { before: 100, after: 100 },
-  //                               }),
-  //                           ),
-  //                         }),
-  //                         new TableCell({
-  //                           width: { size: 40, type: WidthType.PERCENTAGE },
-  //                           children: p.plan.split("\n").map(
-  //                             (line) =>
-  //                               new Paragraph({
-  //                                 text: line,
-  //                                 spacing: { before: 100, after: 100 },
-  //                               }),
-  //                           ),
-  //                         }),
-  //                       ],
-  //                     }),
-  //                 ),
-  //               ],
-  //             }),
-  //           ],
-  //         },
-  //       ],
-  //     });
-
-  //     // 2. Blob 형태로 변환 후 다운로드
-  //     const now = new Date();
-  //     const timestamp =
-  //       now.getFullYear() +
-  //       String(now.getMonth() + 1).padStart(2, "0") +
-  //       String(now.getDate()).padStart(2, "0") +
-  //       "_" +
-  //       String(now.getHours()).padStart(2, "0") +
-  //       String(now.getMinutes()).padStart(2, "0") +
-  //       String(now.getSeconds()).padStart(2, "0");
-
-  //     const fileName = `${reportData.title.replace(/\s+/g, "_")}_주간보고서_${timestamp}.docx`;
-
-  //     const blob = await Packer.toBlob(doc);
-  //     saveAs(blob, fileName);
-
-  //     toast({
-  //       title: "다운로드 성공",
-  //       description: "워드 파일이 생성되었습니다.",
-  //     });
-  //   } catch (error) {
-  //     console.error(error);
-  //     toast({ title: "다운로드 실패", variant: "destructive" });
-  //   }
-  // };
   const handleDownloadWord = async () => {
     if (!reportData) return;
 
@@ -839,6 +680,24 @@ export default function Diagnostic() {
         numbering: { config: numberingConfigs },
         sections: [
           {
+            properties: {
+              page: {
+                size: {
+                  // w: 27.94cm -> 279.4mm / h: 21.59cm -> 215.9mm
+                  width: convertMillimetersToTwip(215.9), // 원래 h였던 값
+                  height: convertMillimetersToTwip(279.4), // 원래 w였던 값
+                  orientation: PageOrientation.LANDSCAPE, // 가로 설정
+                },
+                margin: {
+                  // T: 1.52cm -> 15.2mm / B: 1.52cm -> 15.2mm
+                  // L: 1.27cm -> 12.7mm / R: 1.27cm -> 12.7mm
+                  top: convertMillimetersToTwip(15.2),
+                  bottom: convertMillimetersToTwip(15.2),
+                  left: convertMillimetersToTwip(12.7),
+                  right: convertMillimetersToTwip(12.7),
+                },
+              },
+            },
             children: [
               new Paragraph({
                 text: reportData.title,
@@ -982,6 +841,7 @@ export default function Diagnostic() {
       toast({ title: "다운로드 실패", variant: "destructive" });
     }
   };
+
   const getWeekRange = () => {
     const now = new Date();
     const day = now.getDay(); // 0(일) ~ 6(토)
@@ -1058,164 +918,6 @@ export default function Diagnostic() {
       return { ...prev, projects: newProjects };
     });
   };
-
-  // const addSymbol = (idx: number, field: "actual" | "plan", symbol: string) => {
-  //   setReportData((prev) => {
-  //     if (!prev) return prev;
-
-  //     const indentMap: Record<string, string> = {
-  //       "1.": "",
-  //       "가.": "  ",
-  //       "1)": "    ",
-  //       "가)": "      ",
-  //       "①": "        ",
-  //       "㉮": "          ",
-  //     };
-
-  //     const indent = indentMap[symbol] || "";
-  //     const currentText = prev.projects[idx][field] || "";
-  //     const lines = currentText.split("\n");
-  //     let lastLine = lines[lines.length - 1];
-
-  //     // 기호 정규식 수정 (숫자, 한글, 특수문자 모두 포함)
-  //     const symbolRegex = /^(\s*)([0-9]+|[가-힣]|[①-⑮㉮-㉿])([\.\)]?)(\s*)/;
-
-  //     // 위쪽 맥락을 살펴서 다음 심볼 결정
-  //     const nextSymbolOnly = getNextNumber(currentText, indent, symbol);
-
-  //     // 기호 뒤에 붙는 구분자(. 또는 )) 유지 로직
-  //     const delimiterMatch = symbol.match(/[\.\)]/);
-  //     const delimiter = delimiterMatch ? delimiterMatch[0] : "";
-
-  //     if (symbolRegex.test(lastLine)) {
-  //       const pureText = lastLine.replace(symbolRegex, "");
-  //       lines[lines.length - 1] =
-  //         `${indent}${nextSymbolOnly}${delimiter} ${pureText}`;
-  //     } else if (lastLine.trim() === "") {
-  //       lines[lines.length - 1] = `${indent}${nextSymbolOnly}${delimiter} `;
-  //     } else {
-  //       lines.push(`${indent}${nextSymbolOnly}${delimiter} `);
-  //     }
-
-  //     const newProjects = [...prev.projects];
-  //     newProjects[idx] = { ...newProjects[idx], [field]: lines.join("\n") };
-  //     return { ...prev, projects: newProjects };
-  //   });
-  // };
-  const addSymbol = (idx: number, field: "actual" | "plan", symbol: string) => {
-    setReportData((prev) => {
-      if (!prev) return prev;
-
-      const indentMap: Record<string, string> = {
-        "1.": "",
-        "가.": "  ",
-        "1)": "    ",
-        "가)": "      ",
-        "①": "        ",
-        "㉮": "          ",
-      };
-
-      const indent = indentMap[symbol] || "";
-      const currentText = prev.projects[idx][field] || "";
-      const lines = currentText.split("\n");
-
-      // 1. 현재 커서가 위치한 textarea 찾기 및 줄 번호 계산
-      const textarea = document.activeElement as HTMLTextAreaElement;
-      let targetLineIndex = lines.length - 1; // 기본값은 마지막 줄
-
-      if (
-        textarea &&
-        (textarea.tagName === "TEXTAREA" || textarea.tagName === "INPUT")
-      ) {
-        const cursorPos = textarea.selectionStart;
-        let accumulatedLength = 0;
-
-        // 커서 위치를 기준으로 현재 몇 번째 줄인지 찾음
-        for (let i = 0; i < lines.length; i++) {
-          const lineEnd = accumulatedLength + lines[i].length;
-          if (cursorPos >= accumulatedLength && cursorPos <= lineEnd + i) {
-            // +i는 줄바꿈(\n) 포함
-            targetLineIndex = i;
-            break;
-          }
-          accumulatedLength += lines[i].length + 1;
-        }
-      }
-
-      // 2. 해당 줄의 기호 교체 로직
-      const symbolRegex = /^(\s*)([0-9]+|[가-힣]|[①-⑮㉮-㉿])([\.\)]?)(\s*)/;
-      const delimiter = symbol.match(/[\.\)]/)?.[0] || "";
-      const pureSymbol = symbol.replace(/[\.\)]/g, "");
-
-      const targetLine = lines[targetLineIndex];
-
-      if (symbolRegex.test(targetLine)) {
-        // 기호가 이미 있으면 기호와 들여쓰기만 교체 (내용 유지)
-        const pureContent = targetLine.replace(symbolRegex, "");
-        lines[targetLineIndex] =
-          `${indent}${pureSymbol}${delimiter} ${pureContent}`;
-      } else {
-        // 기호가 없으면 앞에 추가
-        lines[targetLineIndex] =
-          `${indent}${pureSymbol}${delimiter} ${targetLine.trim()}`;
-      }
-
-      // 3. 전체 텍스트 재정렬 (가. -> 5. 등으로 연쇄 변경)
-      const finalReordered = reorderText(lines.join("\n"));
-
-      const newProjects = [...prev.projects];
-      newProjects[idx] = { ...newProjects[idx], [field]: finalReordered };
-      return { ...prev, projects: newProjects };
-    });
-  };
-
-  // const handleKeyDown = (
-  //   e: React.KeyboardEvent<HTMLTextAreaElement>,
-  //   idx: number,
-  //   field: "actual" | "plan",
-  // ) => {
-  //   if (e.key === "Enter" && !e.nativeEvent.isComposing && !e.shiftKey) {
-  //     const target = e.currentTarget;
-  //     const cursorPos = target.selectionStart;
-  //     const textBeforeCursor = target.value.substring(0, cursorPos);
-  //     const lines = textBeforeCursor.split("\n");
-  //     const lastLine = lines[lines.length - 1];
-
-  //     const match = lastLine.match(
-  //       /^(\s*)([0-9]+|[가-힣]|[①-⑮㉮-㉿])([\.\)]?)(\s+)/,
-  //     );
-
-  //     if (match) {
-  //       const [_, indent, symbol, delimiter, space] = match;
-  //       if (lastLine.trim() === `${symbol}${delimiter}`) return;
-
-  //       e.preventDefault();
-
-  //       // getAutoNextSymbol을 사용하여 다음 기호 계산
-  //       const nextSymbolOnly = getNextNumber(textBeforeCursor, indent, symbol);
-  //       const autoText = `\n${indent}${nextSymbolOnly}${delimiter}${space}`;
-
-  //       setReportData((prev) => {
-  //         if (!prev) return prev;
-  //         const currentContent = prev.projects[idx][field];
-  //         const newText =
-  //           currentContent.substring(0, cursorPos) +
-  //           autoText +
-  //           currentContent.substring(cursorPos);
-  //         const newProjects = [...prev.projects];
-  //         newProjects[idx] = { ...newProjects[idx], [field]: newText };
-  //         return { ...prev, projects: newProjects };
-  //       });
-
-  //       setTimeout(() => {
-  //         target.setSelectionRange(
-  //           cursorPos + autoText.length,
-  //           cursorPos + autoText.length,
-  //         );
-  //       }, 0);
-  //     }
-  //   }
-  // };
 
   const handleKeyDown = (
     e: React.KeyboardEvent<HTMLTextAreaElement>,
@@ -1405,62 +1107,6 @@ export default function Diagnostic() {
     return targetSymbolType.replace(/[\.\)]/g, "");
   };
 
-  // const reorderText = (text: string) => {
-  //   const lines = text.split("\n");
-  //   const hangulSeq = "가나다라마바사아자차카타파하";
-  //   const counters: Record<number, number> = {};
-
-  //   const getStandardSymbolType = (level: number) => {
-  //     if (level === 0) return "1.";
-  //     if (level === 2) return "가.";
-  //     if (level === 4) return "1)";
-  //     if (level === 6) return "가)";
-  //     if (level === 8) return "①";
-  //     return "㉮";
-  //   };
-
-  //   return lines.map((line) => {
-  //     // 1. 정규식 수정: 기호와 구분자 이후의 모든 공백을 제거하고 순수 내용(content)만 캡처
-  //     const match = line.match(/^(\s*)([0-9]+|[가-힣]|[①-⑮㉮-㉿])([\.\)]?)\s*(.*)/);
-  //     if (!match) return line;
-
-  //     let [_, indent, symbol, delimiter, content] = match;
-  //     const level = indent.length;
-
-  //     // 하위 레벨 카운터 초기화
-  //     Object.keys(counters).forEach((l) => {
-  //       if (parseInt(l) > level) counters[parseInt(l)] = 0;
-  //     });
-
-  //     counters[level] = (counters[level] || 0) + 1;
-  //     const count = counters[level];
-
-  //     // 2. 표준 기호 타입 결정
-  //     const standardType = getStandardSymbolType(level);
-
-  //     let newSymbol = "";
-  //     let newDelimiter = standardType.match(/[\.\)]/) ? standardType.match(/[\.\)]/)?.[0] : "";
-
-  //     if (/\d/.test(standardType)) {
-  //       newSymbol = String(count);
-  //     } else if (/[가-힣]/.test(standardType)) {
-  //       newSymbol = hangulSeq[count - 1] || "가";
-  //     } else if (/[①-⑮]/.test(standardType)) {
-  //       newSymbol = String.fromCharCode("①".charCodeAt(0) + count - 1);
-  //       newDelimiter = ""; // 원문자는 구분자 없음
-  //     } else if (/[㉮-㉿]/.test(standardType)) {
-  //       newSymbol = String.fromCharCode("㉮".charCodeAt(0) + count - 1);
-  //       newDelimiter = "";
-  //     }
-
-  //     // 3. ★ 핵심 수정: 기호+구분자 바로 뒤에 공백 " "을 강제로 추가
-  //     // content는 앞뒤 공백을 제거(trim)하여 중복 공백 방지
-  //     const processedContent = content.trim();
-
-  //     // 최종 결과 반환 (내용이 없어도 기호+구분자+공백은 유지됨)
-  //     return `${indent}${newSymbol}${newDelimiter} ${processedContent}`;
-  //   }).join("\n");
-  // };
   const reorderText = (text: string) => {
     const lines = text.split("\n");
     const hangulSeq = "가나다라마바사아자차카타파하";
@@ -1517,7 +1163,12 @@ export default function Diagnostic() {
       .join("\n");
   };
 
-  if (isFetchLoading || usersLoading || !isInitialized) {
+  if (
+    isFetchLoading ||
+    usersLoading ||
+    !isInitialized ||
+    (reportData && !isInitialized)
+  ) {
     return (
       <div className="flex h-screen items-center justify-center flex-col gap-4">
         <RefreshCcw className="animate-spin w-10 h-10 text-primary" />
@@ -1721,20 +1372,6 @@ export default function Diagnostic() {
                         {/* 실적 */}
                         <td className="border-r border-slate-300 p-2">
                           {/* 1. 기호 삽입 버튼 툴바 */}
-                          {/* <div className="flex flex-wrap gap-2 mb-2 p-1">
-                            {["1.", "가.", "1)", "가)", "①", "㉮"].map(
-                              (sym) => (
-                                <button
-                                  key={sym}
-                                  type="button"
-                                  onClick={() => addSymbol(idx, "actual", sym)}
-                                  className="w-9 y-9 px-2 py-2 text-xs border border-slate-300 rounded hover:bg-blue-50 hover:text-blue-600 transition-colors"
-                                >
-                                  {sym}
-                                </button>
-                              ),
-                            )}
-                          </div> */}
                           <div className="flex items-center justify-between mb-3 p-2 bg-slate-50 rounded-md border border-slate-200">
                             <div className="flex items-center gap-2 text-[13px] text-slate-600">
                               <span className="flex items-center justify-center w-5 h-5 bg-blue-100 text-blue-600 rounded-full text-[10px] font-bold">
@@ -1767,26 +1404,6 @@ export default function Diagnostic() {
                             onChange={(e) =>
                               handleTextChange(idx, "actual", e.target.value)
                             }
-                            // ★ 여기에 추가합니다
-                            // onFocus={(e) => {
-                            //   // 내용이 아예 없거나 공백만 있을 경우 초기값 셋팅
-                            //   if (
-                            //     !project.actual ||
-                            //     project.actual.trim() === ""
-                            //   ) {
-                            //     // 1. 뒤에 공백을 두 칸 넣어 가독성을 확보합니다.
-                            //     handleTextChange(idx, "actual", "1.  ");
-
-                            //     // 커서를 맨 뒤로 보냅니다.
-                            //     const val = e.target.value;
-                            //     setTimeout(() => {
-                            //       e.target.setSelectionRange(
-                            //         val.length + 4,
-                            //         val.length + 4,
-                            //       );
-                            //     }, 0);
-                            //   }
-                            // }}
                             onFocus={(e) => {
                               const currentVal = project.actual || "";
 
@@ -1885,37 +1502,7 @@ export default function Diagnostic() {
                           />
                         </td>
                         {/* 계획 */}
-                        {/* <td className="p-2">
-                          <Textarea
-                            className="min-h-[60px] border-none shadow-none focus-visible:ring-0 resize-none text-sm"
-                            rows={5}
-                            value={project.plan}
-                            onChange={(e) => {
-                              const newProjects = [...reportData.projects];
-                              newProjects[idx].plan = e.target.value;
-                              setReportData({
-                                ...reportData,
-                                projects: newProjects,
-                              });
-                            }}
-                          />
-                        </td> */}
                         <td className="border-r border-slate-300 p-2">
-                          {/* 1. 기호 삽입 버튼 툴바 */}
-                          {/* <div className="flex flex-wrap gap-2 mb-2 p-1">
-                            {["1.", "가.", "1)", "가)", "①", "㉮"].map(
-                              (sym) => (
-                                <button
-                                  key={sym}
-                                  type="button"
-                                  onClick={() => addSymbol(idx, "plan", sym)}
-                                  className="w-9 y-9 px-2 py-2 text-xs border border-slate-300 rounded hover:bg-blue-50 hover:text-blue-600 transition-colors"
-                                >
-                                  {sym}
-                                </button>
-                              ),
-                            )}
-                          </div> */}
                           <div className="flex items-center justify-between mb-3 p-2 bg-slate-50 rounded-md border border-slate-200">
                             <div className="flex items-center gap-2 text-[13px] text-slate-600">
                               <span className="flex items-center justify-center w-5 h-5 bg-blue-100 text-blue-600 rounded-full text-[10px] font-bold">
@@ -1950,19 +1537,40 @@ export default function Diagnostic() {
                             }
                             // ★ 여기에 추가합니다
                             onFocus={(e) => {
-                              // 내용이 아예 없거나 공백만 있을 경우 초기값 셋팅
-                              if (!project.plan || project.plan.trim() === "") {
-                                // 1. 뒤에 공백을 두 칸 넣어 가독성을 확보합니다.
-                                handleTextChange(idx, "plan", "1.  ");
+                              const currentVal = project.plan || "";
 
-                                // 커서를 맨 뒤로 보냅니다.
-                                const val = e.target.value;
+                              // 1. 아예 비어있거나 공백만 있는 경우 -> '1.  ' 셋팅
+                              if (currentVal.trim() === "") {
+                                handleTextChange(idx, "plan", "1.  ");
                                 setTimeout(() => {
-                                  e.target.setSelectionRange(
-                                    val.length + 4,
-                                    val.length + 4,
-                                  );
+                                  e.target.setSelectionRange(4, 4);
                                 }, 0);
+                              }
+                              // 2. 내용이 있는데(취합 후), 마지막이 줄바꿈이거나 번호 형식이 아닐 경우
+                              else if (userAdmin) {
+                                // 관리자일 때만 자동 번호 추가를 원할 경우 조건 추가
+                                const trimmedVal = currentVal.trimEnd();
+
+                                // 마지막 줄이 숫자/기호로 시작하는 번호 형식이 아닌지 체크 (정규식)
+                                // 예: '내용입니다' 로 끝나면 새 줄에 '1. ' 추가
+                                const lines = trimmedVal.split("\n");
+                                const lastLine = lines[lines.length - 1];
+                                const bulletRegex =
+                                  /^(\d+\.|[가-힣]\.|[①-⑮]|\d+\)|[가-힣]\))/;
+
+                                if (!bulletRegex.test(lastLine.trim())) {
+                                  const newVal = trimmedVal + "\n\n1.  ";
+                                  handleTextChange(idx, "plan", newVal);
+
+                                  setTimeout(() => {
+                                    e.target.setSelectionRange(
+                                      newVal.length,
+                                      newVal.length,
+                                    );
+                                    // 포커스 시 자동으로 스크롤을 맨 아래로 내림
+                                    e.target.scrollTop = e.target.scrollHeight;
+                                  }, 0);
+                                }
                               }
                             }}
                             onPaste={(e) => {
