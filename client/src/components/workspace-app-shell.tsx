@@ -21,6 +21,7 @@ import api from "@/api/api-index";
 import MyPage from "@/pages/mypage";
 import Diagnostic from "@/pages/diagnostic";
 import Reporting from "@/pages/reporting";
+import Business from "@/pages/business";
 
 export function WorkspaceAppShell() {
   const [, setLocation] = useLocation();
@@ -101,8 +102,9 @@ export function WorkspaceAppShell() {
           <Route path={`${basePath}/priority`} component={Priority} />
           <Route path={`${basePath}/archive`} component={Archive} />
           <Route path={`${basePath}/meeting`} component={Meeting} />
-          <Route path={`${basePath}/reporting`} component={Reporting} />
           <Route path={`${basePath}/meeting/new`} component={NewMeeting} />
+          <Route path={`${basePath}/reporting`} component={Reporting} />
+          <Route path={`${basePath}/business`} component={Business} />
           <Route
             path={`${basePath}/meeting/:meetingId`}
             component={MeetingDetail}

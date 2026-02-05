@@ -12,6 +12,10 @@ import {
   ChevronDown,
   ChevronRight,
   FileText,
+  FileTextIcon,
+  Files,
+  BriefcaseBusiness,
+  Handshake,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
@@ -31,6 +35,7 @@ export function Sidebar({ workspaceId }: SidebarProps) {
     "work-management",
     "meeting",
     "reporting",
+    "business",
   ]);
   const [location, setLocation] = useLocation();
   const [currentUser, setCurrentUser] = useState<SafeUser | null>(null);
@@ -67,7 +72,7 @@ export function Sidebar({ workspaceId }: SidebarProps) {
     if (userWorkspaces && workspaceId) {
       // 배열에서 현재 ID와 일치하는 객체 찾기
       const currentWorkspace = userWorkspaces.find(
-        (ws: any) => String(ws.id) === String(workspaceId)
+        (ws: any) => String(ws.id) === String(workspaceId),
       );
 
       if (currentWorkspace) {
@@ -124,7 +129,7 @@ export function Sidebar({ workspaceId }: SidebarProps) {
       window.removeEventListener("storage", handleStorageChange);
       window.removeEventListener(
         "workspaceNameUpdated",
-        handleWorkspaceNameChange
+        handleWorkspaceNameChange,
       );
     };
   }, [users]);
@@ -133,7 +138,7 @@ export function Sidebar({ workspaceId }: SidebarProps) {
     setExpandedSections((prev) =>
       prev.includes(section)
         ? prev.filter((s) => s !== section)
-        : [...prev, section]
+        : [...prev, section],
     );
   };
 
@@ -144,7 +149,9 @@ export function Sidebar({ workspaceId }: SidebarProps) {
   useEffect(() => {
     const storedUserId = localStorage.getItem("userId");
     if (storedUserId && users) {
-      const user = users.find((u: any) => String(u.id) === String(storedUserId));
+      const user = users.find(
+        (u: any) => String(u.id) === String(storedUserId),
+      );
       if (user) {
         setCurrentUser(user);
       }
@@ -245,7 +252,9 @@ export function Sidebar({ workspaceId }: SidebarProps) {
                 <Link href={`${basePath}/diagnostic`}>
                   <Button
                     variant={
-                      location === `${basePath}/diagnostic` ? "default" : "ghost"
+                      location === `${basePath}/diagnostic`
+                        ? "default"
+                        : "ghost"
                     }
                     className={`w-full justify-start space-x-3 h-8 ${
                       location === `${basePath}/diagnostic`
@@ -386,7 +395,7 @@ export function Sidebar({ workspaceId }: SidebarProps) {
             data-testid="button-reporting-section"
           >
             <div className="flex items-center space-x-2">
-              <MessageSquare className="h-4 w-4" />
+              <FileTextIcon className="h-4 w-4" />
               <span className="font-medium">보고</span>
             </div>
             {isExpanded("reporting") ? (
@@ -410,13 +419,54 @@ export function Sidebar({ workspaceId }: SidebarProps) {
                   }`}
                   data-testid="link-reporting"
                 >
-                  <Calendar className="h-4 w-4" />
+                  <Files className="h-4 w-4" />
                   <span>주간 보고</span>
                 </Button>
               </Link>
             </div>
           )}
         </div>
+
+        {/* 사업 섹션 */}
+        {/* <div className="pt-2">
+          <Button
+            variant="ghost"
+            className="w-full justify-between p-2 h-auto text-left"
+            onClick={() => toggleSection("business")}
+            data-testid="button-reporting-section"
+          >
+            <div className="flex items-center space-x-2">
+              <BriefcaseBusiness className="h-4 w-4" />
+              <span className="font-medium">사업</span>
+            </div>
+            {isExpanded("business") ? (
+              <ChevronDown className="h-4 w-4" />
+            ) : (
+              <ChevronRight className="h-4 w-4" />
+            )}
+          </Button>
+
+          {isExpanded("business") && (
+            <div className="ml-6 mt-1 space-y-1">
+              <Link href={`${basePath}/business`}>
+                <Button
+                  variant={
+                    location === `${basePath}/business` ? "default" : "ghost"
+                  }
+                  className={`w-full justify-start space-x-3 h-8 ${
+                    location === `${basePath}/business`
+                      ? "bg-primary text-white hover:bg-primary"
+                      : "text-muted-foreground hover:text-accent-foreground"
+                  }`}
+                  data-testid="link-business"
+                >
+                  <Handshake className="h-4 w-4" />
+                  <span>지원 사업</span>
+                </Button>
+              </Link>
+            </div>
+          )}
+        </div> */}
       </nav>
 
       {/* User Profile */}

@@ -45,6 +45,8 @@ import { queryClient } from "@/lib/queryClient";
 interface WeeklyReportData {
   id: string;
   title: string;
+  updatedAt?: Date;
+  isReShared: boolean;
   period: {
     actual: string;
     plan: string;
@@ -56,7 +58,7 @@ interface WeeklyReportData {
   }[];
 }
 
-export default function Diagnostic() {
+export default function Reporting() {
   const { id: workspaceId } = useParams();
   const { toast } = useToast();
 
@@ -109,6 +111,7 @@ export default function Diagnostic() {
     mutationFn: async (reportId: string) => {
       return await api.patch(
         `/api/workspaces/${workspaceId}/weekly-reports/${reportId}/share`,
+        { isReShared: true },
       );
     },
     onSuccess: () => {
@@ -122,14 +125,36 @@ export default function Diagnostic() {
   });
 
   //2026-01-23
+  // const sharedReportId = useMemo(() => {
+  //   if (!diagnosticHistory || !Array.isArray(diagnosticHistory)) return null;
+  //   const shared = diagnosticHistory.find((r: any) => {
+  //     const val = r.isShared ?? r.is_shared;
+  //     return val === true || String(val) === "true";
+  //   });
+  //   return shared?.id; // 객체가 아닌 ID 문자열 자체를 리턴하도록 확인
+  // }, [diagnosticHistory]);
+  ////
+
+  //02-04
   const sharedReportId = useMemo(() => {
     if (!diagnosticHistory || !Array.isArray(diagnosticHistory)) return null;
+
+    // 가장 최근 보고서 중 '공유(isShared)' 상태인 것을 찾음
     const shared = diagnosticHistory.find((r: any) => {
       const val = r.isShared ?? r.is_shared;
       return val === true || String(val) === "true";
     });
-    return shared?.id; // 객체가 아닌 ID 문자열 자체를 리턴하도록 확인
+
+    return shared?.id || null;
   }, [diagnosticHistory]);
+
+  const isReSharedActive = useMemo(() => {
+    const sharedReport = diagnosticHistory?.find(
+      (r: any) => String(r.id) === String(sharedReportId),
+    );
+    // isReShared가 true인 경우에만 활성화된 것으로 판단
+    return sharedReport?.isReShared || sharedReport?.is_reshared || false;
+  }, [diagnosticHistory, sharedReportId]);
   ////
 
   const deleteMutation = useMutation({
@@ -199,7 +224,7 @@ export default function Diagnostic() {
         queryKey: ["weekly-reports", workspaceId],
       });
 
-      localStorage.removeItem(storageKey);
+      // localStorage.removeItem(storageKey);
 
       toast({
         title: "임시 저장 완료",
@@ -282,6 +307,7 @@ export default function Diagnostic() {
 
       const freshData = {
         ...data.content,
+        updatedAt: data.updatedAt,
         period: {
           actual: weekRange.actual,
           plan: weekRange.plan,
@@ -303,16 +329,90 @@ export default function Diagnostic() {
     },
   });
 
+  // const mergeAllMutation = useMutation({
+  //   mutationFn: async () => {
+  //     if (!sharedReportId) throw new Error("공유된 보고서가 없습니다.");
+
+  //     const reportIdStr =
+  //       typeof sharedReportId === "object"
+  //         ? (sharedReportId as any).id
+  //         : sharedReportId;
+
+  //     const response = await api.get(
+  //       `/api/workspaces/${workspaceId}/weekly-reports/${reportIdStr}/all-drafts`,
+  //     );
+  //     return response.data;
+  //   },
+  //   onSuccess: (allDrafts: any[]) => {
+  //     queryClient.invalidateQueries({
+  //       queryKey: ["weekly-reports", workspaceId],
+  //     });
+
+  //     if (!reportData) return;
+
+  //     const mergedProjects = reportData.projects.map((proj: any) => {
+  //       const projectDrafts = allDrafts.filter(
+  //         (d) => d.projectName === proj.name,
+  //       );
+
+  //       if (projectDrafts.length === 0) return proj;
+
+  //       const divider = "\n----------------------\n";
+
+  //       //2026-01-22
+  //       const changedActuals = projectDrafts
+  //         .filter(
+  //           (d) =>
+  //             d.actual?.trim() !== "" &&
+  //             d.actual?.trim() !== "1." &&
+  //             d.actual?.trim() !== proj.actual?.trim(),
+  //         )
+  //         .map((d) => `[${d.userName || d.userId}]\n${d.actual}`); // 이름 다음 줄바꿈 추가
+
+  //       const changedPlans = projectDrafts
+  //         .filter(
+  //           (d) =>
+  //             d.plan?.trim() !== "" &&
+  //             d.plan?.trim() !== "1." &&
+  //             d.plan?.trim() !== proj.plan?.trim(),
+  //         )
+  //         .map((d) => `[${d.userName || d.userId}]\n${d.plan}`);
+
+  //       return {
+  //         ...proj,
+  //         actual:
+  //           changedActuals.length > 0
+  //             ? changedActuals.join(divider) + divider // 팀원 사이와 마지막에 구분선 추가
+  //             : proj.actual,
+  //         plan:
+  //           changedPlans.length > 0
+  //             ? changedPlans.join(divider) + divider
+  //             : proj.plan,
+  //       };
+  //       ////
+  //     });
+
+  //     setReportData({
+  //       ...reportData,
+  //       projects: mergedProjects,
+  //     });
+
+  //     toast({
+  //       title: "취합 완료",
+  //       description: "수정된 항목별로 정밀하게 필터링하여 취합되었습니다.",
+  //     });
+  //   },
+  // });
   const mergeAllMutation = useMutation({
     mutationFn: async () => {
       if (!sharedReportId) throw new Error("공유된 보고서가 없습니다.");
-
+      
       const reportIdStr =
         typeof sharedReportId === "object"
           ? (sharedReportId as any).id
           : sharedReportId;
-
-      const response = await api.get(
+      
+          const response = await api.get(
         `/api/workspaces/${workspaceId}/weekly-reports/${reportIdStr}/all-drafts`,
       );
       return response.data;
@@ -328,66 +428,66 @@ export default function Diagnostic() {
         const projectDrafts = allDrafts.filter(
           (d) => d.projectName === proj.name,
         );
-
         if (projectDrafts.length === 0) return proj;
 
         const divider = "\n----------------------\n";
 
-        // const changedActuals = projectDrafts
-        //   .filter((d) => d.actual?.trim() !== proj.actual?.trim())
-        //   .map((d) => `[${d.userName || d.userId}] ${d.actual}`);
+        // 🚩 비교를 위해 공백/줄바꿈/특수태그를 모두 제거하는 헬퍼 함수
+        const getPureText = (text: string) =>
+          text?.replace(/\s+/g, "").replace(/<[^>]*>/g, "") || "";
 
-        // const changedPlans = projectDrafts
-        //   .filter((d) => d.plan?.trim() !== proj.plan?.trim())
-        //   .map((d) => `[${d.userName || d.userId}] ${d.plan}`);
+        const filterValidDrafts = (drafts: any[], type: "actual" | "plan") => {
+          const currentPureContent = getPureText(proj[type]);
 
-        // return {
-        //   ...proj,
-        //   actual:
-        //     changedActuals.length > 0
-        //       ? changedActuals.join("\n\n")
-        //       : proj.actual,
-        //   plan: changedPlans.length > 0 ? changedPlans.join("\n\n") : proj.plan,
-        // };
+          return drafts.filter((d) => {
+            // 1. 관리자 본인 데이터는 무조건 패스
+            if (d.userId === currentUser?.email) return false;
 
-        //2026-01-22
-        const changedActuals = projectDrafts
-          .filter(
-            (d) =>
-              d.actual?.trim() !== "" &&
-              d.actual?.trim() !== proj.actual?.trim(),
-          )
-          .map((d) => `[${d.userName || d.userId}]\n${d.actual}`); // 이름 다음 줄바꿈 추가
+            const draftRawContent = d[type] || "";
+            const draftPureContent = getPureText(draftRawContent);
 
-        const changedPlans = projectDrafts
-          .filter(
-            (d) =>
-              d.plan?.trim() !== "" && d.plan?.trim() !== proj.plan?.trim(),
-          )
-          .map((d) => `[${d.userName || d.userId}]\n${d.plan}`);
+            // 2. 내용이 없거나 "1." 처럼 의미 없는 경우 패스
+            if (draftPureContent === "" || draftPureContent === "1.")
+              return false;
+
+            // 3. [핵심] 현재 화면 내용에 이미 이 팀원의 내용이 '알맹이'로서 포함되어 있는지 확인
+            // 혹은 원본 내용과 팀원 드래프트 내용이 완벽히 일치하는지 확인
+            if (currentPureContent.includes(draftPureContent)) return false;
+
+            return true;
+          });
+        };
+
+        const validActuals = filterValidDrafts(projectDrafts, "actual").map(
+          (d) => `[${d.userName || d.userId}]\n${d.actual}`,
+        );
+
+        const validPlans = filterValidDrafts(projectDrafts, "plan").map(
+          (d) => `[${d.userName || d.userId}]\n${d.plan}`,
+        );
 
         return {
           ...proj,
+          // 새로운 내용(원본과 다르고, 기존에 포함되지 않은 것)이 있을 때만 추가
           actual:
-            changedActuals.length > 0
-              ? changedActuals.join(divider) + divider // 팀원 사이와 마지막에 구분선 추가
+            validActuals.length > 0
+              ? (proj.actual?.trim() ? proj.actual + divider : "") +
+                validActuals.join(divider) +
+                divider
               : proj.actual,
           plan:
-            changedPlans.length > 0
-              ? changedPlans.join(divider) + divider
+            validPlans.length > 0
+              ? (proj.plan?.trim() ? proj.plan + divider : "") +
+                validPlans.join(divider) +
+                divider
               : proj.plan,
         };
-        ////
       });
 
-      setReportData({
-        ...reportData,
-        projects: mergedProjects,
-      });
-
+      setReportData({ ...reportData, projects: mergedProjects });
       toast({
         title: "취합 완료",
-        description: "수정된 항목별로 정밀하게 필터링하여 취합되었습니다.",
+        description: "중복되지 않은 새로운 내용만 추가되었습니다.",
       });
     },
   });
@@ -400,11 +500,18 @@ export default function Diagnostic() {
         {
           title: finalData.title, // 제목을 명시적으로 추가
           content: finalData,
+          isReShared: false,
         },
       );
       return response.data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      if (data.updatedAt) {
+        setReportData((prev) =>
+          prev ? { ...prev, updatedAt: data.updatedAt } : prev,
+        );
+      }
+
       localStorage.removeItem(storageKey);
 
       queryClient.invalidateQueries({
@@ -418,44 +525,45 @@ export default function Diagnostic() {
     },
   });
 
+  //2026-01-29
   // useEffect(() => {
-  //   // if (!diagnosticHistory || isInitialized) return;
-
-  //   //2026-01-23
+  //   // 1. 기본 가드 로직 (1번 코드 유지)
   //   if (!diagnosticHistory || (userEmail && !userAdmin && !myDrafts)) return;
-  //   if (isInitialized) return;
-  //   ////
 
   //   const sharedReport = diagnosticHistory.find(
   //     (r: any) => r.isShared === true || String(r.isShared) === "true",
   //   );
 
-  //   // 2. 관리자(Admin)라면 자동 로드를 하지 않고 목록 화면에 머무름
-  //   if (userAdmin) {
-  //     setIsInitialized(true);
-  //     return;
-  //   }
+  //   // 🚩 [핵심 수정] 재공유 판단 기준
+  //   // sharedReportId가 바뀌었는지를 직접 체크합니다.
+  //   const isNewReport = sharedReport && reportData?.id !== sharedReport.id;
 
-  //   if (!sharedReport) {
+  //   // 이미 초기화 됐더라도 "새로운 ID"가 들어오면 이 if문을 통과해서 아래 로직을 수행합니다.
+  //   if (isInitialized && !isNewReport) return;
+
+  //   // 2. 관리자/공유 없음 처리
+  //   if (userAdmin || !sharedReport) {
+  //     if (!sharedReport && reportData) setReportData(null);
   //     setIsInitialized(true);
   //     return;
   //   }
 
   //   const weekRange = getWeekRange();
 
-  //   // 데이터 로드 우선순위 결정
-  //   const savedTemp = localStorage.getItem(storageKey); // 1. 로컬 임시 저장본
-
-  //   // 2. 내가 이미 서버에 제출한 드래프트 찾기 (myDrafts 쿼리 결과 활용)
-  //   const myLastDraft = myDrafts && myDrafts.length > 0 ? myDrafts : null;
+  //   // 🚩 [핵심 수정] 재공유(isNewReport)일 때는 과거의 흔적들을 무시하고 null로 시작
+  //   const savedTemp = isNewReport ? null : localStorage.getItem(storageKey);
+  //   const myLastDraft = isNewReport
+  //     ? null
+  //     : myDrafts && myDrafts.length > 0
+  //       ? myDrafts
+  //       : null;
 
   //   let finalContent: WeeklyReportData;
 
+  //   // 3. 데이터 로드 로직 (1번 코드의 로직을 그대로 유지하되 안전장치 추가)
   //   if (savedTemp) {
-  //     // 1. 로컬 저장본 로드
   //     finalContent = JSON.parse(savedTemp);
   //   } else if (!userAdmin && myLastDraft) {
-  //     // 2. 서버 드래프트 로드 및 병합
   //     let merged = JSON.parse(JSON.stringify(sharedReport.content));
   //     merged.projects = merged.projects.map((origProj: any) => {
   //       const myUpdate = myLastDraft.find(
@@ -467,81 +575,281 @@ export default function Diagnostic() {
   //     });
   //     finalContent = merged;
   //   } else {
-  //     // 3. 최초 원본 로드
+  //     // 최초 로드 및 재공유 시 이곳으로 들어옵니다.
   //     finalContent = JSON.parse(JSON.stringify(sharedReport.content));
   //   }
 
-  //   // [핵심 추가] 어떤 경로로 데이터를 가져왔든, 날짜는 현재 시점 기준으로 강제 업데이트
-  //   finalContent.period = {
-  //     actual: weekRange.actual,
-  //     plan: weekRange.plan,
-  //   };
+  //   // 🚩 [중요] ID를 세팅하되, finalContent가 유효할 때만 실행
+  //   if (finalContent) {
+  //     finalContent.id = sharedReport.id; // 다음 비교를 위해 id 저장
+  //     finalContent.period = {
+  //       actual: weekRange.actual,
+  //       plan: weekRange.plan,
+  //     };
 
-  //   setReportData(finalContent);
+  //     setReportData(finalContent);
+  //     setIsInitialized(true);
+  //   }
+  // }, [
+  //   diagnosticHistory,
+  //   myDrafts,
+  //   userAdmin,
+  //   isInitialized,
+  //   storageKey,
+  //   sharedReportId,
+  // ]);
+  //
+  // console.log(diagnosticHistory[0].isReShared);
+  //02-04
+  // 2026-02-04: 무한 로딩 방지 및 자동 복구 로직
+  useEffect(() => {
+    // 가드 로직: 이미 초기화됐거나, 필요한 데이터가 아직 로딩 중이면 실행하지 않음
+    if (isInitialized || isFetchLoading || !diagnosticHistory) return;
 
-  //   setIsInitialized(true);
-  // }, [diagnosticHistory, myDrafts, userAdmin, isInitialized, storageKey]);
+    // 관리자가 아닌 경우 myDrafts가 로드될 때까지 대기 (데이터 일관성 확인)
+    if (!userAdmin && sharedReportId && !myDrafts) return;
 
-  //2026-01-29
-useEffect(() => {
-  // 1. 기본 가드 로직 (1번 코드 유지)
-  if (!diagnosticHistory || (userEmail && !userAdmin && !myDrafts)) return;
+    const processInitialization = () => {
+      // 1. 우선순위: 로컬 스토리지 확인
+      const savedTemp = localStorage.getItem(storageKey);
+      if (savedTemp) {
+        const parsed = JSON.parse(savedTemp);
+        // 현재 서버에 공유된 보고서와 ID가 일치할 때만 복구
+        if (parsed.id === sharedReportId) {
+          setReportData(parsed);
+          setIsInitialized(true);
+          return;
+        }
+      }
 
-  const sharedReport = diagnosticHistory.find(
-    (r: any) => r.isShared === true || String(r.isShared) === "true",
+      // 2. 우선순위: 서버의 내 드래프트 확인 (로그아웃 후 재접속 대응)
+      if (!userAdmin && sharedReportId && myDrafts && myDrafts.length > 0) {
+        const sharedReport = diagnosticHistory.find(
+          (r: any) => r.id === sharedReportId,
+        );
+        if (sharedReport) {
+          const weekRange = getWeekRange();
+          let merged = JSON.parse(JSON.stringify(sharedReport.content));
+
+          merged.projects = merged.projects.map((origProj: any) => {
+            const myUpdate = myDrafts.find(
+              (d: any) => d.projectName === origProj.name,
+            );
+            return myUpdate
+              ? { ...origProj, actual: myUpdate.actual, plan: myUpdate.plan }
+              : origProj;
+          });
+
+          merged.id = sharedReport.id;
+          merged.period = { actual: weekRange.actual, plan: weekRange.plan };
+
+          setReportData(merged);
+          setIsInitialized(true);
+          return;
+        }
+      }
+
+      // 3. 아무것도 해당 안 되면 초기화 완료 처리 (화면에는 안내문 노출)
+      setIsInitialized(true);
+    };
+
+    processInitialization();
+  }, [
+    isInitialized,
+    isFetchLoading,
+    diagnosticHistory,
+    myDrafts,
+    sharedReportId,
+    userAdmin,
+    storageKey,
+    // 🚩 reportData는 여기에 절대 넣지 마세요 (무한 로딩의 원인)
+  ]);
+  ////
+
+  const myLastSavedAt = useMemo(() => {
+    if (!myDrafts || myDrafts.length === 0) return null;
+    // 드래프트 중 가장 최근 수정시간 추출
+    const times = myDrafts
+      .map((d: any) => new Date(d.updatedAt || d.updated_at).getTime())
+      .filter((t: any) => !isNaN(t));
+    return times.length > 0 ? Math.max(...times) : null;
+  }, [myDrafts]);
+
+  // [수정] 새로운 공유 보고서가 서버에 있는지 확인 (현재 화면 데이터와 ID 비교)
+  // const hasNewSharedReport = useMemo(() => {
+  //   if (userAdmin || !sharedReportId || !diagnosticHistory) return false;
+
+  //   const sharedReport = diagnosticHistory.find(
+  //     (r: any) => String(r.id) === String(sharedReportId),
+  //   );
+  //   if (!sharedReport) return false;
+
+  //   // 1. 서버 문서의 수정 시간 (Timestamp)
+  //   const serverUpdateTime = new Date(sharedReport.updatedAt).getTime();
+
+  //   // 2. 내 현재 화면 데이터의 시간
+  //   const myLocalTime = reportData?.updatedAt
+  //     ? new Date(reportData.updatedAt).getTime()
+  //     : 0;
+
+  //   // 3. 내가 서버에 마지막으로 저장한 시간 (1번에서 만든 Memo 이용)
+  //   const myRemoteSaveTime = myLastSavedAt || 0;
+
+  //   // 최종 판단: 서버의 업데이트 시간이 (내 로컬 데이터 시간) AND (내 서버 저장 시간) 보다 뒤인가?
+  //   const isNewerThanLocal = serverUpdateTime > myLocalTime;
+  //   const isNewerThanRemote = serverUpdateTime > myRemoteSaveTime;
+
+  //   return isNewerThanLocal && isNewerThanRemote;
+  // }, [sharedReportId, reportData, diagnosticHistory, userAdmin, myLastSavedAt]);
+  // const hasNewSharedReport = useMemo(() => {
+  //   if (userAdmin || !sharedReportId || !diagnosticHistory) return false;
+
+  //   // 1. 현재 공유된 보고서 객체 찾기
+  //   const sharedReport = diagnosticHistory.find(
+  //     (r: any) => String(r.id) === String(sharedReportId),
+  //   );
+
+  //   // [중요] 해당 보고서가 실제로 '공유' 상태가 아니면 무시
+  //   const isActuallyShared = sharedReport?.isShared || sharedReport?.is_shared;
+  //   if (!sharedReport || !isActuallyShared) return false;
+
+  //   // 2. 서버 문서의 최종 수정/공유 시간
+  //   const serverUpdateTime = new Date(sharedReport.updatedAt).getTime();
+  //   console.log(serverUpdateTime)
+  //   // 3. 내 현재 화면 데이터의 시간
+  //   const myLocalTime = reportData?.updatedAt
+  //     ? new Date(reportData.updatedAt).getTime()
+  //     : 0;
+
+  //   // 4. 내가 서버에 마지막으로 저장한 시간
+  //   const myRemoteSaveTime = myLastSavedAt || 0;
+  //   console.log('myRemoteSaveTime', myRemoteSaveTime)
+  //   // [결론]
+  //   // 관리자가 '공유' 상태로 둔 문서의 시간이
+  //   // 내 로컬 시간과 서버 저장 시간보다 모두 뒤(최신)일 때만 알림 발생
+  //   const isNewerThanLocal = serverUpdateTime > myLocalTime;
+  //   const isNewerThanRemote = serverUpdateTime > myRemoteSaveTime;
+
+  //   return isNewerThanLocal && isNewerThanRemote;
+  // }, [sharedReportId, reportData, diagnosticHistory, userAdmin, myLastSavedAt]);
+  const hasNewSharedReport = useMemo(() => {
+    if (userAdmin || !sharedReportId || !diagnosticHistory) return false;
+
+    const sharedReport = diagnosticHistory.find(
+      (r: any) => String(r.id) === String(sharedReportId),
+    );
+
+    if (!sharedReport) return false;
+
+    // 1. [기본 조건] 보고서 자체가 공유 상태여야 함 (최초 판별)
+    const isShared = sharedReport.isShared || sharedReport.is_shared;
+    if (!isShared) return false;
+
+    // 2. [알림 조건] 관리자가 finalize를 눌러서 알림을 껐다면(false) 버튼 안 보여줌
+    const isReShared = sharedReport.isReShared ?? sharedReport.is_reshared;
+    if (isReShared === false || isReShared === "false") return false;
+
+    // 3. [시간 조건] 서버 수정 시간이 내 로컬/서버 저장 시간보다 최신인지 확인
+    const serverUpdateTime = new Date(sharedReport.updatedAt).getTime();
+    const myLocalTime = reportData?.updatedAt
+      ? new Date(reportData.updatedAt).getTime()
+      : 0;
+    const myRemoteSaveTime = myLastSavedAt || 0;
+
+    const isNewerThanLocal = serverUpdateTime > myLocalTime;
+    const isNewerThanRemote = serverUpdateTime > myRemoteSaveTime;
+
+    return isNewerThanLocal && isNewerThanRemote;
+  }, [
+    sharedReportId,
+    reportData?.updatedAt,
+    diagnosticHistory,
+    userAdmin,
+    myLastSavedAt,
+  ]);
+
+  // 3. 공유된 내용 보기 핸들러 (수동 로드)
+  const handleLoadSharedReport = async () => {
+    // 1. 최신 공유 내용을 가져오기 위해 서버 데이터를 새로고침합니다.
+    const { data: latestHistory } = await refetchHistory();
+
+    // 2. 현재 공유 상태인 보고서를 찾습니다.
+    const sharedReport = latestHistory?.find(
+      (r: any) => String(r.id) === String(sharedReportId),
+    );
+
+    if (sharedReport) {
+      const weekRange = getWeekRange();
+
+      // 3. [핵심] 병합 로직 없이 서버의 content를 그대로 가져옵니다.
+      // 이렇게 하면 관리자가 수정한 "1. 테스트" 내용이 그대로 반영됩니다.
+      const serverContent = JSON.parse(JSON.stringify(sharedReport.content));
+
+      const updatedData = {
+        ...serverContent,
+        id: sharedReport.id,
+        updatedAt: sharedReport.updatedAt, // 이 값이 들어가야 'NEW' 알림이 사라집니다.
+        period: {
+          actual: weekRange.actual,
+          plan: weekRange.plan,
+        },
+      };
+
+      // 4. 상태 업데이트 및 로컬 스토리지 동기화
+      setReportData(updatedData);
+      localStorage.setItem(storageKey, JSON.stringify(updatedData));
+
+      toast({
+        title: "공유 데이터 동기화 완료",
+        description: "관리자가 공유한 최신 내용으로 업데이트되었습니다.",
+      });
+    } else {
+      toast({
+        title: "데이터를 불러올 수 없습니다.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const [projectPage, setProjectPage] = useState(1);
+
+  const itemsPerPage = 5;
+
+  const projectTotalPages = Math.ceil(
+    (diagnosticHistory?.length || 0) / itemsPerPage,
   );
 
-  // 🚩 [핵심 수정] 재공유 판단 기준
-  // sharedReportId가 바뀌었는지를 직접 체크합니다.
-  const isNewReport = sharedReport && reportData?.id !== sharedReport.id;
+  const currentData = diagnosticHistory?.slice(
+    (projectPage - 1) * itemsPerPage,
+    projectPage * itemsPerPage,
+  );
 
-  // 이미 초기화 됐더라도 "새로운 ID"가 들어오면 이 if문을 통과해서 아래 로직을 수행합니다.
-  if (isInitialized && !isNewReport) return;
+  const handleTextChange = (
+    idx: number,
+    field: "actual" | "plan",
+    value: string,
+  ) => {
+    setReportData((prev) => {
+      if (!prev || !prev.projects) return prev; // 안전장치
 
-  // 2. 관리자/공유 없음 처리
-  if (userAdmin || !sharedReport) {
-    if (!sharedReport && reportData) setReportData(null);
-    setIsInitialized(true);
-    return;
-  }
+      const newProjects = [...prev.projects];
+      newProjects[idx] = {
+        ...newProjects[idx],
+        [field]: value,
+      };
 
-  const weekRange = getWeekRange();
-  
-  // 🚩 [핵심 수정] 재공유(isNewReport)일 때는 과거의 흔적들을 무시하고 null로 시작
-  const savedTemp = isNewReport ? null : localStorage.getItem(storageKey);
-  const myLastDraft = isNewReport ? null : (myDrafts && myDrafts.length > 0 ? myDrafts : null);
-
-  let finalContent: WeeklyReportData;
-
-  // 3. 데이터 로드 로직 (1번 코드의 로직을 그대로 유지하되 안전장치 추가)
-  if (savedTemp) {
-    finalContent = JSON.parse(savedTemp);
-  } else if (!userAdmin && myLastDraft) {
-    let merged = JSON.parse(JSON.stringify(sharedReport.content));
-    merged.projects = merged.projects.map((origProj: any) => {
-      const myUpdate = myLastDraft.find((d: any) => d.projectName === origProj.name);
-      return myUpdate ? { ...origProj, actual: myUpdate.actual, plan: myUpdate.plan } : origProj;
+      return { ...prev, projects: newProjects };
     });
-    finalContent = merged;
-  } else {
-    // 최초 로드 및 재공유 시 이곳으로 들어옵니다.
-    finalContent = JSON.parse(JSON.stringify(sharedReport.content));
-  }
+  };
 
-  // 🚩 [중요] ID를 세팅하되, finalContent가 유효할 때만 실행
-  if (finalContent) {
-    finalContent.id = sharedReport.id; // 다음 비교를 위해 id 저장
-    finalContent.period = {
-      actual: weekRange.actual,
-      plan: weekRange.plan,
-    };
-    
-    setReportData(finalContent);
-    setIsInitialized(true);
-  }
-
-}, [diagnosticHistory, myDrafts, userAdmin, isInitialized, storageKey, sharedReportId]);
-  ////
+  const updateProjectData = (idx: number, field: string, value: string) => {
+    setReportData((prev) => {
+      if (!prev) return prev;
+      const newProjects = [...prev.projects];
+      newProjects[idx] = { ...newProjects[idx], [field]: value };
+      return { ...prev, projects: newProjects };
+    });
+  };
 
   // reportData 변경 시 로컬 스토리지 자동 저장
   useEffect(() => {
@@ -879,46 +1187,6 @@ useEffect(() => {
     };
   };
 
-  const [projectPage, setProjectPage] = useState(1);
-
-  const itemsPerPage = 5;
-
-  const projectTotalPages = Math.ceil(
-    (diagnosticHistory?.length || 0) / itemsPerPage,
-  );
-
-  const currentData = diagnosticHistory?.slice(
-    (projectPage - 1) * itemsPerPage,
-    projectPage * itemsPerPage,
-  );
-
-  const handleTextChange = (
-    idx: number,
-    field: "actual" | "plan",
-    value: string,
-  ) => {
-    setReportData((prev) => {
-      if (!prev || !prev.projects) return prev; // 안전장치
-
-      const newProjects = [...prev.projects];
-      newProjects[idx] = {
-        ...newProjects[idx],
-        [field]: value,
-      };
-
-      return { ...prev, projects: newProjects };
-    });
-  };
-
-  const updateProjectData = (idx: number, field: string, value: string) => {
-    setReportData((prev) => {
-      if (!prev) return prev;
-      const newProjects = [...prev.projects];
-      newProjects[idx] = { ...newProjects[idx], [field]: value };
-      return { ...prev, projects: newProjects };
-    });
-  };
-
   const handleKeyDown = (
     e: React.KeyboardEvent<HTMLTextAreaElement>,
     idx: number,
@@ -929,39 +1197,6 @@ useEffect(() => {
     const fullText = target.value;
     const isShift = e.shiftKey;
 
-    // --- 1. Tab 키 처리 (들여쓰기 조절 및 기호 자동 변환) ---
-    // if (e.key === "Tab") {
-    //   e.preventDefault();
-    //   const lines = fullText.split("\n");
-
-    //   // 현재 커서 위치의 줄 인덱스 찾기
-    //   let accumulated = 0;
-    //   const lineIndex = lines.findIndex((line) => {
-    //     const start = accumulated;
-    //     accumulated += line.length + 1;
-    //     return cursorPos >= start && cursorPos <= start + line.length;
-    //   });
-
-    //   if (lineIndex !== -1) {
-    //     const line = lines[lineIndex];
-    //     const isShift = e.shiftKey;
-
-    //     // 들여쓰기 변경 (2칸 기준)
-    //     const newLine = isShift ? line.replace(/^  /, "") : "  " + line;
-    //     lines[lineIndex] = newLine;
-
-    //     // 전체 재정렬 (reorderText 내부의 규칙에 따라 기호 타입도 함께 변경됨)
-    //     const reorderedText = reorderText(lines.join("\n"));
-    //     updateProjectData(idx, field, reorderedText);
-
-    //     // 커서 위치 보정 (들여쓰기 변화량만큼)
-    //     const diff = newLine.length - line.length;
-    //     setTimeout(() => {
-    //       target.setSelectionRange(cursorPos + diff, cursorPos + diff);
-    //     }, 0);
-    //   }
-    //   return;
-    // }
     if (e.key === "Tab") {
       e.preventDefault();
       const originalText = target.value;
@@ -1163,6 +1398,14 @@ useEffect(() => {
       .join("\n");
   };
 
+  // 모든 Mutation의 로딩 상태를 하나로 결합
+  const isAnyPending =
+    saveMutation.isPending ||
+    finalizeMutation.isPending ||
+    shareMutation.isPending || // 🚩 .mutate가 아니라 .isPending이어야 합니다.
+    mergeAllMutation.isPending ||
+    deleteMutation.isPending; // 🚩 이제 정의된 것을 확인했으니 바로 사용합니다.
+
   if (
     isFetchLoading ||
     usersLoading ||
@@ -1201,6 +1444,7 @@ useEffect(() => {
                     <Button
                       variant="outline"
                       className="bg-red-500 border-red-500 hover:bg-red-700"
+                      disabled={isAnyPending}
                       onClick={() => {
                         const currentId = diagnosticHistory?.find(
                           (h: any) => h.id === reportData.id,
@@ -1213,6 +1457,7 @@ useEffect(() => {
                     <Button
                       variant="default"
                       className="bg-purple-600 hover:bg-purple-700"
+                      disabled={isAnyPending}
                       onClick={() => {
                         // 현재 선택된 보고서의 ID를 찾아 공유 (history에서 현재 reportData와 매칭되는 ID 사용)
                         const currentId = diagnosticHistory?.find(
@@ -1225,8 +1470,30 @@ useEffect(() => {
                     </Button>
                   </>
                 )}
+
+                {/* <>2026-0203</> */}
+                {!userAdmin && isReSharedActive && (
+                  <Button
+                    variant={hasNewSharedReport ? "default" : "outline"}
+                    className={
+                      hasNewSharedReport ? "bg-orange-500 animate-pulse" : ""
+                    }
+                    onClick={handleLoadSharedReport}
+                  >
+                    <FileSearch className="mr-2 h-4 w-4" />
+                    공유된 내용 보기
+                    {hasNewSharedReport && (
+                      <span className="ml-2 bg-white text-orange-500 text-[10px] px-1.5 rounded-full">
+                        NEW
+                      </span>
+                    )}
+                  </Button>
+                )}
+                {/* <></> */}
+
                 <Button
                   className="bg-green-600 hover:bg-green-700"
+                  disabled={isAnyPending}
                   onClick={handleSave} // 정의한 함수를 연결
                 >
                   {saveMutation.isPending || finalizeMutation.isPending ? (
@@ -1234,13 +1501,23 @@ useEffect(() => {
                   ) : (
                     <Save className="mr-2 h-4 w-4" />
                   )}
-                  {userAdmin ? "최종 확정 및 저장" : "보고서 제출하기"}
+                  {userAdmin ? "보고서 저장" : "보고서 제출하기"}
                 </Button>
                 {userAdmin && (
                   <>
                     <Button
-                      onClick={() => mergeAllMutation.mutate()}
-                      disabled={mergeAllMutation.isPending}
+                      // onClick={() => mergeAllMutation.mutate()}
+                      onClick={() => {
+                        if (
+                          confirm(
+                            "현재 내용을 초기화 하고, 팀원들의 최신 작성 내용을 다시 불러오시겠습니까?",
+                          )
+                        ) {
+                          mergeAllMutation.mutate();
+                        }
+                      }}
+                      disabled={isAnyPending}
+                      // disabled={mergeAllMutation.isPending}
                       // variant="outline"
                       className="bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-500 hover:text-white"
                     >
@@ -1251,11 +1528,13 @@ useEffect(() => {
                     {/* 워드 다운로드 버튼 추가 */}
                     <Button
                       className="bg-blue-600 hover:bg-blue-700"
+                      disabled={isAnyPending}
                       onClick={handleDownloadWord}
                     >
                       <Download className="mr-2 h-4 w-4" /> 워드로 내보내기
                     </Button>
                     <Button
+                      disabled={isAnyPending}
                       variant="outline"
                       onClick={() => setReportData(null)}
                     >
@@ -1282,7 +1561,27 @@ useEffect(() => {
               </CardHeader>
 
               <CardContent className="p-0">
-                <table className="w-full border-collapse">
+                <table className="w-full border-collapse relative">
+                  {!userAdmin && isReSharedActive && hasNewSharedReport && (
+                    <div
+                      className="absolute inset-0 z-10 bg-white/10 backdrop-blur-[1px] cursor-not-allowed flex items-center justify-center"
+                      onClick={() => {
+                        alert(
+                          "현재 팀원들에게 공유된 보고서가 활성화 상태입니다.\n상단의 '공유된 내용 보기' 버튼을 눌러 내용을 먼저 반영한 뒤 수정해 주세요.",
+                        );
+                      }}
+                    >
+                      <div className="bg-white/90 p-4 rounded-lg shadow-xl border border-orange-200 text-center animate-in fade-in zoom-in duration-200">
+                        <p className="text-orange-600 font-bold flex items-center justify-center gap-2">
+                          <span className="text-xl">⚠️</span> 공유 내용 반영
+                          필요
+                        </p>
+                        <p className="text-sm text-slate-600 mt-1">
+                          상단 버튼을 통해 내용을 먼저 동기화하세요.
+                        </p>
+                      </div>
+                    </div>
+                  )}
                   <thead>
                     <tr className="border-b border-slate-300">
                       <th
@@ -1819,14 +2118,51 @@ useEffect(() => {
             </div>
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center h-[60vh]">
+          // <div className="flex flex-col items-center justify-center h-[60vh]">
+          //   <FileText className="w-16 h-16 text-muted-foreground mb-4 opacity-20" />
+          //   <p className="text-muted-foreground">
+          //     관리자가 공유한 보고서가 아직 없습니다.
+          //   </p>
+          //   <p className="text-sm text-muted-foreground/60">
+          //     공유되면 자동으로 화면이 전환됩니다.
+          //   </p>
+          // </div>
+          <div className="flex flex-col items-center justify-center h-[60vh] text-center">
             <FileText className="w-16 h-16 text-muted-foreground mb-4 opacity-20" />
-            <p className="text-muted-foreground">
-              관리자가 공유한 보고서가 아직 없습니다.
-            </p>
-            <p className="text-sm text-muted-foreground/60">
-              공유되면 자동으로 화면이 전환됩니다.
-            </p>
+
+            {!sharedReportId ? (
+              // Case A: 서버에 공유된 보고서 자체가 없을 때
+              <>
+                <p className="text-muted-foreground font-medium">
+                  현재 활성화된 주간 보고서가 없습니다.
+                </p>
+                <p className="text-sm text-muted-foreground/60 mt-1">
+                  관리자가 보고서를 공유할 때까지 기다려주세요.
+                </p>
+              </>
+            ) : (
+              // Case B: 서버엔 공유된 게 있는데, 내가 아직 '내용 보기'를 안 눌렀을 때
+              <>
+                <p className="text-muted-foreground font-medium">
+                  새로운 주간 보고서가 공유되었습니다!
+                </p>
+                <p className="text-sm text-muted-foreground/60 mt-1">
+                  상단의{" "}
+                  <span className="font-bold text-orange-500">
+                    "공유된 내용 보기"
+                  </span>{" "}
+                  버튼을 눌러 작성을 시작하세요.
+                </p>
+                {/* 선택사항: 여기에도 버튼을 하나 더 두면 동선이 편합니다 */}
+                <Button
+                  variant="outline"
+                  className="mt-4 border-orange-200 text-orange-600 hover:bg-orange-500"
+                  onClick={handleLoadSharedReport}
+                >
+                  보고서 불러오기
+                </Button>
+              </>
+            )}
           </div>
         )}
       </main>
