@@ -88,7 +88,8 @@ export default function Reporting() {
   const userAdmin =
     currentUser?.email === "admin@qubicom.co.kr" ||
     currentUser?.email === "hslee@qubicom.co.kr" ||
-    currentUser?.email === "cheolhoo.kim@qubicom.co.kr";
+    currentUser?.email === "cheolhoo.kim@qubicom.co.kr" ||
+    currentUser?.email === "hdkim@qubicom.co.kr";
 
   // 2. 보고서 목록 가져오기 (공유 상태 포함)
   const {

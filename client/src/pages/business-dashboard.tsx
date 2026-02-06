@@ -21,7 +21,8 @@ const BUSINESS_SOURCES = [
     category: "공공/통합",
     name: "공공/통합",
     type: "API",
-    description: "나라장터(G2B), 기업마당(Bizinfo) 등 국가 통합 API 데이터 수집",
+    description:
+      "나라장터(G2B), 기업마당(Bizinfo) 등 국가 통합 API 데이터 수집",
   },
   {
     id: 2,
@@ -46,12 +47,14 @@ const BUSINESS_SOURCES = [
   },
 ];
 
-export default function BusinessDashboard({ onCardClick }: BusinessDashboardProps) {
+export default function BusinessDashboard({
+  onCardClick,
+}: BusinessDashboardProps) {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [currentSubTab, setCurrentSubTab] = useState("bids");
   const [selectedItem, setSelectedItem] = useState<any>(null);
-  const [currentTab, setCurrentTab] = useState('공공/통합');
+  const [currentTab, setCurrentTab] = useState("공공/통합");
 
   const fetchPublicData = async (type: string) => {
     setLoading(true);
@@ -74,65 +77,15 @@ export default function BusinessDashboard({ onCardClick }: BusinessDashboardProp
     // [배경] 흰색을 완전히 버리고 사이드바와 동일한 딥 네이비 적용
     <div className="flex flex-col min-h-screen bg-[#0B1224] font-sans text-slate-200">
       <main className="flex flex-1 overflow-hidden">
-        
         {/* [A] 왼쪽: 콘텐츠 영역 */}
         <div
           className={`transition-all duration-500 ease-in-out p-10 overflow-y-auto ${
-            selectedItem ? "w-full lg:w-[60%] border-r border-white/5" : "w-full"
+            selectedItem
+              ? "w-full lg:w-[60%] border-r border-white/5 pr-6"
+              : "w-full"
           }`}
         >
-          <div className="max-w-6xl mx-auto space-y-12 pb-20">
-            {/* 상단 섹션 헤더 */}
-            <section className="space-y-4">
-              <div className="flex items-end justify-between border-b border-white/10 pb-6">
-                <div>
-                  <h2 className="text-[32px] font-black text-white tracking-tight">수집 소스별 현황</h2>
-                  <p className="text-slate-500 text-sm mt-2 flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-[#3B82F6] animate-pulse" />
-                    실시간 데이터 파이프라인 연결 상태
-                  </p>
-                </div>
-              </div>
-
-              {/* 소스 카드 그리드: 배경색을 다크하게 변경 */}
-              <div className={`grid gap-6 transition-all duration-500 ${
-                  selectedItem ? "grid-cols-1 lg:grid-cols-2" : "grid-cols-1 md:grid-cols-2 lg:grid-cols-4"
-                }`}
-              >
-                {BUSINESS_SOURCES.map((item) => (
-                  <div
-                    key={item.id}
-                    onClick={() => {
-                      setCurrentTab(item.name);
-                      onCardClick(item.name);
-                    }}
-                    className="group bg-[#1E293B]/40 border border-white/5 rounded-[24px] p-8 cursor-pointer hover:bg-[#1E293B]/80 hover:border-[#3B82F6]/50 transition-all relative overflow-hidden"
-                  >
-                    <div className="flex justify-between items-center mb-6">
-                      <div className="flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-[#3B82F6]" />
-                        <span className="text-[11px] font-black text-slate-500 uppercase tracking-[0.15em]">
-                          {item.category}
-                        </span>
-                      </div>
-                      <span className="text-[10px] font-black px-2 py-1 rounded bg-black/40 text-slate-400 border border-white/5 uppercase">
-                        {item.type}
-                      </span>
-                    </div>
-                    <h3 className="text-xl font-bold text-white mb-2 group-hover:text-[#3B82F6] transition-colors">
-                      {item.name}
-                    </h3>
-                    <p className="text-sm text-slate-400 leading-relaxed mb-10 h-10 line-clamp-2">
-                      {item.description}
-                    </p>
-                    <div className="flex items-center gap-1.5 text-[11px] font-black text-slate-300 uppercase tracking-widest group-hover:gap-4 transition-all">
-                      Check Source <ArrowRight size={14} className="text-[#3B82F6]" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-
+          <div className="mx-auto space-y-12">
             {/* 통합 리스트 섹션: 배경을 #1E293B 다크 톤으로 변경 */}
             <section className="bg-[#1E293B]/30 border border-white/5 rounded-[32px] overflow-hidden shadow-2xl">
               <div className="p-8 border-b border-white/5 bg-[#1E293B]/50 flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -140,9 +93,11 @@ export default function BusinessDashboard({ onCardClick }: BusinessDashboardProp
                   <div className="p-3 bg-[#0B1224] rounded-2xl text-white shadow-inner border border-white/5">
                     <Database size={24} />
                   </div>
-                  <h2 className="text-xl font-black text-white">실시간 통합 공고</h2>
+                  <h2 className="text-xl font-black text-white">
+                    실시간 통합 공고
+                  </h2>
                 </div>
-                
+
                 {/* 탭 버튼: 다크 테마에 맞는 색상 조합 */}
                 <div className="flex bg-[#0B1224] p-1.5 rounded-2xl border border-white/5">
                   {["bids", "winners", "contracts"].map((id) => (
@@ -150,12 +105,16 @@ export default function BusinessDashboard({ onCardClick }: BusinessDashboardProp
                       key={id}
                       onClick={() => setCurrentSubTab(id)}
                       className={`px-6 py-2.5 rounded-xl text-xs font-black transition-all ${
-                        currentSubTab === id 
-                        ? "bg-[#3B82F6] text-white shadow-lg shadow-[#3B82F6]/20" 
-                        : "text-slate-500 hover:text-slate-200"
+                        currentSubTab === id
+                          ? "bg-[#3B82F6] text-white shadow-lg shadow-[#3B82F6]/20"
+                          : "text-slate-500 hover:text-slate-200"
                       }`}
                     >
-                      {id === "bids" ? "입찰" : id === "winners" ? "낙찰" : "계약"}
+                      {id === "bids"
+                        ? "입찰"
+                        : id === "winners"
+                          ? "낙찰"
+                          : "계약"}
                     </button>
                   ))}
                 </div>
@@ -168,17 +127,27 @@ export default function BusinessDashboard({ onCardClick }: BusinessDashboardProp
                     key={item.id}
                     onClick={() => setSelectedItem(item)}
                     className={`group flex items-center justify-between p-7 transition-all cursor-pointer ${
-                      selectedItem?.id === item.id ? "bg-[#3B82F6]/10" : "hover:bg-white/[0.02]"
+                      selectedItem?.id === item.id
+                        ? "bg-[#3B82F6]/10"
+                        : "hover:bg-white/[0.02]"
                     }`}
                   >
                     <div className="flex items-center gap-6 truncate">
-                      <span className={`w-2 h-2 rounded-full shrink-0 ${
-                        item.type === "입찰" ? "bg-[#3B82F6] shadow-[0_0_8px_#3B82F6]" : "bg-emerald-500"
-                      }`} />
+                      <span
+                        className={`w-2 h-2 rounded-full shrink-0 ${
+                          item.type === "입찰"
+                            ? "bg-[#3B82F6] shadow-[0_0_8px_#3B82F6]"
+                            : "bg-emerald-500"
+                        }`}
+                      />
                       <div className="truncate">
-                        <h4 className={`text-base font-bold truncate transition-colors ${
-                          selectedItem?.id === item.id ? "text-white" : "text-slate-300 group-hover:text-white"
-                        }`}>
+                        <h4
+                          className={`text-base font-bold truncate transition-colors ${
+                            selectedItem?.id === item.id
+                              ? "text-white"
+                              : "text-slate-300 group-hover:text-white"
+                          }`}
+                        >
                           {item.title}
                         </h4>
                         <p className="text-[12px] text-slate-500 mt-1.5 font-bold font-mono uppercase tracking-tight">
@@ -189,7 +158,9 @@ export default function BusinessDashboard({ onCardClick }: BusinessDashboardProp
                     <ChevronRight
                       size={20}
                       className={`transition-all ${
-                        selectedItem?.id === item.id ? "translate-x-1 text-[#3B82F6]" : "text-slate-700 group-hover:text-slate-400"
+                        selectedItem?.id === item.id
+                          ? "translate-x-1 text-[#3B82F6]"
+                          : "text-slate-700 group-hover:text-slate-400"
                       }`}
                     />
                   </div>
@@ -201,90 +172,105 @@ export default function BusinessDashboard({ onCardClick }: BusinessDashboardProp
 
         {/* [B] 오른쪽: 상세 패널 영역 (사이드바와 일치하는 완전한 #0B1224) */}
         {selectedItem && (
-          <aside className="sticky top-0 h-screen w-full lg:w-[40%] bg-[#0B1224] border-l border-white/10 flex flex-col animate-in slide-in-from-right duration-500 shadow-[-40px_0_80px_rgba(0,0,0,0.6)]">
-            {/* 상세 패널 헤더 */}
-            <div className="p-8 border-b border-white/5 flex items-center justify-between shrink-0">
-              <div className="flex items-center gap-3">
-                <span className="px-3 py-1.5 bg-[#3B82F6] text-[11px] font-black text-white rounded-lg uppercase tracking-[0.2em] shadow-lg shadow-[#3B82F6]/20">
-                  Data Insight
-                </span>
-                <span className="text-[11px] text-slate-500 font-mono font-bold">
-                  REF-{selectedItem.id}
-                </span>
-              </div>
-              <button
-                onClick={() => setSelectedItem(null)}
-                className="p-2.5 hover:bg-white/5 rounded-full transition-all text-slate-500 hover:text-white"
-              >
-                <X size={24} />
-              </button>
-            </div>
-
-            {/* 상세 패널 내용 */}
-            <div className="flex-1 overflow-y-auto p-12 space-y-12 custom-scrollbar">
-              <div className="space-y-6">
-                <h3 className="text-[30px] font-black text-white leading-[1.2] tracking-tighter">
-                  {selectedItem.title}
-                </h3>
-                <div className="flex flex-wrap gap-2">
-                  <div className="flex items-center gap-2 px-4 py-2 bg-[#1E293B]/50 border border-white/5 rounded-xl text-slate-400 text-xs font-bold shadow-inner">
-                    <Building2 size={16} className="text-[#3B82F6]" /> {selectedItem.org}
+          <aside className="sticky top-0 w-full lg:w-[40%] bg-[#0B1224] pt-10 pb-10 p-6 flex flex-col animate-in slide-in-from-right duration-500 shadow-2xl">
+            {/* 메인 컨테이너: pb-10에 맞춰 내부 여백 및 라운드 유지 */}
+            <div className="flex-1 bg-[#1E293B]/30 border border-white/5 rounded-[32px] flex flex-col overflow-hidden shadow-[-20px_0_40px_rgba(0,0,0,0.3)]">
+              {/* 카드 상단 헤더: [A]의 헤더와 동일한 높이감 유지 */}
+              <div className="p-8 border-b border-white/5 bg-[#1E293B]/50 flex items-center justify-between shrink-0 min-h-[115px]">
+                <div className="flex items-center gap-3">
+                  <div className="px-3 py-1 bg-[#3B82F6] text-[10px] font-black text-white rounded-lg uppercase tracking-widest shadow-lg shadow-[#3B82F6]/20">
+                    DATA INSIGHT
                   </div>
-                </div>
-              </div>
-
-              {/* 핵심 요약 카드: 내부를 다크 네이비 테마로 통일 */}
-              <div className="p-10 bg-[#1E293B]/40 rounded-[40px] text-white border border-white/5 shadow-2xl space-y-8 relative overflow-hidden group">
-                <div className="absolute top-0 right-0 w-40 h-40 bg-[#3B82F6]/10 blur-[80px] -mr-20 -mt-20 group-hover:bg-[#3B82F6]/20 transition-all duration-700" />
-                
-                <div className="flex items-center gap-3 text-slate-500">
-                  <Info size={18} />
-                  <span className="text-[11px] font-black uppercase tracking-[0.25em]">
-                    AI Analysis Report
+                  <span className="text-[11px] text-slate-500 font-mono font-bold tracking-tight">
+                    REF-{selectedItem.id}
                   </span>
                 </div>
-                <div className="space-y-8 relative z-10">
-                  <div className="flex justify-between items-baseline border-b border-white/5 pb-6">
-                    <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">추정 사업비</span>
-                    <span className="text-3xl font-black text-white">
-                      {Number(selectedItem.amount).toLocaleString()}원
+                <button
+                  onClick={() => setSelectedItem(null)}
+                  className="p-2.5 hover:bg-white/5 rounded-full transition-all text-slate-500 hover:text-white"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* 카드 내부 컨텐츠 영역: 스크롤 영역 간격 최적화 */}
+              <div className="flex-1 overflow-y-auto p-8 space-y-10 custom-scrollbar">
+                {/* 제목 및 소속 정보: 텍스트 크기를 약간 키워 가독성 확보 */}
+                <div className="space-y-4 px-2">
+                  <h3 className="text-[28px] font-black text-white leading-[1.2] tracking-tighter">
+                    {selectedItem.title}
+                  </h3>
+                  <div className="flex items-center gap-2 text-slate-400 text-sm font-bold">
+                    <Building2 size={18} className="text-[#3B82F6]" />
+                    {selectedItem.org}
+                  </div>
+                </div>
+
+                {/* 내부 요약 카드: [A]의 요약 섹션과 시각적 무게감 통일 */}
+                <div className="p-9 bg-[#0B1224]/50 border border-white/5 rounded-[28px] space-y-7 relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-[#3B82F6]/5 blur-[60px] -mr-16 -mt-16" />
+
+                  <div className="flex items-center gap-2 text-slate-500">
+                    <Info size={16} />
+                    <span className="text-[10px] font-black uppercase tracking-[0.2em]">
+                      Quick Summary
                     </span>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">현재 진행상태</span>
-                    <span className="px-5 py-2 bg-[#3B82F6] rounded-xl text-xs font-black text-white uppercase tracking-wider shadow-lg shadow-[#3B82F6]/30">
-                      {selectedItem.status}
-                    </span>
+
+                  <div className="space-y-6 relative z-10">
+                    <div className="flex justify-between items-baseline border-b border-white/5 pb-5">
+                      <span className="text-xs font-bold text-slate-500 uppercase tracking-tighter">
+                        추정 사업비
+                      </span>
+                      <span className="text-3xl font-black text-white">
+                        {selectedItem.amount
+                          ? `${Number(selectedItem.amount).toLocaleString()}원`
+                          : "금액 미정"}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs font-bold text-slate-500 uppercase tracking-tighter">
+                        현재 진행상태
+                      </span>
+                      <span className="px-5 py-2 bg-[#3B82F6] rounded-xl text-[11px] font-black text-white uppercase shadow-lg shadow-[#3B82F6]/20">
+                        {selectedItem.status || "일반공고"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 분석 리포트 섹션: 텍스트 줄간격과 패딩 조정 */}
+                <div className="space-y-5">
+                  <div className="flex items-center gap-2 px-2">
+                    <div className="w-1.5 h-4 bg-[#3B82F6] rounded-full shadow-[0_0_8px_#3B82F6]" />
+                    <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                      Condition Analysis
+                    </h4>
+                  </div>
+                  <div className="p-8 bg-[#1E293B]/20 border border-white/5 rounded-[28px]">
+                    <p className="text-[16px] text-slate-300 leading-relaxed font-bold">
+                      본 입찰은{" "}
+                      <span className="text-[#3B82F6] border-b-2 border-[#3B82F6]/30 pb-0.5">
+                        정보통신공사업 면허
+                      </span>{" "}
+                      보유가 필수적이며, 최근 3년 내 단일 건 2억 원 이상의 준공
+                      실적이 요구됩니다.
+                    </p>
                   </div>
                 </div>
               </div>
 
-              {/* 분석 리포트 영역 */}
-              <div className="space-y-6">
-                <div className="flex items-center gap-3">
-                   <div className="w-1.5 h-4 bg-[#3B82F6] rounded-full shadow-[0_0_8px_#3B82F6]" />
-                   <h4 className="text-[12px] font-black text-slate-500 uppercase tracking-[0.2em]">
-                     Condition Analysis
-                   </h4>
-                </div>
-                <div className="p-8 border border-white/5 rounded-[28px] bg-[#0F172A] shadow-inner">
-                  <p className="text-[15px] text-slate-300 leading-relaxed font-bold">
-                    본 입찰은 <span className="text-[#3B82F6] underline underline-offset-8 decoration-2 decoration-[#3B82F6]/30">정보통신공사업 면허</span> 보유가 필수적이며, 최근 3년 내 단일 건 2억 원 이상의 준공 실적이 요구됩니다.
-                  </p>
-                </div>
-              </div>
-
-              {/* 하단 버튼 그룹 */}
-              <div className="flex gap-4 pt-10 sticky bottom-0 bg-[#0B1224] pb-2">
+              {/* 하단 액션 버튼 그룹: pb-10에 맞춰 하단 여백 확보 및 버튼 높이 조정 */}
+              <div className="p-8 pt-6 border-t border-white/5 bg-[#1E293B]/20 flex gap-4">
                 <a
                   href={selectedItem.url}
                   target="_blank"
-                  className="flex-[2] flex items-center justify-center gap-3 py-5 bg-[#1E293B] border border-white/5 text-white rounded-[24px] text-[14px] font-black hover:bg-[#3B82F6] transition-all active:scale-[0.98] shadow-xl"
+                  className="flex-[2.5] flex items-center justify-center gap-3 py-5 bg-[#1E293B] hover:bg-[#3B82F6] border border-white/10 text-white rounded-[22px] text-[14px] font-black transition-all shadow-xl active:scale-[0.98]"
                 >
                   공고 원문 <ExternalLink size={18} />
                 </a>
-                <button className="flex-1 flex items-center justify-center bg-transparent border-2 border-white/5 text-slate-500 rounded-[24px] hover:text-[#3B82F6] hover:border-[#3B82F6] transition-all">
-                  <Tag size={24} />
+                <button className="flex-1 flex items-center justify-center bg-transparent border-2 border-white/5 text-slate-500 rounded-[22px] hover:text-white hover:border-white/20 transition-all">
+                  <Tag size={22} />
                 </button>
               </div>
             </div>
