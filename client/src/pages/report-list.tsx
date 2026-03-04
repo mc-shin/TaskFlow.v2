@@ -59,7 +59,7 @@ interface WeeklyReportData {
   }[];
 }
 
-export default function Reporting() {
+export default function ReportList() {
   const { id: workspaceId } = useParams();
   const { toast } = useToast();
 

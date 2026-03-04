@@ -428,7 +428,7 @@ export function Sidebar({ workspaceId }: SidebarProps) {
         </div>
 
         {/* 사업 섹션 */}
-        {/* <div className="pt-2">
+        <div className="pt-2">
           <Button
             variant="ghost"
             className="w-full justify-between p-2 h-auto text-left"
@@ -466,7 +466,7 @@ export function Sidebar({ workspaceId }: SidebarProps) {
               </Link>
             </div>
           )}
-        </div> */}
+        </div>
       </nav>
 
       {/* User Profile */}
