@@ -16,6 +16,7 @@ import {
   Files,
   BriefcaseBusiness,
   Handshake,
+  FileStack,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
@@ -36,6 +37,7 @@ export function Sidebar({ workspaceId }: SidebarProps) {
     "meeting",
     "reporting",
     "business",
+    "report-list",
   ]);
   const [location, setLocation] = useLocation();
   const [currentUser, setCurrentUser] = useState<SafeUser | null>(null);
@@ -421,6 +423,27 @@ export function Sidebar({ workspaceId }: SidebarProps) {
                 >
                   <Files className="h-4 w-4" />
                   <span>주간 보고</span>
+                </Button>
+              </Link>
+            </div>
+          )}
+
+          {isExpanded("report-list") && (
+            <div className="ml-6 mt-1 space-y-1">
+              <Link href={`${basePath}/report-list`}>
+                <Button
+                  variant={
+                    location === `${basePath}/report-list` ? "default" : "ghost"
+                  }
+                  className={`w-full justify-start space-x-3 h-8 ${
+                    location === `${basePath}/report-list`
+                      ? "bg-primary text-white hover:bg-primary"
+                      : "text-muted-foreground hover:text-accent-foreground"
+                  }`}
+                  data-testid="link-report-list"
+                >
+                  <FileStack className="h-4 w-4" />
+                  <span>보고서 리스트</span>
                 </Button>
               </Link>
             </div>

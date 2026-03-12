@@ -1221,7 +1221,7 @@ export default function Reporting() {
     <>
       <header className="h-16 bg-card border-b border-border flex items-center justify-between px-6">
         <div>
-          <h1 className="text-xl font-semibold">주간 보고서 관리</h1>
+          <h1 className="text-xl font-semibold">주간 보고서 작성</h1>
           <p className="text-sm text-muted-foreground">
             기존 워드 보고서를 불러와 웹에서 수정하고 관리하세요
           </p>
@@ -1830,7 +1830,7 @@ export default function Reporting() {
             {/* 오른쪽: 과거 진단 내역 사이드바 */}
             <div className="space-y-4">
               <h3 className="font-semibold text-lg flex items-center gap-2">
-                <Clock className="w-5 h-5" /> 최근 보고서 기록
+                <Clock className="w-5 h-5" /> 최근 작성중인 보고서 기록
               </h3>
 
               {/* 높이 고정 영역 */}

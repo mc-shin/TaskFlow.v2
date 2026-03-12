@@ -19,24 +19,11 @@ import {
   X,
   Users,
   Loader2,
+  Share2,
+  Calendar,
+  Inbox,
+  ArrowRight,
 } from "lucide-react";
-import {
-  Document,
-  Packer,
-  Paragraph,
-  Table,
-  TableRow,
-  TableCell,
-  WidthType,
-  AlignmentType,
-  HeadingLevel,
-  VerticalAlign,
-  TextRun,
-  VerticalMergeType,
-  LevelFormat,
-  convertMillimetersToTwip,
-  PageOrientation,
-} from "docx";
 import { saveAs } from "file-saver";
 import { useToast } from "@/hooks/use-toast";
 import api from "@/api/api-index";
@@ -99,10 +86,10 @@ export default function ReportList() {
     isFetching: isRefetching,
     refetch: refetchHistory,
   } = useQuery({
-    queryKey: ["weekly-reports", workspaceId],
+    queryKey: ["weekly-reports-save", workspaceId],
     queryFn: async () => {
       const response = await api.get(
-        `/api/workspaces/${workspaceId}/weekly-reports`,
+        `/api/workspaces/${workspaceId}/weekly-reports-save`,
       );
       return response.data;
     },
@@ -110,65 +97,15 @@ export default function ReportList() {
     refetchInterval: userAdmin ? false : 5000,
   });
 
-  const shareMutation = useMutation({
-    mutationFn: async (reportId: string) => {
-      return await api.patch(
-        `/api/workspaces/${workspaceId}/weekly-reports/${reportId}/share`,
-        { isReShared: true },
-      );
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["weekly-reports", workspaceId],
-      });
-      refetchHistory();
-
-      toast({ title: "보고서가 팀원들에게 공유되었습니다." });
-    },
-  });
-
-  //2026-01-23
-  // const sharedReportId = useMemo(() => {
-  //   if (!diagnosticHistory || !Array.isArray(diagnosticHistory)) return null;
-  //   const shared = diagnosticHistory.find((r: any) => {
-  //     const val = r.isShared ?? r.is_shared;
-  //     return val === true || String(val) === "true";
-  //   });
-  //   return shared?.id; // 객체가 아닌 ID 문자열 자체를 리턴하도록 확인
-  // }, [diagnosticHistory]);
-  ////
-
-  //02-04
-  const sharedReportId = useMemo(() => {
-    if (!diagnosticHistory || !Array.isArray(diagnosticHistory)) return null;
-
-    // 가장 최근 보고서 중 '공유(isShared)' 상태인 것을 찾음
-    const shared = diagnosticHistory.find((r: any) => {
-      const val = r.isShared ?? r.is_shared;
-      return val === true || String(val) === "true";
-    });
-
-    return shared?.id || null;
-  }, [diagnosticHistory]);
-
-  const isReSharedActive = useMemo(() => {
-    const sharedReport = diagnosticHistory?.find(
-      (r: any) => String(r.id) === String(sharedReportId),
-    );
-    // isReShared가 true인 경우에만 활성화된 것으로 판단
-    return sharedReport?.isReShared || sharedReport?.is_reshared || false;
-  }, [diagnosticHistory, sharedReportId]);
-  ////
-
   const deleteMutation = useMutation({
     mutationFn: async (reportId: string) => {
       return await api.delete(
-        `/api/workspaces/${workspaceId}/weekly-reports/${reportId}`,
+        `/api/workspaces/${workspaceId}/weekly-reports-save/${reportId}`,
       );
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: ["weekly-reports", workspaceId],
+        queryKey: ["weekly-reports-save", workspaceId],
       });
 
       localStorage.removeItem(storageKey);
@@ -199,126 +136,29 @@ export default function ReportList() {
     }
   };
 
-  const saveMutation = useMutation({
-    mutationFn: async (updatedData: WeeklyReportData) => {
-      if (!sharedReportId) throw new Error("공유된 보고서가 없습니다.");
-
-      const reportIdStr =
-        typeof sharedReportId === "object"
-          ? (sharedReportId as any).id
-          : sharedReportId;
-
-      const response = await api.post(
-        `/api/workspaces/${workspaceId}/weekly-reports/${reportIdStr}/drafts`,
-        {
-          projects: updatedData.projects,
-          weekNumber: "2026-W03", // 필요 시 동적 할당
-          userId: userEmail,
-          userName: currentUser?.name,
-        },
-      );
-      return response.data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["weekly-report-drafts", sharedReportId, userEmail],
-      });
-      queryClient.invalidateQueries({
-        queryKey: ["weekly-reports", workspaceId],
-      });
-
-      // localStorage.removeItem(storageKey);
-
-      toast({
-        title: "임시 저장 완료",
-        description: "작성하신 내용이 서버에 안전하게 보관되었습니다.",
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "저장 실패",
-        description: error.response?.data?.message || "오류가 발생했습니다.",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const handleSave = () => {
-    if (!reportData) return;
-
-    // 1. 유효한 ID 찾기 (공유 ID가 없으면 현재 데이터의 제목으로 찾기)
-    // const effectiveId =
-    //   sharedReportId ||
-    //   diagnosticHistory?.find((h: any) => h.title === reportData.title)?.id;
-    const effectiveId = sharedReportId || reportData.id || sharedReportId;
-
-    if (!effectiveId) {
-      toast({
-        title: "보고서 ID 누락",
-        description:
-          "대상을 특정할 수 없습니다. 목록에서 보고서를 다시 선택해주세요.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // 2. 관리자 vs 팀원 분기
-    if (userAdmin) {
-      // 관리자는 최종 확정(PATCH .../finalize)
-      if (
-        window.confirm("변경사항을 포함하여 최종 보고서를 확정하시겠습니까?")
-      ) {
-        finalizeMutation.mutate(reportData);
-      }
-    } else {
-      // 팀원은 드래프트 제출(POST .../drafts)
-      // 서버가 projects 배열 전체를 받아서 처리하므로 필터링 없이 보냅니다.
-      if (window.confirm("수정한 내용을 제출하시겠습니까?")) {
-        saveMutation.mutate(reportData);
-      }
-    }
-  };
-
-  const { data: myDrafts } = useQuery({
-    queryKey: ["weekly-report-drafts", sharedReportId, userEmail], // userEmail을 키에 넣어 유저별로 캐시 분리
-    queryFn: async () => {
-      const response = await api.get(
-        `/api/workspaces/${workspaceId}/weekly-reports/${sharedReportId}/drafts`,
-        { params: { userId: userEmail } }, // 서버에 내 아이디를 알려줌
-      );
-      return response.data;
-    },
-    enabled: !!sharedReportId && !!userEmail && !userAdmin,
-  });
-
   const extractWordMutation = useMutation({
     mutationFn: async (file: File) => {
       const formData = new FormData();
       formData.append("file", file);
       formData.append("workspaceId", workspaceId || "");
-      const response = await api.post("/api/ai/extract-word", formData, {
+      const response = await api.post("/api/ai/extract-word-save", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
       return response.data;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({
-        queryKey: ["weekly-reports", workspaceId],
+        queryKey: ["weekly-reports-save", workspaceId],
       });
-
-      const weekRange = getWeekRange();
 
       const freshData = {
         ...data.content,
         id: data.id,
         updatedAt: data.updatedAt,
-        period: {
-          actual: weekRange.actual,
-          plan: weekRange.plan,
-        },
       };
 
       setReportData(freshData);
+      console.log('freshData', freshData)
       setIsInitialized(true);
 
       setSelectedFile(null); // 상태값 비우기
@@ -328,182 +168,18 @@ export default function ReportList() {
 
       toast({
         title: "보고서 분석 완료",
-        description: "내용을 수정하신 후 저장 버튼을 눌러주세요.",
+        description: "선택하신 보고서 내용이 추가 되었습니다.",
       });
     },
   });
 
-  const mergeAllMutation = useMutation({
-    mutationFn: async () => {
-      if (!sharedReportId) throw new Error("공유된 보고서가 없습니다.");
-
-      const reportIdStr =
-        typeof sharedReportId === "object"
-          ? (sharedReportId as any).id
-          : sharedReportId;
-
-      const response = await api.get(
-        `/api/workspaces/${workspaceId}/weekly-reports/${reportIdStr}/all-drafts`,
-      );
-      return response.data;
-    },
-    onSuccess: (allDrafts: any[]) => {
-      queryClient.invalidateQueries({
-        queryKey: ["weekly-reports", workspaceId],
-      });
-
-      if (!reportData) return;
-
-      const mergedProjects = reportData.projects.map((proj: any) => {
-        const projectDrafts = allDrafts.filter(
-          (d) => d.projectName === proj.name,
-        );
-        if (projectDrafts.length === 0) return proj;
-
-        const divider = "\n----------------------\n";
-
-        // 🚩 비교를 위해 공백/줄바꿈/특수태그를 모두 제거하는 헬퍼 함수
-        const getPureText = (text: string) =>
-          text?.replace(/\s+/g, "").replace(/<[^>]*>/g, "") || "";
-
-        const filterValidDrafts = (drafts: any[], type: "actual" | "plan") => {
-          const currentPureContent = getPureText(proj[type]);
-
-          return drafts.filter((d) => {
-            // 1. 관리자 본인 데이터는 무조건 패스
-            if (d.userId === currentUser?.email) return false;
-
-            const draftRawContent = d[type] || "";
-            const draftPureContent = getPureText(draftRawContent);
-
-            // 2. 내용이 없거나 "1." 처럼 의미 없는 경우 패스
-            if (draftPureContent === "" || draftPureContent === "1.")
-              return false;
-
-            // 3. [핵심] 현재 화면 내용에 이미 이 팀원의 내용이 '알맹이'로서 포함되어 있는지 확인
-            // 혹은 원본 내용과 팀원 드래프트 내용이 완벽히 일치하는지 확인
-            if (currentPureContent.includes(draftPureContent)) return false;
-
-            return true;
-          });
-        };
-
-        const validActuals = filterValidDrafts(projectDrafts, "actual").map(
-          (d) => `[${d.userName || d.userId}]\n${d.actual}`,
-        );
-
-        const validPlans = filterValidDrafts(projectDrafts, "plan").map(
-          (d) => `[${d.userName || d.userId}]\n${d.plan}`,
-        );
-
-        return {
-          ...proj,
-          // 새로운 내용(원본과 다르고, 기존에 포함되지 않은 것)이 있을 때만 추가
-          actual:
-            validActuals.length > 0
-              ? (proj.actual?.trim() ? proj.actual + divider : "") +
-                validActuals.join(divider) +
-                divider
-              : proj.actual,
-          plan:
-            validPlans.length > 0
-              ? (proj.plan?.trim() ? proj.plan + divider : "") +
-                validPlans.join(divider) +
-                divider
-              : proj.plan,
-        };
-      });
-
-      setReportData({ ...reportData, projects: mergedProjects });
-      toast({
-        title: "취합 완료",
-        description: "중복되지 않은 새로운 내용만 추가되었습니다.",
-      });
-    },
-  });
-
-  const finalizeMutation = useMutation({
-    mutationFn: async (finalData: WeeklyReportData) => {
-      const targetId = (finalData as any).id || sharedReportId;
-      const response = await api.patch(
-        `/api/workspaces/${workspaceId}/weekly-reports/${targetId}/finalize`,
-        {
-          title: finalData.title, // 제목을 명시적으로 추가
-          content: finalData,
-          isReShared: false,
-        },
-      );
-      return response.data;
-    },
-    onSuccess: (data) => {
-      if (data.updatedAt) {
-        setReportData((prev) =>
-          prev ? { ...prev, updatedAt: data.updatedAt } : prev,
-        );
-      }
-
-      localStorage.removeItem(storageKey);
-
-      queryClient.invalidateQueries({
-        queryKey: ["weekly-reports", workspaceId],
-      });
-
-      toast({
-        title: "최종 저장 완료",
-        description: "팀원들의 내용이 포함된 공식 보고서가 업데이트되었습니다.",
-      });
-    },
-  });
-
-  //02-04
   // 2026-02-04: 무한 로딩 방지 및 자동 복구 로직
   useEffect(() => {
     // 가드 로직: 이미 초기화됐거나, 필요한 데이터가 아직 로딩 중이면 실행하지 않음
     if (isInitialized || isFetchLoading || !diagnosticHistory) return;
 
     // 관리자가 아닌 경우 myDrafts가 로드될 때까지 대기 (데이터 일관성 확인)
-    if (!userAdmin && sharedReportId && !myDrafts) return;
-
     const processInitialization = () => {
-      // 1. 우선순위: 로컬 스토리지 확인
-      const savedTemp = localStorage.getItem(storageKey);
-      if (savedTemp) {
-        const parsed = JSON.parse(savedTemp);
-        // 현재 서버에 공유된 보고서와 ID가 일치할 때만 복구
-        if (parsed.id === sharedReportId) {
-          setReportData(parsed);
-          setIsInitialized(true);
-          return;
-        }
-      }
-
-      // 2. 우선순위: 서버의 내 드래프트 확인 (로그아웃 후 재접속 대응)
-      if (!userAdmin && sharedReportId && myDrafts && myDrafts.length > 0) {
-        const sharedReport = diagnosticHistory.find(
-          (r: any) => r.id === sharedReportId,
-        );
-        if (sharedReport) {
-          const weekRange = getWeekRange();
-          let merged = JSON.parse(JSON.stringify(sharedReport.content));
-
-          merged.projects = merged.projects.map((origProj: any) => {
-            const myUpdate = myDrafts.find(
-              (d: any) => d.projectName === origProj.name,
-            );
-            return myUpdate
-              ? { ...origProj, actual: myUpdate.actual, plan: myUpdate.plan }
-              : origProj;
-          });
-
-          merged.id = sharedReport.id;
-          merged.period = { actual: weekRange.actual, plan: weekRange.plan };
-
-          setReportData(merged);
-          setIsInitialized(true);
-          return;
-        }
-      }
-
       // 3. 아무것도 해당 안 되면 초기화 완료 처리 (화면에는 안내문 노출)
       setIsInitialized(true);
     };
@@ -513,141 +189,24 @@ export default function ReportList() {
     isInitialized,
     isFetchLoading,
     diagnosticHistory,
-    myDrafts,
-    sharedReportId,
     userAdmin,
     storageKey,
     // 🚩 reportData는 여기에 절대 넣지 마세요 (무한 로딩의 원인)
   ]);
   ////
 
-  const myLastSavedAt = useMemo(() => {
-    if (!myDrafts || myDrafts.length === 0) return null;
-    // 드래프트 중 가장 최근 수정시간 추출
-    const times = myDrafts
-      .map((d: any) => new Date(d.updatedAt || d.updated_at).getTime())
-      .filter((t: any) => !isNaN(t));
-    return times.length > 0 ? Math.max(...times) : null;
-  }, [myDrafts]);
+  const [reportPage, setReportPage] = useState(1);
 
-  const hasNewSharedReport = useMemo(() => {
-    if (userAdmin || !sharedReportId || !diagnosticHistory) return false;
+  const itemsPerReportPage = userAdmin ? 5 : 8;
 
-    const sharedReport = diagnosticHistory.find(
-      (r: any) => String(r.id) === String(sharedReportId),
-    );
-
-    if (!sharedReport) return false;
-
-    // 1. [기본 조건] 보고서 자체가 공유 상태여야 함 (최초 판별)
-    const isShared = sharedReport.isShared || sharedReport.is_shared;
-    if (!isShared) return false;
-
-    // 2. [알림 조건] 관리자가 finalize를 눌러서 알림을 껐다면(false) 버튼 안 보여줌
-    const isReShared = sharedReport.isReShared ?? sharedReport.is_reshared;
-    if (isReShared === false || isReShared === "false") return false;
-
-    // 3. [시간 조건] 서버 수정 시간이 내 로컬/서버 저장 시간보다 최신인지 확인
-    const serverUpdateTime = new Date(sharedReport.updatedAt).getTime();
-    const myLocalTime = reportData?.updatedAt
-      ? new Date(reportData.updatedAt).getTime()
-      : 0;
-    const myRemoteSaveTime = myLastSavedAt || 0;
-
-    const isNewerThanLocal = serverUpdateTime > myLocalTime;
-    const isNewerThanRemote = serverUpdateTime > myRemoteSaveTime;
-
-    return isNewerThanLocal && isNewerThanRemote;
-  }, [
-    sharedReportId,
-    reportData?.updatedAt,
-    diagnosticHistory,
-    userAdmin,
-    myLastSavedAt,
-  ]);
-
-  // 3. 공유된 내용 보기 핸들러 (수동 로드)
-  const handleLoadSharedReport = async () => {
-    // 1. 최신 공유 내용을 가져오기 위해 서버 데이터를 새로고침합니다.
-    const { data: latestHistory } = await refetchHistory();
-
-    // 2. 현재 공유 상태인 보고서를 찾습니다.
-    const sharedReport = latestHistory?.find(
-      (r: any) => String(r.id) === String(sharedReportId),
-    );
-
-    if (sharedReport) {
-      const weekRange = getWeekRange();
-
-      // 3. [핵심] 병합 로직 없이 서버의 content를 그대로 가져옵니다.
-      // 이렇게 하면 관리자가 수정한 "1. 테스트" 내용이 그대로 반영됩니다.
-      const serverContent = JSON.parse(JSON.stringify(sharedReport.content));
-
-      const updatedData = {
-        ...serverContent,
-        id: sharedReport.id,
-        updatedAt: sharedReport.updatedAt, // 이 값이 들어가야 'NEW' 알림이 사라집니다.
-        period: {
-          actual: weekRange.actual,
-          plan: weekRange.plan,
-        },
-      };
-
-      // 4. 상태 업데이트 및 로컬 스토리지 동기화
-      setReportData(updatedData);
-      localStorage.setItem(storageKey, JSON.stringify(updatedData));
-
-      toast({
-        title: "공유 데이터 동기화 완료",
-        description: "관리자가 공유한 최신 내용으로 업데이트되었습니다.",
-      });
-    } else {
-      toast({
-        title: "데이터를 불러올 수 없습니다.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const [projectPage, setProjectPage] = useState(1);
-
-  const itemsPerPage = 5;
-
-  const projectTotalPages = Math.ceil(
-    (diagnosticHistory?.length || 0) / itemsPerPage,
+  const reportTotalPages = Math.ceil(
+    (diagnosticHistory?.length || 0) / itemsPerReportPage,
   );
 
-  const currentData = diagnosticHistory?.slice(
-    (projectPage - 1) * itemsPerPage,
-    projectPage * itemsPerPage,
+  const currentReportData = diagnosticHistory?.slice(
+    (reportPage - 1) * itemsPerReportPage,
+    reportPage * itemsPerReportPage,
   );
-
-  const handleTextChange = (
-    idx: number,
-    field: "actual" | "plan",
-    value: string,
-  ) => {
-    setReportData((prev) => {
-      if (!prev || !prev.projects) return prev; // 안전장치
-
-      const newProjects = [...prev.projects];
-      newProjects[idx] = {
-        ...newProjects[idx],
-        [field]: value,
-      };
-
-      return { ...prev, projects: newProjects };
-    });
-  };
-
-  const updateProjectData = (idx: number, field: string, value: string) => {
-    setReportData((prev) => {
-      if (!prev) return prev;
-      const newProjects = [...prev.projects];
-      newProjects[idx] = { ...newProjects[idx], [field]: value };
-      return { ...prev, projects: newProjects };
-    });
-  };
 
   // reportData 변경 시 로컬 스토리지 자동 저장
   useEffect(() => {
@@ -656,552 +215,8 @@ export default function ReportList() {
     }
   }, [reportData, storageKey, isInitialized]);
 
-  const handleDownloadWord = async () => {
-    if (!reportData) return;
-
-    try {
-      // 1. 공통 레벨 설정 (size: 20은 10pt를 의미합니다)
-      const commonLevels = [
-        {
-          level: 0,
-          format: LevelFormat.DECIMAL,
-          text: "%1.",
-          alignment: AlignmentType.START,
-          style: {
-            paragraph: { indent: { left: 440, hanging: 440 } },
-            run: { font: "맑은 고딕", size: 20 },
-          },
-        },
-        {
-          level: 1,
-          format: "ganada" as any,
-          text: "%2.",
-          alignment: AlignmentType.START,
-          style: {
-            paragraph: { indent: { left: 880, hanging: 440 } },
-            run: { font: "맑은 고딕", size: 20 },
-          },
-        },
-        {
-          level: 2,
-          format: LevelFormat.DECIMAL,
-          text: "%3)",
-          alignment: AlignmentType.START,
-          style: {
-            paragraph: { indent: { left: 1320, hanging: 440 } },
-            run: { font: "맑은 고딕", size: 20 },
-          },
-        },
-        {
-          level: 3,
-          format: "ganada" as any,
-          text: "%4)",
-          alignment: AlignmentType.START,
-          style: {
-            paragraph: { indent: { left: 1760, hanging: 440 } },
-            run: { font: "맑은 고딕", size: 20 },
-          },
-        },
-        {
-          level: 4,
-          format: LevelFormat.DECIMAL_ENCLOSED_CIRCLE,
-          text: "%5",
-          alignment: AlignmentType.START,
-          style: {
-            paragraph: { indent: { left: 2200, hanging: 440 } },
-            run: { font: "맑은 고딕", size: 20 },
-          },
-        },
-        {
-          level: 5,
-          format: LevelFormat.DECIMAL,
-          text: "\u326E",
-          alignment: AlignmentType.START,
-          style: {
-            paragraph: { indent: { left: 2640, hanging: 440 } },
-            run: { font: "맑은 고딕", size: 20 },
-          },
-        },
-      ];
-
-      const numberingConfigs: any[] = [];
-      reportData.projects.forEach((_, pIdx) => {
-        numberingConfigs.push({
-          reference: `ref-actual-${pIdx}`,
-          levels: commonLevels,
-        });
-        numberingConfigs.push({
-          reference: `ref-plan-${pIdx}`,
-          levels: commonLevels,
-        });
-      });
-
-      const parseLineToNumberedParagraph = (line: string, ref: string) => {
-        const trimmed = line.trim();
-        let level = 0;
-        let cleanText = trimmed;
-
-        if (/^\d+\./.test(trimmed)) {
-          level = 0;
-          cleanText = trimmed.replace(/^\d+\.\s*/, "");
-        } else if (/^[가-힣ㄱ-ㅎ]\./.test(trimmed)) {
-          level = 1;
-          cleanText = trimmed.replace(/^[가-힣ㄱ-ㅎ]\.\s*/, "");
-        } else if (/^\d+\)/.test(trimmed)) {
-          level = 2;
-          cleanText = trimmed.replace(/^\d+\)\s*/, "");
-        } else if (/^[가-힣ㄱ-ㅎ]\)/.test(trimmed)) {
-          level = 3;
-          cleanText = trimmed.replace(/^[가-힣ㄱ-ㅎ]\)\s*/, "");
-        } else if (/^[①-⑮]/.test(trimmed)) {
-          level = 4;
-          cleanText = trimmed.replace(/^[①-⑮]\s*/, "");
-        } else if (/^[㉮-㉿]/.test(trimmed)) {
-          level = 5;
-          cleanText = trimmed.replace(/^[㉮-㉿]\s*/, "");
-        }
-
-        return new Paragraph({
-          text: cleanText,
-          numbering: { reference: ref, level: level },
-          spacing: { before: 100, after: 100 },
-          // 개별 문단 텍스트에도 10pt 적용
-          style: "Normal",
-        });
-      };
-
-      // 3. 워드 문서 생성
-      const doc = new Document({
-        // [중요] 문서 전체 기본 폰트 및 사이즈 설정
-        styles: {
-          default: {
-            document: {
-              run: {
-                size: 20, // 10pt
-                font: "맑은 고딕",
-              },
-            },
-          },
-        },
-        numbering: { config: numberingConfigs },
-        sections: [
-          {
-            properties: {
-              page: {
-                size: {
-                  // w: 27.94cm -> 279.4mm / h: 21.59cm -> 215.9mm
-                  width: convertMillimetersToTwip(215.9), // 원래 h였던 값
-                  height: convertMillimetersToTwip(279.4), // 원래 w였던 값
-                  orientation: PageOrientation.LANDSCAPE, // 가로 설정
-                },
-                margin: {
-                  // T: 1.52cm -> 15.2mm / B: 1.52cm -> 15.2mm
-                  // L: 1.27cm -> 12.7mm / R: 1.27cm -> 12.7mm
-                  top: convertMillimetersToTwip(15.2),
-                  bottom: convertMillimetersToTwip(15.2),
-                  left: convertMillimetersToTwip(12.7),
-                  right: convertMillimetersToTwip(12.7),
-                },
-              },
-            },
-            children: [
-              new Paragraph({
-                text: reportData.title,
-                heading: HeadingLevel.HEADING_1,
-                alignment: AlignmentType.CENTER,
-                spacing: { before: 200, after: 200 },
-                // 제목은 별도 폰트 지정이 필요할 수 있습니다.
-              }),
-              new Paragraph({ text: "", spacing: { after: 200 } }),
-              new Table({
-                width: { size: 100, type: WidthType.PERCENTAGE },
-                rows: [
-                  new TableRow({
-                    tableHeader: true,
-                    children: [
-                      new TableCell({
-                        width: { size: 20, type: WidthType.PERCENTAGE },
-                        children: [
-                          new Paragraph({
-                            text: "프로젝트",
-                            alignment: AlignmentType.CENTER,
-                            // 스타일 속성이 아닌 run을 통해 볼드와 폰트 적용
-                            children: [
-                              new TextRun({
-                                text: "프로젝트",
-                                bold: true,
-                                size: 20,
-                                font: "맑은 고딕",
-                              }),
-                            ],
-                          }),
-                        ],
-                        shading: { fill: "F2F2F2" },
-                        verticalAlign: VerticalAlign.CENTER,
-                      }),
-                      new TableCell({
-                        width: { size: 40, type: WidthType.PERCENTAGE },
-                        children: [
-                          new Paragraph({
-                            alignment: AlignmentType.CENTER,
-                            children: [
-                              new TextRun({
-                                text: "실적",
-                                bold: true,
-                                size: 20,
-                                font: "맑은 고딕",
-                              }),
-                            ],
-                          }),
-                        ],
-                        shading: { fill: "F2F2F2" },
-                      }),
-                      new TableCell({
-                        width: { size: 40, type: WidthType.PERCENTAGE },
-                        children: [
-                          new Paragraph({
-                            alignment: AlignmentType.CENTER,
-                            children: [
-                              new TextRun({
-                                text: "계획",
-                                bold: true,
-                                size: 20,
-                                font: "맑은 고딕",
-                              }),
-                            ],
-                          }),
-                        ],
-                        shading: { fill: "F2F2F2" },
-                      }),
-                    ],
-                  }),
-                  // 데이터 행들
-                  ...reportData.projects.map(
-                    (p, pIdx) =>
-                      new TableRow({
-                        children: [
-                          new TableCell({
-                            width: { size: 20, type: WidthType.PERCENTAGE },
-                            children: [
-                              new Paragraph({
-                                text: p.name,
-                                alignment: AlignmentType.CENTER,
-                              }),
-                            ],
-                            verticalAlign: VerticalAlign.CENTER,
-                            shading: { fill: "FAFAFA" },
-                          }),
-                          new TableCell({
-                            width: { size: 40, type: WidthType.PERCENTAGE },
-                            children: p.actual
-                              .split("\n")
-                              .filter((l) => l.trim() !== "")
-                              .map((l) =>
-                                parseLineToNumberedParagraph(
-                                  l,
-                                  `ref-actual-${pIdx}`,
-                                ),
-                              ),
-                          }),
-                          new TableCell({
-                            width: { size: 40, type: WidthType.PERCENTAGE },
-                            children: p.plan
-                              .split("\n")
-                              .filter((l) => l.trim() !== "")
-                              .map((l) =>
-                                parseLineToNumberedParagraph(
-                                  l,
-                                  `ref-plan-${pIdx}`,
-                                ),
-                              ),
-                          }),
-                        ],
-                      }),
-                  ),
-                ],
-              }),
-            ],
-          },
-        ],
-      });
-
-      const now = new Date();
-      const timestamp =
-        now.getFullYear() +
-        String(now.getMonth() + 1).padStart(2, "0") +
-        String(now.getDate()).padStart(2, "0") +
-        "_" +
-        String(now.getHours()).padStart(2, "0") +
-        String(now.getMinutes()).padStart(2, "0");
-      const fileName = `${reportData.title.replace(/\s+/g, "_")}_주간보고서_${timestamp}.docx`;
-      const blob = await Packer.toBlob(doc);
-      const { saveAs } = await import("file-saver");
-      saveAs(blob, fileName);
-
-      toast({
-        title: "다운로드 성공",
-        description: "워드 파일이 생성되었습니다.",
-      });
-    } catch (error) {
-      console.error("Word Download Error:", error);
-      toast({ title: "다운로드 실패", variant: "destructive" });
-    }
-  };
-
-  const getWeekRange = () => {
-    const now = new Date();
-    const day = now.getDay(); // 0(일) ~ 6(토)
-    const hours = now.getHours();
-
-    let baseDate = new Date(now);
-
-    // 월요일(1) 오전 12시 이전이거나 일요일(0)이면 지난주로 계산
-    if (day === 0 || (day === 1 && hours < 12)) {
-      baseDate.setDate(now.getDate() - 7);
-    }
-
-    const baseDay = baseDate.getDay();
-    const diffToMon = baseDay === 0 ? 6 : baseDay - 1;
-
-    const thisMon = new Date(baseDate);
-    thisMon.setDate(baseDate.getDate() - diffToMon);
-
-    const thisSun = new Date(thisMon);
-    thisSun.setDate(thisMon.getDate() + 6);
-
-    const nextMon = new Date(thisMon);
-    nextMon.setDate(thisMon.getDate() + 7);
-
-    const nextSun = new Date(nextMon);
-    nextSun.setDate(nextMon.getDate() + 6);
-
-    // 결과 예시: 2026.1.19
-    const formatDate = (d: Date) =>
-      `${d.getFullYear()}.${d.getMonth() + 1}.${d.getDate()}`;
-
-    return {
-      actual: `${formatDate(thisMon)} ~ ${formatDate(thisSun)}`,
-      plan: `${formatDate(nextMon)} ~ ${formatDate(nextSun)}`,
-    };
-  };
-
-  const handleKeyDown = (
-    e: React.KeyboardEvent<HTMLTextAreaElement>,
-    idx: number,
-    field: "actual" | "plan",
-  ) => {
-    const target = e.currentTarget;
-    const cursorPos = target.selectionStart;
-    const fullText = target.value;
-    const isShift = e.shiftKey;
-
-    if (e.key === "Tab") {
-      e.preventDefault();
-      const originalText = target.value;
-      const lines = originalText.split("\n");
-      const cursorPos = target.selectionStart;
-
-      let accumulated = 0;
-      const lineIndex = lines.findIndex((line) => {
-        const start = accumulated;
-        accumulated += line.length + 1;
-        return cursorPos >= start && cursorPos <= start + line.length;
-      });
-
-      if (lineIndex !== -1) {
-        const oldLine = lines[lineIndex];
-        // 공백 제거/추가
-        const newLine = isShift
-          ? oldLine.replace(/^ {1,2}/, "")
-          : "  " + oldLine;
-        lines[lineIndex] = newLine;
-
-        const fullNewText = lines.join("\n");
-        const reorderedText = reorderText(fullNewText);
-
-        // 상태 업데이트
-        updateProjectData(idx, field, reorderedText);
-
-        // ★ [핵심] 커서 위치 재계산
-        // 현재 줄의 시작 위치를 다시 찾아서, 기호+공백(2칸) 뒤로 커서를 보냅니다.
-        setTimeout(() => {
-          const newLines = reorderedText.split("\n");
-          let newPos = 0;
-          for (let i = 0; i < lineIndex; i++) {
-            newPos += newLines[i].length + 1;
-          }
-
-          // 해당 줄의 기호 부분을 찾아서 그 뒤(공백 포함)로 커서 이동
-          const targetLine = newLines[lineIndex];
-          const markerMatch = targetLine.match(
-            /^(\s*)([0-9]+|[가-힣]|[①-⑮㉮-㉿])([\.\)]?)\s*/,
-          );
-          const markerLength = markerMatch ? markerMatch[0].length : 0;
-
-          target.setSelectionRange(
-            newPos + markerLength,
-            newPos + markerLength,
-          );
-        }, 10); // 브라우저 렌더링을 위해 약간의 지연시간 부여
-      }
-    }
-
-    // --- 2. Enter 키 처리 (다음 번호 생성) ---
-    if (e.key === "Enter" && !e.nativeEvent.isComposing && !e.shiftKey) {
-      const textBeforeCursor = fullText.substring(0, cursorPos);
-      const lines = textBeforeCursor.split("\n");
-      const lastLine = lines[lines.length - 1];
-
-      // 기호 패턴 매칭
-      const match = lastLine.match(
-        /^(\s*)([0-9]+|[가-힣]|[①-⑮㉮-㉿])([\.\)]?)(\s+)/,
-      );
-
-      if (match) {
-        const [_, indent, symbol, delimiter, space] = match;
-
-        // 내용 없이 기호만 있는 상태에서 Enter 치면 종료 (선택 사항)
-        if (lastLine.trim() === `${symbol}${delimiter}`) return;
-
-        e.preventDefault();
-
-        // 다음 기호 계산 및 자동 삽입 문자열 생성
-        const nextSymbolOnly = getNextNumber(textBeforeCursor, indent, symbol);
-        const autoText = `\n${indent}${nextSymbolOnly}${delimiter}${space}`;
-
-        // 텍스트 삽입 후 전체 재정렬 (중간 삽입 시 아래쪽 번호 밀림 방지)
-        const newText =
-          fullText.substring(0, cursorPos) +
-          autoText +
-          fullText.substring(cursorPos);
-        const reorderedText = reorderText(newText);
-        updateProjectData(idx, field, reorderedText);
-
-        setTimeout(() => {
-          target.setSelectionRange(
-            cursorPos + autoText.length,
-            cursorPos + autoText.length,
-          );
-        }, 0);
-      }
-    }
-  };
-
-  const getNextNumber = (
-    allText: string,
-    currentIndent: string,
-    targetSymbolType: string,
-  ) => {
-    const lines = allText.split("\n");
-    const hangulSeq = "가나다라마바사아자차카타파하";
-    const currentLevel = currentIndent.length; // 공백 개수로 레벨 판단
-
-    for (let i = lines.length - 1; i >= 0; i--) {
-      const line = lines[i];
-      if (line.trim() === "") continue;
-
-      const lineIndent = line.match(/^(\s*)/)?.[0] || "";
-      const lineLevel = lineIndent.length;
-
-      // 핵심 로직: 현재 레벨보다 상위 레벨(공백이 더 적음)을 만나면 루프 종료
-      if (lineLevel < currentLevel) {
-        break;
-      }
-
-      // 같은 레벨일 때만 번호 추적
-      if (lineLevel === currentLevel) {
-        const trimmedLine = line.substring(lineLevel);
-        const numMatch = trimmedLine.match(/^(\d+)([\.\)])\s/);
-        const korMatch = trimmedLine.match(/^([가-힣])([\.\)])\s/);
-        const specialMatch = trimmedLine.match(/^([①-⑮㉮-㉿])\s/);
-
-        if (/\d/.test(targetSymbolType) && numMatch) {
-          return String(parseInt(numMatch[1]) + 1);
-        }
-        if (/[가-힣]/.test(targetSymbolType) && korMatch) {
-          const idx = hangulSeq.indexOf(korMatch[1]);
-          return idx !== -1 && idx < hangulSeq.length - 1
-            ? hangulSeq[idx + 1]
-            : targetSymbolType;
-        }
-        if (/[①-⑮㉮-㉿]/.test(targetSymbolType) && specialMatch) {
-          return String.fromCharCode(specialMatch[1].charCodeAt(0) + 1);
-        }
-      }
-    }
-
-    // 상위 레벨을 만났거나, 이전에 같은 레벨이 없으면 초기값(1, 가, ①) 반환
-    if (/\d/.test(targetSymbolType)) return "1";
-    if (/[가-힣]/.test(targetSymbolType)) return "가";
-    if (/[①-⑮㉮-㉿]/.test(targetSymbolType))
-      return targetSymbolType === "㉮" ? "㉮" : "①";
-
-    return targetSymbolType.replace(/[\.\)]/g, "");
-  };
-
-  const reorderText = (text: string) => {
-    const lines = text.split("\n");
-    const hangulSeq = "가나다라마바사아자차카타파하";
-    let counters: Record<number, number> = {};
-
-    const getStandardSymbolType = (level: number) => {
-      if (level <= 1) return "1.";
-      if (level <= 3) return "가.";
-      if (level <= 5) return "1)";
-      if (level <= 7) return "가)";
-      if (level <= 9) return "①";
-      return "㉮";
-    };
-
-    return lines
-      .map((line) => {
-        if (line.includes("----------------------")) {
-          counters = {};
-          return line;
-        }
-
-        // 기호까지만 매칭
-        const match = line.match(/^(\s*)([0-9]+|[가-힣]|[①-⑮㉮-㉿])([\.\)]?)/);
-        if (!match) return line;
-
-        const [fullMarker, indent, symbol, oldDelimiter] = match;
-        const level = indent.length;
-        const rawContent = line.substring(fullMarker.length).trim();
-
-        Object.keys(counters).forEach((l) => {
-          if (parseInt(l) > level) delete counters[parseInt(l)];
-        });
-        counters[level] = (counters[level] || 0) + 1;
-        const count = counters[level];
-
-        const standardType = getStandardSymbolType(level);
-        let newSymbol = "";
-        let newDelimiter = standardType.match(/[\.\)]/)?.[0] || "";
-
-        if (standardType.includes("1")) {
-          newSymbol = String(count);
-        } else if (standardType.includes("가")) {
-          newSymbol = hangulSeq[count - 1] || "가";
-        } else if (standardType === "①" || standardType === "㉮") {
-          newSymbol = String.fromCharCode(
-            standardType.charCodeAt(0) + count - 1,
-          );
-          newDelimiter = "";
-        }
-
-        // ★ 공백을 확실하게 2칸("  ") 삽입하여 '다)  ' 형태를 만듭니다.
-        return `${indent}${newSymbol}${newDelimiter}  ${rawContent}`;
-      })
-      .join("\n");
-  };
-
   // 모든 Mutation의 로딩 상태를 하나로 결합
-  const isAnyPending =
-    saveMutation.isPending ||
-    finalizeMutation.isPending ||
-    shareMutation.isPending || // 🚩 .mutate가 아니라 .isPending이어야 합니다.
-    mergeAllMutation.isPending ||
-    deleteMutation.isPending; // 🚩 이제 정의된 것을 확인했으니 바로 사용합니다.
+  const isAnyPending = deleteMutation.isPending;
 
   if (
     isFetchLoading ||
@@ -1221,9 +236,9 @@ export default function ReportList() {
     <>
       <header className="h-16 bg-card border-b border-border flex items-center justify-between px-6">
         <div>
-          <h1 className="text-xl font-semibold">주간 보고서 관리</h1>
+          <h1 className="text-xl font-semibold">주간 보고서 조회 및 등록</h1>
           <p className="text-sm text-muted-foreground">
-            기존 워드 보고서를 불러와 웹에서 수정하고 관리하세요
+            주간 보고서를 업로드하고 회차별 상세 자료를 자유롭게 조회하세요
           </p>
         </div>
       </header>
@@ -1251,134 +266,27 @@ export default function ReportList() {
                     >
                       <X className="mr-2 h-4 w-4" /> 삭제하기
                     </Button>
-                    <Button
-                      variant="default"
-                      className="bg-purple-600 hover:bg-purple-700"
-                      disabled={isAnyPending}
-                      onClick={() => {
-                        // 현재 선택된 보고서의 ID를 찾아 공유 (history에서 현재 reportData와 매칭되는 ID 사용)
-                        const currentId = diagnosticHistory?.find(
-                          (h: any) => h.id === reportData.id,
-                        )?.id;
-                        if (currentId) shareMutation.mutate(currentId);
-                      }}
-                    >
-                      <Users className="mr-2 h-4 w-4" /> 팀원에게 공유하기
-                    </Button>
                   </>
                 )}
-
-                {/* <>2026-0203</> */}
-                {!userAdmin && isReSharedActive && (
-                  <Button
-                    variant={hasNewSharedReport ? "default" : "outline"}
-                    className={
-                      hasNewSharedReport ? "bg-orange-500 animate-pulse" : ""
-                    }
-                    onClick={handleLoadSharedReport}
-                  >
-                    <FileSearch className="mr-2 h-4 w-4" />
-                    공유된 내용 보기
-                    {hasNewSharedReport && (
-                      <span className="ml-2 bg-white text-orange-500 text-[10px] px-1.5 rounded-full">
-                        NEW
-                      </span>
-                    )}
-                  </Button>
-                )}
-                {/* <></> */}
-
                 <Button
-                  className="bg-green-600 hover:bg-green-700"
                   disabled={isAnyPending}
-                  onClick={handleSave} // 정의한 함수를 연결
+                  variant="outline"
+                  onClick={() => setReportData(null)}
                 >
-                  {saveMutation.isPending || finalizeMutation.isPending ? (
-                    <RefreshCcw className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Save className="mr-2 h-4 w-4" />
-                  )}
-                  {userAdmin ? "보고서 저장" : "보고서 제출하기"}
+                  목록으로 돌아가기
                 </Button>
-                {userAdmin && (
-                  <>
-                    <Button
-                      // onClick={() => mergeAllMutation.mutate()}
-                      onClick={() => {
-                        if (
-                          confirm(
-                            "현재 내용을 초기화 하고, 팀원들의 최신 작성 내용을 다시 불러오시겠습니까?",
-                          )
-                        ) {
-                          mergeAllMutation.mutate();
-                        }
-                      }}
-                      disabled={isAnyPending}
-                      // disabled={mergeAllMutation.isPending}
-                      // variant="outline"
-                      className="bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-500 hover:text-white"
-                    >
-                      {mergeAllMutation.isPending
-                        ? "취합 중..."
-                        : "팀원 내용 취합하기"}
-                    </Button>
-                    {/* 워드 다운로드 버튼 추가 */}
-                    <Button
-                      className="bg-blue-600 hover:bg-blue-700"
-                      disabled={isAnyPending}
-                      onClick={handleDownloadWord}
-                    >
-                      <Download className="mr-2 h-4 w-4" /> 워드로 내보내기
-                    </Button>
-                    <Button
-                      disabled={isAnyPending}
-                      variant="outline"
-                      onClick={() => setReportData(null)}
-                    >
-                      목록으로 돌아가기
-                    </Button>
-                  </>
-                )}
               </div>
             </div>
 
             <Card className="overflow-hidden border-slate-300 shadow-xl">
               <CardHeader className="border-b border-slate-300">
-                <Input
-                  readOnly={!userAdmin}
-                  className={`text-2xl font-bold text-center border-none bg-transparent ${
-                    !userAdmin ? "cursor-default opacity-80" : ""
-                  }`}
-                  value={reportData.title}
-                  onChange={(e) =>
-                    userAdmin &&
-                    setReportData({ ...reportData, title: e.target.value })
-                  }
-                />
+                <div className="text-sm font-bold text-center">
+                  {reportData.title || ""}
+                </div>
               </CardHeader>
 
               <CardContent className="p-0">
                 <table className="w-full border-collapse relative">
-                  {!userAdmin && isReSharedActive && hasNewSharedReport && (
-                    <div
-                      className="absolute inset-0 z-10 bg-white/10 backdrop-blur-[1px] cursor-not-allowed flex items-center justify-center"
-                      onClick={() => {
-                        alert(
-                          "현재 팀원들에게 공유된 보고서가 활성화 상태입니다.\n상단의 '공유된 내용 보기' 버튼을 눌러 내용을 먼저 반영한 뒤 수정해 주세요.",
-                        );
-                      }}
-                    >
-                      <div className="bg-white/90 p-4 rounded-lg shadow-xl border border-orange-200 text-center animate-in fade-in zoom-in duration-200">
-                        <p className="text-orange-600 font-bold flex items-center justify-center gap-2">
-                          <span className="text-xl">⚠️</span> 공유 내용 반영
-                          필요
-                        </p>
-                        <p className="text-sm text-slate-600 mt-1">
-                          상단 버튼을 통해 내용을 먼저 동기화하세요.
-                        </p>
-                      </div>
-                    </div>
-                  )}
                   <thead>
                     <tr className="border-b border-slate-300">
                       <th
@@ -1394,48 +302,16 @@ export default function ReportList() {
                     </tr>
 
                     <tr className="border-b border-slate-300">
-                      <th className="border-r border-slate-300 p-2">
-                        <div className="flex flex-col h-full justify-center">
-                          <Textarea
-                            readOnly={!userAdmin}
-                            className={`font-bold border-none shadow-none focus-visible:ring-0 text-center bg-transparent resize-none min-h-[32px] overflow-hidden text-xs text-muted-foreground ${
-                              !userAdmin ? "cursor-default opacity-80" : ""
-                            }`}
-                            rows={1}
-                            value={reportData.period.actual}
-                            onChange={(e) =>
-                              userAdmin &&
-                              setReportData({
-                                ...reportData,
-                                period: {
-                                  ...reportData.period,
-                                  actual: e.target.value,
-                                },
-                              })
-                            }
-                          />
+                      {/* 실적 기간/상세 */}
+                      <th className="border-r border-slate-300 p-2 bg-slate-50/10">
+                        <div className="flex justify-center items-center min-h-[32px] text-sm font-bold text-muted-foreground text-center whitespace-pre-wrap">
+                          {reportData.period.actual || ""}
                         </div>
                       </th>
-                      <th className="border-r border-slate-300 p-2">
-                        <div className="flex flex-col h-full justify-center">
-                          <Textarea
-                            readOnly={!userAdmin}
-                            className={`font-bold border-none shadow-none focus-visible:ring-0 text-center bg-transparent resize-none min-h-[32px] overflow-hidden text-xs text-muted-foreground ${
-                              !userAdmin ? "cursor-default opacity-80" : ""
-                            }`}
-                            rows={1}
-                            value={reportData.period.plan}
-                            onChange={(e) =>
-                              userAdmin &&
-                              setReportData({
-                                ...reportData,
-                                period: {
-                                  ...reportData.period,
-                                  plan: e.target.value,
-                                },
-                              })
-                            }
-                          />
+                      {/* 계획 기간/상세 */}
+                      <th className="p-2 bg-slate-50/10">
+                        <div className="flex justify-center items-center min-h-[32px] text-sm font-bold text-muted-foreground text-center whitespace-pre-wrap">
+                          {reportData.period.plan || ""}
                         </div>
                       </th>
                     </tr>
@@ -1448,287 +324,22 @@ export default function ReportList() {
                         className="border-b border-slate-200 last:border-0"
                       >
                         {/* 프로젝트명 */}
-                        <td className="border-r border-slate-300 p-2 bg-slate-50/30 min-w-[140px]">
-                          <div className="flex flex-col h-full items-center justify-center">
-                            <Textarea
-                              className="font-bold border-none shadow-none focus-visible:ring-0 text-center bg-transparent resize-none min-h-[40px] overflow-hidden"
-                              rows={5} // 내용에 따라 자동 조절되도록 설정
-                              value={project.name}
-                              onChange={(e) => {
-                                const newProjects = [...reportData.projects];
-                                newProjects[idx].name = e.target.value;
-                                setReportData({
-                                  ...reportData,
-                                  projects: newProjects,
-                                });
-                              }}
-                            />
-                          </div>
+                        <td className="border-r border-slate-300 p-4 bg-slate-50/30 min-w-[140px] text-center font-bold">
+                          {project.name}
                         </td>
+
                         {/* 실적 */}
-                        <td className="border-r border-slate-300 p-2">
-                          {/* 1. 기호 삽입 버튼 툴바 */}
-                          <div className="flex items-center justify-between mb-3 p-2 bg-slate-50 rounded-md border border-slate-200">
-                            <div className="flex items-center gap-2 text-[13px] text-slate-600">
-                              <span className="flex items-center justify-center w-5 h-5 bg-blue-100 text-blue-600 rounded-full text-[10px] font-bold">
-                                TIP
-                              </span>
-                              <p>
-                                <span className="font-semibold text-slate-800">
-                                  문단 번호 자동 조절
-                                </span>{" "}
-                                /
-                                <kbd className="ml-1 px-1.5 py-0.5 text-[11px] font-sans font-semibold bg-white border border-slate-300 rounded shadow-sm text-slate-900">
-                                  Tab
-                                </kbd>{" "}
-                                또는
-                                <kbd className="ml-1 px-1.5 py-0.5 text-[11px] font-sans font-semibold bg-white border border-slate-300 rounded shadow-sm text-slate-900">
-                                  Shift + Tab
-                                </kbd>
-                                을 누르세요.
-                              </p>
-                            </div>
-                            <div className="text-[11px] text-slate-400 italic">
-                              1. → 가. → 1) → 가) → ① → ㉮ 순서로 변경됩니다.
-                            </div>
+                        <td className="border-r border-slate-300 p-4 align-top">
+                          <div className="whitespace-pre-wrap text-sm leading-relaxed ">
+                            {project.actual || "-"}
                           </div>
-
-                          {/* 2. 메인 입력창 */}
-                          <Textarea
-                            className="min-h-[500px] border-none shadow-none focus-visible:ring-0 resize-none text-sm"
-                            value={project.actual}
-                            onChange={(e) =>
-                              handleTextChange(idx, "actual", e.target.value)
-                            }
-                            onFocus={(e) => {
-                              const currentVal = project.actual || "";
-
-                              // 1. 아예 비어있거나 공백만 있는 경우 -> '1.  ' 셋팅
-                              if (currentVal.trim() === "") {
-                                handleTextChange(idx, "actual", "1.  ");
-                                setTimeout(() => {
-                                  e.target.setSelectionRange(4, 4);
-                                }, 0);
-                              }
-                              // 2. 내용이 있는데(취합 후), 마지막이 줄바꿈이거나 번호 형식이 아닐 경우
-                              else if (userAdmin) {
-                                // 관리자일 때만 자동 번호 추가를 원할 경우 조건 추가
-                                const trimmedVal = currentVal.trimEnd();
-
-                                // 마지막 줄이 숫자/기호로 시작하는 번호 형식이 아닌지 체크 (정규식)
-                                // 예: '내용입니다' 로 끝나면 새 줄에 '1. ' 추가
-                                const lines = trimmedVal.split("\n");
-                                const lastLine = lines[lines.length - 1];
-                                const bulletRegex =
-                                  /^(\d+\.|[가-힣]\.|[①-⑮]|\d+\)|[가-힣]\))/;
-
-                                if (!bulletRegex.test(lastLine.trim())) {
-                                  const newVal = trimmedVal + "\n\n1.  ";
-                                  handleTextChange(idx, "actual", newVal);
-
-                                  setTimeout(() => {
-                                    e.target.setSelectionRange(
-                                      newVal.length,
-                                      newVal.length,
-                                    );
-                                    // 포커스 시 자동으로 스크롤을 맨 아래로 내림
-                                    e.target.scrollTop = e.target.scrollHeight;
-                                  }, 0);
-                                }
-                              }
-                            }}
-                            onPaste={(e) => {
-                              e.preventDefault(); // 브라우저 기본 동작 중단 (충돌 방지)
-
-                              // 1. 클립보드 데이터 가져오기
-                              const pastedText =
-                                e.clipboardData.getData("text");
-                              const target = e.currentTarget;
-
-                              // 2. 현재 상태값과 커서 위치 파악
-                              const currentText = target.value;
-                              const selectionStart = target.selectionStart;
-                              const selectionEnd = target.selectionEnd;
-
-                              // 3. 기존 텍스트 사이에 붙여넣은 내용 합성
-                              const combinedText =
-                                currentText.substring(0, selectionStart) +
-                                pastedText +
-                                currentText.substring(selectionEnd);
-
-                              // 4. ★ 정렬 로직 적용 (실시간 정렬 유지)
-                              const formattedText = reorderText(combinedText);
-
-                              // 5. 상태 업데이트
-                              handleTextChange(idx, "actual", formattedText);
-
-                              // 6. 커서 위치 보정
-                              // 정렬 후 텍스트 길이가 변할 수 있으므로 0ms 지연 후 위치 조정
-                              setTimeout(() => {
-                                const newCursorPos =
-                                  selectionStart + pastedText.length;
-                                target.setSelectionRange(
-                                  newCursorPos,
-                                  newCursorPos,
-                                );
-                              }, 0);
-                            }}
-                            onKeyDown={(e) => {
-                              // 기존에 있던 번호 자동 조절 로직 실행
-                              handleKeyDown(e, idx, "actual");
-
-                              // 엔터 키 처리
-                              if (e.key === "Enter" && !e.shiftKey) {
-                                const target = e.currentTarget;
-
-                                // setTimeout을 사용하여 줄바꿈이 입력된 '직후'에 실행되도록 합니다.
-                                setTimeout(() => {
-                                  // 1. 스크롤을 맨 아래로 이동
-                                  target.scrollTo({
-                                    top: target.scrollHeight,
-                                    behavior: "smooth", // 부드러운 움직임을 원치 않으면 제거 가능
-                                  });
-
-                                  // 2. 만약 내용이 너무 길어 behavior: "smooth"가 안 먹힐 경우를 대비한 강제 이동
-                                  target.scrollTop = target.scrollHeight;
-                                }, 0); // 10ms 정도의 아주 짧은 지연시간이면 충분합니다.
-                              }
-                            }}
-                            placeholder="내용을 입력하세요."
-                          />
                         </td>
+
                         {/* 계획 */}
-                        <td className="border-r border-slate-300 p-2">
-                          <div className="flex items-center justify-between mb-3 p-2 bg-slate-50 rounded-md border border-slate-200">
-                            <div className="flex items-center gap-2 text-[13px] text-slate-600">
-                              <span className="flex items-center justify-center w-5 h-5 bg-blue-100 text-blue-600 rounded-full text-[10px] font-bold">
-                                TIP
-                              </span>
-                              <p>
-                                <span className="font-semibold text-slate-800">
-                                  문단 번호 자동 조절
-                                </span>{" "}
-                                /
-                                <kbd className="ml-1 px-1.5 py-0.5 text-[11px] font-sans font-semibold bg-white border border-slate-300 rounded shadow-sm text-slate-900">
-                                  Tab
-                                </kbd>{" "}
-                                또는
-                                <kbd className="ml-1 px-1.5 py-0.5 text-[11px] font-sans font-semibold bg-white border border-slate-300 rounded shadow-sm text-slate-900">
-                                  Shift + Tab
-                                </kbd>
-                                을 누르세요.
-                              </p>
-                            </div>
-                            <div className="text-[11px] text-slate-400 italic">
-                              1. → 가. → 1) → 가) → ① → ㉮ 순서로 변경됩니다.
-                            </div>
+                        <td className="border-r border-slate-300 p-4 align-top">
+                          <div className="whitespace-pre-wrap text-sm leading-relaxed ">
+                            {project.plan || "-"}
                           </div>
-
-                          {/* 2. 메인 입력창 */}
-                          <Textarea
-                            className="min-h-[500px] border-none shadow-none focus-visible:ring-0 resize-none text-sm"
-                            value={project.plan}
-                            onChange={(e) =>
-                              handleTextChange(idx, "plan", e.target.value)
-                            }
-                            // ★ 여기에 추가합니다
-                            onFocus={(e) => {
-                              const currentVal = project.plan || "";
-
-                              // 1. 아예 비어있거나 공백만 있는 경우 -> '1.  ' 셋팅
-                              if (currentVal.trim() === "") {
-                                handleTextChange(idx, "plan", "1.  ");
-                                setTimeout(() => {
-                                  e.target.setSelectionRange(4, 4);
-                                }, 0);
-                              }
-                              // 2. 내용이 있는데(취합 후), 마지막이 줄바꿈이거나 번호 형식이 아닐 경우
-                              else if (userAdmin) {
-                                // 관리자일 때만 자동 번호 추가를 원할 경우 조건 추가
-                                const trimmedVal = currentVal.trimEnd();
-
-                                // 마지막 줄이 숫자/기호로 시작하는 번호 형식이 아닌지 체크 (정규식)
-                                // 예: '내용입니다' 로 끝나면 새 줄에 '1. ' 추가
-                                const lines = trimmedVal.split("\n");
-                                const lastLine = lines[lines.length - 1];
-                                const bulletRegex =
-                                  /^(\d+\.|[가-힣]\.|[①-⑮]|\d+\)|[가-힣]\))/;
-
-                                if (!bulletRegex.test(lastLine.trim())) {
-                                  const newVal = trimmedVal + "\n\n1.  ";
-                                  handleTextChange(idx, "plan", newVal);
-
-                                  setTimeout(() => {
-                                    e.target.setSelectionRange(
-                                      newVal.length,
-                                      newVal.length,
-                                    );
-                                    // 포커스 시 자동으로 스크롤을 맨 아래로 내림
-                                    e.target.scrollTop = e.target.scrollHeight;
-                                  }, 0);
-                                }
-                              }
-                            }}
-                            onPaste={(e) => {
-                              e.preventDefault(); // 브라우저 기본 동작 중단 (충돌 방지)
-
-                              // 1. 클립보드 데이터 가져오기
-                              const pastedText =
-                                e.clipboardData.getData("text");
-                              const target = e.currentTarget;
-
-                              // 2. 현재 상태값과 커서 위치 파악
-                              const currentText = target.value;
-                              const selectionStart = target.selectionStart;
-                              const selectionEnd = target.selectionEnd;
-
-                              // 3. 기존 텍스트 사이에 붙여넣은 내용 합성
-                              const combinedText =
-                                currentText.substring(0, selectionStart) +
-                                pastedText +
-                                currentText.substring(selectionEnd);
-
-                              // 4. ★ 정렬 로직 적용 (실시간 정렬 유지)
-                              const formattedText = reorderText(combinedText);
-
-                              // 5. 상태 업데이트
-                              handleTextChange(idx, "plan", formattedText);
-
-                              // 6. 커서 위치 보정
-                              // 정렬 후 텍스트 길이가 변할 수 있으므로 0ms 지연 후 위치 조정
-                              setTimeout(() => {
-                                const newCursorPos =
-                                  selectionStart + pastedText.length;
-                                target.setSelectionRange(
-                                  newCursorPos,
-                                  newCursorPos,
-                                );
-                              }, 0);
-                            }}
-                            // onKeyDown={(e) => handleKeyDown(e, idx, "plan")}
-                            onKeyDown={(e) => {
-                              // 기존에 있던 번호 자동 조절 로직 실행
-                              handleKeyDown(e, idx, "plan");
-
-                              // 엔터 키 처리
-                              if (e.key === "Enter" && !e.shiftKey) {
-                                const target = e.currentTarget;
-
-                                // setTimeout을 사용하여 줄바꿈이 입력된 '직후'에 실행되도록 합니다.
-                                setTimeout(() => {
-                                  // 1. 스크롤을 맨 아래로 이동
-                                  target.scrollTo({
-                                    top: target.scrollHeight,
-                                    behavior: "smooth", // 부드러운 움직임을 원치 않으면 제거 가능
-                                  });
-
-                                  // 2. 만약 내용이 너무 길어 behavior: "smooth"가 안 먹힐 경우를 대비한 강제 이동
-                                  target.scrollTop = target.scrollHeight;
-                                }, 0); // 10ms 정도의 아주 짧은 지연시간이면 충분합니다.
-                              }
-                            }}
-                            placeholder="내용을 입력하세요."
-                          />
                         </td>
                       </tr>
                     ))}
@@ -1837,24 +448,16 @@ export default function ReportList() {
               {!deleteMutation.isPending && !isRefetching ? (
                 <div className="h-[600px] flex flex-col justify-between">
                   <div className="space-y-3 overflow-y-auto pr-2 custom-scrollbar">
-                    {currentData?.map((history: any) => (
+                    {currentReportData?.map((history: any) => (
                       <Card
                         key={history.id}
                         className="h-[95.5px] p-4 cursor-pointer hover:border-primary/50 transition-all hover:shadow-md border-muted"
-                        // onClick={() => setReportData(history.content)}
                         onClick={() => {
-                          const weekRange = getWeekRange(); // 클릭 시점의 날짜 계산
-                          // const selectedData = JSON.parse(
-                          //   JSON.stringify(history.content),
-                          // );
                           const selectedData = {
                             ...JSON.parse(JSON.stringify(history.content)),
                             id: history.id, // [중요] 보고서의 실제 DB ID를 객체에 포함
-                          };
-                          selectedData.period = {
-                            actual: weekRange.actual,
-                            plan: weekRange.plan,
-                          };
+                            // period: history.content.period,
+                          };;
                           setReportData(selectedData);
                         }}
                       >
@@ -1879,10 +482,10 @@ export default function ReportList() {
                   </div>
 
                   {/* 페이지네이션 컨트롤러 */}
-                  {projectTotalPages > 1 && (
+                  {reportTotalPages > 1 && (
                     <div className="flex items-center justify-between pt-4 border-t mt-2">
                       <span className="text-xs text-muted-foreground">
-                        {projectPage} / {projectTotalPages} 페이지 페이지
+                        {reportPage} / {reportTotalPages} 페이지 페이지
                       </span>
                       <div className="flex gap-2">
                         <Button
@@ -1890,9 +493,9 @@ export default function ReportList() {
                           size="icon"
                           className="h-8 w-8"
                           onClick={() =>
-                            setProjectPage((prev) => Math.max(prev - 1, 1))
+                            setReportPage((prev) => Math.max(prev - 1, 1))
                           }
-                          disabled={projectPage === 1}
+                          disabled={reportPage === 1}
                         >
                           <ChevronLeft className="h-4 w-4" />
                         </Button>
@@ -1901,11 +504,11 @@ export default function ReportList() {
                           size="icon"
                           className="h-8 w-8"
                           onClick={() =>
-                            setProjectPage((prev) =>
-                              Math.min(prev + 1, projectTotalPages),
+                            setReportPage((prev) =>
+                              Math.min(prev + 1, reportTotalPages),
                             )
                           }
-                          disabled={projectPage === projectTotalPages}
+                          disabled={reportPage === reportTotalPages}
                         >
                           <ChevronRight className="h-4 w-4" />
                         </Button>
@@ -1931,50 +534,155 @@ export default function ReportList() {
             </div>
           </div>
         ) : (
-          // <div className="flex flex-col items-center justify-center h-[60vh]">
-          //   <FileText className="w-16 h-16 text-muted-foreground mb-4 opacity-20" />
-          //   <p className="text-muted-foreground">
-          //     관리자가 공유한 보고서가 아직 없습니다.
-          //   </p>
-          //   <p className="text-sm text-muted-foreground/60">
-          //     공유되면 자동으로 화면이 전환됩니다.
-          //   </p>
-          // </div>
-          <div className="flex flex-col items-center justify-center h-[60vh] text-center">
-            <FileText className="w-16 h-16 text-muted-foreground mb-4 opacity-20" />
+          <div className="w-full max-w-[1600px] mx-auto animate-in fade-in slide-in-from-bottom-4 duration-700">
+            {/* 상단 헤더: 어두운 배경에서 돋보이는 발광 포인트 */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between mb-6 pb-6 border-b-2 border-white/10">
+              <div className="mt-6 sm:mt-0 flex items-center gap-6 bg-white/[0.03] backdrop-blur-md p-4 rounded-2xl border shadow-2xl">
+                <div className="px-4 border-r border-white/10 text-center">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase block tracking-widest mb-1">
+                    Total Logs
+                  </span>
+                  <span className="text-xl font-black text-white leading-none">
+                    {diagnosticHistory?.length || 0}
+                  </span>
+                </div>
+                <div className="px-4 text-center">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase block tracking-widest mb-1">
+                    Sequence
+                  </span>
+                  <span className="text-xl font-black text-blue-400 leading-none">
+                    {reportPage}{" "}
+                    <span className="text-sm text-slate-600">
+                      / {reportTotalPages}
+                    </span>
+                  </span>
+                </div>
+              </div>
+            </div>
 
-            {!sharedReportId ? (
-              // Case A: 서버에 공유된 보고서 자체가 없을 때
-              <>
-                <p className="text-muted-foreground font-medium">
-                  현재 활성화된 주간 보고서가 없습니다.
-                </p>
-                <p className="text-sm text-muted-foreground/60 mt-1">
-                  관리자가 보고서를 공유할 때까지 기다려주세요.
-                </p>
-              </>
+            {/* 메인 리스트: 다크 모드용 유리 질감 카드 */}
+            {!isRefetching ? (
+              <div className="min-h-[600px] flex flex-col">
+                {currentReportData && currentReportData.length > 0 ? (
+                  <div className="min-h-[424px] grid-rows-2 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    {currentReportData.map((history: any) => (
+                      <Card
+                        key={history.id}
+                        className="group relative flex flex-col h-full p-0 border border-white/5 bg-white/[0.02] hover:bg-white/[0.05] shadow-sm hover:shadow-[0_20px_40px_rgba(0,0,0,0.4)] transition-all duration-500 cursor-pointer overflow-hidden backdrop-blur-sm"
+                        onClick={() => {
+                          const selectedData = {
+                            ...JSON.parse(JSON.stringify(history.content)),
+                            id: history.id,
+                            // period: history.content.period,
+                          };
+                          setReportData(selectedData);
+                        }}
+                      >
+                        {/* 호버 시 나타나는 상단 그라데이션 라인 */}
+                        <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-blue-500 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+
+                        <div className="p-6 flex flex-col h-full bg-white/[0.03]">
+                          <div className="flex items-start justify-between mb-6">
+                            <div className="p-3 rounded-xl bg-white/5 border border-white/5 group-hover:border-blue-500/30 group-hover:bg-blue-500/10 transition-all duration-500">
+                              <FileText className="w-5 h-5 text-slate-400 group-hover:text-blue-400" />
+                            </div>
+                            <div className="text-right">
+                              <div className="text-[10px] font-bold text-blue-400/70 uppercase tracking-widest mb-1">
+                                Verified
+                              </div>
+                              <div className="text-xs font-bold text-slate-500 group-hover:text-slate-300 transition-colors">
+                                {new Date(
+                                  history.createdAt,
+                                ).toLocaleDateString()}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* 제목: 어두운 배경에서 텍스트 대비 강화 */}
+                          <h4 className="text-[17px] font-bold text-slate-200 leading-snug group-hover:text-white transition-colors line-clamp-2 mb-4">
+                            {history.content.title || "제목 없는 데이터 로그"}
+                          </h4>
+
+                          <div className="mt-auto pt-4 border-t border-white/15 flex items-center justify-between">
+                            <span className="text-xs text-slate-500">
+                              ID-{history.id.toString().slice(-8)}
+                            </span>
+                            <div className="flex items-center gap-1.5 text-[11px] font-black text-blue-500 opacity-0 group-hover:opacity-100 transform translate-x-2 group-hover:translate-x-0 transition-all duration-300">
+                              ACCESS <ArrowRight className="w-3 h-3" />
+                            </div>
+                          </div>
+                        </div>
+                      </Card>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex-1 flex flex-col items-center justify-center border-2 border-dashed rounded-2xl bg-white/[0.03]">
+                    <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mb-6 shadow-inner">
+                      <Inbox className="w-8 h-8 text-slate-700" />
+                    </div>
+                    <p className="text-slate-500 font-bold text-lg">
+                      기록된 데이터가 존재하지 않습니다.
+                    </p>
+                    <p className="text-slate-600 text-sm mt-2 font-medium">
+                      관리자의 업로드를 대기 중입니다.
+                    </p>
+                  </div>
+                )}
+
+                {/* 페이지네이션: 다크 테마용 플로팅 컨트롤러 */}
+                {reportTotalPages > 1 && (
+                  <div className="mt-10 mb-10 flex flex-col items-center gap-6">
+                    <div className="flex items-center gap-3 p-2 bg-white/[0.02] border border-white/10 rounded-2xl backdrop-blur-xl shadow-2xl">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-10 w-10 rounded-xl hover:bg-white/5 text-slate-400 hover:text-white transition-all"
+                        onClick={() =>
+                          setReportPage((prev) => Math.max(prev - 1, 1))
+                        }
+                        disabled={reportPage === 1}
+                      >
+                        <ChevronLeft className="h-5 h-5" />
+                      </Button>
+
+                      <div className="flex items-center gap-2.5 px-4">
+                        {[...Array(reportTotalPages)].map((_, i) => (
+                          <button
+                            key={i}
+                            onClick={() => setReportPage(i + 1)}
+                            className={`h-1.5 rounded-full transition-all duration-500 ${
+                              reportPage === i + 1
+                                ? "w-10 bg-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.5)]"
+                                : "w-2 bg-white/10 hover:bg-white/30"
+                            }`}
+                          />
+                        ))}
+                      </div>
+
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-10 w-10 rounded-xl hover:bg-white/5 text-slate-400 hover:text-white transition-all"
+                        onClick={() =>
+                          setReportPage((prev) =>
+                            Math.min(prev + 1, reportTotalPages),
+                          )
+                        }
+                        disabled={reportPage === reportTotalPages}
+                      >
+                        <ChevronRight className="h-5 h-5" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
             ) : (
-              // Case B: 서버엔 공유된 게 있는데, 내가 아직 '내용 보기'를 안 눌렀을 때
-              <>
-                <p className="text-muted-foreground font-medium">
-                  새로운 주간 보고서가 공유되었습니다!
+              <div className="h-[600px] flex flex-col items-center justify-center gap-6">
+                <div className="w-14 h-14 border-2 border-blue-500/20 border-t-blue-500 rounded-full animate-spin" />
+                <p className="text-[10px] font-black text-blue-500 tracking-[0.4em] uppercase animate-pulse">
+                  Accessing Archive
                 </p>
-                <p className="text-sm text-muted-foreground/60 mt-1">
-                  상단의{" "}
-                  <span className="font-bold text-orange-500">
-                    "공유된 내용 보기"
-                  </span>{" "}
-                  버튼을 눌러 작성을 시작하세요.
-                </p>
-                {/* 선택사항: 여기에도 버튼을 하나 더 두면 동선이 편합니다 */}
-                <Button
-                  variant="outline"
-                  className="mt-4 border-orange-200 text-orange-600 hover:bg-orange-500"
-                  onClick={handleLoadSharedReport}
-                >
-                  보고서 불러오기
-                </Button>
-              </>
+              </div>
             )}
           </div>
         )}

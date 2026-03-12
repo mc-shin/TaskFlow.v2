@@ -93,7 +93,7 @@ export default function BusinessDashboard() {
   };
 
   const filteredData = useMemo(() => {
-    return data.filter((item: any) => {
+    const filtered = data.filter((item: any) => {
       // 1. Source 필터
       const matchSource =
         appliedFilter.sources.length === 0 ||
@@ -115,6 +115,19 @@ export default function BusinessDashboard() {
 
       // return matchSource && matchDate && matchKeyword;
       return matchSource && matchDate && matchKeyword && matchFavorite;
+    });
+
+    return filtered.sort((a: any, b: any) => {
+      // 1. 날짜 내림차순 (최신순)
+      const dateComp = (b.date || "").localeCompare(a.date || "");
+      if (dateComp !== 0) return dateComp;
+
+      // 2. 시간 내림차순 (같은 날짜면 늦은 시간순)
+      const timeComp = (b.time || "").localeCompare(a.time || "");
+      if (timeComp !== 0) return timeComp;
+
+      // 3. (선택사항) 시간까지 같다면 ID로 최종 고정
+      return (b.id || "").localeCompare(a.id || "");
     });
   }, [data, appliedFilter, isOnlyFavorites, favorites]);
 
@@ -454,7 +467,7 @@ export default function BusinessDashboard() {
     const apiPromise = api.get("/api/crawl");
     const bidsPromise = api.get("/api/bids");
     const mssPromise = api.get("/api/mss-business");
-
+    console.log(bidsPromise);
     try {
       // 1. 애니메이션 진행 (기존 33초가 너무 길다면 이 시간을 조정하세요)
       for (let i = 0; i < 10; i++) {
@@ -537,7 +550,11 @@ export default function BusinessDashboard() {
         if (dateDiff !== 0) return dateDiff;
 
         // 2. 날짜가 같을 경우 ID 비교 (백엔드 desc(notices.id)와 일치시킴)
-        return (b.id || "").localeCompare(a.id || "");
+        // 2. 🚩 수정: 날짜가 같을 경우 ID가 아닌 time으로 비교
+        const timeDiff = (b.time || "").localeCompare(a.time || "");
+        if (timeDiff !== 0) return timeDiff;
+
+        return 0;
       });
       setData(sortedForUI);
 
