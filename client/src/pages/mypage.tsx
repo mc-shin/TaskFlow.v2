@@ -37,6 +37,7 @@ import {
 } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { logout } from "@/lib/auth";
 
 // 1. 비밀번호 변경 스키마 (SignupPage의 로직 적용)
 const passwordSchema = z
@@ -102,8 +103,9 @@ export default function MyPage() {
     window.history.back();
   };
 
-  const handleLogout = () => {
-    localStorage.clear();
+  const handleLogout = async () => {
+    // 서버에 로그아웃 요청 → HTTP-Only 쿠키 삭제 + localStorage 정리
+    await logout();
     setLocation("/");
   };
 

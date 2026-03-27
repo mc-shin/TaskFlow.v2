@@ -49,6 +49,7 @@ import type { ProjectWithDetails } from "@shared/schema";
 import api from "@/api/api-index";
 import axios, { AxiosError } from "axios";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { SessionTimer } from "@/components/session-timer";
 
 const workspaceSchema = z.object({
   name: z.string().min(1, "워크스페이스 이름을 입력해주세요"),
@@ -79,7 +80,7 @@ export function WorkspacePage() {
   const [isNewUser, setIsNewUser] = useState(false);
   const [isUserInfoLoaded, setIsUserInfoLoaded] = useState(false);
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<number | null>(
-    null
+    null,
   );
   const { toast } = useToast();
 
@@ -129,7 +130,7 @@ export function WorkspacePage() {
 
   // 맵핑 로직 간소화
   const statsMap = Object.fromEntries(
-    combinedResults.map((res) => [res.data?.id, res.data])
+    combinedResults.map((res) => [res.data?.id, res.data]),
   );
 
   // 통합 로딩 상태 (결합된 쿼리 하나만 체크)
@@ -145,7 +146,7 @@ export function WorkspacePage() {
 
   // 1. 현재 선택된 워크스페이스 객체 찾기
   const currentWorkspace = userWorkspaces?.find(
-    (ws: any) => ws.id === selectedWorkspaceId
+    (ws: any) => ws.id === selectedWorkspaceId,
   );
 
   // 2. 현재 사용자가 이 워크스페이스의 생성자인지 확인
@@ -162,7 +163,7 @@ export function WorkspacePage() {
     // localStorage에서 워크스페이스 정보 가져오기
     const storedWorkspaceName = localStorage.getItem("workspaceName");
     const storedWorkspaceDescription = localStorage.getItem(
-      "workspaceDescription"
+      "workspaceDescription",
     );
     if (storedWorkspaceName) {
       setWorkspaceName(storedWorkspaceName);
@@ -207,19 +208,19 @@ export function WorkspacePage() {
             }
 
             const workspaceResponse = await api.get(
-              `/api/users/${currentUser.id}/workspaces`
+              `/api/users/${currentUser.id}/workspaces`,
             );
             const userWorkspaces = workspaceResponse.data;
 
             const isOwner = userWorkspaces.some(
-              (ws: any) => ws.ownerId === currentUser.id
+              (ws: any) => ws.ownerId === currentUser.id,
             );
 
             isAdmin = isOwner; // 관리자 상태 업데이트
           } catch (workspaceError) {
             console.error(
               "사용자 워크스페이스 목록 가져오기 실패:",
-              workspaceError
+              workspaceError,
             );
             // API 호출 실패 시 관리자 권한은 false로 유지 (isAdmin = false)
           }
@@ -252,7 +253,7 @@ export function WorkspacePage() {
         // 서버에서 실제 초대 목록 가져오기 (동기화)
         try {
           const serverInvitationsResponse = await api.get(
-            `/api/invitations/email/${encodeURIComponent(userEmail)}`
+            `/api/invitations/email/${encodeURIComponent(userEmail)}`,
           );
 
           // Axios는 응답 본문을 response.data에 JSON으로 자동 파싱합니다.
@@ -260,13 +261,13 @@ export function WorkspacePage() {
 
           // 서버에서 가져온 pending 초대만 사용
           pendingInvitations = serverInvitations.filter(
-            (inv: any) => inv.status === "pending"
+            (inv: any) => inv.status === "pending",
           );
 
           // localStorage와 동기화 (서버 데이터를 신뢰할 수 있는 소스로 사용)
           localStorage.setItem(
             `receivedInvitations_${userEmail}`,
-            JSON.stringify(serverInvitations)
+            JSON.stringify(serverInvitations),
           );
         } catch (error: unknown) {
           // ⭐️ [수정] catch 블록의 error: unknown 타입을 안전하게 처리
@@ -305,11 +306,11 @@ export function WorkspacePage() {
 
           // 서버에서 가져오기 실패/오류 시 localStorage 백업 사용
           console.warn(
-            "서버에서 초대 목록을 가져올 수 없습니다. localStorage 데이터를 사용합니다."
+            "서버에서 초대 목록을 가져올 수 없습니다. localStorage 데이터를 사용합니다.",
           );
 
           const receivedInvitationsString = localStorage.getItem(
-            `receivedInvitations_${userEmail}`
+            `receivedInvitations_${userEmail}`,
           );
 
           const receivedInvitations = receivedInvitationsString
@@ -317,36 +318,36 @@ export function WorkspacePage() {
             : [];
 
           pendingInvitations = receivedInvitations.filter(
-            (inv: any) => inv.status === "pending"
+            (inv: any) => inv.status === "pending",
           );
         }
 
         // 신규 사용자이고 개별 초대 목록이 비어있다면 전역 목록에서 확인
         if (!currentUser && pendingInvitations.length === 0) {
           const globalInvitations = JSON.parse(
-            localStorage.getItem("pendingInvitations") || "[]"
+            localStorage.getItem("pendingInvitations") || "[]",
           );
           const globalPending = globalInvitations.filter(
             (inv: any) =>
-              inv.inviteeEmail === userEmail && inv.status === "pending"
+              inv.inviteeEmail === userEmail && inv.status === "pending",
           );
 
           // 전역에서 찾은 초대가 있다면 개별 목록으로 이동
           if (globalPending.length > 0) {
             localStorage.setItem(
               `receivedInvitations_${userEmail}`,
-              JSON.stringify(globalPending)
+              JSON.stringify(globalPending),
             );
             pendingInvitations = globalPending;
 
             // 전역 목록에서 해당 초대들 제거
             const remainingGlobalInvitations = globalInvitations.filter(
               (inv: any) =>
-                !(inv.inviteeEmail === userEmail && inv.status === "pending")
+                !(inv.inviteeEmail === userEmail && inv.status === "pending"),
             );
             localStorage.setItem(
               "pendingInvitations",
-              JSON.stringify(remainingGlobalInvitations)
+              JSON.stringify(remainingGlobalInvitations),
             );
           }
         }
@@ -356,12 +357,12 @@ export function WorkspacePage() {
         // 이미 표시된 초대 ID 목록 가져오기
         const shownInvitationsKey = `shownInvitations_${userEmail}`;
         const shownInvitations = JSON.parse(
-          localStorage.getItem(shownInvitationsKey) || "[]"
+          localStorage.getItem(shownInvitationsKey) || "[]",
         );
 
         // 새로운 초대(아직 표시되지 않은 초대)가 있는지 확인
         const newInvitations = pendingInvitations.filter(
-          (inv: any) => !shownInvitations.includes(inv.id)
+          (inv: any) => !shownInvitations.includes(inv.id),
         );
 
         // 새로운 초대가 있고 다이얼로그가 닫혀있을 때만 다이얼로그 열기
@@ -375,7 +376,7 @@ export function WorkspacePage() {
           ];
           localStorage.setItem(
             shownInvitationsKey,
-            JSON.stringify(updatedShownInvitations)
+            JSON.stringify(updatedShownInvitations),
           );
         }
 
@@ -530,7 +531,7 @@ export function WorkspacePage() {
       localStorage.setItem("workspaceName", selectedWS.name);
       localStorage.setItem(
         "workspaceDescription",
-        selectedWS.description || ""
+        selectedWS.description || "",
       );
     }
 
@@ -707,7 +708,7 @@ export function WorkspacePage() {
   // };
   const handleInviteResponse = async (
     invitationId: string,
-    action: "accept" | "decline"
+    action: "accept" | "decline",
   ) => {
     const userEmail = localStorage.getItem("userEmail");
     if (!userEmail) return;
@@ -721,7 +722,7 @@ export function WorkspacePage() {
       const users = response.data;
 
       const currentUser = users.find(
-        (u: any) => u.email?.toLowerCase() === userEmail.toLowerCase()
+        (u: any) => u.email?.toLowerCase() === userEmail.toLowerCase(),
       );
 
       const currentEmail = userEmail;
@@ -733,16 +734,16 @@ export function WorkspacePage() {
 
       // 3. 로컬 스토리지 업데이트 (기존 로직 유지)
       const receivedInvitations = JSON.parse(
-        localStorage.getItem(`receivedInvitations_${currentEmail}`) || "[]"
+        localStorage.getItem(`receivedInvitations_${currentEmail}`) || "[]",
       );
       const updatedInvitations = receivedInvitations.map((inv: any) =>
         inv.id === invitationId
           ? { ...inv, status: action === "accept" ? "accepted" : "declined" }
-          : inv
+          : inv,
       );
       localStorage.setItem(
         `receivedInvitations_${currentEmail}`,
-        JSON.stringify(updatedInvitations)
+        JSON.stringify(updatedInvitations),
       );
 
       // 4. 로컬 UI 상태 업데이트
@@ -750,14 +751,14 @@ export function WorkspacePage() {
 
       const shownInvitationsKey = `shownInvitations_${currentEmail}`;
       const shownInvitations = JSON.parse(
-        localStorage.getItem(shownInvitationsKey) || "[]"
+        localStorage.getItem(shownInvitationsKey) || "[]",
       );
       const updatedShownInvitations = shownInvitations.filter(
-        (id: string) => id !== invitationId
+        (id: string) => id !== invitationId,
       );
       localStorage.setItem(
         shownInvitationsKey,
-        JSON.stringify(updatedShownInvitations)
+        JSON.stringify(updatedShownInvitations),
       );
 
       // 5. 수락 시 처리 로직
@@ -782,7 +783,7 @@ export function WorkspacePage() {
           } else {
             try {
               const userResponse = await api.get(
-                `/api/users/by-email/${encodeURIComponent(userEmail)}`
+                `/api/users/by-email/${encodeURIComponent(userEmail)}`,
               );
               const userData = userResponse.data;
               inviteeUserId = userData.id;
@@ -895,7 +896,7 @@ export function WorkspacePage() {
     }
 
     const isConfirmed = confirm(
-      "정말로 이 워크스페이스를 삭제하시겠습니까? 이 작업은 되돌릴 수 없으며 모든 데이터가 삭제됩니다."
+      "정말로 이 워크스페이스를 삭제하시겠습니까? 이 작업은 되돌릴 수 없으며 모든 데이터가 삭제됩니다.",
     );
 
     if (isConfirmed) {
@@ -916,7 +917,8 @@ export function WorkspacePage() {
             </div>
 
             <div className="flex items-center space-x-4">
-              {" "}
+              {/* 세션 만료 시간 */}
+              <SessionTimer /> 
               {/* 초대 보관함 버튼 */}
               <div className="relative">
                 <Button

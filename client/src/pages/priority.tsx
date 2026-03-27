@@ -124,6 +124,7 @@ export default function Priority() {
   };
 
   const tasksByPriority = groupTasksByPriority();
+  const allTasks = [...(tasksByPriority["1"] || []), ...(tasksByPriority["2"] || []), ...(tasksByPriority["3"] || []), ...(tasksByPriority["4"] || [])];
 
   // 우선순위 섹션 설정
   const prioritySections = [
@@ -163,98 +164,193 @@ export default function Priority() {
     }
   };
 
-  return (
-    <>
-      <header className="h-16 bg-card border-b border-border flex items-center justify-between px-6">
-        <div>
-          <h1 className="text-xl font-semibold" data-testid="header-title">
-            우선순위
-          </h1>
-          <p className="text-sm text-muted-foreground" data-testid="header-subtitle">
-            우선순위별로 작업을 관리합니다
-          </p>
-        </div>
-      </header>
+  // return (
+  //   <>
+  //     <header className="h-16 bg-card border-b border-border flex items-center justify-between px-6">
+  //       <div>
+  //         <h1 className="text-xl font-semibold" data-testid="header-title">
+  //           우선순위
+  //         </h1>
+  //         <p className="text-sm text-muted-foreground" data-testid="header-subtitle">
+  //           우선순위별로 작업을 관리합니다
+  //         </p>
+  //       </div>
+  //     </header>
       
-      <main className="flex-1 overflow-auto flex items-center" data-testid="main-content" style={{ padding: '1rem' }}>
-        <div className="flex justify-center w-full">
-          {isLoading ? (
-            <div className="grid grid-cols-2 gap-4" style={{ width: '1186px', height: '670px' }}>
-              {[...Array(4)].map((_, i) => (
-                <Card key={i} className="animate-pulse" style={{ width: '581px', height: '323px' }}>
-                  <CardContent className="p-6">
-                    <div className="h-8 bg-muted rounded mb-4"></div>
-                    <div className="space-y-3">
-                      {[...Array(3)].map((_, j) => (
-                        <div key={j} className="h-6 bg-muted rounded"></div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 gap-4" style={{ width: '1186px', height: '670px' }}>
-              {prioritySections.map((section) => (
-                <Card key={section.priority} className="flex flex-col" style={{ width: '581px', height: '323px' }}>
-                <CardHeader className={`${section.bgColor} ${section.textColor} rounded-t-lg`}>
-                  <h2 className="text-lg font-semibold">{section.title}</h2>
-                </CardHeader>
-                <CardContent className="flex-1 p-4 overflow-auto bg-slate-800">
-                  <div className="space-y-2">
-                    {tasksByPriority[section.priority]?.map((task) => (
-                      <Link
-                        key={task.id}
-                        href={`/workspace/${workspaceId}/detail/task/${task.id}?from=priority`}
-                        className="flex items-center gap-3 bg-slate-700 p-3 rounded text-white text-sm hover:bg-slate-600 transition-colors cursor-pointer"
-                        data-testid={`task-${task.id}`}
-                      >
-                        {/* D-day */}
-                        <Badge 
-                          variant={
-                            formatDDay(task.deadline)?.includes('D+') ? 'destructive' : 
-                            formatDDay(task.deadline) === 'D-day' ? 'destructive' :
-                            'default'
-                          }
-                          className="text-xs min-w-[3rem] justify-center"
-                        >
-                          {formatDDay(task.deadline) || '미정'}
-                        </Badge>
+  //     <main className="flex-1 overflow-auto flex items-center" data-testid="main-content" style={{ padding: '1rem' }}>
+  //       <div className="flex justify-center w-full">
+  //         {isLoading ? (
+  //           <div className="grid grid-cols-2 gap-4" style={{ width: '1186px', height: '670px' }}>
+  //             {[...Array(4)].map((_, i) => (
+  //               <Card key={i} className="animate-pulse" style={{ width: '581px', height: '323px' }}>
+  //                 <CardContent className="p-6">
+  //                   <div className="h-8 bg-muted rounded mb-4"></div>
+  //                   <div className="space-y-3">
+  //                     {[...Array(3)].map((_, j) => (
+  //                       <div key={j} className="h-6 bg-muted rounded"></div>
+  //                     ))}
+  //                   </div>
+  //                 </CardContent>
+  //               </Card>
+  //             ))}
+  //           </div>
+  //         ) : (
+  //           <div className="grid grid-cols-2 gap-4" style={{ width: '1186px', height: '670px' }}>
+  //             {prioritySections.map((section) => (
+  //               <Card key={section.priority} className="flex flex-col" style={{ width: '581px', height: '323px' }}>
+  //               <CardHeader className={`${section.bgColor} ${section.textColor} rounded-t-lg`}>
+  //                 <h2 className="text-lg font-semibold">{section.title}</h2>
+  //               </CardHeader>
+  //               <CardContent className="flex-1 p-4 overflow-auto bg-slate-800">
+  //                 <div className="space-y-2">
+  //                   {tasksByPriority[section.priority]?.map((task) => (
+  //                     <Link
+  //                       key={task.id}
+  //                       href={`/workspace/${workspaceId}/detail/task/${task.id}?from=priority`}
+  //                       className="flex items-center gap-3 bg-slate-700 p-3 rounded text-white text-sm hover:bg-slate-600 transition-colors cursor-pointer"
+  //                       data-testid={`task-${task.id}`}
+  //                     >
+  //                       {/* D-day */}
+  //                       <Badge 
+  //                         variant={
+  //                           formatDDay(task.deadline)?.includes('D+') ? 'destructive' : 
+  //                           formatDDay(task.deadline) === 'D-day' ? 'destructive' :
+  //                           'default'
+  //                         }
+  //                         className="text-xs min-w-[3rem] justify-center"
+  //                       >
+  //                         {formatDDay(task.deadline) || '미정'}
+  //                       </Badge>
                         
-                        {/* 작업 이름 */}
-                        <span className="font-medium truncate flex-1">
-                          {task.title}
-                        </span>
+  //                       {/* 작업 이름 */}
+  //                       <span className="font-medium truncate flex-1">
+  //                         {task.title}
+  //                       </span>
                         
-                        {/* 진행도 */}
-                        <div className="flex items-center gap-2 min-w-[80px]">
-                          <Progress value={task.progress || 0} className="flex-1 h-2" />
-                          <span className="text-xs text-slate-300 min-w-[2rem] text-right">
-                            {task.progress || 0}%
-                          </span>
-                        </div>
+  //                       {/* 진행도 */}
+  //                       <div className="flex items-center gap-2 min-w-[80px]">
+  //                         <Progress value={task.progress || 0} className="flex-1 h-2" />
+  //                         <span className="text-xs text-slate-300 min-w-[2rem] text-right">
+  //                           {task.progress || 0}%
+  //                         </span>
+  //                       </div>
                         
-                        {/* 상태 */}
-                        <Badge 
-                          variant={getStatusBadgeVariant(task.status)}
-                          className="text-xs min-w-[3rem] justify-center"
-                        >
-                          {task.status}
-                        </Badge>
-                      </Link>
-                    )) || (
-                      <div className="text-slate-400 text-sm text-center py-8">
-                        해당 우선순위의 작업이 없습니다
-                      </div>
-                    )}
+  //                       {/* 상태 */}
+  //                       <Badge 
+  //                         variant={getStatusBadgeVariant(task.status)}
+  //                         className="text-xs min-w-[3rem] justify-center"
+  //                       >
+  //                         {task.status}
+  //                       </Badge>
+  //                     </Link>
+  //                   )) || (
+  //                     <div className="text-slate-400 text-sm text-center py-8">
+  //                       해당 우선순위의 작업이 없습니다
+  //                     </div>
+  //                   )}
+  //                 </div>
+  //               </CardContent>
+  //             </Card>
+  //           ))}
+  //           </div>
+  //         )}
+  //       </div>
+  //     </main>
+  //   </>
+  // );
+  return (
+  <>
+    <header className="h-16 bg-card border-b border-border flex items-center justify-between px-6">
+      <div>
+        <h1 className="text-xl font-semibold" data-testid="header-title">
+          우선순위
+        </h1>
+        <p className="text-sm text-muted-foreground" data-testid="header-subtitle">
+          우선순위별로 작업을 관리합니다
+        </p>
+      </div>
+    </header>
+    
+    <main className="flex-1 overflow-auto flex items-center" data-testid="main-content" style={{ padding: '1rem' }}>
+      <div className="flex justify-center w-full">
+        {isLoading ? (
+          <div className="grid grid-cols-2 gap-4" style={{ width: '1186px', height: '670px' }}>
+            {[...Array(4)].map((_, i) => (
+              <Card key={i} className="animate-pulse" style={{ width: '581px', height: '323px' }}>
+                <CardContent className="p-6">
+                  <div className="h-8 bg-muted rounded mb-4"></div>
+                  <div className="space-y-3">
+                    {[...Array(3)].map((_, j) => (
+                      <div key={j} className="h-6 bg-muted rounded"></div>
+                    ))}
                   </div>
                 </CardContent>
               </Card>
             ))}
-            </div>
-          )}
-        </div>
-      </main>
-    </>
-  );
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-4" style={{ width: '1186px', height: '670px' }}>
+            {allTasks.length === 0 ? (
+              <div className="col-span-2 min-h-[200px] flex flex-col justify-center items-center py-8 text-muted-foreground bg-card border rounded-lg">
+                <p>작업이 없습니다</p>
+                <p className="text-sm mt-1">새 작업을 추가해주세요</p>
+              </div>
+            ) : (
+              prioritySections.map((section) => (
+                <Card key={section.priority} className="flex flex-col" style={{ width: '581px', height: '323px' }}>
+                  <CardHeader className={`${section.bgColor} ${section.textColor} rounded-t-lg`}>
+                    <h2 className="text-lg font-semibold">{section.title}</h2>
+                  </CardHeader>
+                  <CardContent className="flex-1 p-4 overflow-auto bg-slate-800">
+                    <div className="space-y-2">
+                      {tasksByPriority[section.priority]?.map((task) => (
+                        <Link
+                          key={task.id}
+                          href={`/workspace/${workspaceId}/detail/task/${task.id}?from=priority`}
+                          className="flex items-center gap-3 bg-slate-700 p-3 rounded text-white text-sm hover:bg-slate-600 transition-colors cursor-pointer"
+                          data-testid={`task-${task.id}`}
+                        >
+                          <Badge 
+                            variant={
+                              formatDDay(task.deadline)?.includes('D+') ? 'destructive' : 
+                              formatDDay(task.deadline) === 'D-day' ? 'destructive' :
+                              'default'
+                            }
+                            className="text-xs min-w-[3rem] justify-center"
+                          >
+                            {formatDDay(task.deadline) || '미정'}
+                          </Badge>
+                          <span className="font-medium truncate flex-1">
+                            {task.title}
+                          </span>
+                          <div className="flex items-center gap-2 min-w-[80px]">
+                            <Progress value={task.progress || 0} className="flex-1 h-2" />
+                            <span className="text-xs text-slate-300 min-w-[2rem] text-right">
+                              {task.progress || 0}%
+                            </span>
+                          </div>
+                          <Badge 
+                            variant={getStatusBadgeVariant(task.status)}
+                            className="text-xs min-w-[3rem] justify-center"
+                          >
+                            {task.status}
+                          </Badge>
+                        </Link>
+                      )) || (
+                        <div className="text-slate-400 text-sm text-center py-8">
+                          해당 우선순위의 작업이 없습니다
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </div>
+        )}
+      </div>
+    </main>
+  </>
+);
+
 }

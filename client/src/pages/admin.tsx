@@ -42,13 +42,6 @@ import api from "@/api/api-index";
 import * as Axios from "axios"; // 👈 Axios 타입/헬퍼 함수 사용을 위해 임포트가 필요합니다.
 import { useParams } from "wouter";
 
-const inviteSchema = z.object({
-  email: z.string().email("올바른 이메일을 입력해주세요"),
-  role: z.enum(["관리자", "팀원"], { message: "역할을 선택해주세요" }),
-});
-
-type InviteForm = z.infer<typeof inviteSchema>;
-
 export default function Admin() {
   const [activeTab, setActiveTab] = useState("projects");
   const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);

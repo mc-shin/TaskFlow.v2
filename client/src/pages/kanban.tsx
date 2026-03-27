@@ -71,7 +71,7 @@ export default function Kanban() {
   //   queryKey: ["/api/tasks"],
   // });
   const { data: tasks, isLoading: tasksLoading } = useQuery({
-    queryKey: ["tasks", workspaceId],
+    queryKey: ["/api/workspaces", workspaceId, "tasks"],
     queryFn: async () => {
       const response = await api.get(`/api/workspaces/${workspaceId}/tasks`);
       return response.data;
@@ -97,10 +97,10 @@ export default function Kanban() {
   };
 
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(
-    getInitialExpandedState("KANBAN_expandedProjectIds") // 'expandedProjectIds'라는 키로 저장
+    getInitialExpandedState("KANBAN_expandedProjectIds"), // 'expandedProjectIds'라는 키로 저장
   );
   const [expandedGoals, setExpandedGoals] = useState<Set<string>>(
-    getInitialExpandedState("KANBAN_expandedGoalIds") // 'expandedGoalIds'라는 키로 저장
+    getInitialExpandedState("KANBAN_expandedGoalIds"), // 'expandedGoalIds'라는 키로 저장
   );
 
   const [hoveredProject, setHoveredProject] = useState<string | null>(null);
@@ -166,7 +166,7 @@ export default function Kanban() {
     // 👈 **추가된 부분:** 상태를 로컬 저장소에 반영
     localStorage.setItem(
       "KANBAN_expandedProjectIds",
-      JSON.stringify(Array.from(newExpanded))
+      JSON.stringify(Array.from(newExpanded)),
     );
   };
 
@@ -184,7 +184,7 @@ export default function Kanban() {
     // 👈 **추가된 부분:** 상태를 로컬 저장소에 반영
     localStorage.setItem(
       "KANBAN_expandedGoalIds",
-      JSON.stringify(Array.from(newExpanded))
+      JSON.stringify(Array.from(newExpanded)),
     );
   };
 
@@ -226,12 +226,12 @@ export default function Kanban() {
 
     return {
       진행전: allTasks.filter(
-        (task) => task.status === "실행대기" || task.status === "진행전"
+        (task) => task.status === "실행대기" || task.status === "진행전",
       ).length,
       진행중: allTasks.filter((task) => task.status === "진행중").length,
       완료: allTasks.filter((task) => task.status === "완료").length,
       이슈: allTasks.filter(
-        (task) => task.status === "이슈함" || task.status === "이슈"
+        (task) => task.status === "이슈함" || task.status === "이슈",
       ).length,
     };
   }, [tasks]);
@@ -406,103 +406,110 @@ export default function Kanban() {
                 </div>
               </div>
 
-              {(projects as ProjectWithDetails[])?.map((project) => (
-                <div
-                  key={project.id}
-                  className="relative bg-card border border-border rounded-lg shadow-sm hover:shadow-lg transition-all duration-200"
-                  data-testid={`project-container-${project.id}`}
-                >
-                  {/* 프로젝트 헤더 */}
+              {!projects || (projects as ProjectWithDetails[]).length === 0 ? (
+                <div className="min-h-[200px] flex flex-col justify-center items-center py-8 text-muted-foreground bg-card border rounded-lg">
+                  <p>프로젝트가 없습니다</p>
+                  <p className="text-sm mt-1">새 프로젝트를 추가해주세요</p>
+                </div>
+              ) : (
+                (projects as ProjectWithDetails[])?.map((project) => (
                   <div
-                    className="flex items-center justify-between p-4 border-b border-border cursor-pointer hover:bg-muted/50 transition-colors"
-                    onClick={() => toggleProject(project.id)}
+                    key={project.id}
+                    className="relative bg-card border border-border rounded-lg shadow-sm hover:shadow-lg transition-all duration-200"
+                    data-testid={`project-container-${project.id}`}
                   >
-                    <div className="flex items-center space-x-3">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="p-1 h-7 w-7 opacity-100 bg-muted hover:bg-muted/80 border border-border hover:border-border/80 shadow-sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleProject(project.id);
-                        }}
-                        data-testid={`button-toggle-project-${project.id}`}
-                      >
-                        {expandedProjects.has(project.id) ? (
-                          <ChevronDown className="h-4 w-4" />
-                        ) : (
-                          <ChevronRight className="h-4 w-4" />
-                        )}
-                      </Button>
-                      <FolderOpen className="w-5 h-5 text-primary" />
-                      <div>
-                        <h3
-                          className="text-lg font-medium text-foreground cursor-pointer hover:text-primary transition-colors"
-                          data-testid={`text-project-title-${project.id}`}
+                    {/* 프로젝트 헤더 */}
+                    <div
+                      className="flex items-center justify-between p-4 border-b border-border cursor-pointer hover:bg-muted/50 transition-colors"
+                      onClick={() => toggleProject(project.id)}
+                    >
+                      <div className="flex items-center space-x-3">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="p-1 h-7 w-7 opacity-100 bg-muted hover:bg-muted/80 border border-border hover:border-border/80 shadow-sm"
                           onClick={(e) => {
                             e.stopPropagation();
-                            setLocation(
-                              `/workspace/${workspaceId}/detail/project/${project.id}?from=kanban`
-                            );
+                            toggleProject(project.id);
                           }}
+                          data-testid={`button-toggle-project-${project.id}`}
                         >
-                          {project.name}
-                        </h3>
+                          {expandedProjects.has(project.id) ? (
+                            <ChevronDown className="h-4 w-4" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4" />
+                          )}
+                        </Button>
+                        <FolderOpen className="w-5 h-5 text-primary" />
+                        <div>
+                          <h3
+                            className="text-lg font-medium text-foreground cursor-pointer hover:text-primary transition-colors"
+                            data-testid={`text-project-title-${project.id}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setLocation(
+                                `/workspace/${workspaceId}/detail/project/${project.id}?from=kanban`,
+                              );
+                            }}
+                          >
+                            {project.name}
+                          </h3>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-3">
+                        <span className="text-sm text-muted-foreground">
+                          {(tasks as SafeTaskWithAssignees[])?.filter(
+                            (task) =>
+                              task.goalId &&
+                              project.goals?.some(
+                                (goal) => goal.id === task.goalId,
+                              ) &&
+                              task.status === "완료",
+                          ).length || 0}
+                          /
+                          {(tasks as SafeTaskWithAssignees[])?.filter(
+                            (task) =>
+                              task.goalId &&
+                              project.goals?.some(
+                                (goal) => goal.id === task.goalId,
+                              ),
+                          ).length || 0}{" "}
+                          작업 완료
+                        </span>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setGoalModalState({
+                              isOpen: true,
+                              projectId: project.id,
+                              projectTitle: project.name,
+                            });
+                          }}
+                          data-testid={`button-add-goal-${project.id}`}
+                        >
+                          <Plus className="w-4 h-4 mr-2" />새 목표
+                        </Button>
                       </div>
                     </div>
-                    <div className="flex items-center space-x-3">
-                      <span className="text-sm text-muted-foreground">
-                        {(tasks as SafeTaskWithAssignees[])?.filter(
-                          (task) =>
-                            task.goalId &&
-                            project.goals?.some(
-                              (goal) => goal.id === task.goalId
-                            ) &&
-                            task.status === "완료"
-                        ).length || 0}
-                        /
-                        {(tasks as SafeTaskWithAssignees[])?.filter(
-                          (task) =>
-                            task.goalId &&
-                            project.goals?.some(
-                              (goal) => goal.id === task.goalId
-                            )
-                        ).length || 0}{" "}
-                        작업 완료
-                      </span>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setGoalModalState({
-                            isOpen: true,
-                            projectId: project.id,
-                            projectTitle: project.name,
-                          });
-                        }}
-                        data-testid={`button-add-goal-${project.id}`}
-                      >
-                        <Plus className="w-4 h-4 mr-2" />새 목표
-                      </Button>
-                    </div>
-                  </div>
 
-                  {/* 목표 섹션 - 프로젝트가 확장된 경우에만 표시 */}
-                  {expandedProjects.has(project.id) && (
-                    <ProjectKanbanGoals
-                      projectId={project.id}
-                      projectName={project.name}
-                      setTaskModalState={setTaskModalState}
-                      setTaskEditModalState={setTaskEditModalState}
-                      expandedGoals={expandedGoals}
-                      toggleGoal={toggleGoal}
-                      usersMap={usersMap}
-                      setGoalModalState={setGoalModalState}
-                    />
-                  )}
-                </div>
-              ))}
+                    {/* 목표 섹션 - 프로젝트가 확장된 경우에만 표시 */}
+                    {expandedProjects.has(project.id) && (
+                      <ProjectKanbanGoals
+                        projectId={project.id}
+                        projectName={project.name}
+                        setTaskModalState={setTaskModalState}
+                        setTaskEditModalState={setTaskEditModalState}
+                        expandedGoals={expandedGoals}
+                        toggleGoal={toggleGoal}
+                        usersMap={usersMap}
+                        setGoalModalState={setGoalModalState}
+                      />
+                    )}
+                  </div>
+                ))
+              )}
             </div>
           )}
         </div>
@@ -661,7 +668,7 @@ function ProjectKanbanGoals({
                   onClick={(e) => {
                     e.stopPropagation();
                     setLocation(
-                      `/workspace/${workspaceId}/detail/goal/${goal.id}?from=kanban`
+                      `/workspace/${workspaceId}/detail/goal/${goal.id}?from=kanban`,
                     );
                   }}
                 >
@@ -791,12 +798,12 @@ function GoalKanbanColumns({
     const tasks = goal.tasks || [];
     return {
       진행전: tasks.filter(
-        (task) => task.status === "실행대기" || task.status === "진행전"
+        (task) => task.status === "실행대기" || task.status === "진행전",
       ),
       진행중: tasks.filter((task) => task.status === "진행중"),
       완료: tasks.filter((task) => task.status === "완료"),
       이슈: tasks.filter(
-        (task) => task.status === "이슈함" || task.status === "이슈"
+        (task) => task.status === "이슈함" || task.status === "이슈",
       ),
     };
   }, [goal.tasks]);
@@ -822,10 +829,18 @@ function GoalKanbanColumns({
     },
     onSuccess: () => {
       // queryClient는 해당 파일에서 정의되어 있어야 합니다.
-      queryClient.invalidateQueries({ queryKey: ["/api/tasks"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/projects"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/goals"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/workspaces", workspaceId, "tasks"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/workspaces", workspaceId, "projects"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/workspaces", workspaceId, "goals"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/workspaces", workspaceId, "stats"],
+      });
       queryClient.invalidateQueries({ queryKey: ["/api/activities"] });
       // 프로젝트별 목표 데이터도 무효화
       queryClient.invalidateQueries({
@@ -889,7 +904,7 @@ function GoalKanbanColumns({
                 onDragStart={(e) => handleDragStart(e, task.id)}
                 onClick={() =>
                   setLocation(
-                    `/workspace/${workspaceId}/detail/task/${task.id}?from=kanban`
+                    `/workspace/${workspaceId}/detail/task/${task.id}?from=kanban`,
                   )
                 }
               >
@@ -943,8 +958,8 @@ function GoalKanbanColumns({
                             formatDeadline(task.deadline)?.startsWith("D+")
                               ? "text-destructive"
                               : formatDeadline(task.deadline) === "D-Day"
-                              ? "text-primary"
-                              : "text-primary"
+                                ? "text-primary"
+                                : "text-primary"
                           }`}
                         >
                           {formatDeadline(task.deadline)}
@@ -962,7 +977,7 @@ function GoalKanbanColumns({
                           <span className="text-foreground text-xs truncate">
                             {task.assigneeIds
                               .map(
-                                (assigneeId) => usersMap.get(assigneeId)?.name
+                                (assigneeId) => usersMap.get(assigneeId)?.name,
                               )
                               .filter(Boolean)
                               .join(", ") || "사용자 미확인"}

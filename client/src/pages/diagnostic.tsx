@@ -20,6 +20,7 @@ import {
   Mail,
   ChevronLeft,
   ChevronRight,
+  Loader2,
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -74,13 +75,13 @@ export default function Diagnostic() {
     return () => {
       window.removeEventListener(
         "handleWorkspaceUpdate",
-        handleWorkspaceNameUpdate
+        handleWorkspaceNameUpdate,
       );
     };
   }, []);
 
   const { data: projects, isLoading: projectsLoading } = useQuery({
-    queryKey: ["projects", workspaceId], // 식별자로 사용
+    queryKey: ["/api/workspaces", workspaceId, "projects"],
     queryFn: async () => {
       const response = await api.get(`/api/workspaces/${workspaceId}/projects`);
       return response.data;
@@ -92,7 +93,7 @@ export default function Diagnostic() {
     queryKey: ["users-stats", workspaceId],
     queryFn: async () => {
       const response = await api.get(
-        `/api/workspaces/${workspaceId}/users/with-stats`
+        `/api/workspaces/${workspaceId}/users/with-stats`,
       );
       return response.data;
     },
@@ -148,21 +149,28 @@ export default function Diagnostic() {
 
   // Diagnostic 함수 내부 상단에 추가
   const [projectResult, setProjectResult] = useState<DiagnosisResult | null>(
-    null
+    null,
   );
   const [memberResult, setMemberResult] = useState<DiagnosisResult | null>(
-    null
+    null,
   );
+
+  const [deleteTarget, setDeleteTarget] = useState<{
+    id: string;
+    type: "project" | "member";
+  } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const {
     data: diagnosisHistory,
     isLoading: historyLoading,
+    isFetching: isRefetching,
     refetch: refetchHistory,
   } = useQuery({
     queryKey: ["/api/workspaces", workspaceId, "diagnoses"],
     queryFn: async () => {
       const response = await api.get(
-        `/api/workspaces/${workspaceId}/diagnoses`
+        `/api/workspaces/${workspaceId}/diagnoses`,
       );
       return response.data;
     },
@@ -225,6 +233,48 @@ export default function Diagnostic() {
     },
   });
 
+  // 진단 기록 삭제 뮤테이션
+  const deleteDiagnosisMutation = useMutation({
+    mutationFn: async (diagnosisId: string) => {
+      const response = await api.delete(
+        `/api/workspaces/${workspaceId}/diagnoses/${diagnosisId}`,
+      );
+      return response.data;
+    },
+    onSuccess: () => {
+      refetchHistory();
+      toast({
+        title: "삭제 완료",
+        description: "진단 기록이 삭제되었습니다.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "삭제 실패",
+        description: "진단 기록 삭제 중 오류가 발생했습니다.",
+        variant: "destructive",
+      });
+    },
+    onSettled: () => {
+       setTimeout(() => {
+    setIsDeleting(false);
+    setDeleteTarget(null);
+  }, 8000);
+    },
+  });
+
+  // 삭제 확인 후 실행
+  const handleDeleteConfirm = () => {
+    if (!deleteTarget) return;
+    setIsDeleting(true);
+    deleteDiagnosisMutation.mutate(deleteTarget.id, {
+      onSuccess: () => {
+        if (deleteTarget.type === "project") setProjectResult(null);
+        if (deleteTarget.type === "member") setMemberResult(null);
+      },
+    });
+  };
+
   // 3. 진단 실행 함수 (데이터 정제 후 전달)
   const handleMemberDiagnosis = () => {
     if (!usersWithStats || usersWithStats.length === 0) return;
@@ -248,19 +298,21 @@ export default function Diagnostic() {
   const [memberPage, setMemberPage] = useState(1);
 
   const itemsPerPage = 5; // 한 페이지에 보여줄 기록 수
-
+  const projectHistory = diagnosisHistory?.filter(
+    (h: any) => h.type !== "member-integrated-diagnose",
+  );
   // 전체 페이지 수 계산
   const projectTotalPages = Math.ceil(
-    (diagnosisHistory?.length || 0) / itemsPerPage
+    (projectHistory?.length || 0) / itemsPerPage,
   );
   const memberTotalPages = Math.ceil(
-    (usersWithStats?.length || 0) / itemsPerPage
+    (usersWithStats?.length || 0) / itemsPerPage,
   );
 
   // 현재 페이지에 해당하는 데이터만 추출
-  const currentData = diagnosisHistory?.slice(
+  const currentData = projectHistory?.slice(
     (projectPage - 1) * itemsPerPage,
-    projectPage * itemsPerPage
+    projectPage * itemsPerPage,
   );
 
   return (
@@ -311,12 +363,28 @@ export default function Diagnostic() {
                     <AlertTriangle className="text-orange-500" /> 종합 리스크
                     진단 결과
                   </h2>
-                  <Button
-                    variant="outline"
-                    onClick={() => setProjectResult(null)}
-                  >
-                    목록으로 돌아가기
-                  </Button>
+                  <div className="flex gap-2">
+                    {projectResult?.id && (
+                      <Button
+                        variant="destructive"
+                        onClick={() =>
+                          setDeleteTarget({
+                            id: projectResult.id!,
+                            type: "project",
+                          })
+                        }
+                      >
+                        <Trash2 className="h-4 w-4 mr-1" />
+                        삭제
+                      </Button>
+                    )}
+                    <Button
+                      variant="outline"
+                      onClick={() => setProjectResult(null)}
+                    >
+                      목록으로 돌아가기
+                    </Button>
+                  </div>
                 </div>
 
                 <Card className="border-l-4 border-l-primary shadow-lg">
@@ -339,7 +407,7 @@ export default function Diagnostic() {
                       <span>
                         진단 일시:{" "}
                         {new Date(
-                          projectResult.createdAt || new Date()
+                          projectResult.createdAt || new Date(),
                         ).toLocaleString()}
                       </span>
                     </div>
@@ -368,6 +436,7 @@ export default function Diagnostic() {
                       size="lg"
                       className="mt-4 px-8"
                       onClick={handleStartDiagnosis}
+                      disabled={activeProjects.length === 0}
                     >
                       AI 진단 리포트 생성
                     </Button>
@@ -381,67 +450,83 @@ export default function Diagnostic() {
                   </h3>
 
                   {/* 높이 고정 영역 */}
-                  <div className="h-[600px] flex flex-col justify-between">
-                    <div className="space-y-3 overflow-y-auto pr-2 custom-scrollbar">
-                      {currentData?.map((history: any) => (
-                        <Card
-                          key={history.id}
-                          className="p-4 cursor-pointer hover:border-primary/50 transition-all hover:shadow-md border-muted"
-                          onClick={() => setProjectResult(history)}
-                        >
-                          <div className="flex justify-between items-start mb-2">
-                            <span className="text-[10px] text-muted-foreground font-medium">
-                              {new Date(history.createdAt).toLocaleString()}
-                            </span>
-                          </div>
-                          <p className="text-sm line-clamp-2 text-foreground/80 leading-snug">
-                            {history.result.substring(0, 100)}...
-                          </p>
-                        </Card>
-                      ))}
+                  {!deleteDiagnosisMutation.isPending && !isRefetching ? (
+                    <div className="h-[600px] flex flex-col justify-between">
+                      <div className="space-y-3 overflow-y-auto pr-2 custom-scrollbar">
+                        {currentData?.map((history: any) => (
+                          <Card
+                            key={history.id}
+                            className="p-4 cursor-pointer hover:border-primary/50 transition-all hover:shadow-md border-muted"
+                            onClick={() => setProjectResult(history)}
+                          >
+                            <div className="flex justify-between items-start mb-2">
+                              <span className="text-[10px] text-muted-foreground font-medium">
+                                {new Date(history.createdAt).toLocaleString()}
+                              </span>
+                            </div>
+                            <p className="text-sm line-clamp-2 text-foreground/80 leading-snug">
+                              {history.result.substring(0, 100)}...
+                            </p>
+                          </Card>
+                        ))}
 
-                      {(!diagnosisHistory || diagnosisHistory.length === 0) && (
-                        <div className="text-center py-12 text-muted-foreground text-sm border-2 border-dotted rounded-lg bg-muted/5">
-                          저장된 진단 기록이 없습니다.
+                        {(!projectHistory || projectHistory.length === 0) && (
+                          <div className="text-center py-12 text-muted-foreground text-sm border-2 border-dotted rounded-lg bg-muted/5">
+                            저장된 진단 기록이 없습니다.
+                          </div>
+                        )}
+                      </div>
+
+                      {/* 페이지네이션 컨트롤러 */}
+                      {projectTotalPages > 1 && (
+                        <div className="flex items-center justify-between pt-4 border-t mt-2">
+                          <span className="text-xs text-muted-foreground">
+                            {projectPage} / {projectTotalPages} 페이지
+                          </span>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() =>
+                                setProjectPage((prev) => Math.max(prev - 1, 1))
+                              }
+                              disabled={projectPage === 1}
+                            >
+                              <ChevronLeft className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() =>
+                                setProjectPage((prev) =>
+                                  Math.min(prev + 1, projectTotalPages),
+                                )
+                              }
+                              disabled={projectPage === projectTotalPages}
+                            >
+                              <ChevronRight className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
                       )}
                     </div>
-
-                    {/* 페이지네이션 컨트롤러 */}
-                    {projectTotalPages > 1 && (
-                      <div className="flex items-center justify-between pt-4 border-t mt-2">
-                        <span className="text-xs text-muted-foreground">
-                          {projectPage} / {projectTotalPages} 페이지
-                        </span>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() =>
-                              setProjectPage((prev) => Math.max(prev - 1, 1))
-                            }
-                            disabled={projectPage === 1}
-                          >
-                            <ChevronLeft className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() =>
-                              setProjectPage((prev) =>
-                                Math.min(prev + 1, projectTotalPages)
-                              )
-                            }
-                            disabled={projectPage === projectTotalPages}
-                          >
-                            <ChevronRight className="h-4 w-4" />
-                          </Button>
+                  ) : (
+                    <div className="h-[600px] flex flex-col items-center justify-center border-2 border-dashed rounded-xl bg-muted/5">
+                      <div className="flex flex-col items-center gap-4">
+                        <Loader2 className="w-10 h-10 text-red-500 animate-spin" />
+                        <div className="text-center">
+                          <p className="font-semibold text-foreground">
+                            보고서를 삭제하고 있습니다
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            잠시만 기다려 주세요...
+                          </p>
                         </div>
                       </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -465,12 +550,28 @@ export default function Diagnostic() {
                     <Users className="text-blue-500" /> 팀 멤버 역량 및 부하
                     진단 결과
                   </h2>
-                  <Button
-                    variant="outline"
-                    onClick={() => setMemberResult(null)}
-                  >
-                    목록으로 돌아가기
-                  </Button>
+                  <div className="flex gap-2">
+                    {memberResult?.id && (
+                      <Button
+                        variant="destructive"
+                        onClick={() =>
+                          setDeleteTarget({
+                            id: memberResult.id!,
+                            type: "member",
+                          })
+                        }
+                      >
+                        <Trash2 className="h-4 w-4 mr-1" />
+                        삭제
+                      </Button>
+                    )}
+                    <Button
+                      variant="outline"
+                      onClick={() => setMemberResult(null)}
+                    >
+                      목록으로 돌아가기
+                    </Button>
+                  </div>
                 </div>
 
                 <Card className="border-l-4 border-l-blue-500 shadow-lg">
@@ -499,7 +600,7 @@ export default function Diagnostic() {
                       <span>
                         진단 일시:{" "}
                         {new Date(
-                          memberResult.createdAt || new Date()
+                          memberResult.createdAt || new Date(),
                         ).toLocaleString()}
                       </span>
                     </div>
@@ -530,7 +631,7 @@ export default function Diagnostic() {
                       size="lg"
                       className="mt-4 px-8 bg-blue-600 hover:bg-blue-700"
                       onClick={handleMemberDiagnosis}
-                      disabled={!usersWithStats || usersWithStats.length === 0}
+                      disabled={activeProjects.length === 0 || !usersWithStats || usersWithStats.length === 0}
                     >
                       멤버 분석 리포트 생성
                     </Button>
@@ -543,16 +644,16 @@ export default function Diagnostic() {
                     <Clock className="w-5 h-5" /> 최근 진단 기록
                   </h3>
 
-                  <div className="h-[600px] flex flex-col justify-between">
+                  {!deleteDiagnosisMutation.isPending && !isRefetching ? (<div className="h-[600px] flex flex-col justify-between">
                     <div className="space-y-3 overflow-y-auto pr-2 custom-scrollbar">
                       {/* 멤버 진단 데이터만 필터링하여 표시 (type으로 구분) */}
                       {diagnosisHistory
                         ?.filter(
-                          (h: any) => h.type === "member-integrated-diagnose"
+                          (h: any) => h.type === "member-integrated-diagnose",
                         )
                         .slice(
                           (memberPage - 1) * itemsPerPage,
-                          memberPage * itemsPerPage
+                          memberPage * itemsPerPage,
                         )
                         .map((history: any) => (
                           <Card
@@ -573,7 +674,7 @@ export default function Diagnostic() {
 
                       {(!diagnosisHistory ||
                         diagnosisHistory.filter(
-                          (h: any) => h.type === "member-integrated-diagnose"
+                          (h: any) => h.type === "member-integrated-diagnose",
                         ).length === 0) && (
                         <div className="text-center py-12 text-muted-foreground text-sm border-2 border-dotted rounded-lg bg-muted/5">
                           저장된 멤버 진단 기록이 없습니다.
@@ -605,7 +706,7 @@ export default function Diagnostic() {
                             className="h-8 w-8"
                             onClick={() =>
                               setMemberPage((prev) =>
-                                Math.min(prev + 1, memberTotalPages)
+                                Math.min(prev + 1, memberTotalPages),
                               )
                             }
                             disabled={memberPage === memberTotalPages}
@@ -615,13 +716,50 @@ export default function Diagnostic() {
                         </div>
                       </div>
                     )}
+                  </div>) : (<div className="h-[600px] flex flex-col items-center justify-center border-2 border-dashed rounded-xl bg-muted/5">
+                  <div className="flex flex-col items-center gap-4">
+                    <Loader2 className="w-10 h-10 text-red-500 animate-spin" />
+                    <div className="text-center">
+                      <p className="font-semibold text-foreground">
+                        보고서를 삭제하고 있습니다
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        잠시만 기다려 주세요...
+                      </p>
+                    </div>
                   </div>
+                </div>)}
                 </div>
               </div>
             )}
           </TabsContent>
         </Tabs>
       </main>
+
+      {/* 삭제 확인 다이얼로그 */}
+      <AlertDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>진단 기록 삭제</AlertDialogTitle>
+            <AlertDialogDescription>
+              이 진단 기록을 삭제하시겠습니까? 삭제된 기록은 복구할 수 없습니다.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>취소</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? "삭제 중..." : "삭제"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

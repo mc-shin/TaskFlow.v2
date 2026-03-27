@@ -87,7 +87,7 @@ export default function TaskDetail() {
   // const taskId = params?.id;
   const [isEditing, setIsEditing] = useState(false);
   const [editedTask, setEditedTask] = useState<Partial<SafeTaskWithAssignees>>(
-    {}
+    {},
   );
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [attachedFiles, setAttachedFiles] = useState<
@@ -293,7 +293,7 @@ export default function TaskDetail() {
       // );
       const search = currentFrom ? `?from=${currentFrom}` : "";
       setLocation(
-        `/workspace/${workspaceId}/detail/project/${parentProject.id}${search}`
+        `/workspace/${workspaceId}/detail/project/${parentProject.id}${search}`,
       );
     }
   };
@@ -303,7 +303,7 @@ export default function TaskDetail() {
       // setLocation(`/workspace/${workspaceId}/detail/goal/${parentGoal.id}`);
       const search = currentFrom ? `?from=${currentFrom}` : "";
       setLocation(
-        `/workspace/${workspaceId}/detail/goal/${parentGoal.id}${search}`
+        `/workspace/${workspaceId}/detail/goal/${parentGoal.id}${search}`,
       );
     }
   };
@@ -481,15 +481,15 @@ export default function TaskDetail() {
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
-                    <AlertDialogTitle>app.riido.io 내용:</AlertDialogTitle>
-                    <AlertDialogDescription className="text-left">
+                    <AlertDialogTitle>
                       <div className="space-y-2">
-                        <div>[-] 작업을 삭제하시겠습니까?</div>
+                        <div>'{task.title}' 작업을 삭제하시겠습니까?</div>
                         <div className="text-sm text-muted-foreground">
                           삭제된 작업은 복구할 수 없습니다.
                         </div>
                       </div>
-                    </AlertDialogDescription>
+                    </AlertDialogTitle>
+                    <AlertDialogDescription>&nbsp;</AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>취소</AlertDialogCancel>
@@ -598,7 +598,7 @@ export default function TaskDetail() {
                                       >
                                         {label}
                                       </Badge>
-                                    )
+                                    ),
                                   )
                                 ) : (
                                   <span className="text-muted-foreground text-xs flex items-center gap-1">
@@ -691,7 +691,7 @@ export default function TaskDetail() {
                                               [];
                                             const updatedLabels =
                                               currentLabels.filter(
-                                                (_, i) => i !== index
+                                                (_, i) => i !== index,
                                               );
                                             setEditedTask((prev) => ({
                                               ...prev,
@@ -775,7 +775,7 @@ export default function TaskDetail() {
                       ) : (
                         <p
                           className={`mt-1 font-medium ${getPriorityColor(
-                            task.priority
+                            task.priority,
                           )}`}
                           data-testid="text-task-priority"
                         >
@@ -847,7 +847,7 @@ export default function TaskDetail() {
                           <div className="flex items-center gap-2">
                             <span>
                               {new Date(task.deadline).toLocaleDateString(
-                                "ko-KR"
+                                "ko-KR",
                               )}
                             </span>
                             <span
@@ -855,8 +855,8 @@ export default function TaskDetail() {
                                 calculateDDay(task.deadline).includes("D+")
                                   ? "bg-red-100 text-red-700"
                                   : calculateDDay(task.deadline) === "D-Day"
-                                  ? "bg-orange-100 text-orange-700"
-                                  : "bg-blue-100 text-blue-700"
+                                    ? "bg-orange-100 text-orange-700"
+                                    : "bg-blue-100 text-blue-700"
                               }`}
                             >
                               {calculateDDay(task.deadline)}
@@ -994,7 +994,7 @@ export default function TaskDetail() {
                                         file.objectPath,
                                         {
                                           responseType: "blob", // 파일 다운로드를 위해 응답 타입을 Blob으로 설정
-                                        }
+                                        },
                                       );
 
                                       // 🚩 [수정] response.ok 체크 및 response.blob() 호출 제거
@@ -1061,7 +1061,7 @@ export default function TaskDetail() {
                                       // -----------------------------------------------------------------
                                       // Axios의 api.delete를 사용하면 method: "DELETE" 옵션이 필요 없습니다.
                                       await api.delete(
-                                        `/api${file.objectPath}`
+                                        `/api${file.objectPath}`,
                                       );
 
                                       // 🚩 [수정] response.ok 체크 제거
@@ -1070,7 +1070,7 @@ export default function TaskDetail() {
                                       // -----------------------------------------------------------------
 
                                       setAttachedFiles((prev) =>
-                                        prev.filter((_, i) => i !== index)
+                                        prev.filter((_, i) => i !== index),
                                       );
                                       toast({
                                         title: "파일 삭제 완료",
@@ -1162,7 +1162,7 @@ export default function TaskDetail() {
                                 <SelectContent className="bg-background border-border">
                                   {Array.from(
                                     { length: 11 },
-                                    (_, i) => i * 10
+                                    (_, i) => i * 10,
                                   ).map((option) => (
                                     <SelectItem
                                       key={option}
@@ -1235,7 +1235,7 @@ export default function TaskDetail() {
                             const currentAssigneeIds =
                               editedTask.assigneeIds ?? task.assigneeIds ?? [];
                             const isSelected = currentAssigneeIds.includes(
-                              user.id
+                              user.id,
                             );
 
                             return (
@@ -1257,7 +1257,7 @@ export default function TaskDetail() {
                                       newIds = [...currentIds, user.id];
                                     } else {
                                       newIds = currentIds.filter(
-                                        (id) => id !== user.id
+                                        (id) => id !== user.id,
                                       );
                                     }
 
@@ -1295,7 +1295,7 @@ export default function TaskDetail() {
                       const assigneeIds = task?.assigneeIds || [];
                       const assignees = assigneeIds
                         .map((id) =>
-                          (users as SafeUser[])?.find((u) => u.id === id)
+                          (users as SafeUser[])?.find((u) => u.id === id),
                         )
                         .filter(Boolean) as SafeUser[];
 
@@ -1355,7 +1355,7 @@ export default function TaskDetail() {
                         const user = (users as SafeUser[])?.find(
                           (u: SafeUser) =>
                             u.id === task.createdBy ||
-                            u.username === task.createdBy
+                            u.username === task.createdBy,
                         );
                         return user?.name || task.createdBy;
                       })()}
@@ -1370,16 +1370,16 @@ export default function TaskDetail() {
                             const year = date.getFullYear();
                             const month = String(date.getMonth() + 1).padStart(
                               2,
-                              "0"
+                              "0",
                             );
                             const day = String(date.getDate()).padStart(2, "0");
                             const hour = String(date.getHours()).padStart(
                               2,
-                              "0"
+                              "0",
                             );
                             const minute = String(date.getMinutes()).padStart(
                               2,
-                              "0"
+                              "0",
                             );
                             return `${year}년 ${month}월 ${day}일 ${hour}:${minute}`;
                           })()
@@ -1401,7 +1401,7 @@ export default function TaskDetail() {
                         const user = (users as SafeUser[])?.find(
                           (u: SafeUser) =>
                             u.id === task.lastUpdatedBy ||
-                            u.username === task.lastUpdatedBy
+                            u.username === task.lastUpdatedBy,
                         );
                         return user?.name || task.lastUpdatedBy;
                       })()}
@@ -1416,16 +1416,16 @@ export default function TaskDetail() {
                             const year = date.getFullYear();
                             const month = String(date.getMonth() + 1).padStart(
                               2,
-                              "0"
+                              "0",
                             );
                             const day = String(date.getDate()).padStart(2, "0");
                             const hour = String(date.getHours()).padStart(
                               2,
-                              "0"
+                              "0",
                             );
                             const minute = String(date.getMinutes()).padStart(
                               2,
-                              "0"
+                              "0",
                             );
                             return `${year}년 ${month}월 ${day}일 ${hour}:${minute}`;
                           })()

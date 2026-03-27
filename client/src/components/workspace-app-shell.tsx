@@ -23,6 +23,7 @@ import Diagnostic from "@/pages/diagnostic";
 import Reporting from "@/pages/reporting";
 import ReportList from "@/pages/report-list";
 import Business from "@/pages/business";
+import { checkAuthStatus } from "@/lib/auth";
 
 export function WorkspaceAppShell() {
   const [, setLocation] = useLocation();
@@ -33,7 +34,15 @@ export function WorkspaceAppShell() {
 
   useEffect(() => {
     const checkAccess = async () => {
-      const userEmail = localStorage.getItem("userEmail");
+      // 서버에 HTTP-Only 쿠키 기반 인증 상태 확인
+      const authUser = await checkAuthStatus();
+      if (!authUser) {
+        // 쿠키가 없거나 만료된 경우 로그인 페이지로 이동
+        setLocation("/login");
+        return;
+      }
+
+      const userEmail = authUser.email || localStorage.getItem("userEmail");
       if (!userEmail) {
         setLocation("/workspace");
         return;

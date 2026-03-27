@@ -94,7 +94,7 @@ export default function ReportList() {
       return response.data;
     },
     enabled: !!workspaceId,
-    refetchInterval: userAdmin ? false : 5000,
+    refetchInterval: false
   });
 
   const deleteMutation = useMutation({
@@ -158,7 +158,7 @@ export default function ReportList() {
       };
 
       setReportData(freshData);
-      console.log('freshData', freshData)
+      console.log("freshData", freshData);
       setIsInitialized(true);
 
       setSelectedFile(null); // 상태값 비우기
@@ -195,15 +195,41 @@ export default function ReportList() {
   ]);
   ////
 
+  ///
+  const getTitleDate = (title: string) => {
+    const match = title.match(/\d{4}-\d{2}-\d{2}/); // "2026-03-16" 패턴 찾기
+    return match ? new Date(match[0]).getTime() : 0;
+  };
+
+  // 2. 데이터를 날짜 기준으로 정렬 (최신순: 내림차순)
+  const sortedHistory = useMemo(() => {
+    if (!diagnosticHistory) return [];
+
+    return [...diagnosticHistory].sort((a, b) => {
+      const dateA = getTitleDate(a.content.title || "");
+      const dateB = getTitleDate(b.content.title || "");
+
+      // 날짜가 같거나 없는 경우 생성일(createdAt)로 2차 정렬
+      if (dateA === dateB) {
+        return (
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+      }
+
+      return dateB - dateA; // 최신 날짜가 위로 오도록 내림차순 정렬
+    });
+  }, [diagnosticHistory]);
+  ///
+
   const [reportPage, setReportPage] = useState(1);
 
   const itemsPerReportPage = userAdmin ? 5 : 8;
 
   const reportTotalPages = Math.ceil(
-    (diagnosticHistory?.length || 0) / itemsPerReportPage,
+    (sortedHistory?.length || 0) / itemsPerReportPage,
   );
 
-  const currentReportData = diagnosticHistory?.slice(
+  const currentReportData = sortedHistory?.slice(
     (reportPage - 1) * itemsPerReportPage,
     reportPage * itemsPerReportPage,
   );
@@ -457,13 +483,16 @@ export default function ReportList() {
                             ...JSON.parse(JSON.stringify(history.content)),
                             id: history.id, // [중요] 보고서의 실제 DB ID를 객체에 포함
                             // period: history.content.period,
-                          };;
+                          };
                           setReportData(selectedData);
                         }}
                       >
                         <div className="flex">
                           <span className="text-[10px] text-muted-foreground font-medium">
-                            {new Date(history.createdAt).toLocaleString()}
+                            {/* {new Date(history.createdAt).toLocaleString()} */}
+                            {history.content.title?.match(
+                              /\d{4}-\d{2}-\d{2}/,
+                            )?.[0] || "No Date"}
                           </span>
                         </div>
                         <div className="flex items-center h-full">
@@ -591,9 +620,9 @@ export default function ReportList() {
                                 Verified
                               </div>
                               <div className="text-xs font-bold text-slate-500 group-hover:text-slate-300 transition-colors">
-                                {new Date(
-                                  history.createdAt,
-                                ).toLocaleDateString()}
+                                {history.content.title?.match(
+                                  /\d{4}-\d{2}-\d{2}/,
+                                )?.[0] || "No Date"}
                               </div>
                             </div>
                           </div>

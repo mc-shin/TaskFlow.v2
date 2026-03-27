@@ -501,14 +501,14 @@ export default function GoalDetail() {
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
-                    <AlertDialogTitle>app.riido.io 내용:</AlertDialogTitle>
-                    <AlertDialogDescription className="text-left">
-                      <div className="space-y-2">
-                        <div>[-] 목표를 삭제하시겠습니까?</div>
+                    <AlertDialogTitle><div className="space-y-2">
+                        <div>'{goal.title}' 목표를 삭제하시겠습니까?</div>
                         <div className="text-sm text-muted-foreground">
                           해당 목표의 모든 작업이 함께 삭제됩니다.
                         </div>
-                      </div>
+                      </div></AlertDialogTitle>
+                    <AlertDialogDescription>
+                      &nbsp;
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>

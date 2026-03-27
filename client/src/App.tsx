@@ -9,9 +9,11 @@ import { LoginPage } from "@/pages/login";
 import { SignupPage } from "@/pages/signup";
 import { WorkspacePage } from "@/pages/workspace";
 import NotFound from "@/pages/not-found";
+import { useSessionWarning } from "./hooks/use-sessionwarning";
+import SessionWarningModal from "./components/sessionWarning-modal";
+import { SessionContext } from "./contexts/session-context";
 
 function Router() {
-
   return (
     <Switch>
       <Route path="/" component={Landing} />
@@ -27,13 +29,33 @@ function Router() {
 }
 
 function App() {
+  // return (
+  //   <QueryClientProvider client={queryClient}>
+  //     <TooltipProvider>
+  //       <div className="dark">
+  //         <Toaster />
+  //         <Router />
+  //       </div>
+  //     </TooltipProvider>
+  //   </QueryClientProvider>
+  // );
+  const { visible, remainingSeconds, startTimer, expiresAt, extendSession, dismiss } = useSessionWarning();
+
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <div className="dark">
-          <Toaster />
-          <Router />
-        </div>
+        <SessionContext.Provider value={{ startTimer, expiresAt }}>
+          <div className="dark">
+            <Toaster />
+            <SessionWarningModal
+              visible={visible}
+              remainingSeconds={remainingSeconds}
+              onExtend={extendSession}
+              onDismiss={dismiss}
+            />
+            <Router />
+          </div>
+        </SessionContext.Provider>
       </TooltipProvider>
     </QueryClientProvider>
   );

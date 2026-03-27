@@ -24,6 +24,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { CheckSquare, Eye, EyeOff, AlertCircle } from "lucide-react";
 import api from "@/api/api-index";
 import axios, { AxiosError } from "axios";
+import { saveUserInfo } from "@/lib/auth";
+import { useSession } from "@/contexts/session-context";
 
 const loginSchema = z.object({
   email: z
@@ -47,6 +49,7 @@ type LoginForm = z.infer<typeof loginSchema>;
 
 export function LoginPage() {
   const [, setLocation] = useLocation();
+  const { startTimer } = useSession();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -70,15 +73,22 @@ export function LoginPage() {
         password: data.password,
       });
 
-      const user = response.data;
+      const loginData = response.data;
 
-      // 로그인 상태와 사용자 정보를 localStorage에 저장
-      localStorage.setItem("isLoggedIn", "true");
-      localStorage.setItem("userEmail", data.email);
-      localStorage.setItem("userId", user.id);
-      localStorage.setItem("userName", user.name);
-      localStorage.setItem("userInitials", user.initials);
-      localStorage.setItem("userRole", user.role);
+      // JWT 토큰은 서버가 HTTP-Only Cookie로 설정 (Set-Cookie 헤더)
+      // 프론트엔드에서는 토큰을 직접 다루지 않음 → XSS 공격으로부터 토큰 보호
+      // localStorage에는 UI 표시용 사용자 정보만 저장
+      const user = loginData.user || loginData;
+      saveUserInfo({
+        id: user.id,
+        name: user.name,
+        email: user.email || data.email,
+        initials: user.initials,
+        role: user.role,
+      });
+
+      // 세션 만료 타이머 시작
+      startTimer(loginData.expiresIn);
 
       // 워크스페이스 관리 페이지로 이동
       setLocation("/workspace");

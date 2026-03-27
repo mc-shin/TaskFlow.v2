@@ -25,6 +25,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { SafeUser } from "@shared/schema";
 import api from "@/api/api-index";
 import { Card, CardContent } from "./ui/card";
+import { SessionTimer } from "./session-timer";
 
 interface SidebarProps {
   workspaceId?: string;
@@ -160,368 +161,418 @@ export function Sidebar({ workspaceId }: SidebarProps) {
     }
   }, [users]);
 
+  const isFullyLoaded = !isLoadingWorkspaces && !!currentUser;
+
   return (
     <div
       className="w-64 bg-card border-r border-border flex flex-col"
       data-testid="sidebar"
     >
-      {/* Logo/Header */}
-      <div className="p-4 border-b border-border">
-        <div
-          className="flex items-center space-x-2 cursor-pointer hover:opacity-80 transition-opacity"
-          data-testid="link-home-logo"
-          onClick={() => {
-            // 로그인 상태 확인 후 적절한 페이지로 이동
-            const isLoggedIn = localStorage.getItem("isLoggedIn") === "true";
-            if (isLoggedIn) {
-              setLocation("/workspace");
-            } else {
-              setLocation("/");
-            }
-          }}
-        >
-          <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-            <CheckSquare className="h-4 w-4 text-primary-foreground" />
+      {!isFullyLoaded ? (
+        // 로딩 스켈레톤
+        <div className="flex flex-col h-full">
+          <div className="p-4 border-b border-border">
+            <div className="flex items-center space-x-2">
+              <div className="w-8 h-8 bg-muted rounded-lg animate-pulse"></div>
+              <div className="h-5 w-28 bg-muted rounded animate-pulse"></div>
+            </div>
           </div>
-          <span className="font-semibold text-lg" data-testid="text-logo">
-            {isLoadingWorkspaces ? (
-              <CardContent className="h-1 bg-muted rounded animate-pulse"></CardContent>
-            ) : (
-              <div>{workspaceName}</div>
-            )}
-          </span>
-        </div>
-      </div>
-
-      {/* Navigation */}
-      <nav className="flex-1 p-4 space-y-1" data-testid="nav-menu">
-        {/* 대시보드 섹션 */}
-        <div>
-          <Button
-            variant="ghost"
-            className="w-full justify-between p-2 h-auto text-left"
-            onClick={() => toggleSection("dashboard")}
-            data-testid="button-dashboard-section"
-          >
+          <nav className="flex-1 p-4 space-y-3">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="space-y-2">
+                <div className="h-8 bg-muted rounded animate-pulse"></div>
+                <div className="ml-6 space-y-1">
+                  <div className="h-6 bg-muted/50 rounded animate-pulse"></div>
+                  <div className="h-6 bg-muted/50 rounded animate-pulse"></div>
+                </div>
+              </div>
+            ))}
+          </nav>
+          <div className="p-4 border-t border-border">
             <div className="flex items-center space-x-2">
-              <Home className="h-4 w-4" />
-              <span className="font-medium">대시보드</span>
+              <div className="w-8 h-8 bg-muted rounded-full animate-pulse"></div>
+              <div className="space-y-1">
+                <div className="h-4 w-16 bg-muted rounded animate-pulse"></div>
+                <div className="h-3 w-10 bg-muted rounded animate-pulse"></div>
+              </div>
             </div>
-            {isExpanded("dashboard") ? (
-              <ChevronDown className="h-4 w-4" />
-            ) : (
-              <ChevronRight className="h-4 w-4" />
-            )}
-          </Button>
-
-          {isExpanded("dashboard") && (
-            <div className="ml-6 mt-1 space-y-1">
-              <Link href={`${basePath}/team`}>
-                <Button
-                  variant={
-                    location === `${basePath}/team` ? "default" : "ghost"
-                  }
-                  className={`w-full justify-start space-x-3 h-8 ${
-                    location === `${basePath}/team`
-                      ? "text-white hover:bg-primary"
-                      : "text-muted-foreground hover:text-accent-foreground"
-                  }`}
-                  data-testid="link-team"
-                >
-                  <Users className="h-4 w-4" />
-                  <span>팀</span>
-                </Button>
-              </Link>
-              {currentUser?.role === "관리자" && (
-                <Link href={`${basePath}/admin`}>
-                  <Button
-                    variant={
-                      location === `${basePath}/admin` ? "default" : "ghost"
-                    }
-                    className={`w-full justify-start space-x-3 h-8 ${
-                      location === `${basePath}/admin`
-                        ? "bg-primary text-white hover:bg-primary"
-                        : "text-muted-foreground hover:text-accent-foreground"
-                    }`}
-                    data-testid="link-admin"
-                  >
-                    <Settings className="h-4 w-4" />
-                    <span>관리자</span>
-                  </Button>
-                </Link>
-              )}
-              {currentUser?.role === "관리자" && (
-                <Link href={`${basePath}/diagnostic`}>
-                  <Button
-                    variant={
-                      location === `${basePath}/diagnostic`
-                        ? "default"
-                        : "ghost"
-                    }
-                    className={`w-full justify-start space-x-3 h-8 ${
-                      location === `${basePath}/diagnostic`
-                        ? "bg-primary text-white hover:bg-primary"
-                        : "text-muted-foreground hover:text-accent-foreground"
-                    }`}
-                    data-testid="link-diagnostic"
-                  >
-                    <FileText className="h-4 w-4" />
-                    <span>AI 진단 리포트</span>
-                  </Button>
-                </Link>
-              )}
-            </div>
-          )}
+          </div>
         </div>
-
-        {/* 작업관리 섹션 */}
-        <div className="pt-2">
-          <Button
-            variant="ghost"
-            className="w-full justify-between p-2 h-auto text-left"
-            onClick={() => toggleSection("work-management")}
-            data-testid="button-work-management-section"
-          >
-            <div className="flex items-center space-x-2">
-              <List className="h-4 w-4" />
-              <span className="font-medium">작업관리</span>
-            </div>
-            {isExpanded("work-management") ? (
-              <ChevronDown className="h-4 w-4" />
-            ) : (
-              <ChevronRight className="h-4 w-4" />
-            )}
-          </Button>
-
-          {isExpanded("work-management") && (
-            <div className="ml-6 mt-1 space-y-1">
-              <Link href={`${basePath}/list`}>
-                <Button
-                  variant={
-                    location === `${basePath}/list` ? "default" : "ghost"
-                  }
-                  className={`w-full justify-start space-x-3 h-8 ${
-                    location === `${basePath}/list`
-                      ? "bg-primary text-white hover:bg-primary"
-                      : "text-muted-foreground hover:text-accent-foreground"
-                  }`}
-                  data-testid="link-list"
-                >
-                  <List className="h-4 w-4" />
-                  <span>리스트</span>
-                </Button>
-              </Link>
-              <Link href={`${basePath}/kanban`}>
-                <Button
-                  variant={
-                    location === `${basePath}/kanban` ? "default" : "ghost"
-                  }
-                  className={`w-full justify-start space-x-3 h-8 ${
-                    location === `${basePath}/kanban`
-                      ? "bg-primary text-white hover:bg-primary"
-                      : "text-muted-foreground hover:text-accent-foreground"
-                  }`}
-                  data-testid="link-kanban"
-                >
-                  <GitBranch className="h-4 w-4" />
-                  <span>칸반</span>
-                </Button>
-              </Link>
-              <Link href={`${basePath}/priority`}>
-                <Button
-                  variant={
-                    location === `${basePath}/priority` ? "default" : "ghost"
-                  }
-                  className={`w-full justify-start space-x-3 h-8 ${
-                    location === `${basePath}/priority`
-                      ? "bg-primary text-white hover:bg-primary"
-                      : "text-muted-foreground hover:text-accent-foreground"
-                  }`}
-                  data-testid="link-priority"
-                >
-                  <Star className="h-4 w-4" />
-                  <span>우선순위</span>
-                </Button>
-              </Link>
-            </div>
-          )}
-        </div>
-
-        {/* 미팅 섹션 */}
-        <div className="pt-2">
-          <Button
-            variant="ghost"
-            className="w-full justify-between p-2 h-auto text-left"
-            onClick={() => toggleSection("meeting")}
-            data-testid="button-meeting-section"
-          >
-            <div className="flex items-center space-x-2">
-              <MessageSquare className="h-4 w-4" />
-              <span className="font-medium">미팅</span>
-            </div>
-            {isExpanded("meeting") ? (
-              <ChevronDown className="h-4 w-4" />
-            ) : (
-              <ChevronRight className="h-4 w-4" />
-            )}
-          </Button>
-
-          {isExpanded("meeting") && (
-            <div className="ml-6 mt-1 space-y-1">
-              <Link href={`${basePath}/meeting`}>
-                <Button
-                  variant={
-                    location === `${basePath}/meeting` ? "default" : "ghost"
-                  }
-                  className={`w-full justify-start space-x-3 h-8 ${
-                    location === `${basePath}/meeting`
-                      ? "bg-primary text-white hover:bg-primary"
-                      : "text-muted-foreground hover:text-accent-foreground"
-                  }`}
-                  data-testid="link-meeting"
-                >
-                  <Calendar className="h-4 w-4" />
-                  <span>미팅</span>
-                </Button>
-              </Link>
-            </div>
-          )}
-        </div>
-
-        {/* 보고 섹션 */}
-        <div className="pt-2">
-          <Button
-            variant="ghost"
-            className="w-full justify-between p-2 h-auto text-left"
-            onClick={() => toggleSection("reporting")}
-            data-testid="button-reporting-section"
-          >
-            <div className="flex items-center space-x-2">
-              <FileTextIcon className="h-4 w-4" />
-              <span className="font-medium">보고</span>
-            </div>
-            {isExpanded("reporting") ? (
-              <ChevronDown className="h-4 w-4" />
-            ) : (
-              <ChevronRight className="h-4 w-4" />
-            )}
-          </Button>
-
-          {isExpanded("reporting") && (
-            <div className="ml-6 mt-1 space-y-1">
-              <Link href={`${basePath}/reporting`}>
-                <Button
-                  variant={
-                    location === `${basePath}/reporting` ? "default" : "ghost"
-                  }
-                  className={`w-full justify-start space-x-3 h-8 ${
-                    location === `${basePath}/reporting`
-                      ? "bg-primary text-white hover:bg-primary"
-                      : "text-muted-foreground hover:text-accent-foreground"
-                  }`}
-                  data-testid="link-reporting"
-                >
-                  <Files className="h-4 w-4" />
-                  <span>주간 보고</span>
-                </Button>
-              </Link>
-            </div>
-          )}
-
-          {isExpanded("report-list") && (
-            <div className="ml-6 mt-1 space-y-1">
-              <Link href={`${basePath}/report-list`}>
-                <Button
-                  variant={
-                    location === `${basePath}/report-list` ? "default" : "ghost"
-                  }
-                  className={`w-full justify-start space-x-3 h-8 ${
-                    location === `${basePath}/report-list`
-                      ? "bg-primary text-white hover:bg-primary"
-                      : "text-muted-foreground hover:text-accent-foreground"
-                  }`}
-                  data-testid="link-report-list"
-                >
-                  <FileStack className="h-4 w-4" />
-                  <span>보고서 리스트</span>
-                </Button>
-              </Link>
-            </div>
-          )}
-        </div>
-
-        {/* 사업 섹션 */}
-        <div className="pt-2">
-          <Button
-            variant="ghost"
-            className="w-full justify-between p-2 h-auto text-left"
-            onClick={() => toggleSection("business")}
-            data-testid="button-reporting-section"
-          >
-            <div className="flex items-center space-x-2">
-              <BriefcaseBusiness className="h-4 w-4" />
-              <span className="font-medium">사업</span>
-            </div>
-            {isExpanded("business") ? (
-              <ChevronDown className="h-4 w-4" />
-            ) : (
-              <ChevronRight className="h-4 w-4" />
-            )}
-          </Button>
-
-          {isExpanded("business") && (
-            <div className="ml-6 mt-1 space-y-1">
-              <Link href={`${basePath}/business`}>
-                <Button
-                  variant={
-                    location === `${basePath}/business` ? "default" : "ghost"
-                  }
-                  className={`w-full justify-start space-x-3 h-8 ${
-                    location === `${basePath}/business`
-                      ? "bg-primary text-white hover:bg-primary"
-                      : "text-muted-foreground hover:text-accent-foreground"
-                  }`}
-                  data-testid="link-business"
-                >
-                  <Handshake className="h-4 w-4" />
-                  <span>지원 사업</span>
-                </Button>
-              </Link>
-            </div>
-          )}
-        </div>
-      </nav>
-
-      {/* User Profile */}
-      <Link href={`${basePath}/mypage`}>
-        <div
-          className="p-4 border-t border-border cursor-pointer hover:bg-sidebar-accent"
-          data-testid="user-profile"
-        >
-          <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
-              <span className="text-sm text-primary-foreground font-medium">
-                {currentUser?.initials ||
-                  localStorage.getItem("userInitials") ||
-                  "사"}
+      ) : (
+        <>
+          {/* Logo/Header */}
+          <div className="p-4 border-b border-border">
+            <div
+              className="flex items-center space-x-2 cursor-pointer hover:opacity-80 transition-opacity"
+              data-testid="link-home-logo"
+              onClick={() => {
+                // 로그인 상태 확인 후 적절한 페이지로 이동
+                const isLoggedIn =
+                  localStorage.getItem("isLoggedIn") === "true";
+                if (isLoggedIn) {
+                  setLocation("/workspace");
+                } else {
+                  setLocation("/");
+                }
+              }}
+            >
+              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+                <CheckSquare className="h-4 w-4 text-primary-foreground" />
+              </div>
+              <span className="font-semibold text-lg" data-testid="text-logo">
+                {isLoadingWorkspaces ? (
+                  <CardContent className="h-1 bg-muted rounded animate-pulse"></CardContent>
+                ) : (
+                  <div>{workspaceName}</div>
+                )}
               </span>
             </div>
+          </div>
+
+          {/* Navigation */}
+          <nav className="flex-1 p-4 space-y-1" data-testid="nav-menu">
+            {/* 대시보드 섹션 */}
             <div>
-              <div className="text-sm font-medium" data-testid="text-username">
-                {currentUser?.name ||
-                  localStorage.getItem("userName") ||
-                  "사용자"}
-              </div>
-              <div
-                className="text-xs text-muted-foreground"
-                data-testid="text-user-role"
+              <Button
+                variant="ghost"
+                className="w-full justify-between p-2 h-auto text-left"
+                onClick={() => toggleSection("dashboard")}
+                data-testid="button-dashboard-section"
               >
-                {currentUser?.role || "팀원"}
+                <div className="flex items-center space-x-2">
+                  <Home className="h-4 w-4" />
+                  <span className="font-medium">대시보드</span>
+                </div>
+                {isExpanded("dashboard") ? (
+                  <ChevronDown className="h-4 w-4" />
+                ) : (
+                  <ChevronRight className="h-4 w-4" />
+                )}
+              </Button>
+
+              {isExpanded("dashboard") && (
+                <div className="ml-6 mt-1 space-y-1">
+                  <Link href={`${basePath}/team`}>
+                    <Button
+                      variant={
+                        location === `${basePath}/team` ? "default" : "ghost"
+                      }
+                      className={`w-full justify-start space-x-3 h-8 ${
+                        location === `${basePath}/team`
+                          ? "text-white hover:bg-primary"
+                          : "text-muted-foreground hover:text-accent-foreground"
+                      }`}
+                      data-testid="link-team"
+                    >
+                      <Users className="h-4 w-4" />
+                      <span>팀</span>
+                    </Button>
+                  </Link>
+                  {currentUser?.role === "관리자" && (
+                    <Link href={`${basePath}/admin`}>
+                      <Button
+                        variant={
+                          location === `${basePath}/admin` ? "default" : "ghost"
+                        }
+                        className={`w-full justify-start space-x-3 h-8 ${
+                          location === `${basePath}/admin`
+                            ? "bg-primary text-white hover:bg-primary"
+                            : "text-muted-foreground hover:text-accent-foreground"
+                        }`}
+                        data-testid="link-admin"
+                      >
+                        <Settings className="h-4 w-4" />
+                        <span>관리자</span>
+                      </Button>
+                    </Link>
+                  )}
+                  {currentUser?.role === "관리자" && (
+                    <Link href={`${basePath}/diagnostic`}>
+                      <Button
+                        variant={
+                          location === `${basePath}/diagnostic`
+                            ? "default"
+                            : "ghost"
+                        }
+                        className={`w-full justify-start space-x-3 h-8 ${
+                          location === `${basePath}/diagnostic`
+                            ? "bg-primary text-white hover:bg-primary"
+                            : "text-muted-foreground hover:text-accent-foreground"
+                        }`}
+                        data-testid="link-diagnostic"
+                      >
+                        <FileText className="h-4 w-4" />
+                        <span>AI 진단 리포트</span>
+                      </Button>
+                    </Link>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* 작업관리 섹션 */}
+            <div className="pt-2">
+              <Button
+                variant="ghost"
+                className="w-full justify-between p-2 h-auto text-left"
+                onClick={() => toggleSection("work-management")}
+                data-testid="button-work-management-section"
+              >
+                <div className="flex items-center space-x-2">
+                  <List className="h-4 w-4" />
+                  <span className="font-medium">작업관리</span>
+                </div>
+                {isExpanded("work-management") ? (
+                  <ChevronDown className="h-4 w-4" />
+                ) : (
+                  <ChevronRight className="h-4 w-4" />
+                )}
+              </Button>
+
+              {isExpanded("work-management") && (
+                <div className="ml-6 mt-1 space-y-1">
+                  <Link href={`${basePath}/list`}>
+                    <Button
+                      variant={
+                        location === `${basePath}/list` ? "default" : "ghost"
+                      }
+                      className={`w-full justify-start space-x-3 h-8 ${
+                        location === `${basePath}/list`
+                          ? "bg-primary text-white hover:bg-primary"
+                          : "text-muted-foreground hover:text-accent-foreground"
+                      }`}
+                      data-testid="link-list"
+                    >
+                      <List className="h-4 w-4" />
+                      <span>리스트</span>
+                    </Button>
+                  </Link>
+                  <Link href={`${basePath}/kanban`}>
+                    <Button
+                      variant={
+                        location === `${basePath}/kanban` ? "default" : "ghost"
+                      }
+                      className={`w-full justify-start space-x-3 h-8 ${
+                        location === `${basePath}/kanban`
+                          ? "bg-primary text-white hover:bg-primary"
+                          : "text-muted-foreground hover:text-accent-foreground"
+                      }`}
+                      data-testid="link-kanban"
+                    >
+                      <GitBranch className="h-4 w-4" />
+                      <span>칸반</span>
+                    </Button>
+                  </Link>
+                  <Link href={`${basePath}/priority`}>
+                    <Button
+                      variant={
+                        location === `${basePath}/priority`
+                          ? "default"
+                          : "ghost"
+                      }
+                      className={`w-full justify-start space-x-3 h-8 ${
+                        location === `${basePath}/priority`
+                          ? "bg-primary text-white hover:bg-primary"
+                          : "text-muted-foreground hover:text-accent-foreground"
+                      }`}
+                      data-testid="link-priority"
+                    >
+                      <Star className="h-4 w-4" />
+                      <span>우선순위</span>
+                    </Button>
+                  </Link>
+                </div>
+              )}
+            </div>
+
+            {/* 미팅 섹션 */}
+            <div className="pt-2">
+              <Button
+                variant="ghost"
+                className="w-full justify-between p-2 h-auto text-left"
+                onClick={() => toggleSection("meeting")}
+                data-testid="button-meeting-section"
+              >
+                <div className="flex items-center space-x-2">
+                  <MessageSquare className="h-4 w-4" />
+                  <span className="font-medium">미팅</span>
+                </div>
+                {isExpanded("meeting") ? (
+                  <ChevronDown className="h-4 w-4" />
+                ) : (
+                  <ChevronRight className="h-4 w-4" />
+                )}
+              </Button>
+
+              {isExpanded("meeting") && (
+                <div className="ml-6 mt-1 space-y-1">
+                  <Link href={`${basePath}/meeting`}>
+                    <Button
+                      variant={
+                        location === `${basePath}/meeting` ? "default" : "ghost"
+                      }
+                      className={`w-full justify-start space-x-3 h-8 ${
+                        location === `${basePath}/meeting`
+                          ? "bg-primary text-white hover:bg-primary"
+                          : "text-muted-foreground hover:text-accent-foreground"
+                      }`}
+                      data-testid="link-meeting"
+                    >
+                      <Calendar className="h-4 w-4" />
+                      <span>미팅</span>
+                    </Button>
+                  </Link>
+                </div>
+              )}
+            </div>
+
+            {/* 보고 섹션 */}
+            <div className="pt-2">
+              <Button
+                variant="ghost"
+                className="w-full justify-between p-2 h-auto text-left"
+                onClick={() => toggleSection("reporting")}
+                data-testid="button-reporting-section"
+              >
+                <div className="flex items-center space-x-2">
+                  <FileTextIcon className="h-4 w-4" />
+                  <span className="font-medium">보고</span>
+                </div>
+                {isExpanded("reporting") ? (
+                  <ChevronDown className="h-4 w-4" />
+                ) : (
+                  <ChevronRight className="h-4 w-4" />
+                )}
+              </Button>
+
+              {isExpanded("reporting") && (
+                <div className="ml-6 mt-1 space-y-1">
+                  <Link href={`${basePath}/reporting`}>
+                    <Button
+                      variant={
+                        location === `${basePath}/reporting`
+                          ? "default"
+                          : "ghost"
+                      }
+                      className={`w-full justify-start space-x-3 h-8 ${
+                        location === `${basePath}/reporting`
+                          ? "bg-primary text-white hover:bg-primary"
+                          : "text-muted-foreground hover:text-accent-foreground"
+                      }`}
+                      data-testid="link-reporting"
+                    >
+                      <Files className="h-4 w-4" />
+                      <span>주간 보고</span>
+                    </Button>
+                  </Link>
+                </div>
+              )}
+
+              {isExpanded("report-list") && (
+                <div className="ml-6 mt-1 space-y-1">
+                  <Link href={`${basePath}/report-list`}>
+                    <Button
+                      variant={
+                        location === `${basePath}/report-list`
+                          ? "default"
+                          : "ghost"
+                      }
+                      className={`w-full justify-start space-x-3 h-8 ${
+                        location === `${basePath}/report-list`
+                          ? "bg-primary text-white hover:bg-primary"
+                          : "text-muted-foreground hover:text-accent-foreground"
+                      }`}
+                      data-testid="link-report-list"
+                    >
+                      <FileStack className="h-4 w-4" />
+                      <span>보고서 리스트</span>
+                    </Button>
+                  </Link>
+                </div>
+              )}
+            </div>
+
+            {/* 사업 섹션 */}
+            <div className="pt-2">
+              <Button
+                variant="ghost"
+                className="w-full justify-between p-2 h-auto text-left"
+                onClick={() => toggleSection("business")}
+                data-testid="button-reporting-section"
+              >
+                <div className="flex items-center space-x-2">
+                  <BriefcaseBusiness className="h-4 w-4" />
+                  <span className="font-medium">사업</span>
+                </div>
+                {isExpanded("business") ? (
+                  <ChevronDown className="h-4 w-4" />
+                ) : (
+                  <ChevronRight className="h-4 w-4" />
+                )}
+              </Button>
+
+              {isExpanded("business") && (
+                <div className="ml-6 mt-1 space-y-1">
+                  <Link href={`${basePath}/business`}>
+                    <Button
+                      variant={
+                        location === `${basePath}/business`
+                          ? "default"
+                          : "ghost"
+                      }
+                      className={`w-full justify-start space-x-3 h-8 ${
+                        location === `${basePath}/business`
+                          ? "bg-primary text-white hover:bg-primary"
+                          : "text-muted-foreground hover:text-accent-foreground"
+                      }`}
+                      data-testid="link-business"
+                    >
+                      <Handshake className="h-4 w-4" />
+                      <span>지원 사업</span>
+                    </Button>
+                  </Link>
+                </div>
+              )}
+            </div>
+          </nav>
+
+          {/* User Profile */}
+          <Link
+            className="flex p-4 border-t border-border cursor-pointer hover:bg-sidebar-accent justify-between"
+            href={`${basePath}/mypage`}
+          >
+            <div data-testid="user-profile">
+              <div className="flex items-center space-x-2">
+                <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
+                  <span className="text-sm text-primary-foreground font-medium">
+                    {currentUser?.initials ||
+                      localStorage.getItem("userInitials") ||
+                      "사"}
+                  </span>
+                </div>
+                <div>
+                  <div
+                    className="text-sm font-medium"
+                    data-testid="text-username"
+                  >
+                    {currentUser?.name ||
+                      localStorage.getItem("userName") ||
+                      "사용자"}
+                  </div>
+                  <div
+                    className="text-xs text-muted-foreground"
+                    data-testid="text-user-role"
+                  >
+                    {currentUser?.role || "팀원"}
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        </div>
-      </Link>
+
+            <SessionTimer />
+          </Link>
+        </>
+      )}
     </div>
   );
 }

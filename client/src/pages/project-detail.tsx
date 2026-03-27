@@ -147,22 +147,21 @@ export default function ProjectDetail() {
     // queryKey: ["/api/attachments", "project", projectId],
     // enabled: !!projectId,
     queryKey: ["/api/attachments", workspaceId, "project", projectId],
-
     queryFn: async () => {
       // 2. 여기서 한 번 더 체크 (방어적 코드)
       if (!projectId) return [];
 
       const response = await api.get(
-        `/api/workspaces/${workspaceId}/attachments/project/${projectId}`
+        `/api/workspaces/${workspaceId}/attachments/project/${projectId}`,
       );
       return response.data;
     },
 
     enabled: !!workspaceId && !!projectId,
   });
-  console.log(attachments);
+
   const project = (projects as ProjectWithDetails[])?.find(
-    (p) => p.id === projectId
+    (p) => p.id === projectId,
   );
 
   // Update attached files when attachments are loaded
@@ -174,7 +173,7 @@ export default function ProjectDetail() {
           uploadURL: att.filePath,
           name: att.fileName,
           objectPath: att.filePath,
-        }))
+        })),
       );
     }
   }, [attachments]);
@@ -182,13 +181,13 @@ export default function ProjectDetail() {
   // Calculate statistics from goal tasks only (no direct project tasks)
   const goalTasks = project?.goals?.flatMap((goal) => goal.tasks || []) || [];
   const calculatedCompletedTasks = goalTasks.filter(
-    (task) => task.status === "완료"
+    (task) => task.status === "완료",
   );
   const calculatedInProgressTasks = goalTasks.filter(
-    (task) => task.status === "진행중"
+    (task) => task.status === "진행중",
   );
   const calculatedPendingTasks = goalTasks.filter(
-    (task) => task.status === "진행전"
+    (task) => task.status === "진행전",
   );
 
   // Calculate progress as "프로젝트 하위 목표 진행도 총합 / 목표 수"
@@ -202,18 +201,18 @@ export default function ProjectDetail() {
               goalTasks.length > 0
                 ? goalTasks.reduce(
                     (taskSum, task) => taskSum + (task.progress || 0),
-                    0
+                    0,
                   ) / goalTasks.length
                 : 0;
             return sum + goalProgress;
-          }, 0) / goals.length
+          }, 0) / goals.length,
         )
       : 0;
 
   // Calculate status based on progress percentage
   const getCalculatedStatus = (
     progress: number,
-    currentStatus?: string
+    currentStatus?: string,
   ): string => {
     // "이슈" 상태는 진행도와 상관없이 우선적으로 표시
     if (currentStatus === "이슈") {
@@ -234,7 +233,7 @@ export default function ProjectDetail() {
 
   const calculatedStatus = getCalculatedStatus(
     averageProgress,
-    project?.status || undefined
+    project?.status || undefined,
   );
 
   const updateProjectMutation = useMutation({
@@ -446,15 +445,16 @@ export default function ProjectDetail() {
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
-                    <AlertDialogTitle>app.riido.io 내용:</AlertDialogTitle>
-                    <AlertDialogDescription className="text-left">
+                    <AlertDialogTitle>
+                      {" "}
                       <div className="space-y-2">
-                        <div>[-] 프로젝트를 삭제하시겠습니까?</div>
+                        <div>'{project.name}' 프로젝트를 삭제하시겠습니까?</div>
                         <div className="text-sm text-muted-foreground">
                           해당 프로젝트의 모든 목표와 작업이 함께 삭제됩니다.
                         </div>
                       </div>
-                    </AlertDialogDescription>
+                    </AlertDialogTitle>
+                    <AlertDialogDescription>&nbsp;</AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>취소</AlertDialogCancel>
@@ -687,7 +687,7 @@ export default function ProjectDetail() {
                                             [];
                                           const updatedLabels =
                                             currentLabels.filter(
-                                              (_, i) => i !== index
+                                              (_, i) => i !== index,
                                             );
                                           setEditedProject((prev) => ({
                                             ...prev,
@@ -751,10 +751,10 @@ export default function ProjectDetail() {
                           calculatedStatus === "완료"
                             ? "default"
                             : calculatedStatus === "진행중"
-                            ? "secondary"
-                            : calculatedStatus === "이슈"
-                            ? "issue"
-                            : "outline"
+                              ? "secondary"
+                              : calculatedStatus === "이슈"
+                                ? "issue"
+                                : "outline"
                         }
                         data-testid="badge-project-status"
                       >
@@ -786,7 +786,7 @@ export default function ProjectDetail() {
                           <div className="flex items-center gap-2">
                             <span>
                               {new Date(project.deadline).toLocaleDateString(
-                                "ko-KR"
+                                "ko-KR",
                               )}
                             </span>
                             <span
@@ -794,8 +794,8 @@ export default function ProjectDetail() {
                                 calculateDDay(project.deadline).includes("D+")
                                   ? "bg-red-100 text-red-700"
                                   : calculateDDay(project.deadline) === "D-Day"
-                                  ? "bg-orange-100 text-orange-700"
-                                  : "bg-blue-100 text-blue-700"
+                                    ? "bg-orange-100 text-orange-700"
+                                    : "bg-blue-100 text-blue-700"
                               }`}
                             >
                               {calculateDDay(project.deadline)}
@@ -840,7 +840,7 @@ export default function ProjectDetail() {
                         // 1. 경로를 백엔드 라우터 규칙인 /api/workspaces/:workspaceId/objects/upload 에 맞춥니다.
                         const response = await api.post(
                           `/api/workspaces/${workspaceId}/objects/upload`,
-                          {}
+                          {},
                         );
 
                         const data = response.data;
@@ -889,7 +889,7 @@ export default function ProjectDetail() {
                                 filePath: file.objectPath,
                                 entityType: "project",
                                 entityId: projectId,
-                              }
+                              },
                             );
                           }
 
@@ -975,7 +975,7 @@ export default function ProjectDetail() {
                                         `/api/objects/${objectPath}`, // 서버 API 경로를 사용하도록 수정
                                         {
                                           responseType: "blob", // 👈 필수: 응답 타입을 Blob으로 설정
-                                        }
+                                        },
                                       );
 
                                       // 🚩 [수정] response.ok 체크 및 response.blob() 제거
@@ -1008,11 +1008,11 @@ export default function ProjectDetail() {
                                       if (file.id) {
                                         await apiRequest(
                                           "DELETE",
-                                          `/api/attachments/${file.id}`
+                                          `/api/attachments/${file.id}`,
                                         );
                                       }
                                       setAttachedFiles((prev) =>
-                                        prev.filter((_, i) => i !== index)
+                                        prev.filter((_, i) => i !== index),
                                       );
                                       toast({
                                         title: "파일 삭제 완료",
@@ -1184,7 +1184,7 @@ export default function ProjectDetail() {
                                 project.ownerIds ??
                                 [];
                               const isSelected = currentOwnerIds.includes(
-                                user.id
+                                user.id,
                               );
 
                               return (
@@ -1206,7 +1206,7 @@ export default function ProjectDetail() {
                                         newIds = [...currentIds, user.id];
                                       } else {
                                         newIds = currentIds.filter(
-                                          (id) => id !== user.id
+                                          (id) => id !== user.id,
                                         );
                                       }
 
@@ -1240,7 +1240,7 @@ export default function ProjectDetail() {
                       const ownerIds = project.ownerIds || [];
                       const owners = ownerIds
                         .map((id) =>
-                          (users as SafeUser[])?.find((u) => u.id === id)
+                          (users as SafeUser[])?.find((u) => u.id === id),
                         )
                         .filter(Boolean) as SafeUser[];
 
@@ -1364,7 +1364,7 @@ export default function ProjectDetail() {
                         const user = (users as SafeUser[])?.find(
                           (u: SafeUser) =>
                             u.id === project.createdBy ||
-                            u.username === project.createdBy
+                            u.username === project.createdBy,
                         );
                         return user?.name || project.createdBy;
                       })()}
@@ -1379,16 +1379,16 @@ export default function ProjectDetail() {
                             const year = date.getFullYear();
                             const month = String(date.getMonth() + 1).padStart(
                               2,
-                              "0"
+                              "0",
                             );
                             const day = String(date.getDate()).padStart(2, "0");
                             const hour = String(date.getHours()).padStart(
                               2,
-                              "0"
+                              "0",
                             );
                             const minute = String(date.getMinutes()).padStart(
                               2,
-                              "0"
+                              "0",
                             );
                             return `${year}년 ${month}월 ${day}일 ${hour}:${minute}`;
                           })()
@@ -1410,7 +1410,7 @@ export default function ProjectDetail() {
                         const user = (users as SafeUser[])?.find(
                           (u: SafeUser) =>
                             u.id === project.lastUpdatedBy ||
-                            u.username === project.lastUpdatedBy
+                            u.username === project.lastUpdatedBy,
                         );
                         return user?.name || project.lastUpdatedBy;
                       })()}
@@ -1425,16 +1425,16 @@ export default function ProjectDetail() {
                             const year = date.getFullYear();
                             const month = String(date.getMonth() + 1).padStart(
                               2,
-                              "0"
+                              "0",
                             );
                             const day = String(date.getDate()).padStart(2, "0");
                             const hour = String(date.getHours()).padStart(
                               2,
-                              "0"
+                              "0",
                             );
                             const minute = String(date.getMinutes()).padStart(
                               2,
-                              "0"
+                              "0",
                             );
                             return `${year}년 ${month}월 ${day}일 ${hour}:${minute}`;
                           })()
